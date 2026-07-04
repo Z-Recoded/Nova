@@ -1,0 +1,27 @@
+# Secrets
+.env
+
+# Virtual environment
+nova-env/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Chroma vector DB (local data, not for version control)
+memory/
+
+# Runtime logs
+logs/
+
+# Conversation history (personal chat content, regenerated at runtime)
+history.json
+
+# Windows OS artifact
+desktop.ini
+
+# Claude Code local settings (personal, not shared)
+.claude/settings.local.json
+
+# Stray download, not project source
+drive-download-20260702T030658Z-3-001.zip

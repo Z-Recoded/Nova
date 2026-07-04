@@ -1,0 +1,3053 @@
+{
+  "nodes": [
+    {
+      "id": "A Small Aside.md",
+      "title": "A Small Aside",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Advanced Algorithms - Chapt 1.md",
+      "title": "Advanced Algorithms - Chapt 1",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Advanced Algorithms - Chapt 2.md",
+      "title": "Advanced Algorithms - Chapt 2",
+      "project": "Second Brain",
+      "chunk_count": 5
+    },
+    {
+      "id": "Advanced Algorithms - Chapt 3.md",
+      "title": "Advanced Algorithms - Chapt 3",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Advanced Algorithms - Chapt 4.md",
+      "title": "Advanced Algorithms - Chapt 4",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Advanced Algorithms - Chapt 5.md",
+      "title": "Advanced Algorithms - Chapt 5",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Advanced Algorithms.md",
+      "title": "Advanced Algorithms",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Aerial Stepping.md",
+      "title": "Aerial Stepping",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Affiliate Marketing.md",
+      "title": "Affiliate Marketing",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "After the Duet.md",
+      "title": "After the Duet",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Alphabet Peg System.md",
+      "title": "Alphabet Peg System",
+      "project": "Second Brain",
+      "chunk_count": 8
+    },
+    {
+      "id": "American History.md",
+      "title": "American History",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Arc Breakdowns.md",
+      "title": "Arc Breakdowns",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Arc One.md",
+      "title": "Arc One",
+      "project": "Second Brain",
+      "chunk_count": 3
+    },
+    {
+      "id": "Arc Three.md",
+      "title": "Arc Three",
+      "project": "Second Brain",
+      "chunk_count": 7
+    },
+    {
+      "id": "Arc Two.md",
+      "title": "Arc Two",
+      "project": "Second Brain",
+      "chunk_count": 5
+    },
+    {
+      "id": "Artificial Intelligence and Machine Learning - Auburn Class.md",
+      "title": "Artificial Intelligence and Machine Learning - Auburn Class",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Aseir.md",
+      "title": "Aseir",
+      "project": "Second Brain",
+      "chunk_count": 6
+    },
+    {
+      "id": "Asier & Fatale.md",
+      "title": "Asier & Fatale",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "auth.py.md",
+      "title": "auth.py",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Automation and Scripting.md",
+      "title": "Automation and Scripting",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Barracks Briefing - Kel Vann & Lieutenants.md",
+      "title": "Barracks Briefing - Kel Vann & Lieutenants",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Beat.md",
+      "title": "Beat",
+      "project": "Second Brain",
+      "chunk_count": 4
+    },
+    {
+      "id": "Black History.md",
+      "title": "Black History",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Black Women's History.md",
+      "title": "Black Women's History",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Blocks.md",
+      "title": "Blocks",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Bond Manifestation.md",
+      "title": "Bond Manifestation",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Building and Scaling an Online Business.md",
+      "title": "Building and Scaling an Online Business",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Business Automation.md",
+      "title": "Business Automation",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "City Metaphor.md",
+      "title": "City Metaphor",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Classic Search Strategies Part 2.md",
+      "title": "Classic Search Strategies Part 2",
+      "project": "Second Brain",
+      "chunk_count": 8
+    },
+    {
+      "id": "Clock Management Tools.md",
+      "title": "Clock Management Tools",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Cocktails for Two.md",
+      "title": "Cocktails for Two",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Command Line Mastery.md",
+      "title": "Command Line Mastery",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Computer Architecture - Auburn Class.md",
+      "title": "Computer Architecture - Auburn Class",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Computer Evolution and Performance.md",
+      "title": "Computer Evolution and Performance",
+      "project": "Second Brain",
+      "chunk_count": 6
+    },
+    {
+      "id": "Content Creation.md",
+      "title": "Content Creation",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Content Management Tool.md",
+      "title": "Content Management Tool",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Control Mastery.md",
+      "title": "Control Mastery",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Core Gameplay Mechanics.md",
+      "title": "Core Gameplay Mechanics",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Core Technical Skills.md",
+      "title": "Core Technical Skills",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Cosmology.md",
+      "title": "Cosmology",
+      "project": "Second Brain",
+      "chunk_count": 3
+    },
+    {
+      "id": "Counting.md",
+      "title": "Counting",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "CPU structure.md",
+      "title": "CPU structure",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Creating a Vault.md",
+      "title": "Creating a Vault",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Creative Arts.md",
+      "title": "Creative Arts",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Cumulative Content Model.md",
+      "title": "Cumulative Content Model",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Cyber Security.md",
+      "title": "Cyber Security",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Dancing.md",
+      "title": "Dancing",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Data Types.md",
+      "title": "Data Types",
+      "project": "Second Brain",
+      "chunk_count": 3
+    },
+    {
+      "id": "Decorators.md",
+      "title": "Decorators",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Deep Processing.md",
+      "title": "Deep Processing",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Defensive Strategy.md",
+      "title": "Defensive Strategy",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Design Patterns.md",
+      "title": "Design Patterns",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Development Operations.md",
+      "title": "Development Operations",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Digital Logic Circuits.md",
+      "title": "Digital Logic Circuits",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Domain Specific Hash Codes.md",
+      "title": "Domain Specific Hash Codes",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Doomer Teto 4-Part Analysis.md",
+      "title": "Doomer Teto 4-Part Analysis",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Ending - The Choice.md",
+      "title": "Ending - The Choice",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Entrepreneurship & Business Development.md",
+      "title": "Entrepreneurship & Business Development",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Environment & Shortcuts.md",
+      "title": "Environment & Shortcuts",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Etsy Store.md",
+      "title": "Etsy Store",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Exam 1 - October 8.md",
+      "title": "Exam 1 - October 8",
+      "project": "Second Brain",
+      "chunk_count": 5
+    },
+    {
+      "id": "Exam 1 - September 30.md",
+      "title": "Exam 1 - September 30",
+      "project": "Second Brain",
+      "chunk_count": 6
+    },
+    {
+      "id": "Exam 2 - October 30.md",
+      "title": "Exam 2 - October 30",
+      "project": "Second Brain",
+      "chunk_count": 3
+    },
+    {
+      "id": "Faceless Instagram Pages.md",
+      "title": "Faceless Instagram Pages",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Fatale Wildman.md",
+      "title": "Fatale Wildman",
+      "project": "Second Brain",
+      "chunk_count": 3
+    },
+    {
+      "id": "Felicity Malik.md",
+      "title": "Felicity Malik",
+      "project": "Second Brain",
+      "chunk_count": 4
+    },
+    {
+      "id": "Felicity vs Selaya - Opening Exchange.md",
+      "title": "Felicity vs Selaya - Opening Exchange",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Felicity vs Selaya - Predator's First Strike.md",
+      "title": "Felicity vs Selaya - Predator's First Strike",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Felicity vs Selaya - The Finish.md",
+      "title": "Felicity vs Selaya - The Finish",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Final Exam - December 12.md",
+      "title": "Final Exam - December 12",
+      "project": "Second Brain",
+      "chunk_count": 4
+    },
+    {
+      "id": "Financial Freedom Roadmap.md",
+      "title": "Financial Freedom Roadmap",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "First Principles Thinking.md",
+      "title": "First Principles Thinking",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Five Percepts of for Learners.md",
+      "title": "Five Percepts of for Learners",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Flow College Loading Zone.md",
+      "title": "Flow College Loading Zone",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Flow College.md",
+      "title": "Flow College",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Flow Techniques.md",
+      "title": "Flow Techniques",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Flow.md",
+      "title": "Flow",
+      "project": "Second Brain",
+      "chunk_count": 5
+    },
+    {
+      "id": "Four Wings.md",
+      "title": "Four Wings",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Game Design & Development.md",
+      "title": "Game Design & Development",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Game Mechanics.md",
+      "title": "Game Mechanics",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "General Creative Video Scripts.md",
+      "title": "General Creative Video Scripts",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "General Information.md",
+      "title": "General Information",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Generating Keys & CSRs.md",
+      "title": "Generating Keys & CSRs",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Git.md",
+      "title": "Git",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Godot.md",
+      "title": "Godot",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "GPT Generated Algorithms Cards.md",
+      "title": "GPT Generated Algorithms Cards",
+      "project": "Second Brain",
+      "chunk_count": 3
+    },
+    {
+      "id": "Hachiban.md",
+      "title": "Hachiban",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Health & Fitness.md",
+      "title": "Health & Fitness",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Helel.md",
+      "title": "Helel",
+      "project": "Second Brain",
+      "chunk_count": 6
+    },
+    {
+      "id": "Homework 1 Review.md",
+      "title": "Homework 1 Review",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Homework 2 Review.md",
+      "title": "Homework 2 Review",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Homework 3 Review.md",
+      "title": "Homework 3 Review",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Homework 4 Review.md",
+      "title": "Homework 4 Review",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "How the Software of the Mind works.md",
+      "title": "How the Software of the Mind works",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "I Thought We Were Studying.md",
+      "title": "I Thought We Were Studying",
+      "project": "Second Brain",
+      "chunk_count": 5
+    },
+    {
+      "id": "In the Darkness.md",
+      "title": "In the Darkness",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Integrated Terminal Usage.md",
+      "title": "Integrated Terminal Usage",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Introduction to Agents, Policies and Architectures.md",
+      "title": "Introduction to Agents, Policies and Architectures",
+      "project": "Second Brain",
+      "chunk_count": 6
+    },
+    {
+      "id": "Introduction to Deep Learning Part 1.md",
+      "title": "Introduction to Deep Learning Part 1",
+      "project": "Second Brain",
+      "chunk_count": 6
+    },
+    {
+      "id": "Introduction to Machine Learning Part 1.md",
+      "title": "Introduction to Machine Learning Part 1",
+      "project": "Second Brain",
+      "chunk_count": 3
+    },
+    {
+      "id": "Introduction to Machine Learning Part 2.md",
+      "title": "Introduction to Machine Learning Part 2",
+      "project": "Second Brain",
+      "chunk_count": 10
+    },
+    {
+      "id": "Introduction to Search, Classic Strategies Part 1.md",
+      "title": "Introduction to Search, Classic Strategies Part 1",
+      "project": "Second Brain",
+      "chunk_count": 3
+    },
+    {
+      "id": "Introduction.md",
+      "title": "Introduction",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Ippon Kumite.md",
+      "title": "Ippon Kumite",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Job Application Bot.md",
+      "title": "Job Application Bot",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Job Search.md",
+      "title": "Job Search",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Karate Related Terms.md",
+      "title": "Karate Related Terms",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Karate Techniques and Forms.md",
+      "title": "Karate Techniques and Forms",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "KAS_Complete_Tags_List.md",
+      "title": "KAS_Complete_Tags_List",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Kicks.md",
+      "title": "Kicks",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Kille & Null.md",
+      "title": "Kille & Null",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Knowledge Acquisition System (KAS).md",
+      "title": "Knowledge Acquisition System (KAS)",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Knowledge Representation and Reasoning.md",
+      "title": "Knowledge Representation and Reasoning",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Learning & Knowledge Acquisition.md",
+      "title": "Learning & Knowledge Acquisition",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Learning System Rules and Failure States.md",
+      "title": "Learning System Rules and Failure States",
+      "project": "Second Brain",
+      "chunk_count": 5
+    },
+    {
+      "id": "Libraries.md",
+      "title": "Libraries",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Line Breaks.md",
+      "title": "Line Breaks",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Linking and Interconnectivity.md",
+      "title": "Linking and Interconnectivity",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Linux Systems Operation.md",
+      "title": "Linux Systems Operation",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Luci & Helel.md",
+      "title": "Luci & Helel",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Luci.md",
+      "title": "Luci",
+      "project": "Second Brain",
+      "chunk_count": 6
+    },
+    {
+      "id": "Marisol.md",
+      "title": "Marisol",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Markdown Conventions.md",
+      "title": "Markdown Conventions",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Markdown Mastery.md",
+      "title": "Markdown Mastery",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Martial Arts & Physical Mastery.md",
+      "title": "Martial Arts & Physical Mastery",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Master Timeline.md",
+      "title": "Master Timeline",
+      "project": "Second Brain",
+      "chunk_count": 4
+    },
+    {
+      "id": "Memento Mori.md",
+      "title": "Memento Mori",
+      "project": "Second Brain",
+      "chunk_count": 3
+    },
+    {
+      "id": "Memory Reconstruction System.md",
+      "title": "Memory Reconstruction System",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Mental Models.md",
+      "title": "Mental Models",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Meta-Mastery Playbook.md",
+      "title": "Meta-Mastery Playbook",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Midterm 1 Prep.md",
+      "title": "Midterm 1 Prep",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Minimal Automation Stack.md",
+      "title": "Minimal Automation Stack",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Mood Garden.md",
+      "title": "Mood Garden",
+      "project": "Second Brain",
+      "chunk_count": 7
+    },
+    {
+      "id": "Mood_Garden_Session_Plan.md",
+      "title": "Mood_Garden_Session_Plan",
+      "project": "Second Brain",
+      "chunk_count": 6
+    },
+    {
+      "id": "Most Common Terminal Commands.md",
+      "title": "Most Common Terminal Commands",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "My Values.md",
+      "title": "My Values",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Nanaban.md",
+      "title": "Nanaban",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Navigation & File Management.md",
+      "title": "Navigation & File Management",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Navigation without a Mouse.md",
+      "title": "Navigation without a Mouse",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "NCAA College Football 2026.md",
+      "title": "NCAA College Football 2026",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Note Creation and Organization.md",
+      "title": "Note Creation and Organization",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Note-Taking Systems.md",
+      "title": "Note-Taking Systems",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Nova Project.md",
+      "title": "Nova Project",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Null.md",
+      "title": "Null",
+      "project": "Second Brain",
+      "chunk_count": 5
+    },
+    {
+      "id": "Nullius.md",
+      "title": "Nullius",
+      "project": "Second Brain",
+      "chunk_count": 4
+    },
+    {
+      "id": "Oath.md",
+      "title": "Oath",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Obsidian.md",
+      "title": "Obsidian",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Offensive Strategy.md",
+      "title": "Offensive Strategy",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Omni Eyes.md",
+      "title": "Omni Eyes",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "OpenSSL.md",
+      "title": "OpenSSL",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Oshun's Divines Templating.md",
+      "title": "Oshun's Divines Templating",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Package Management.md",
+      "title": "Package Management",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Paragraphs Use Blank Lines.md",
+      "title": "Paragraphs Use Blank Lines",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Parallel processing.md",
+      "title": "Parallel processing",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Permissions & Access.md",
+      "title": "Permissions & Access",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Personal Development & Mindset.md",
+      "title": "Personal Development & Mindset",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Personal Finance & Wealth Building.md",
+      "title": "Personal Finance & Wealth Building",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Phase Eight - Null vs. Chimera & Analog AD.md",
+      "title": "Phase Eight - Null vs. Chimera & Analog AD",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Phase Eleven - Ashen Fang's Split.md",
+      "title": "Phase Eleven - Ashen Fang's Split",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Phase Eleven - Ashen's End.md",
+      "title": "Phase Eleven - Ashen's End",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Phase Eleven - Crescendo of Monsters.md",
+      "title": "Phase Eleven - Crescendo of Monsters",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Phase Eleven - Fatale vs Rauke.md",
+      "title": "Phase Eleven - Fatale vs Rauke",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Phase Eleven - Null vs Rhelas.md",
+      "title": "Phase Eleven - Null vs Rhelas",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Phase Eleven - The Outsider.md",
+      "title": "Phase Eleven - The Outsider",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Phase Five - Kel's Command.md",
+      "title": "Phase Five - Kel's Command",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Phase Four - Rendezvous.md",
+      "title": "Phase Four - Rendezvous",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Phase Nine - Into the Ash Chamber.md",
+      "title": "Phase Nine - Into the Ash Chamber",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Phase Nine - Raven vs Varik.md",
+      "title": "Phase Nine - Raven vs Varik",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Phase Nine - Raven's Breakthrough.md",
+      "title": "Phase Nine - Raven's Breakthrough",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Phase Nine - Raven's Last Word.md",
+      "title": "Phase Nine - Raven's Last Word",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Phase Nine - Raven's Verdict.md",
+      "title": "Phase Nine - Raven's Verdict",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Phase One - Infiltration.md",
+      "title": "Phase One - Infiltration",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Phase Seven - Tandem Test, The Problem.md",
+      "title": "Phase Seven - Tandem Test, The Problem",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Phase Seven - Tandem Test, The Shift.md",
+      "title": "Phase Seven - Tandem Test, The Shift",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Phase Six - The First Descent.md",
+      "title": "Phase Six - The First Descent",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Phase Ten - After Kaelen.md",
+      "title": "Phase Ten - After Kaelen",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Phase Ten - Helel vs Kaelen.md",
+      "title": "Phase Ten - Helel vs Kaelen",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Phase Ten - Helel's Radiance.md",
+      "title": "Phase Ten - Helel's Radiance",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Phase Ten - The Final Chamber.md",
+      "title": "Phase Ten - The Final Chamber",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Phase Three - Clash of Titans.md",
+      "title": "Phase Three - Clash of Titans",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Phase Two - Descent Into Chaos.md",
+      "title": "Phase Two - Descent Into Chaos",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Poetry.md",
+      "title": "Poetry",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Practice & Meta Knowledge.md",
+      "title": "Practice & Meta Knowledge",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Print-on-Demand.md",
+      "title": "Print-on-Demand",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Process Management.md",
+      "title": "Process Management",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Public Key Infrastructure Basics.md",
+      "title": "Public Key Infrastructure Basics",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Python Automation.md",
+      "title": "Python Automation",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Python Basics.md",
+      "title": "Python Basics",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Python.md",
+      "title": "Python",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Quantum Computing.md",
+      "title": "Quantum Computing",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Quarterback Play.md",
+      "title": "Quarterback Play",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Radiance folded in Shadow.md",
+      "title": "Radiance folded in Shadow",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Raven.md",
+      "title": "Raven",
+      "project": "Second Brain",
+      "chunk_count": 5
+    },
+    {
+      "id": "Reading Defense.md",
+      "title": "Reading Defense",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Redirection & Pipes.md",
+      "title": "Redirection & Pipes",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Return to the Base.md",
+      "title": "Return to the Base",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Reunion at the Ruins.md",
+      "title": "Reunion at the Ruins",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Rhythm.md",
+      "title": "Rhythm",
+      "project": "Second Brain",
+      "chunk_count": 4
+    },
+    {
+      "id": "Ride Back to the Flow College.md",
+      "title": "Ride Back to the Flow College",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "RISC.md",
+      "title": "RISC",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Rokuban.md",
+      "title": "Rokuban",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Run vs. Pass Balance.md",
+      "title": "Run vs. Pass Balance",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Sandbox Vault.md",
+      "title": "Sandbox Vault",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Scripting Basics.md",
+      "title": "Scripting Basics",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Shared Systems.md",
+      "title": "Shared Systems",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Situational Football (Game IQ).md",
+      "title": "Situational Football (Game IQ)",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Smart Money Concepts.md",
+      "title": "Smart Money Concepts",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Smart Money Playbook.md",
+      "title": "Smart Money Playbook",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Social Media Automation.md",
+      "title": "Social Media Automation",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Software Design Life Cycle.md",
+      "title": "Software Design Life Cycle",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Special Teams Basics.md",
+      "title": "Special Teams Basics",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "SSH & Networking.md",
+      "title": "SSH & Networking",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Stances.md",
+      "title": "Stances",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Strategies.md",
+      "title": "Strategies",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Strikes.md",
+      "title": "Strikes",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Striking Areas.md",
+      "title": "Striking Areas",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Supporting Documents.md",
+      "title": "Supporting Documents",
+      "project": "Second Brain",
+      "chunk_count": 4
+    },
+    {
+      "id": "Syllabus, Course policies, What is AI.md",
+      "title": "Syllabus, Course policies, What is AI",
+      "project": "Second Brain",
+      "chunk_count": 4
+    },
+    {
+      "id": "Syntax.md",
+      "title": "Syntax",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "System bus.md",
+      "title": "System bus",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "SYS_Symphony.EXE.md",
+      "title": "SYS_Symphony.EXE",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Text Manipulation.md",
+      "title": "Text Manipulation",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "The Debrief.md",
+      "title": "The Debrief",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "The Monster and what Matters.md",
+      "title": "The Monster and what Matters",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Theoretical Computer Science.md",
+      "title": "Theoretical Computer Science",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Tools and Processes for Streamlined Consistency.md",
+      "title": "Tools and Processes for Streamlined Consistency",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Varas.md",
+      "title": "Varas",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "Video Essays.md",
+      "title": "Video Essays",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Viewing & Searching Files.md",
+      "title": "Viewing & Searching Files",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Visual Studio Code.md",
+      "title": "Visual Studio Code",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Weekly Recap \u2014 June 2\u20139 2026.md",
+      "title": "Weekly Recap \u2014 June 2\u20139 2026",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Weekly Recaps.md",
+      "title": "Weekly Recaps",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Weekly Schedule.md",
+      "title": "Weekly Schedule",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Wholesale Media Royalties.md",
+      "title": "Wholesale Media Royalties",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "World History.md",
+      "title": "World History",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Zamen400.md",
+      "title": "Zamen400",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "\u2694\ufe0f Phase Seven \u2014 The Tandem Test.md",
+      "title": "\u2694\ufe0f Phase Seven \u2014 The Tandem Test",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "\ud83c\udfb6 Phase Seven \u2014 Rhythm\u2019s Counterpoint.md",
+      "title": "\ud83c\udfb6 Phase Seven \u2014 Rhythm\u2019s Counterpoint",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "\ud83c\udfb6 Phase Seven \u2014 The Duet Awakens.md",
+      "title": "\ud83c\udfb6 Phase Seven \u2014 The Duet Awakens",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "\ud83e\udd41 Phase Seven \u2014 Beat\u2019s Crescendo.md",
+      "title": "\ud83e\udd41 Phase Seven \u2014 Beat\u2019s Crescendo",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Abstract Data Type (ADT).md",
+      "title": "Abstract Data Type (ADT)",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Output.md",
+      "title": "Output",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "Dynasty Mode.md",
+      "title": "Dynasty Mode",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "KAS Note Template.md",
+      "title": "KAS Note Template",
+      "project": "Second Brain",
+      "chunk_count": 1
+    },
+    {
+      "id": "ingest.py",
+      "title": "ingest",
+      "project": "Nova",
+      "chunk_count": 2
+    },
+    {
+      "id": "nova_sources.py",
+      "title": "nova_sources",
+      "project": "Nova",
+      "chunk_count": 1
+    },
+    {
+      "id": "test_nova.py",
+      "title": "test_nova",
+      "project": "Nova",
+      "chunk_count": 1
+    },
+    {
+      "id": "marvin_profile.md",
+      "title": "marvin_profile",
+      "project": "Second Brain",
+      "chunk_count": 2
+    },
+    {
+      "id": "nova_chat.py",
+      "title": "nova_chat",
+      "project": "Nova",
+      "chunk_count": 1
+    },
+    {
+      "id": "nova_query.py",
+      "title": "nova_query",
+      "project": "Nova",
+      "chunk_count": 2
+    },
+    {
+      "id": "Femme Wildman.md",
+      "title": "Femme Wildman",
+      "project": "Second Brain",
+      "chunk_count": 3
+    },
+    {
+      "id": "history.json",
+      "title": "history",
+      "project": "Nova",
+      "chunk_count": 3
+    },
+    {
+      "id": "nova_benchmark.py",
+      "title": "nova_benchmark",
+      "project": "Nova",
+      "chunk_count": 1
+    },
+    {
+      "id": "nova_router.py",
+      "title": "nova_router",
+      "project": "Nova",
+      "chunk_count": 2
+    },
+    {
+      "id": "ingest_manifest.json",
+      "title": "ingest_manifest",
+      "project": "Nova",
+      "chunk_count": 4
+    }
+  ],
+  "edges": [
+    {
+      "source": "Advanced Algorithms.md",
+      "target": "Advanced Algorithms - Chapt 4.md",
+      "link_text": "Advanced Algorithms - Chapt 4"
+    },
+    {
+      "source": "Advanced Algorithms.md",
+      "target": "Advanced Algorithms - Chapt 2.md",
+      "link_text": "Advanced Algorithms - Chapt 2"
+    },
+    {
+      "source": "Advanced Algorithms.md",
+      "target": "Advanced Algorithms - Chapt 3.md",
+      "link_text": "Advanced Algorithms - Chapt 3"
+    },
+    {
+      "source": "Advanced Algorithms.md",
+      "target": "Homework 3 Review.md",
+      "link_text": "Homework 3 Review"
+    },
+    {
+      "source": "Advanced Algorithms.md",
+      "target": "Advanced Algorithms - Chapt 1.md",
+      "link_text": "Advanced Algorithms - Chapt 1"
+    },
+    {
+      "source": "Advanced Algorithms.md",
+      "target": "Homework 4 Review.md",
+      "link_text": "Homework 4 Review"
+    },
+    {
+      "source": "Advanced Algorithms.md",
+      "target": "Homework 2 Review.md",
+      "link_text": "Homework 2 Review"
+    },
+    {
+      "source": "Advanced Algorithms.md",
+      "target": "Midterm 1 Prep.md",
+      "link_text": "Midterm 1 Prep"
+    },
+    {
+      "source": "Advanced Algorithms.md",
+      "target": "Homework 1 Review.md",
+      "link_text": "Homework 1 Review"
+    },
+    {
+      "source": "Advanced Algorithms.md",
+      "target": "Advanced Algorithms - Chapt 5.md",
+      "link_text": "Advanced Algorithms - Chapt 5"
+    },
+    {
+      "source": "Advanced Algorithms.md",
+      "target": "Supporting Documents.md",
+      "link_text": "Supporting Documents"
+    },
+    {
+      "source": "Arc Breakdowns.md",
+      "target": "Arc Two.md",
+      "link_text": "Arc Two"
+    },
+    {
+      "source": "Arc Breakdowns.md",
+      "target": "Arc Three.md",
+      "link_text": "Arc Three"
+    },
+    {
+      "source": "Arc Breakdowns.md",
+      "target": "Arc One.md",
+      "link_text": "Arc One"
+    },
+    {
+      "source": "Artificial Intelligence and Machine Learning - Auburn Class.md",
+      "target": "Introduction to Agents, Policies and Architectures.md",
+      "link_text": "Introduction to Agents, Policies and Architectures"
+    },
+    {
+      "source": "Artificial Intelligence and Machine Learning - Auburn Class.md",
+      "target": "Introduction to Deep Learning Part 1.md",
+      "link_text": "Introduction to Deep Learning Part 1"
+    },
+    {
+      "source": "Artificial Intelligence and Machine Learning - Auburn Class.md",
+      "target": "Knowledge Representation and Reasoning.md",
+      "link_text": "Knowledge Representation and Reasoning"
+    },
+    {
+      "source": "Artificial Intelligence and Machine Learning - Auburn Class.md",
+      "target": "Exam 1 - October 8.md",
+      "link_text": "Exam 1 - October 8"
+    },
+    {
+      "source": "Artificial Intelligence and Machine Learning - Auburn Class.md",
+      "target": "Classic Search Strategies Part 2.md",
+      "link_text": "Classic Search Strategies Part 2"
+    },
+    {
+      "source": "Artificial Intelligence and Machine Learning - Auburn Class.md",
+      "target": "Introduction to Machine Learning Part 2.md",
+      "link_text": "Introduction to Machine Learning Part 2"
+    },
+    {
+      "source": "Artificial Intelligence and Machine Learning - Auburn Class.md",
+      "target": "Syllabus, Course policies, What is AI.md",
+      "link_text": "Syllabus, Course policies, What is AI"
+    },
+    {
+      "source": "Artificial Intelligence and Machine Learning - Auburn Class.md",
+      "target": "Introduction to Machine Learning Part 1.md",
+      "link_text": "Introduction to Machine Learning Part 1"
+    },
+    {
+      "source": "Artificial Intelligence and Machine Learning - Auburn Class.md",
+      "target": "Introduction to Search, Classic Strategies Part 1.md",
+      "link_text": "Introduction to Search, Classic Strategies Part 1"
+    },
+    {
+      "source": "auth.py.md",
+      "target": "Social Media Automation.md",
+      "link_text": "Social Media Automation"
+    },
+    {
+      "source": "auth.py.md",
+      "target": "Job Search.md",
+      "link_text": "Job Search"
+    },
+    {
+      "source": "auth.py.md",
+      "target": "Job Application Bot.md",
+      "link_text": "Job Application Bot"
+    },
+    {
+      "source": "Command Line Mastery.md",
+      "target": "Navigation & File Management.md",
+      "link_text": "Navigation & File Management"
+    },
+    {
+      "source": "Command Line Mastery.md",
+      "target": "Environment & Shortcuts.md",
+      "link_text": "Environment & Shortcuts"
+    },
+    {
+      "source": "Command Line Mastery.md",
+      "target": "Text Manipulation.md",
+      "link_text": "Text Manipulation"
+    },
+    {
+      "source": "Command Line Mastery.md",
+      "target": "Redirection & Pipes.md",
+      "link_text": "Redirection & Pipes"
+    },
+    {
+      "source": "Command Line Mastery.md",
+      "target": "Permissions & Access.md",
+      "link_text": "Permissions & Access"
+    },
+    {
+      "source": "Command Line Mastery.md",
+      "target": "Package Management.md",
+      "link_text": "Package Management"
+    },
+    {
+      "source": "Command Line Mastery.md",
+      "target": "SSH & Networking.md",
+      "link_text": "SSH & Networking"
+    },
+    {
+      "source": "Command Line Mastery.md",
+      "target": "Scripting Basics.md",
+      "link_text": "Scripting Basics"
+    },
+    {
+      "source": "Command Line Mastery.md",
+      "target": "Process Management.md",
+      "link_text": "Process Management"
+    },
+    {
+      "source": "Command Line Mastery.md",
+      "target": "Viewing & Searching Files.md",
+      "link_text": "Viewing & Searching Files"
+    },
+    {
+      "source": "Computer Architecture - Auburn Class.md",
+      "target": "System bus.md",
+      "link_text": "System bus"
+    },
+    {
+      "source": "Computer Architecture - Auburn Class.md",
+      "target": "Final Exam - December 12.md",
+      "link_text": "Final Exam - December 12"
+    },
+    {
+      "source": "Computer Architecture - Auburn Class.md",
+      "target": "Exam 1 - September 30.md",
+      "link_text": "Exam 1 - September 30"
+    },
+    {
+      "source": "Computer Architecture - Auburn Class.md",
+      "target": "Introduction.md",
+      "link_text": "Introduction"
+    },
+    {
+      "source": "Computer Architecture - Auburn Class.md",
+      "target": "RISC.md",
+      "link_text": "RISC"
+    },
+    {
+      "source": "Computer Architecture - Auburn Class.md",
+      "target": "Exam 2 - October 30.md",
+      "link_text": "Exam 2 - October 30"
+    },
+    {
+      "source": "Computer Architecture - Auburn Class.md",
+      "target": "Parallel processing.md",
+      "link_text": "Parallel processing"
+    },
+    {
+      "source": "Computer Architecture - Auburn Class.md",
+      "target": "CPU structure.md",
+      "link_text": "CPU structure"
+    },
+    {
+      "source": "Computer Architecture - Auburn Class.md",
+      "target": "Computer Evolution and Performance.md",
+      "link_text": "Computer Evolution and Performance"
+    },
+    {
+      "source": "Content Creation.md",
+      "target": "Minimal Automation Stack.md",
+      "link_text": "Minimal Automation Stack"
+    },
+    {
+      "source": "Content Creation.md",
+      "target": "Zamen400.md",
+      "link_text": "Zamen400"
+    },
+    {
+      "source": "Content Creation.md",
+      "target": "Tools and Processes for Streamlined Consistency.md",
+      "link_text": "Tools and Processes for Streamlined Consistency"
+    },
+    {
+      "source": "Content Creation.md",
+      "target": "Cumulative Content Model.md",
+      "link_text": "Cumulative Content Model"
+    },
+    {
+      "source": "Content Management Tool.md",
+      "target": "Content Creation.md",
+      "link_text": "Content Creation"
+    },
+    {
+      "source": "Cosmology.md",
+      "target": "Femme Wildman.md",
+      "link_text": "Femme Wildman"
+    },
+    {
+      "source": "Cosmology.md",
+      "target": "Helel.md",
+      "link_text": "Helel"
+    },
+    {
+      "source": "Creating a Vault.md",
+      "target": "Obsidian.md",
+      "link_text": "Obsidian"
+    },
+    {
+      "source": "Data Types.md",
+      "target": "Python.md",
+      "link_text": "Python"
+    },
+    {
+      "source": "Data Types.md",
+      "target": "Python Basics.md",
+      "link_text": "Python Basics"
+    },
+    {
+      "source": "Design Patterns.md",
+      "target": "Decorators.md",
+      "link_text": "Decorators"
+    },
+    {
+      "source": "Entrepreneurship & Business Development.md",
+      "target": "Building and Scaling an Online Business.md",
+      "link_text": "Building and Scaling an Online Business"
+    },
+    {
+      "source": "Entrepreneurship & Business Development.md",
+      "target": "Social Media Automation.md",
+      "link_text": "Social Media Automation"
+    },
+    {
+      "source": "Entrepreneurship & Business Development.md",
+      "target": "Business Automation.md",
+      "link_text": "Business Automation"
+    },
+    {
+      "source": "Entrepreneurship & Business Development.md",
+      "target": "Content Creation.md",
+      "link_text": "Content Creation"
+    },
+    {
+      "source": "Fatale Wildman.md",
+      "target": "Beat.md",
+      "link_text": "Beat"
+    },
+    {
+      "source": "Fatale Wildman.md",
+      "target": "Helel.md",
+      "link_text": "Helel"
+    },
+    {
+      "source": "Fatale Wildman.md",
+      "target": "Null.md",
+      "link_text": "Null"
+    },
+    {
+      "source": "Fatale Wildman.md",
+      "target": "Rhythm.md",
+      "link_text": "Rhythm"
+    },
+    {
+      "source": "Fatale Wildman.md",
+      "target": "Raven.md",
+      "link_text": "Raven"
+    },
+    {
+      "source": "Financial Freedom Roadmap.md",
+      "target": "Print-on-Demand.md",
+      "link_text": "Print-on-Demand"
+    },
+    {
+      "source": "Financial Freedom Roadmap.md",
+      "target": "Affiliate Marketing.md",
+      "link_text": "Affiliate Marketing"
+    },
+    {
+      "source": "Financial Freedom Roadmap.md",
+      "target": "Automation and Scripting.md",
+      "link_text": "Automation and Scripting"
+    },
+    {
+      "source": "Financial Freedom Roadmap.md",
+      "target": "Faceless Instagram Pages.md",
+      "link_text": "Faceless Instagram Pages"
+    },
+    {
+      "source": "Financial Freedom Roadmap.md",
+      "target": "Wholesale Media Royalties.md",
+      "link_text": "Wholesale Media Royalties"
+    },
+    {
+      "source": "Financial Freedom Roadmap.md",
+      "target": "Etsy Store.md",
+      "link_text": "Etsy Store"
+    },
+    {
+      "source": "Financial Freedom Roadmap.md",
+      "target": "Business Automation.md",
+      "link_text": "Business Automation"
+    },
+    {
+      "source": "Financial Freedom Roadmap.md",
+      "target": "Core Technical Skills.md",
+      "link_text": "Core Technical Skills"
+    },
+    {
+      "source": "Flow.md",
+      "target": "Oath.md",
+      "link_text": "Oath"
+    },
+    {
+      "source": "Flow.md",
+      "target": "Flow Techniques.md",
+      "link_text": "Flow Techniques"
+    },
+    {
+      "source": "Flow.md",
+      "target": "Aerial Stepping.md",
+      "link_text": "Aerial Stepping"
+    },
+    {
+      "source": "Game Design & Development.md",
+      "target": "Game Mechanics.md",
+      "link_text": "Game Mechanics"
+    },
+    {
+      "source": "Game Design & Development.md",
+      "target": "Mood Garden.md",
+      "link_text": "Mood Garden"
+    },
+    {
+      "source": "Game Design & Development.md",
+      "target": "Shared Systems.md",
+      "link_text": "Shared Systems"
+    },
+    {
+      "source": "General Creative Video Scripts.md",
+      "target": "Doomer Teto 4-Part Analysis.md",
+      "link_text": "Doomer Teto 4-Part Analysis"
+    },
+    {
+      "source": "Generating Keys & CSRs.md",
+      "target": "OpenSSL.md",
+      "link_text": "OpenSSL"
+    },
+    {
+      "source": "Generating Keys & CSRs.md",
+      "target": "Public Key Infrastructure Basics.md",
+      "link_text": "Public Key Infrastructure Basics"
+    },
+    {
+      "source": "Godot.md",
+      "target": "Game Mechanics.md",
+      "link_text": "Game Mechanics"
+    },
+    {
+      "source": "Hachiban.md",
+      "target": "Ippon Kumite.md",
+      "link_text": "Ippon Kumite"
+    },
+    {
+      "source": "How the Software of the Mind works.md",
+      "target": "Mental Models.md",
+      "link_text": "Mental Models"
+    },
+    {
+      "source": "Ippon Kumite.md",
+      "target": "Rokuban.md",
+      "link_text": "Rokuban"
+    },
+    {
+      "source": "Ippon Kumite.md",
+      "target": "Hachiban.md",
+      "link_text": "Hachiban"
+    },
+    {
+      "source": "Ippon Kumite.md",
+      "target": "Nanaban.md",
+      "link_text": "Nanaban"
+    },
+    {
+      "source": "Job Application Bot.md",
+      "target": "auth.py.md",
+      "link_text": "auth.py"
+    },
+    {
+      "source": "Job Application Bot.md",
+      "target": "Python Automation.md",
+      "link_text": "Python Automation"
+    },
+    {
+      "source": "Job Application Bot.md",
+      "target": "Python Basics.md",
+      "link_text": "Python Basics"
+    },
+    {
+      "source": "Job Application Bot.md",
+      "target": "Python.md",
+      "link_text": "Python"
+    },
+    {
+      "source": "Job Search.md",
+      "target": "Strategies.md",
+      "link_text": "Strategies"
+    },
+    {
+      "source": "Karate Techniques and Forms.md",
+      "target": "Kicks.md",
+      "link_text": "Kicks"
+    },
+    {
+      "source": "Karate Techniques and Forms.md",
+      "target": "Karate Related Terms.md",
+      "link_text": "Karate Related Terms"
+    },
+    {
+      "source": "Karate Techniques and Forms.md",
+      "target": "Ippon Kumite.md",
+      "link_text": "Ippon Kumite"
+    },
+    {
+      "source": "Karate Techniques and Forms.md",
+      "target": "Five Percepts of for Learners.md",
+      "link_text": "Five Percepts of for Learners"
+    },
+    {
+      "source": "Karate Techniques and Forms.md",
+      "target": "Striking Areas.md",
+      "link_text": "Striking Areas"
+    },
+    {
+      "source": "Karate Techniques and Forms.md",
+      "target": "Blocks.md",
+      "link_text": "Blocks"
+    },
+    {
+      "source": "Karate Techniques and Forms.md",
+      "target": "Counting.md",
+      "link_text": "Counting"
+    },
+    {
+      "source": "Karate Techniques and Forms.md",
+      "target": "Stances.md",
+      "link_text": "Stances"
+    },
+    {
+      "source": "Karate Techniques and Forms.md",
+      "target": "General Information.md",
+      "link_text": "General Information"
+    },
+    {
+      "source": "Karate Techniques and Forms.md",
+      "target": "Strikes.md",
+      "link_text": "Strikes"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Video Essays.md",
+      "link_text": "Video Essays"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Git.md",
+      "link_text": "Git"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Weekly Schedule.md",
+      "link_text": "Weekly Schedule"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Linux Systems Operation.md",
+      "link_text": "Linux Systems Operation"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Personal Development & Mindset.md",
+      "link_text": "Personal Development & Mindset"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Python.md",
+      "link_text": "Python"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "OpenSSL.md",
+      "link_text": "OpenSSL"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Smart Money Playbook.md",
+      "link_text": "Smart Money Playbook"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Game Design & Development.md",
+      "link_text": "Game Design & Development"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Dancing.md",
+      "link_text": "Dancing"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Godot.md",
+      "link_text": "Godot"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Cyber Security.md",
+      "link_text": "Cyber Security"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Obsidian.md",
+      "link_text": "Obsidian"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Black History.md",
+      "link_text": "Black History"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Development Operations.md",
+      "link_text": "Development Operations"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Job Search.md",
+      "link_text": "Job Search"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "American History.md",
+      "link_text": "American History"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Navigation without a Mouse.md",
+      "link_text": "Navigation without a Mouse"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "World History.md",
+      "link_text": "World History"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Theoretical Computer Science.md",
+      "link_text": "Theoretical Computer Science"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Job Application Bot.md",
+      "link_text": "Job Application Bot"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Martial Arts & Physical Mastery.md",
+      "link_text": "Martial Arts & Physical Mastery"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "City Metaphor.md",
+      "link_text": "City Metaphor"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Karate Techniques and Forms.md",
+      "link_text": "Karate Techniques and Forms"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Quantum Computing.md",
+      "link_text": "Quantum Computing"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Personal Finance & Wealth Building.md",
+      "link_text": "Personal Finance & Wealth Building"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Nova Project.md",
+      "link_text": "Nova Project"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Artificial Intelligence and Machine Learning - Auburn Class.md",
+      "link_text": "Artificial Intelligence and Machine Learning - Auburn Class"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Memory Reconstruction System.md",
+      "link_text": "Memory Reconstruction System"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "NCAA College Football 2026.md",
+      "link_text": "NCAA College Football 2026"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Advanced Algorithms.md",
+      "link_text": "Advanced Algorithms"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Software Design Life Cycle.md",
+      "link_text": "Software Design Life Cycle"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Digital Logic Circuits.md",
+      "link_text": "Digital Logic Circuits"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Visual Studio Code.md",
+      "link_text": "Visual Studio Code"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Content Creation.md",
+      "link_text": "Content Creation"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Creative Arts.md",
+      "link_text": "Creative Arts"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Health & Fitness.md",
+      "link_text": "Health & Fitness"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Black Women's History.md",
+      "link_text": "Black Women's History"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Content Management Tool.md",
+      "link_text": "Content Management Tool"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Weekly Recaps.md",
+      "link_text": "Weekly Recaps"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Smart Money Concepts.md",
+      "link_text": "Smart Money Concepts"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Poetry.md",
+      "link_text": "Poetry"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Etsy Store.md",
+      "link_text": "Etsy Store"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Entrepreneurship & Business Development.md",
+      "link_text": "Entrepreneurship & Business Development"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "SYS_Symphony.EXE.md",
+      "link_text": "SYS_Symphony.EXE"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Financial Freedom Roadmap.md",
+      "link_text": "Financial Freedom Roadmap"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Computer Architecture - Auburn Class.md",
+      "link_text": "Computer Architecture - Auburn Class"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Learning & Knowledge Acquisition.md",
+      "link_text": "Learning & Knowledge Acquisition"
+    },
+    {
+      "source": "Knowledge Acquisition System (KAS).md",
+      "target": "Faceless Instagram Pages.md",
+      "link_text": "Faceless Instagram Pages"
+    },
+    {
+      "source": "Learning & Knowledge Acquisition.md",
+      "target": "How the Software of the Mind works.md",
+      "link_text": "How the Software of the Mind works"
+    },
+    {
+      "source": "Learning & Knowledge Acquisition.md",
+      "target": "Note-Taking Systems.md",
+      "link_text": "Note-Taking Systems"
+    },
+    {
+      "source": "Learning & Knowledge Acquisition.md",
+      "target": "Memory Reconstruction System.md",
+      "link_text": "Memory Reconstruction System"
+    },
+    {
+      "source": "Learning & Knowledge Acquisition.md",
+      "target": "Meta-Mastery Playbook.md",
+      "link_text": "Meta-Mastery Playbook"
+    },
+    {
+      "source": "Learning & Knowledge Acquisition.md",
+      "target": "Personal Development & Mindset.md",
+      "link_text": "Personal Development & Mindset"
+    },
+    {
+      "source": "Learning & Knowledge Acquisition.md",
+      "target": "Deep Processing.md",
+      "link_text": "Deep Processing"
+    },
+    {
+      "source": "Line Breaks.md",
+      "target": "Markdown Mastery.md",
+      "link_text": "Markdown Mastery"
+    },
+    {
+      "source": "Linking and Interconnectivity.md",
+      "target": "Obsidian.md",
+      "link_text": "Obsidian"
+    },
+    {
+      "source": "Linux Systems Operation.md",
+      "target": "Automation and Scripting.md",
+      "link_text": "Automation and Scripting"
+    },
+    {
+      "source": "Linux Systems Operation.md",
+      "target": "Package Management.md",
+      "link_text": "Package Management"
+    },
+    {
+      "source": "Linux Systems Operation.md",
+      "target": "Command Line Mastery.md",
+      "link_text": "Command Line Mastery"
+    },
+    {
+      "source": "Markdown Conventions.md",
+      "target": "Obsidian.md",
+      "link_text": "Obsidian"
+    },
+    {
+      "source": "Markdown Mastery.md",
+      "target": "Line Breaks.md",
+      "link_text": "Line Breaks"
+    },
+    {
+      "source": "Markdown Mastery.md",
+      "target": "Markdown Conventions.md",
+      "link_text": "Markdown Conventions"
+    },
+    {
+      "source": "Markdown Mastery.md",
+      "target": "Paragraphs Use Blank Lines.md",
+      "link_text": "Paragraphs Use Blank Lines"
+    },
+    {
+      "source": "Martial Arts & Physical Mastery.md",
+      "target": "Kicks.md",
+      "link_text": "Kicks"
+    },
+    {
+      "source": "Martial Arts & Physical Mastery.md",
+      "target": "Karate Techniques and Forms.md",
+      "link_text": "Karate Techniques and Forms"
+    },
+    {
+      "source": "Martial Arts & Physical Mastery.md",
+      "target": "Stances.md",
+      "link_text": "Stances"
+    },
+    {
+      "source": "Martial Arts & Physical Mastery.md",
+      "target": "Strikes.md",
+      "link_text": "Strikes"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Two - Descent Into Chaos.md",
+      "link_text": "Phase Two - Descent Into Chaos"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "\u2694\ufe0f Phase Seven \u2014 The Tandem Test.md",
+      "link_text": "\u2694\ufe0f Phase Seven \u2014 The Tandem Test"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Nine - Raven's Breakthrough.md",
+      "link_text": "Phase Nine - Raven's Breakthrough"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "\ud83c\udfb6 Phase Seven \u2014 Rhythm\u2019s Counterpoint.md",
+      "link_text": "\ud83c\udfb6 Phase Seven \u2014 Rhythm\u2019s Counterpoint"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Ten - After Kaelen.md",
+      "link_text": "Phase Ten - After Kaelen"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Four - Rendezvous.md",
+      "link_text": "Phase Four - Rendezvous"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Felicity vs Selaya - The Finish.md",
+      "link_text": "Felicity vs Selaya - The Finish"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Six - The First Descent.md",
+      "link_text": "Phase Six - The First Descent"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Ten - The Final Chamber.md",
+      "link_text": "Phase Ten - The Final Chamber"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Ten - Helel's Radiance.md",
+      "link_text": "Phase Ten - Helel's Radiance"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase One - Infiltration.md",
+      "link_text": "Phase One - Infiltration"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Eleven - Ashen Fang's Split.md",
+      "link_text": "Phase Eleven - Ashen Fang's Split"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Luci & Helel.md",
+      "link_text": "Luci & Helel"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Flow College Loading Zone.md",
+      "link_text": "Flow College Loading Zone"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Eleven - Ashen's End.md",
+      "link_text": "Phase Eleven - Ashen's End"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Seven - Tandem Test, The Shift.md",
+      "link_text": "Phase Seven - Tandem Test, The Shift"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Ten - Helel vs Kaelen.md",
+      "link_text": "Phase Ten - Helel vs Kaelen"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Nine - Raven's Verdict.md",
+      "link_text": "Phase Nine - Raven's Verdict"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Three - Clash of Titans.md",
+      "link_text": "Phase Three - Clash of Titans"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Ride Back to the Flow College.md",
+      "link_text": "Ride Back to the Flow College"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "A Small Aside.md",
+      "link_text": "A Small Aside"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "The Debrief.md",
+      "link_text": "The Debrief"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "\ud83e\udd41 Phase Seven \u2014 Beat\u2019s Crescendo.md",
+      "link_text": "\ud83e\udd41 Phase Seven \u2014 Beat\u2019s Crescendo"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Seven - Tandem Test, The Problem.md",
+      "link_text": "Phase Seven - Tandem Test, The Problem"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "\ud83c\udfb6 Phase Seven \u2014 The Duet Awakens.md",
+      "link_text": "\ud83c\udfb6 Phase Seven \u2014 The Duet Awakens"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Eleven - Null vs Rhelas.md",
+      "link_text": "Phase Eleven - Null vs Rhelas"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Return to the Base.md",
+      "link_text": "Return to the Base"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Reunion at the Ruins.md",
+      "link_text": "Reunion at the Ruins"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Nine - Raven's Last Word.md",
+      "link_text": "Phase Nine - Raven's Last Word"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Ending - The Choice.md",
+      "link_text": "Ending - The Choice"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "In the Darkness.md",
+      "link_text": "In the Darkness"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Kille & Null.md",
+      "link_text": "Kille & Null"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Eight - Null vs. Chimera & Analog AD.md",
+      "link_text": "Phase Eight - Null vs. Chimera & Analog AD"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Eleven - Fatale vs Rauke.md",
+      "link_text": "Phase Eleven - Fatale vs Rauke"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "After the Duet.md",
+      "link_text": "After the Duet"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Nine - Into the Ash Chamber.md",
+      "link_text": "Phase Nine - Into the Ash Chamber"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Nine - Raven vs Varik.md",
+      "link_text": "Phase Nine - Raven vs Varik"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Barracks Briefing - Kel Vann & Lieutenants.md",
+      "link_text": "Barracks Briefing - Kel Vann & Lieutenants"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Felicity vs Selaya - Opening Exchange.md",
+      "link_text": "Felicity vs Selaya - Opening Exchange"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Felicity vs Selaya - Predator's First Strike.md",
+      "link_text": "Felicity vs Selaya - Predator's First Strike"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Five - Kel's Command.md",
+      "link_text": "Phase Five - Kel's Command"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Eleven - Crescendo of Monsters.md",
+      "link_text": "Phase Eleven - Crescendo of Monsters"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Asier & Fatale.md",
+      "link_text": "Asier & Fatale "
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Aseir.md",
+      "link_text": "Aseir"
+    },
+    {
+      "source": "Master Timeline.md",
+      "target": "Phase Eleven - The Outsider.md",
+      "link_text": "Phase Eleven - The Outsider"
+    },
+    {
+      "source": "Memory Reconstruction System.md",
+      "target": "Domain Specific Hash Codes.md",
+      "link_text": "Domain Specific Hash Codes"
+    },
+    {
+      "source": "Memory Reconstruction System.md",
+      "target": "Learning System Rules and Failure States.md",
+      "link_text": "Learning System Rules and Failure States"
+    },
+    {
+      "source": "Memory Reconstruction System.md",
+      "target": "Alphabet Peg System.md",
+      "link_text": "Alphabet Peg System"
+    },
+    {
+      "source": "Mental Models.md",
+      "target": "First Principles Thinking.md",
+      "link_text": "First Principles Thinking"
+    },
+    {
+      "source": "Nanaban.md",
+      "target": "Ippon Kumite.md",
+      "link_text": "Ippon Kumite"
+    },
+    {
+      "source": "NCAA College Football 2026.md",
+      "target": "Practice & Meta Knowledge.md",
+      "link_text": "Practice & Meta Knowledge"
+    },
+    {
+      "source": "NCAA College Football 2026.md",
+      "target": "Core Gameplay Mechanics.md",
+      "link_text": "Core Gameplay Mechanics"
+    },
+    {
+      "source": "NCAA College Football 2026.md",
+      "target": "Offensive Strategy.md",
+      "link_text": "Offensive Strategy"
+    },
+    {
+      "source": "NCAA College Football 2026.md",
+      "target": "Defensive Strategy.md",
+      "link_text": "Defensive Strategy"
+    },
+    {
+      "source": "NCAA College Football 2026.md",
+      "target": "Situational Football (Game IQ).md",
+      "link_text": "Situational Football (Game IQ)"
+    },
+    {
+      "source": "NCAA College Football 2026.md",
+      "target": "Dynasty Mode.md",
+      "link_text": "Dynasty Mode"
+    },
+    {
+      "source": "Note Creation and Organization.md",
+      "target": "Obsidian.md",
+      "link_text": "Obsidian"
+    },
+    {
+      "source": "Note Creation and Organization.md",
+      "target": "Markdown Mastery.md",
+      "link_text": "Markdown Mastery"
+    },
+    {
+      "source": "Note Creation and Organization.md",
+      "target": "KAS Note Template.md",
+      "link_text": "KAS Note Template"
+    },
+    {
+      "source": "Null.md",
+      "target": "Fatale Wildman.md",
+      "link_text": "Fatale Wildman"
+    },
+    {
+      "source": "Null.md",
+      "target": "Omni Eyes.md",
+      "link_text": "Omni Eyes"
+    },
+    {
+      "source": "Null.md",
+      "target": "Beat.md",
+      "link_text": "Beat"
+    },
+    {
+      "source": "Null.md",
+      "target": "Helel.md",
+      "link_text": "Helel"
+    },
+    {
+      "source": "Null.md",
+      "target": "Femme Wildman.md",
+      "link_text": "Femme Wildman"
+    },
+    {
+      "source": "Null.md",
+      "target": "Varas.md",
+      "link_text": "Varas"
+    },
+    {
+      "source": "Null.md",
+      "target": "Nullius.md",
+      "link_text": "Nullius"
+    },
+    {
+      "source": "Null.md",
+      "target": "Luci.md",
+      "link_text": "Luci"
+    },
+    {
+      "source": "Null.md",
+      "target": "Flow.md",
+      "link_text": "Flow"
+    },
+    {
+      "source": "Null.md",
+      "target": "Bond Manifestation.md",
+      "link_text": "Bond Manifestation"
+    },
+    {
+      "source": "Null.md",
+      "target": "Aseir.md",
+      "link_text": "Aseir"
+    },
+    {
+      "source": "Null.md",
+      "target": "Raven.md",
+      "link_text": "Raven"
+    },
+    {
+      "source": "Null.md",
+      "target": "Marisol.md",
+      "link_text": "Marisol"
+    },
+    {
+      "source": "Nullius.md",
+      "target": "Null.md",
+      "link_text": "Null"
+    },
+    {
+      "source": "Nullius.md",
+      "target": "Fatale Wildman.md",
+      "link_text": "Fatale Wildman"
+    },
+    {
+      "source": "Obsidian.md",
+      "target": "Markdown Mastery.md",
+      "link_text": "Markdown Mastery"
+    },
+    {
+      "source": "Obsidian.md",
+      "target": "Linking and Interconnectivity.md",
+      "link_text": "Linking and Interconnectivity"
+    },
+    {
+      "source": "Obsidian.md",
+      "target": "Sandbox Vault.md",
+      "link_text": "Sandbox Vault"
+    },
+    {
+      "source": "Obsidian.md",
+      "target": "Note Creation and Organization.md",
+      "link_text": "Note Creation and Organization"
+    },
+    {
+      "source": "Obsidian.md",
+      "target": "Creating a Vault.md",
+      "link_text": "Creating a Vault"
+    },
+    {
+      "source": "OpenSSL.md",
+      "target": "Generating Keys & CSRs.md",
+      "link_text": "Generating Keys & CSRs"
+    },
+    {
+      "source": "OpenSSL.md",
+      "target": "Public Key Infrastructure Basics.md",
+      "link_text": "Public Key Infrastructure Basics"
+    },
+    {
+      "source": "Paragraphs Use Blank Lines.md",
+      "target": "Markdown Mastery.md",
+      "link_text": "Markdown Mastery"
+    },
+    {
+      "source": "Phase Three - Clash of Titans.md",
+      "target": "Null.md",
+      "link_text": "Null"
+    },
+    {
+      "source": "Python Basics.md",
+      "target": "Data Types.md",
+      "link_text": "Data Types"
+    },
+    {
+      "source": "Python Basics.md",
+      "target": "Syntax.md",
+      "link_text": "Syntax"
+    },
+    {
+      "source": "Python.md",
+      "target": "Python Basics.md",
+      "link_text": "Python Basics"
+    },
+    {
+      "source": "Python.md",
+      "target": "Libraries.md",
+      "link_text": "Libraries"
+    },
+    {
+      "source": "Python.md",
+      "target": "Design Patterns.md",
+      "link_text": "Design Patterns"
+    },
+    {
+      "source": "Python.md",
+      "target": "Python Automation.md",
+      "link_text": "Python Automation"
+    },
+    {
+      "source": "Rokuban.md",
+      "target": "Ippon Kumite.md",
+      "link_text": "Ippon Kumite"
+    },
+    {
+      "source": "Sandbox Vault.md",
+      "target": "Obsidian.md",
+      "link_text": "Obsidian"
+    },
+    {
+      "source": "Smart Money Concepts.md",
+      "target": "Smart Money Playbook.md",
+      "link_text": "Smart Money Playbook"
+    },
+    {
+      "source": "Strategies.md",
+      "target": "Job Application Bot.md",
+      "link_text": "Job Application Bot"
+    },
+    {
+      "source": "Syntax.md",
+      "target": "Python.md",
+      "link_text": "Python"
+    },
+    {
+      "source": "Syntax.md",
+      "target": "Python Basics.md",
+      "link_text": "Python Basics"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Felicity Malik.md",
+      "link_text": "Felicity Malik"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Cocktails for Two.md",
+      "link_text": "Cocktails for Two"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "The Monster and what Matters.md",
+      "link_text": "The Monster and what Matters"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Rhythm.md",
+      "link_text": "Rhythm"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Nullius.md",
+      "link_text": "Nullius"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Fatale Wildman.md",
+      "link_text": "Fatale Wildman"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Arc Breakdowns.md",
+      "link_text": "Arc Breakdowns"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Null.md",
+      "link_text": "Null"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Cosmology.md",
+      "link_text": "Cosmology"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Luci.md",
+      "link_text": "Luci"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Flow.md",
+      "link_text": "Flow"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Helel.md",
+      "link_text": "Helel"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Varas.md",
+      "link_text": "Varas"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Femme Wildman.md",
+      "link_text": "Femme Wildman"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Raven.md",
+      "link_text": "Raven"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Marisol.md",
+      "link_text": "Marisol"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Flow College.md",
+      "link_text": "Flow College"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Radiance folded in Shadow.md",
+      "link_text": "Radiance folded in Shadow"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Master Timeline.md",
+      "link_text": "Master Timeline"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Beat.md",
+      "link_text": "Beat"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Four Wings.md",
+      "link_text": "Four Wings"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "I Thought We Were Studying.md",
+      "link_text": "I Thought We Were Studying"
+    },
+    {
+      "source": "SYS_Symphony.EXE.md",
+      "target": "Aseir.md",
+      "link_text": "Aseir"
+    },
+    {
+      "source": "Tools and Processes for Streamlined Consistency.md",
+      "target": "Oshun's Divines Templating.md",
+      "link_text": "Oshun's Divines Templating"
+    },
+    {
+      "source": "Video Essays.md",
+      "target": "Doomer Teto 4-Part Analysis.md",
+      "link_text": "Doomer Teto 4-Part Analysis"
+    },
+    {
+      "source": "Video Essays.md",
+      "target": "Memento Mori.md",
+      "link_text": "Memento Mori"
+    },
+    {
+      "source": "Visual Studio Code.md",
+      "target": "Most Common Terminal Commands.md",
+      "link_text": "Most Common Terminal Commands"
+    },
+    {
+      "source": "Visual Studio Code.md",
+      "target": "Integrated Terminal Usage.md",
+      "link_text": "Integrated Terminal Usage"
+    },
+    {
+      "source": "Weekly Recap \u2014 June 2\u20139 2026.md",
+      "target": "Weekly Recaps.md",
+      "link_text": "Weekly Recaps"
+    },
+    {
+      "source": "Weekly Recap \u2014 June 2\u20139 2026.md",
+      "target": "SYS_Symphony.EXE.md",
+      "link_text": "SYS_Symphony.EXE"
+    },
+    {
+      "source": "Weekly Recaps.md",
+      "target": "Weekly Recap \u2014 June 2\u20139 2026.md",
+      "link_text": "Weekly Recap \u2014 June 2\u20139 2026"
+    },
+    {
+      "source": "Zamen400.md",
+      "target": "General Creative Video Scripts.md",
+      "link_text": "General Creative Video Scripts"
+    },
+    {
+      "source": "Femme Wildman.md",
+      "target": "Fatale Wildman.md",
+      "link_text": "Fatale Wildman"
+    },
+    {
+      "source": "Femme Wildman.md",
+      "target": "Null.md",
+      "link_text": "Null"
+    },
+    {
+      "source": "Femme Wildman.md",
+      "target": "Aseir.md",
+      "link_text": "Aseir"
+    }
+  ]
+}
