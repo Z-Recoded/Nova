@@ -151,23 +151,18 @@ def retrieve_with_graph(query: str, n_results: int = 3) -> list[dict]:
 
 ## 5. Known Issues & Active Bugs
 
-### /context-budget returns empty (ACTIVE BUG)
-`GET /context-budget?query=X` returns `{"files": [], "count": 0}` for all queries.
+### /context-budget — FIXED (2026-06-17)
+Previously returned `{"files": [], "count": 0}` for all queries. Root cause was a mismatch
+between `get_context_budget()` and `nova_query.py`'s Chroma client path / collection name /
+embedding function.
 
-**Confirmed working:** `/graph` and `/neighbors` both return correct data — graph is loaded.
-**Isolated to:** `get_context_budget()` in `graph_builder.py` — the semantic search step
-that finds seed nodes is returning zero results.
+**Verified fixed on 2026-07-04:** `graph_builder.py` and `nova_query.py` now use identical
+Chroma setup (`PersistentClient(path="C:/Nova/memory")`, collection `nova_memory`,
+`DefaultEmbeddingFunction()`). Calling `get_context_budget("Tell me about Null")` directly
+returns a 15-file ranked list including `Null.md`, `Nullius.md`, `Fatale Wildman.md`, and
+`SYS_Symphony.EXE.md` — matching the expected post-fix behavior.
 
-**Likely cause:** `get_context_budget()` is using a different Chroma client path, collection
-name, or embedding function than `nova_query.py`. Compare `retrieve()` in `nova_query.py`
-(which works) against `get_context_budget()` — they must use identical:
-  - `chromadb.PersistentClient(path="C:/Nova/memory")`
-  - collection name: `nova_memory`
-  - `embedding_functions.DefaultEmbeddingFunction()`
-
-**Expected result after fix:** `GET /context-budget?query=Tell me about Null` should return
-a ranked list including `Null.md`, `Fatale Wildman.md`, `SYS_Symphony.EXE.md`, and connected
-notes from BFS graph expansion.
+No known active bugs at this time.
 
 ---
 
@@ -207,7 +202,7 @@ nova-env\Scripts\python -m uvicorn nova_api:app --host 0.0.0.0 --port 8000
 | /ask | POST | ✓ Working | Full RAG pipeline — query → retrieve → generate |
 | /graph | GET | ✓ Working | Full node/edge map from nova_graph.json |
 | /neighbors | GET | ✓ Working | Incoming + outgoing edges for a given file |
-| /context-budget | GET | ✗ Bug | Should return ranked file list — returns empty |
+| /context-budget | GET | ✓ Working | Returns ranked file list from graph-guided seed search |
 | /ingest | POST | Untested | Trigger incremental ingest for a file |
 | /rebuild-node | POST | Untested | Rebuild a single graph node |
 
@@ -252,6 +247,7 @@ nova-env\Scripts\python -m uvicorn nova_api:app --host 0.0.0.0 --port 8000
 |------------|-----------------------------------------------|---------------------------------------------|
 | 2026-06-15 | CLAUDE.md created                             | Establishing Nova project standards         |
 | 2026-06-15 | Documented /context-budget bug in Section 5   | Active bug — first task for next session    |
+| 2026-07-04 | Marked /context-budget as fixed in Sections 5 & 7 | Verified via direct call — bug doc was stale after the 2026-06-17 fix |
 
 ---
 
