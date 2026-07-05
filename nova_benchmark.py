@@ -14,6 +14,7 @@
 import argparse
 import json
 import os
+import sys
 import time
 from datetime import datetime
 
@@ -21,6 +22,11 @@ import ollama
 
 import nova_query
 from nova_logger import detect_blending
+
+# Windows' default console codepage (cp1252) can't encode the ✓/✗ characters
+# this file prints — reconfiguring stdout to UTF-8 avoids a crash when this
+# is run from a plain PowerShell/cmd prompt instead of a UTF-8-aware terminal.
+sys.stdout.reconfigure(encoding="utf-8")
 
 # ── Config: context-window benchmark ───────────────────────────
 MODEL = "llama3.2"
