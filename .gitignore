@@ -1,5 +1,6 @@
 # Secrets
 .env
+.webui_secret_key
 
 # Virtual environment
 nova-env/

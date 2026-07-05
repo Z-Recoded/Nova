@@ -2,6 +2,8 @@
 # Nova retrieval + generation layer
 # Queries Chroma memory, builds context, calls local Ollama model
 
+import re
+
 import chromadb
 from chromadb.utils import embedding_functions
 from datetime import datetime
@@ -27,11 +29,27 @@ collection = chroma_client.get_or_create_collection(
 
 
 # ── Character name → filename map (for per-character retrieval filtering) ──
-CHARACTER_NAMES = [
-    "null", "helel", "raven", "fatale", "luci", "varas", "aseir",
-    "beat", "rhythm", "felicity", "nullius", "nox", "marisol", "kille",
-    "sorae", "symphony", "sys_symphony", "beastman", "gilgamesh", "enkidu",
-]
+# Maps each recognized name to its exact, case-preserved source filename.
+# Chroma's metadata "filename" field keeps the original filesystem casing
+# (see ingest.py), so this must match that casing exactly for the $eq
+# filter below to hit anything.
+CHARACTER_FILES = {
+    "null": "Null.md",
+    "nullius": "Nullius.md",
+    "helel": "Helel.md",
+    "raven": "Raven.md",
+    "fatale": "Fatale Wildman.md",
+    "luci": "Luci.md",
+    "varas": "Varas.md",
+    "aseir": "Aseir.md",
+    "beat": "Beat.md",
+    "rhythm": "Rhythm.md",
+    "felicity": "Felicity Malik.md",
+    "marisol": "Marisol.md",
+    "kille": "Kille & Null.md",
+    "symphony": "SYS_Symphony.EXE.md",
+    "sys_symphony": "SYS_Symphony.EXE.md",
+}
 
 # ── Profile ────────────────────────────────────────────────────
 def load_profile() -> str:
@@ -146,12 +164,13 @@ def ask(query: str, history: list[dict] = None, persist: bool = True) -> dict:
     if route_result.category == "fiction":
         # Don't expand with history — prior character names corrupt the retrieval query
         retrieval_query = query
-        # Filter to the named character's file if one is detected
+        # Filter to the named character's file if one is detected.
+        # Word-boundary match avoids "null" incorrectly matching inside "nullius".
         q_lower = query.lower()
         char_filter = None
-        for name in CHARACTER_NAMES:
-            if name in q_lower:
-                char_filter = {"filename": {"$eq": f"{name}.md"}}
+        for name, filename in CHARACTER_FILES.items():
+            if re.search(rf"\b{re.escape(name)}\b", q_lower):
+                char_filter = {"filename": {"$eq": filename}}
                 break
         # Use graph-scoped retrieval; char_filter is merged inside retrieve_with_graph.
         # A hard character filter ($eq) overrides budget scoping for precision.
