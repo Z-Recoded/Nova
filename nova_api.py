@@ -12,6 +12,7 @@
 #   POST /v1/chat/completions       → OpenAI-compatible chat (Open WebUI → RAG pipeline)
 #   GET  /nova-log                  → Nova Log Health dashboard (HTML)
 #   GET  /nova-log/data             → Nova Log Health dashboard data (JSON)
+#   POST /agent/task                → run a coding task via Nova's coding sub-agent
 #
 # Run:
 #   cd C:/Nova
@@ -35,6 +36,7 @@ from graph_builder import (
 )
 from ingest import ingest_file, run_ingestion
 from nova_log import compute_health_summary
+from nova_orchestrator import run_coding_task
 from nova_query import ask
 from nova_sources import SOURCES
 
@@ -81,6 +83,10 @@ class IngestRequest(BaseModel):
 
 class RebuildNodeRequest(BaseModel):
     filepath: str
+
+
+class AgentTaskRequest(BaseModel):
+    task: str
 
 
 # ── Routes ─────────────────────────────────────────────────────
@@ -295,6 +301,21 @@ def openai_chat_completions(body: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/agent/task")
+def agent_task(req: AgentTaskRequest):
+    """
+    Run a coding task through Nova's coding sub-agent (nova_orchestrator.py).
+
+    The task runs in a disposable git worktree — nothing touches the live
+    Nova codebase. Returns the branch name and diff for human review; never
+    auto-merges.
+    """
+    try:
+        return run_coding_task(req.task)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/rebuild-node")
 def trigger_rebuild_node(req: RebuildNodeRequest):
     """Rebuild the graph node for a single file (used by nova_watcher)."""
@@ -324,7 +345,7 @@ NOVA_LOG_UNAVAILABLE_FIELDS = {
     "retrieval_hit_rate": "Not tracked yet — no ground-truth relevance labels to compare against.",
     "last_benchmark_run": "nova_benchmark.py doesn't write a log file yet (console output only).",
     "active_augments": "No augment/config-flag system exists in current Nova (single model, no toggles).",
-    "orchestrator_failures_count": "nova_orchestrator.py is still in planning — nothing to count yet.",
+    "orchestrator_failures_count": "nova_orchestrator.py exists (coding sub-agent) but doesn't track an aggregate failure count yet.",
 }
 
 NOVA_LOG_HTML_PATH = "C:/Nova/nova_log.html"

@@ -32,9 +32,9 @@ Nova v0.1 is operational. The following are built and validated:
 - Phase 1.5  | Self-Monitoring        | Backlog — resource headroom calculator, Task Scheduler auto-start for nova_watcher.py, periodic benchmarking suite
 - Phase 1.75 | Retrieval Intelligence | Backlog — classical-algorithm pass over the retrieval/decision layer: A* graph traversal + document-level embeddings for the heuristic, DP context-window packing, priority-queue routing, two-tier memory decay, weighted wikilinks, link-aware ingestion upgrade, feature-flag system (nova_config.json)
 - Phase 2    | Voice & Capture        | Backlog — Whisper + Piper
-- Phase 2.5  | Agent Layer            | Backlog — file CRUD, MCP tool-calling, Nova MCP Server, subagent orchestration (nova_orchestrator.py + Docker, ephemeral task containers)
+- Phase 2.5  | Agent Layer            | Backlog — file CRUD ✓ v1 live (`nova_tools.py`); MCP tool-calling + Nova MCP Server deferred (not on the critical path — nova_orchestrator.py calls nova_tools.py in-process); Docker sub-agent orchestration deferred, see Phase 3.5
 - Phase 3    | First Fine-Tune        | Backlog — Unsloth + DPO → GGUF → Ollama (conversational/lore lane); base-model re-eval (Llama 3.2 3B vs. Phi-4 Mini 128K) + dynamic model routing
-- Phase 3.5  | Coding Agent Lane      | Backlog — OpenHands as Nova's coding sub-agent (nova-code-agent container) + Qwen3 8B agentic-reasoning fine-tune, run parallel to Phase 3's conversational lane — this is the path to Nova coding independently
+- Phase 3.5  | Coding Agent Lane      | ✓ v1 live (2026-07-05) — Claude API-backed coding sub-agent (`nova_orchestrator.py`), git-worktree isolated, no Docker/OpenHands yet (deferred as a hardening pass); Qwen3 8B fine-tune remains the eventual swap-in once trained + validated against real usage from this interim period — this is the path to Nova coding independently
 - Phase 4    | Roaming Layer          | Backlog — VPN, thin client, universal presence; headless Ubuntu server, Dockerized services, cloud GPU (RunPod/Vast.ai), hosted inference fallback
 - Phase 5    | Continuous Learning    | Backlog — quarterly fine-tune cycles
 - Phase 6    | Domain Expansion       | Backlog — domain state layer + adapters (financial, alert engine), pixel RAG (CLIP/ColPali), chunk visualization tool, temporal awareness, proactive memory, content transformation pipeline, Art Practice Companion module
@@ -67,6 +67,8 @@ C:/Nova/
 ├── nova_log.py             # Nova Log — query telemetry writer + Health dashboard data
 ├── nova_log.html           # Nova Log Health dashboard — static page served at /nova-log
 ├── nova_sources.py         # Source paths config — Second Brain location
+├── nova_tools.py           # Path-scoped file/exec primitives for the coding sub-agent
+├── nova_orchestrator.py    # Coding sub-agent loop (Claude-backed v1, git-worktree isolated)
 ├── nova_graph.json         # Wikilink graph — nodes + edges (output of graph_builder.py)
 ├── ingest_manifest.json    # Tracks file mtimes for incremental ingest
 ├── start_nova.ps1          # Launches nova_api.py + Open WebUI, one command
@@ -74,7 +76,13 @@ C:/Nova/
 ├── memory/                 # Chroma vector database (persistent)
 └── logs/
     ├── query_log.jsonl     # Per-query telemetry (nova_log.py) — Nova Log Health data source
+    ├── agent_log.jsonl     # Per-turn coding sub-agent telemetry (nova_orchestrator.py)
     └── watcher.log         # File watcher logs
+
+C:/nova-agent-worktrees/    # Sibling dir, outside the repo — disposable per-task git
+                            # worktrees created by nova_orchestrator.py. Outside both of
+                            # ingest.py's configured sources (Second Brain + C:/Nova), so
+                            # never ingested.
 ```
 
 ### Second Brain Location
@@ -89,7 +97,17 @@ Read-only always.
 - **Chroma** — local vector database at `C:/Nova/memory/`
 - **Collection name** — `nova_memory`
 - **Embedding function** — `DefaultEmbeddingFunction()` from `chromadb.utils`
-- **Claude API** — used only by `nova_corrector.py` for DPO pair generation
+- **Claude API** — used by `nova_corrector.py` for DPO pair generation, and by
+  `nova_orchestrator.py` as the interim coding sub-agent brain (see below)
+
+### Nova Coding Sub-Agent (nova_orchestrator.py)
+Nova can now write to its own codebase — the one sanctioned exception to a human
+surfacing every change before it's applied (Section 8). Safety comes from **git worktree
+isolation**, not manual review of each write: every task runs in its own disposable
+worktree + branch under `C:/nova-agent-worktrees/`, never the live `C:/Nova` tree.
+`nova_orchestrator.py` never merges or deletes a worktree — Marvin always reviews the
+diff and merges by hand. v1 is driven by the Claude API (not a local model yet) and has
+no Docker/OpenHands sandboxing — that's deferred; see Phase 3.5.
 
 ### nova_graph.json Structure
 ```json
@@ -265,6 +283,7 @@ nova-env\Scripts\python -m uvicorn nova_api:app --host 0.0.0.0 --port 8000
 | 2026-07-04 | Added Open WebUI OpenAI-compat routes and launch scripts to Sections 1, 2 & 7 | Doc catch-up — these shipped same day but weren't recorded in CLAUDE.md |
 | 2026-07-04 | Added Nova Log v1 (query_log.jsonl + /nova-log Health dashboard) to Sections 1, 2 & 7 | Only the Health view is buildable against real data today — Benchmark/Pipeline/Query views and their log files depend on nova_orchestrator.py and a real benchmark delta-log, neither of which exist yet |
 | 2026-07-05 | Reconciled Phase Roadmap (Section 1) with ~40 new ClickUp backlog tasks — added Phase 1.75 Retrieval Intelligence, Phase 3.5 Coding Agent Lane, and Phase 6 Domain Expansion; expanded 1.5/2.5/3/4 descriptions | ClickUp board grew significantly past what CLAUDE.md documented; Phase 3.5 specifically splits out a dedicated OpenHands + Qwen3 8B coding sub-agent lane, run parallel to Phase 3's conversational fine-tune, as an architectural shortcut toward Nova coding independently |
+| 2026-07-05 | Shipped Phase 3.5 v1 (`nova_tools.py`, `nova_orchestrator.py`, `POST /agent/task`) — Claude API-backed coding sub-agent, git-worktree isolated instead of Docker/OpenHands | Docker isn't installed on this machine and Qwen3 8B has no training data yet — waiting for both would block "Nova coding itself" indefinitely. Building the harness now with Claude as an interim brain, then swapping to Qwen3 once trained, makes the eventual fine-tune cheaper (real usage becomes training data) instead of leaving the scaffolding idle. Docker/OpenHands remains a deferred hardening pass |
 
 ---
 
