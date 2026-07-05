@@ -27,14 +27,17 @@ Nova v0.1 is operational. The following are built and validated:
 - `start_nova.ps1` / `launch_openwebui.ps1` — one-command local launch (nova_api.py + Open WebUI)
 
 ### Phase Roadmap
-- Phase 0   | Foundation          | ✓ Complete
-- Phase 1   | Memory Core         | ✓ Operational — Nova Log v1 done (Health view only, see Section 7); Nova Log Benchmark/Pipeline/Query views deferred
-- Phase 1.5 | Self-Monitoring     | Backlog — resource headroom calculator
-- Phase 2   | Voice & Capture     | Backlog — Whisper + Piper
-- Phase 2.5 | Agent Layer         | Backlog — file CRUD, MCP tool-calling, Nova MCP Server
-- Phase 3   | First Fine-Tune     | Backlog — Unsloth + DPO → GGUF → Ollama
-- Phase 4   | Roaming Layer       | Backlog — VPN, thin client, universal presence
-- Phase 5   | Continuous Learning | Backlog — quarterly fine-tune cycles
+- Phase 0    | Foundation             | ✓ Complete
+- Phase 1    | Memory Core            | ✓ Operational — Nova Log v1 done (Health view only, see Section 7); Nova Log Benchmark/Pipeline/Query views + log rotation deferred
+- Phase 1.5  | Self-Monitoring        | Backlog — resource headroom calculator, Task Scheduler auto-start for nova_watcher.py, periodic benchmarking suite
+- Phase 1.75 | Retrieval Intelligence | Backlog — classical-algorithm pass over the retrieval/decision layer: A* graph traversal + document-level embeddings for the heuristic, DP context-window packing, priority-queue routing, two-tier memory decay, weighted wikilinks, link-aware ingestion upgrade, feature-flag system (nova_config.json)
+- Phase 2    | Voice & Capture        | Backlog — Whisper + Piper
+- Phase 2.5  | Agent Layer            | Backlog — file CRUD, MCP tool-calling, Nova MCP Server, subagent orchestration (nova_orchestrator.py + Docker, ephemeral task containers)
+- Phase 3    | First Fine-Tune        | Backlog — Unsloth + DPO → GGUF → Ollama (conversational/lore lane); base-model re-eval (Llama 3.2 3B vs. Phi-4 Mini 128K) + dynamic model routing
+- Phase 3.5  | Coding Agent Lane      | Backlog — OpenHands as Nova's coding sub-agent (nova-code-agent container) + Qwen3 8B agentic-reasoning fine-tune, run parallel to Phase 3's conversational lane — this is the path to Nova coding independently
+- Phase 4    | Roaming Layer          | Backlog — VPN, thin client, universal presence; headless Ubuntu server, Dockerized services, cloud GPU (RunPod/Vast.ai), hosted inference fallback
+- Phase 5    | Continuous Learning    | Backlog — quarterly fine-tune cycles
+- Phase 6    | Domain Expansion       | Backlog — domain state layer + adapters (financial, alert engine), pixel RAG (CLIP/ColPali), chunk visualization tool, temporal awareness, proactive memory, content transformation pipeline, Art Practice Companion module
 
 **Do not build Phase 2+ features without explicit instruction.**
 
@@ -261,6 +264,7 @@ nova-env\Scripts\python -m uvicorn nova_api:app --host 0.0.0.0 --port 8000
 | 2026-07-04 | Marked /context-budget as fixed in Sections 5 & 7 | Verified via direct call — bug doc was stale after the 2026-06-17 fix |
 | 2026-07-04 | Added Open WebUI OpenAI-compat routes and launch scripts to Sections 1, 2 & 7 | Doc catch-up — these shipped same day but weren't recorded in CLAUDE.md |
 | 2026-07-04 | Added Nova Log v1 (query_log.jsonl + /nova-log Health dashboard) to Sections 1, 2 & 7 | Only the Health view is buildable against real data today — Benchmark/Pipeline/Query views and their log files depend on nova_orchestrator.py and a real benchmark delta-log, neither of which exist yet |
+| 2026-07-05 | Reconciled Phase Roadmap (Section 1) with ~40 new ClickUp backlog tasks — added Phase 1.75 Retrieval Intelligence, Phase 3.5 Coding Agent Lane, and Phase 6 Domain Expansion; expanded 1.5/2.5/3/4 descriptions | ClickUp board grew significantly past what CLAUDE.md documented; Phase 3.5 specifically splits out a dedicated OpenHands + Qwen3 8B coding sub-agent lane, run parallel to Phase 3's conversational fine-tune, as an architectural shortcut toward Nova coding independently |
 
 ---
 
