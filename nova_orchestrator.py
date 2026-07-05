@@ -31,7 +31,11 @@ NOVA_REPO_ROOT = "C:/Nova"
 NOVA_AGENT_WORKTREES_ROOT = "C:/nova-agent-worktrees"
 
 NOVA_AGENT_MODEL = "claude-sonnet-5"
-NOVA_AGENT_MAX_TURNS = 15
+# Raised from 15: the first two real tasks both hit this cap despite doing
+# legitimate, correct work — verification/debugging (syntax checks, fixing
+# an encoding regression) reliably eats several turns on top of the actual
+# read/write/verify cycle.
+NOVA_AGENT_MAX_TURNS = 25
 # Generous headroom: a write_file call has to carry a whole file's contents
 # as its tool-input argument, which can run several thousand tokens on its
 # own for a file the size of nova_api.py.
@@ -118,6 +122,20 @@ def _create_worktree(slug: str) -> tuple[Path, str]:
     return worktree_path, branch_name
 
 
+COMMIT_SUBJECT_MAX_CHARS = 72
+
+
+def _summarize_task(task_description: str) -> str:
+    """
+    Shorten a task description to a git-subject-line length, cutting at the
+    last whole word rather than mid-word, with an ellipsis if it was cut.
+    """
+    if len(task_description) <= COMMIT_SUBJECT_MAX_CHARS:
+        return task_description
+    truncated = task_description[:COMMIT_SUBJECT_MAX_CHARS].rsplit(" ", 1)[0]
+    return f"{truncated}..."
+
+
 def _commit_worktree_changes(root: str, task_description: str) -> bool:
     """
     Stage and commit whatever the agent changed in its worktree, so the
@@ -132,7 +150,7 @@ def _commit_worktree_changes(root: str, task_description: str) -> bool:
     if not status.stdout.strip():
         return False
 
-    commit_message = f"{task_description[:72]}\n\nWritten by nova_orchestrator.py (Nova's coding sub-agent)."
+    commit_message = f"{_summarize_task(task_description)}\n\nWritten by nova_orchestrator.py (Nova's coding sub-agent)."
     subprocess.run(
         ["git", "commit", "-m", commit_message],
         cwd=root,
