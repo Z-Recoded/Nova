@@ -10,11 +10,12 @@ from chromadb.utils import embedding_functions
 from datetime import datetime
 import ollama
 
-from nova_router import route
+from nova_router import route, CODING_AGENT_PREFIX
 from nova_logger import detect_blending, log_blend
 from nova_log import log_query
 from nova_memory_store import load_history, save_history
 from graph_builder import get_context_budget
+from nova_orchestrator import run_coding_task
 
 # ── Config ─────────────────────────────────────────────────────
 OLLAMA_MODEL = "llama3.2"
@@ -145,6 +146,66 @@ def format_context(chunks: list[dict]) -> str:
         parts.append(f"[Source: {source} | Project: {project}]\n{chunk['text']}")
     return "\n\n---\n\n".join(parts)
 
+# ── Coding sub-agent handoff ───────────────────────────────────
+def _extract_changed_files(diff: str) -> list[str]:
+    """
+    Pull the list of changed filenames out of a unified git diff, instead of
+    scanning the full diff text. Looks for 'diff --git a/X b/X' header lines,
+    which git always emits once per changed file, and returns the 'b/X' path.
+    """
+    changed_files = []
+    for line in diff.splitlines():
+        if line.startswith("diff --git a/"):
+            # Line shape: "diff --git a/path/to/file b/path/to/file"
+            b_path = line.split(" b/", 1)[-1]
+            changed_files.append(b_path)
+    return changed_files
+
+
+def format_coding_task_summary(result: dict) -> str:
+    """
+    Build a plain-text summary of a nova_orchestrator.run_coding_task() result
+    for display in chat — status, turn/time budget used, which files changed,
+    and the next_steps text so Marvin knows how to review/merge from a terminal.
+    """
+    changed_files = _extract_changed_files(result.get("diff", ""))
+    if changed_files:
+        files_block = "\n".join(f"  - {f}" for f in changed_files)
+    else:
+        files_block = "  (no files changed)"
+
+    summary_lines = [
+        f"Coding task: {result.get('task', '')}",
+        f"Status: {result.get('status', 'unknown')}",
+        f"Turns used: {result.get('turns_used', '?')}",
+        f"Elapsed: {result.get('elapsed_s', '?')}s",
+        "Files changed:",
+        files_block,
+        "",
+        result.get("next_steps", ""),
+    ]
+    return "\n".join(summary_lines)
+
+
+def handle_coding_task(query: str) -> dict:
+    """
+    Strip the CODING_AGENT_PREFIX off the original (case-preserved) query,
+    hand the remaining task description to nova_orchestrator.run_coding_task(),
+    and return the same dict shape ask() returns for a normal query. This is
+    a completely separate path from the RAG pipeline — no Chroma retrieval,
+    no Ollama call, no query_log.jsonl/history.json writes. The task's own
+    telemetry already lands in logs/agent_log.jsonl via nova_orchestrator.py.
+    """
+    task_description = query[len(CODING_AGENT_PREFIX):]
+    result = run_coding_task(task_description)
+    answer = format_coding_task_summary(result)
+    return {
+        "answer": answer,
+        "sources": [],
+        "chunks": [],
+        "category": "coding_agent",
+    }
+
 # ── Generation ─────────────────────────────────────────────────
 def ask(query: str, history: list[dict] = None, persist: bool = True) -> dict:
     """
@@ -153,6 +214,9 @@ def ask(query: str, history: list[dict] = None, persist: bool = True) -> dict:
 
     history: list of {"role": "user"|"assistant", "content": "..."} dicts
     persist: if True, saves updated history to disk after responding
+
+    Queries prefixed with CODING_AGENT_PREFIX (e.g. "/code ...") are handed
+    off to the coding sub-agent instead — see handle_coding_task().
     """
     if history is None:
         history = []
@@ -161,6 +225,11 @@ def ask(query: str, history: list[dict] = None, persist: bool = True) -> dict:
 
     # Route the query
     route_result = route(query)
+
+    # Coding sub-agent tasks skip the entire RAG pipeline — no retrieval, no
+    # Ollama call, no blend detection, no query_log.jsonl or history.json writes.
+    if route_result.category == "coding_agent":
+        return handle_coding_task(query)
 
     # Retrieve relevant chunks
     n_results = 3 if route_result.category == "fiction" else route_result.n_results

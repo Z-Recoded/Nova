@@ -6,9 +6,16 @@ from dataclasses import dataclass
 
 @dataclass
 class RouteResult:
-    category: str        # identity | fiction | project | finance | technical | general
+    category: str        # coding_agent | identity | fiction | project | finance | technical | general
     n_results: int       # how many chunks to pull from Chroma
     note: str = ""       # hint passed to the system prompt for this query type
+
+# ── Coding sub-agent trigger ────────────────────────────────────
+# Prefix Marvin types in chat to hand a task directly to nova_orchestrator.py
+# instead of the normal RAG pipeline. Trailing space is intentional — it keeps
+# the prefix from matching a word like "/coder" and cleanly separates it from
+# the task description that follows.
+CODING_AGENT_PREFIX = "/code "
 
 # ── Keyword maps ───────────────────────────────────────────────
 IDENTITY_TRIGGERS = [
@@ -57,6 +64,16 @@ def route(query: str) -> RouteResult:
     Fast keyword-based — no LLM call needed.
     """
     q = query.lower().strip()
+
+    # Coding sub-agent — checked before every other category (including
+    # identity) so a task description that happens to contain fiction or
+    # technical trigger words never gets misrouted.
+    if q.startswith(CODING_AGENT_PREFIX.lower()):
+        return RouteResult(
+            category="coding_agent",
+            n_results=0,
+            note=""
+        )
 
     # Identity — check first so "who am I" never hits fiction
     if any(trigger in q for trigger in IDENTITY_TRIGGERS):
