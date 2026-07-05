@@ -13,6 +13,7 @@
 #   GET  /nova-log                  → Nova Log Health dashboard (HTML)
 #   GET  /nova-log/data             → Nova Log Health dashboard data (JSON)
 #   POST /agent/task                → run a coding task via Nova's coding sub-agent
+#   GET  /headroom                  → resource headroom report (VRAM/RAM/CPU + task capacity)
 #
 # Run:
 #   cd C:/Nova
@@ -35,6 +36,7 @@ from graph_builder import (
     rebuild_node,
 )
 from ingest import ingest_file, run_ingestion
+from nova_headroom import get_headroom_report
 from nova_log import compute_health_summary
 from nova_orchestrator import run_coding_task
 from nova_query import ask
@@ -332,6 +334,22 @@ def trigger_rebuild_node(req: RebuildNodeRequest):
             "graph_nodes": len(graph["nodes"]),
             "graph_edges": len(graph["edges"]),
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Resource headroom (Phase 1.5 self-monitoring) ───────────────
+
+@app.get("/headroom")
+def headroom():
+    """
+    Return Nova's current resource headroom report — VRAM (nvidia-smi), RAM
+    + CPU (psutil), ingestion queue depth, active session count, and a
+    plain-English summary of how many heavy/medium/light tasks Nova could
+    still take on before hitting nominal load thresholds.
+    """
+    try:
+        return get_headroom_report()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
