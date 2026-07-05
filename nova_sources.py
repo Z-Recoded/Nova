@@ -2,6 +2,7 @@
 # Configuration for Nova's ingestion pipeline
 # Add, remove, or edit sources to control what Nova ingests
 
+# Configures which directories ingest.py scans when building Nova's memory
 SOURCES = [
     {
         "path": r"C:\Users\marvi\OneDrive\Documents\Second Brain",
