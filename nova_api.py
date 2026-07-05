@@ -10,6 +10,8 @@
 #   POST /rebuild-node              → rebuild graph node for one file
 #   GET  /v1/models                 → OpenAI-compatible model list (Open WebUI)
 #   POST /v1/chat/completions       → OpenAI-compatible chat (Open WebUI → RAG pipeline)
+#   GET  /nova-log                  → Nova Log Health dashboard (HTML)
+#   GET  /nova-log/data             → Nova Log Health dashboard data (JSON)
 #
 # Run:
 #   cd C:/Nova
@@ -22,7 +24,7 @@ import uuid
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from graph_builder import (
@@ -32,6 +34,7 @@ from graph_builder import (
     rebuild_node,
 )
 from ingest import ingest_file, run_ingestion
+from nova_log import compute_health_summary
 from nova_query import ask
 from nova_sources import SOURCES
 
@@ -310,3 +313,32 @@ def trigger_rebuild_node(req: RebuildNodeRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Nova Log — Health dashboard ────────────────────────────────
+
+# Health-view fields the spec calls for that have no real data source yet.
+# Surfaced honestly with a reason each, rather than faked or silently omitted —
+# see the Nova Log v1 plan for why each one is deferred.
+NOVA_LOG_UNAVAILABLE_FIELDS = {
+    "retrieval_hit_rate": "Not tracked yet — no ground-truth relevance labels to compare against.",
+    "last_benchmark_run": "nova_benchmark.py doesn't write a log file yet (console output only).",
+    "active_augments": "No augment/config-flag system exists in current Nova (single model, no toggles).",
+    "orchestrator_failures_count": "nova_orchestrator.py is still in planning — nothing to count yet.",
+}
+
+NOVA_LOG_HTML_PATH = "C:/Nova/nova_log.html"
+
+
+@app.get("/nova-log/data")
+def nova_log_data():
+    """JSON data backing the /nova-log Health dashboard."""
+    summary = compute_health_summary()
+    summary["not_yet_available"] = NOVA_LOG_UNAVAILABLE_FIELDS
+    return summary
+
+
+@app.get("/nova-log")
+def nova_log_page():
+    """Serve the Nova Log Health dashboard — static HTML/JS, fetches /nova-log/data."""
+    return FileResponse(NOVA_LOG_HTML_PATH, media_type="text/html")

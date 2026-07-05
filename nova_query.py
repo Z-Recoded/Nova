@@ -3,6 +3,7 @@
 # Queries Chroma memory, builds context, calls local Ollama model
 
 import re
+import time
 
 import chromadb
 from chromadb.utils import embedding_functions
@@ -11,6 +12,7 @@ import ollama
 
 from nova_router import route
 from nova_logger import detect_blending, log_blend
+from nova_log import log_query
 from nova_memory_store import load_history, save_history
 from graph_builder import get_context_budget
 
@@ -155,12 +157,15 @@ def ask(query: str, history: list[dict] = None, persist: bool = True) -> dict:
     if history is None:
         history = []
 
+    pipeline_start = time.perf_counter()
+
     # Route the query
     route_result = route(query)
 
     # Retrieve relevant chunks
     n_results = 3 if route_result.category == "fiction" else route_result.n_results
 
+    retrieval_start = time.perf_counter()
     if route_result.category == "fiction":
         # Don't expand with history — prior character names corrupt the retrieval query
         retrieval_query = query
@@ -183,6 +188,7 @@ def ask(query: str, history: list[dict] = None, persist: bool = True) -> dict:
     else:
         retrieval_query = build_retrieval_query(query, history)
         chunks = retrieve_with_graph(retrieval_query, n_results=n_results)
+    retrieval_ms = int((time.perf_counter() - retrieval_start) * 1000)
     context = format_context(chunks)
 
     # Pin Marvin's profile at top of context
@@ -197,18 +203,40 @@ def ask(query: str, history: list[dict] = None, persist: bool = True) -> dict:
         "content": f"Here is relevant context from your memory:\n\n{pinned}{context}\n\n---\n\nQuestion: {query}"
     })
 
+    inference_start = time.perf_counter()
     response = ollama.chat(
         model=OLLAMA_MODEL,
         messages=messages,
         options={"num_ctx": NUM_CTX}
     )
+    inference_ms = int((time.perf_counter() - inference_start) * 1000)
 
     answer = response["message"]["content"]
 
     # Log blending inconsistencies as training material
-    if detect_blending(chunks, route_result.category):
+    blend_detected = detect_blending(chunks, route_result.category)
+    if blend_detected:
         log_blend(query, answer, chunks, route_result.category)
     sources = list({c["metadata"].get("filename", "unknown") for c in chunks})
+
+    # Log operational telemetry for the Nova Log Health dashboard — unconditional
+    # on persist, since persist only controls history.json, not whether a query
+    # happened (Open WebUI's /v1/chat/completions calls ask() with persist=False).
+    total_ms = int((time.perf_counter() - pipeline_start) * 1000)
+    log_query(
+        query=query,
+        category=route_result.category,
+        sources=sources,
+        chunks_retrieved=len(chunks),
+        blend_detected=blend_detected,
+        retrieval_ms=retrieval_ms,
+        inference_ms=inference_ms,
+        total_ms=total_ms,
+        prompt_tokens=response.get("prompt_eval_count"),
+        response_tokens=response.get("eval_count"),
+        model=OLLAMA_MODEL,
+        num_ctx=NUM_CTX,
+    )
 
     # Persist updated history
     if persist:

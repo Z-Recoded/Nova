@@ -23,10 +23,12 @@ Nova v0.1 is operational. The following are built and validated:
 - `nova_chat.py` — CLI chat interface
 - `nova_memory_store.py` — conversation history persistence
 - `nova_benchmark.py` — performance benchmarking
+- `nova_log.py` — Nova Log query telemetry (query_log.jsonl) + Health dashboard data
+- `start_nova.ps1` / `launch_openwebui.ps1` — one-command local launch (nova_api.py + Open WebUI)
 
 ### Phase Roadmap
 - Phase 0   | Foundation          | ✓ Complete
-- Phase 1   | Memory Core         | ✓ Operational — Web UI and Nova Log still needed
+- Phase 1   | Memory Core         | ✓ Operational — Nova Log v1 done (Health view only, see Section 7); Nova Log Benchmark/Pipeline/Query views deferred
 - Phase 1.5 | Self-Monitoring     | Backlog — resource headroom calculator
 - Phase 2   | Voice & Capture     | Backlog — Whisper + Piper
 - Phase 2.5 | Agent Layer         | Backlog — file CRUD, MCP tool-calling, Nova MCP Server
@@ -59,11 +61,16 @@ C:/Nova/
 ├── nova_chat.py            # CLI chat interface
 ├── nova_memory_store.py    # Conversation history persistence
 ├── nova_benchmark.py       # Performance benchmarking
+├── nova_log.py             # Nova Log — query telemetry writer + Health dashboard data
+├── nova_log.html           # Nova Log Health dashboard — static page served at /nova-log
 ├── nova_sources.py         # Source paths config — Second Brain location
 ├── nova_graph.json         # Wikilink graph — nodes + edges (output of graph_builder.py)
 ├── ingest_manifest.json    # Tracks file mtimes for incremental ingest
+├── start_nova.ps1          # Launches nova_api.py + Open WebUI, one command
+├── launch_openwebui.ps1    # Open WebUI env vars + launch (called by start_nova.ps1)
 ├── memory/                 # Chroma vector database (persistent)
 └── logs/
+    ├── query_log.jsonl     # Per-query telemetry (nova_log.py) — Nova Log Health data source
     └── watcher.log         # File watcher logs
 ```
 
@@ -205,6 +212,10 @@ nova-env\Scripts\python -m uvicorn nova_api:app --host 0.0.0.0 --port 8000
 | /context-budget | GET | ✓ Working | Returns ranked file list from graph-guided seed search |
 | /ingest | POST | Untested | Trigger incremental ingest for a file |
 | /rebuild-node | POST | Untested | Rebuild a single graph node |
+| /v1/models | GET | ✓ Working | OpenAI-compatible model list (Open WebUI model picker) |
+| /v1/chat/completions | POST | ✓ Working | OpenAI-compatible chat — routes Open WebUI through the RAG pipeline |
+| /nova-log | GET | ✓ Working | Nova Log Health dashboard (HTML) |
+| /nova-log/data | GET | ✓ Working | Nova Log Health dashboard data (JSON) — real stats only, see Section 1 |
 
 ---
 
@@ -248,6 +259,8 @@ nova-env\Scripts\python -m uvicorn nova_api:app --host 0.0.0.0 --port 8000
 | 2026-06-15 | CLAUDE.md created                             | Establishing Nova project standards         |
 | 2026-06-15 | Documented /context-budget bug in Section 5   | Active bug — first task for next session    |
 | 2026-07-04 | Marked /context-budget as fixed in Sections 5 & 7 | Verified via direct call — bug doc was stale after the 2026-06-17 fix |
+| 2026-07-04 | Added Open WebUI OpenAI-compat routes and launch scripts to Sections 1, 2 & 7 | Doc catch-up — these shipped same day but weren't recorded in CLAUDE.md |
+| 2026-07-04 | Added Nova Log v1 (query_log.jsonl + /nova-log Health dashboard) to Sections 1, 2 & 7 | Only the Health view is buildable against real data today — Benchmark/Pipeline/Query views and their log files depend on nova_orchestrator.py and a real benchmark delta-log, neither of which exist yet |
 
 ---
 

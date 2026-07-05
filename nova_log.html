@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova Log — Health</title>
+<style>
+  body {
+    font-family: -apple-system, Segoe UI, sans-serif;
+    background: #111318;
+    color: #e6e6e6;
+    max-width: 720px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+  p.subtitle { color: #888; margin-top: 0; margin-bottom: 1.5rem; }
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+  }
+  .tile {
+    background: #1b1e26;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    padding: 1rem;
+  }
+  .tile .value { font-size: 1.6rem; font-weight: 600; }
+  .tile .label { color: #999; font-size: 0.8rem; margin-top: 0.25rem; }
+  .planned {
+    background: #1b1e26;
+    border: 1px dashed #3a3e48;
+    border-radius: 8px;
+    padding: 1rem;
+    color: #888;
+  }
+  .planned h2 { font-size: 1rem; color: #aaa; margin-top: 0; }
+  .planned ul { padding-left: 1.2rem; margin: 0; }
+  .planned li { margin-bottom: 0.5rem; font-size: 0.9rem; }
+  .planned li b { color: #bbb; }
+  #error { color: #e06060; }
+</style>
+</head>
+<body>
+  <h1>Nova Log — Health</h1>
+  <p class="subtitle">What Nova actually knows about itself right now.</p>
+
+  <div id="error"></div>
+  <div class="tiles" id="tiles"></div>
+
+  <div class="planned">
+    <h2>Planned — not yet available</h2>
+    <ul id="planned-list"></ul>
+  </div>
+
+  <script>
+    async function loadHealth() {
+      try {
+        const res = await fetch('/nova-log/data');
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const data = await res.json();
+        renderTiles(data);
+        renderPlanned(data.not_yet_available || {});
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not load dashboard data: ' + err.message;
+      }
+    }
+
+    function renderTiles(data) {
+      const tiles = [
+        { label: 'Total queries', value: data.total_queries },
+        { label: 'Avg latency (24h)', value: formatMs(data.avg_latency_ms_24h) },
+        { label: 'Blend rate (last 100)', value: formatRate(data.blend_rate_last_100) },
+        { label: 'Last query', value: data.last_query_timestamp || '—' },
+      ];
+      const container = document.getElementById('tiles');
+      container.innerHTML = tiles.map(t =>
+        `<div class="tile"><div class="value">${t.value}</div><div class="label">${t.label}</div></div>`
+      ).join('');
+    }
+
+    function renderPlanned(fields) {
+      const list = document.getElementById('planned-list');
+      list.innerHTML = Object.entries(fields).map(([key, reason]) =>
+        `<li><b>${labelize(key)}</b> — ${reason}</li>`
+      ).join('');
+    }
+
+    function formatMs(ms) {
+      return ms === null || ms === undefined ? '—' : ms + ' ms';
+    }
+
+    function formatRate(rate) {
+      return rate === null || rate === undefined ? '—' : Math.round(rate * 100) + '%';
+    }
+
+    function labelize(key) {
+      return key.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+    }
+
+    loadHealth();
+  </script>
+</body>
+</html>
