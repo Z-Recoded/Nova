@@ -12,6 +12,7 @@
 #   POST /v1/chat/completions       → OpenAI-compatible chat (Open WebUI → RAG pipeline)
 #   GET  /nova-log                  → Nova Log Health dashboard (HTML)
 #   GET  /nova-log/data             → Nova Log Health dashboard data (JSON)
+#   GET  /nova-log/queries          → Nova Log Query view — recent queries (JSON)
 #   POST /agent/task                → run a coding task via Nova's coding sub-agent
 #   GET  /headroom                  → resource headroom report (VRAM/RAM/CPU + task capacity)
 #
@@ -37,7 +38,7 @@ from graph_builder import (
 )
 from ingest import ingest_file, run_ingestion
 from nova_headroom import get_headroom_report
-from nova_log import compute_health_summary
+from nova_log import compute_health_summary, DEFAULT_RECENT_QUERIES_LIMIT, get_recent_queries
 from nova_orchestrator import run_coding_task
 from nova_query import ask
 from nova_sources import SOURCES
@@ -375,6 +376,29 @@ def nova_log_data():
     summary = compute_health_summary()
     summary["not_yet_available"] = NOVA_LOG_UNAVAILABLE_FIELDS
     return summary
+
+
+@app.get("/nova-log/queries")
+def nova_log_queries(
+    limit: int = Query(DEFAULT_RECENT_QUERIES_LIMIT, ge=1, le=1000),
+    category: Optional[str] = Query(None, description="Filter to an exact category match"),
+    model: Optional[str] = Query(None, description="Filter to an exact model match"),
+    blend_detected: Optional[bool] = Query(None, description="Filter to blend_detected true/false"),
+):
+    """
+    Nova Log Query view — the last `limit` real queries (most recent first),
+    optionally filtered by category, model, and/or blend_detected.
+    """
+    try:
+        queries = get_recent_queries(
+            limit=limit,
+            category=category,
+            model=model,
+            blend_detected=blend_detected,
+        )
+        return {"queries": queries, "count": len(queries)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/nova-log")

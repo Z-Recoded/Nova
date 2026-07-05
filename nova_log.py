@@ -14,6 +14,7 @@ QUERY_LOG_PATH = f"{LOGS_DIR}/query_log.jsonl"
 
 BLEND_RATE_WINDOW = 100     # most-recent entries used to compute blend rate
 LATENCY_WINDOW_HOURS = 24   # window used for average latency
+DEFAULT_RECENT_QUERIES_LIMIT = 50   # default number of rows returned by get_recent_queries
 
 
 # ── Logging ────────────────────────────────────────────────────
@@ -107,3 +108,46 @@ def compute_health_summary() -> dict:
         "blend_rate_last_100": blend_rate_last_100,
         "last_query_timestamp": entries[-1]["timestamp"],
     }
+
+
+def _entry_matches_filters(
+    entry: dict,
+    category: str | None,
+    model: str | None,
+    blend_detected: bool | None,
+) -> bool:
+    """Check a single query_log.jsonl entry against the optional filters below."""
+    if category is not None and entry.get("category") != category:
+        return False
+    if model is not None and entry.get("model") != model:
+        return False
+    if blend_detected is not None and entry.get("blend_detected") != blend_detected:
+        return False
+    return True
+
+
+def get_recent_queries(
+    limit: int = DEFAULT_RECENT_QUERIES_LIMIT,
+    category: str | None = None,
+    model: str | None = None,
+    blend_detected: bool | None = None,
+) -> list[dict]:
+    """
+    Return the most recent query_log.jsonl entries, most-recent-first.
+
+    Backs the Nova Log Query view (Section 1 spec: model, category, latency,
+    sources, blending detected — filterable by category, model, blending,
+    date range). `category`, `model`, and `blend_detected` are optional exact
+    filters; None means no filter on that field. Results are sorted by
+    timestamp descending, then truncated to `limit`.
+    """
+    entries = _read_all_entries()
+
+    filtered = [
+        e for e in entries
+        if _entry_matches_filters(e, category, model, blend_detected)
+    ]
+
+    filtered.sort(key=lambda e: e["timestamp"], reverse=True)
+
+    return filtered[:limit]

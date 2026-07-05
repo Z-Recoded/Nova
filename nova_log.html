@@ -40,6 +40,52 @@
   .planned li { margin-bottom: 0.5rem; font-size: 0.9rem; }
   .planned li b { color: #bbb; }
   #error { color: #e06060; }
+
+  .queries {
+    background: #1b1e26;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 2rem;
+  }
+  .queries h2 { font-size: 1rem; color: #aaa; margin-top: 0; }
+  .query-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .query-filters label {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.75rem;
+    color: #999;
+    gap: 0.25rem;
+  }
+  .query-filters select {
+    background: #111318;
+    color: #e6e6e6;
+    border: 1px solid #2a2e38;
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+  }
+  table.query-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+  table.query-table th,
+  table.query-table td {
+    text-align: left;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid #2a2e38;
+  }
+  table.query-table th {
+    color: #999;
+    font-weight: 600;
+  }
+  table.query-table td { color: #e6e6e6; }
 </style>
 </head>
 <body>
@@ -52,6 +98,45 @@
   <div class="planned">
     <h2>Planned — not yet available</h2>
     <ul id="planned-list"></ul>
+  </div>
+
+  <div class="queries">
+    <h2>Recent Queries</h2>
+    <div class="query-filters">
+      <label>
+        Category
+        <select id="filter-category">
+          <option value="">Any</option>
+        </select>
+      </label>
+      <label>
+        Model
+        <select id="filter-model">
+          <option value="">Any</option>
+        </select>
+      </label>
+      <label>
+        Blend detected
+        <select id="filter-blend">
+          <option value="">Either</option>
+          <option value="true">Yes</option>
+          <option value="false">No</option>
+        </select>
+      </label>
+    </div>
+    <table class="query-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Category</th>
+          <th>Model</th>
+          <th>Latency</th>
+          <th>Sources</th>
+          <th>Blend detected</th>
+        </tr>
+      </thead>
+      <tbody id="queries-body"></tbody>
+    </table>
   </div>
 
   <script>
@@ -99,7 +184,77 @@
       return key.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
     }
 
+    // ── Recent Queries (Nova Log Query view) ──────────────────
+
+    // Builds the /nova-log/queries URL from the three filter dropdowns'
+    // current values. Empty selection means "no filter on that field".
+    function buildQueriesUrl() {
+      const category = document.getElementById('filter-category').value;
+      const model = document.getElementById('filter-model').value;
+      const blend = document.getElementById('filter-blend').value;
+
+      const params = new URLSearchParams();
+      if (category) params.set('category', category);
+      if (model) params.set('model', model);
+      if (blend) params.set('blend_detected', blend);
+
+      const query = params.toString();
+      return '/nova-log/queries' + (query ? '?' + query : '');
+    }
+
+    // Fetches recent queries with the current filters applied and redraws the table.
+    async function loadQueries() {
+      try {
+        const res = await fetch(buildQueriesUrl());
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const data = await res.json();
+        renderQueries(data.queries || []);
+        populateFilterOptions(data.queries || []);
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not load recent queries: ' + err.message;
+      }
+    }
+
+    function renderQueries(queries) {
+      const body = document.getElementById('queries-body');
+      body.innerHTML = queries.map(q => `
+        <tr>
+          <td>${q.timestamp || '—'}</td>
+          <td>${q.category || '—'}</td>
+          <td>${q.model || '—'}</td>
+          <td>${formatMs(q.total_ms)}</td>
+          <td>${(q.sources || []).join(', ') || '—'}</td>
+          <td>${q.blend_detected ? 'yes' : 'no'}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Fills the category/model dropdowns with every distinct value seen so
+    // far, without clobbering whatever the user currently has selected.
+    function populateFilterOptions(queries) {
+      fillOptions('filter-category', queries.map(q => q.category));
+      fillOptions('filter-model', queries.map(q => q.model));
+    }
+
+    function fillOptions(selectId, values) {
+      const select = document.getElementById(selectId);
+      const current = select.value;
+      const distinct = [...new Set(values.filter(Boolean))].sort();
+
+      select.innerHTML = '<option value="">Any</option>' +
+        distinct.map(v => `<option value="${v}">${v}</option>`).join('');
+
+      if (distinct.includes(current)) {
+        select.value = current;
+      }
+    }
+
+    document.getElementById('filter-category').addEventListener('change', loadQueries);
+    document.getElementById('filter-model').addEventListener('change', loadQueries);
+    document.getElementById('filter-blend').addEventListener('change', loadQueries);
+
     loadHealth();
+    loadQueries();
   </script>
 </body>
 </html>
