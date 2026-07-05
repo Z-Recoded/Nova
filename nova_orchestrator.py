@@ -43,6 +43,7 @@ NOVA_AGENT_MAX_TOKENS = 8192
 
 LOGS_DIR = "C:/Nova/logs"
 AGENT_LOG_PATH = f"{LOGS_DIR}/agent_log.jsonl"
+TASK_OUTCOMES_LOG_PATH = f"{LOGS_DIR}/agent_task_outcomes.jsonl"
 
 TOOL_DEFINITIONS = [
     {
@@ -334,3 +335,26 @@ def run_coding_task(task_description: str) -> dict:
             f"Then remove the worktree: git worktree remove {root}"
         ) if committed else "Nothing was changed — no commit made, nothing to merge.",
     }
+
+
+def record_task_outcome(branch: str, outcome: str, note: str = "") -> None:
+    """
+    Record whether a coding-agent branch was merged or discarded, once a
+    human has reviewed it. This is the missing link between raw per-turn
+    telemetry (agent_log.jsonl) and a future curated training set — without
+    it, there's no way to tell a clean merged outcome apart from a run that
+    hit a harness bug or was simply discarded, just from agent_log.jsonl
+    alone. Call this by hand after each merge/discard decision.
+    """
+    if outcome not in ("merged", "discarded"):
+        raise ValueError(f"outcome must be 'merged' or 'discarded', got '{outcome}'")
+
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    entry = {
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "branch": branch,
+        "outcome": outcome,
+        "note": note,
+    }
+    with open(TASK_OUTCOMES_LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")

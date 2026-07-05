@@ -75,9 +75,10 @@ C:/Nova/
 ├── launch_openwebui.ps1    # Open WebUI env vars + launch (called by start_nova.ps1)
 ├── memory/                 # Chroma vector database (persistent)
 └── logs/
-    ├── query_log.jsonl     # Per-query telemetry (nova_log.py) — Nova Log Health data source
-    ├── agent_log.jsonl     # Per-turn coding sub-agent telemetry (nova_orchestrator.py)
-    └── watcher.log         # File watcher logs
+    ├── query_log.jsonl          # Per-query telemetry (nova_log.py) — Nova Log Health data source
+    ├── agent_log.jsonl          # Per-turn coding sub-agent telemetry (nova_orchestrator.py)
+    ├── agent_task_outcomes.jsonl # Merged/discarded label per branch (nova_orchestrator.record_task_outcome) — call by hand after each merge/discard decision; this is what turns agent_log.jsonl into a usable Qwen3 training set later
+    └── watcher.log              # File watcher logs
 
 C:/nova-agent-worktrees/    # Sibling dir, outside the repo — disposable per-task git
                             # worktrees created by nova_orchestrator.py. Outside both of
