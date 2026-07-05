@@ -109,6 +109,18 @@ worktree + branch under `C:/nova-agent-worktrees/`, never the live `C:/Nova` tre
 diff and merges by hand. v1 is driven by the Claude API (not a local model yet) and has
 no Docker/OpenHands sandboxing — that's deferred; see Phase 3.5.
 
+**Known limitation (accepted, 2026-07-05):** the worktree boundary is only hard-enforced
+for `read_file`/`write_file`/`list_files` (path-validated against `root` in
+`nova_tools.py`). `run_command` is a raw shell — it can `cd` outside the worktree and
+reach the live tree, same trust level as Marvin's own shell. `nova_tools.py` has a
+best-effort denylist for obviously destructive patterns (`rm -rf`, `git push`, `git reset
+--hard`, etc.), but this is a speed bump, not real sandboxing. Confirmed live: a run
+legitimately needed a Python interpreter (worktrees have no venv — `nova-env/` isn't
+git-tracked) and ended up running `pip install` against the shared live venv rather than
+something worktree-local. Accepted as reasonable for v1 — Claude is driving this, not an
+adversarial actor, and every action is logged to `logs/agent_log.jsonl` — real containment
+for `run_command` specifically remains deferred to the Docker/OpenHands hardening pass.
+
 ### nova_graph.json Structure
 ```json
 {

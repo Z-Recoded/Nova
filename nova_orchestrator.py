@@ -118,6 +118,33 @@ def _create_worktree(slug: str) -> tuple[Path, str]:
     return worktree_path, branch_name
 
 
+def _commit_worktree_changes(root: str, task_description: str) -> bool:
+    """
+    Stage and commit whatever the agent changed in its worktree, so the
+    branch actually has real content for a human to merge (not just
+    uncommitted working-tree edits sitting in a disposable directory).
+    Returns False if there was nothing to commit.
+    """
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True, capture_output=True, text=True)
+    status = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=root, capture_output=True, text=True
+    )
+    if not status.stdout.strip():
+        return False
+
+    commit_message = f"{task_description[:72]}\n\nWritten by nova_orchestrator.py (Nova's coding sub-agent)."
+    subprocess.run(
+        ["git", "commit", "-m", commit_message],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    return True
+
+
 def _git_diff_against_master(root: str) -> str:
     """Return the full diff of this worktree's branch against master."""
     result = subprocess.run(
@@ -125,6 +152,8 @@ def _git_diff_against_master(root: str) -> str:
         cwd=root,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     return result.stdout
 
@@ -138,15 +167,26 @@ def _build_system_prompt(root: str) -> str:
         "You are Nova's coding sub-agent, operating inside a disposable git "
         "worktree. You have file read/write/list tools and a run_command tool, "
         "all scoped to this worktree only — nothing you do here touches the "
-        "live Nova codebase until a human reviews and merges your branch.\n\n"
+        "live Nova codebase until a human reviews and merges your branch. "
+        "run_command executes via Git Bash, so use Unix-style commands (ls, "
+        "grep, cat), not cmd.exe/PowerShell syntax. Your worktree has no "
+        "virtualenv of its own (nova-env/ isn't git-tracked) — plain `python` "
+        "and `pip` in run_command already resolve to the live project's venv, "
+        "so just use them directly; no need to hunt for an interpreter path. "
+        "run_command can technically reach outside this worktree (e.g. `cd`), "
+        "but never do that except through python/pip resolving to the live "
+        "venv as just described — all file edits must go through write_file, "
+        "scoped to this worktree.\n\n"
         "Read and follow the project's own coding standards below exactly:\n\n"
         f"{claude_md}\n\n"
         "---\n"
-        "Work the task to completion within your available turns. Prefer "
-        "running any relevant tests or a quick sanity check via run_command "
-        "before declaring the task done. When finished, reply with a short "
-        "plain-text summary of what you changed and why — no more tool calls "
-        "after that summary."
+        "You have a limited number of turns. Prefer writing files directly "
+        "with write_file over exploring the shell environment — don't spend "
+        "turns probing tool availability or paths defensively; write the "
+        "code, then verify it with one focused run_command call. Work the "
+        "task to completion within your available turns. When finished, "
+        "reply with a short plain-text summary of what you changed and why "
+        "— no more tool calls after that summary."
     )
 
 
@@ -258,6 +298,8 @@ def run_coding_task(task_description: str) -> dict:
         final_status = "max_turns_reached"
 
     elapsed_s = round(time.time() - started_at, 1)
+    diff = _git_diff_against_master(root)
+    committed = _commit_worktree_changes(root, task_description)
 
     return {
         "task": task_description,
@@ -266,10 +308,11 @@ def run_coding_task(task_description: str) -> dict:
         "status": final_status,
         "turns_used": turns_used,
         "elapsed_s": elapsed_s,
-        "diff": _git_diff_against_master(root),
+        "committed": committed,
+        "diff": diff,
         "next_steps": (
             f"Review: git diff master...{branch_name} (from C:/Nova). "
             f"Merge when satisfied: git merge {branch_name}. "
             f"Then remove the worktree: git worktree remove {root}"
-        ),
+        ) if committed else "Nothing was changed — no commit made, nothing to merge.",
     }

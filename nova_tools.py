@@ -6,6 +6,7 @@
 # The Second Brain vault is hard-denied as well, as a defense-in-depth check,
 # even though a worktree root should never resolve there in practice.
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -71,21 +72,79 @@ def list_files(path: str, root: str) -> list[str]:
     )
 
 
+# Explicit Git Bash path, not Python's shell=True default. On Windows that
+# default is cmd.exe, which doesn't understand the Unix-style commands (ls,
+# grep, which, heredocs) a model will naturally reach for — and Git's own
+# tools are partially on PATH anyway, so failures look inconsistent rather
+# than clearly wrong. Using bash explicitly matches the rest of this
+# environment (see the project's own Bash tool) and removes the ambiguity.
+GIT_BASH_PATH = r"C:\Program Files\Git\usr\bin\bash.exe"
+
+# Worktrees don't have their own virtualenv (nova-env/ isn't git-tracked), so
+# there's no local Python interpreter to find. Prepending the live venv's
+# Scripts dir to PATH lets plain `python`/`pip` resolve without the agent
+# needing to `cd` out of its worktree to find them.
+NOVA_ENV_SCRIPTS_PATH = r"C:\Nova\nova-env\Scripts"
+
+# NOTE ON SANDBOXING: run_command's isolation is NOT equivalent to
+# read_file/write_file/list_files above. Those hard-validate every path
+# against `root`. This does not — a command can `cd` anywhere the OS user
+# can reach, including the live C:/Nova tree, bypassing the worktree
+# boundary entirely. This denylist is a best-effort speed bump against
+# obviously destructive commands, not real sandboxing. Real containment is
+# deferred to the Phase 3.5 Docker/OpenHands hardening pass — see CLAUDE.md.
+DANGEROUS_COMMAND_PATTERNS = [
+    "rm -rf",
+    "git push",
+    "git reset --hard",
+    "git clean -f",
+    "format ",
+    "del /f",
+    "remove-item -recurse -force",
+    "shutdown",
+    "mkfs",
+]
+
+
+def _is_dangerous_command(cmd: str) -> bool:
+    """Best-effort check for obviously destructive command patterns."""
+    lowered = cmd.lower()
+    return any(pattern in lowered for pattern in DANGEROUS_COMMAND_PATTERNS)
+
+
 def run_command(cmd: str, root: str, timeout: int = NOVA_AGENT_CMD_TIMEOUT_SECONDS) -> dict:
     """
-    Run a shell command with cwd pinned to `root`. Returns stdout, stderr,
-    and the return code. A timeout kills the process and reports it as such
-    rather than hanging the agent loop indefinitely.
+    Run a shell command via Git Bash, with cwd pinned to `root`. Returns
+    stdout, stderr, and the return code. A timeout kills the process and
+    reports it as such rather than hanging the agent loop indefinitely.
+    Refuses to run commands matching an obvious-destructive-pattern
+    denylist (see NOTE ON SANDBOXING above — this is best-effort, not a
+    real sandbox boundary).
     """
+    if _is_dangerous_command(cmd):
+        return {
+            "stdout": "",
+            "stderr": (
+                "Refused: command matches a denylisted destructive pattern. "
+                "If this command is actually needed, ask a human to run it directly."
+            ),
+            "returncode": None,
+            "timed_out": False,
+        }
+
     root_path = Path(root).resolve()
+    env = os.environ.copy()
+    env["PATH"] = NOVA_ENV_SCRIPTS_PATH + os.pathsep + env.get("PATH", "")
     try:
         result = subprocess.run(
-            cmd,
+            [GIT_BASH_PATH, "-c", cmd],
             cwd=root_path,
-            shell=True,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=timeout,
+            env=env,
         )
         return {
             "stdout": result.stdout,
