@@ -13,6 +13,7 @@
 #   GET  /nova-log                  → Nova Log Health dashboard (HTML)
 #   GET  /nova-log/data             → Nova Log Health dashboard data (JSON)
 #   GET  /nova-log/queries          → Nova Log Query view — recent queries (JSON)
+#   GET  /nova-log/benchmarks       → Nova Log Benchmark view — recent golden-query runs (JSON)
 #   POST /agent/task                → run a coding task via Nova's coding sub-agent
 #   GET  /headroom                  → resource headroom report (VRAM/RAM/CPU + task capacity)
 #
@@ -38,7 +39,13 @@ from graph_builder import (
 )
 from ingest import ingest_file, run_ingestion
 from nova_headroom import get_headroom_report
-from nova_log import compute_health_summary, DEFAULT_RECENT_QUERIES_LIMIT, get_recent_queries
+from nova_log import (
+    compute_health_summary,
+    DEFAULT_BENCHMARK_RUNS_LIMIT,
+    DEFAULT_RECENT_QUERIES_LIMIT,
+    get_benchmark_runs,
+    get_recent_queries,
+)
 from nova_orchestrator import run_coding_task
 from nova_query import ask
 from nova_sources import SOURCES
@@ -397,6 +404,22 @@ def nova_log_queries(
             blend_detected=blend_detected,
         )
         return {"queries": queries, "count": len(queries)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/nova-log/benchmarks")
+def nova_log_benchmarks(
+    limit: int = Query(DEFAULT_BENCHMARK_RUNS_LIMIT, ge=1, le=1000),
+    model: Optional[str] = Query(None, description="Filter to an exact model match"),
+):
+    """
+    Nova Log Benchmark view — the last `limit` golden-query benchmark runs
+    from benchmark_log.jsonl (most recent first), optionally filtered by model.
+    """
+    try:
+        runs = get_benchmark_runs(limit=limit, model=model)
+        return {"runs": runs, "count": len(runs)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

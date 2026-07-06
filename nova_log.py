@@ -15,6 +15,7 @@ QUERY_LOG_PATH = f"{LOGS_DIR}/query_log.jsonl"
 BLEND_RATE_WINDOW = 100     # most-recent entries used to compute blend rate
 LATENCY_WINDOW_HOURS = 24   # window used for average latency
 DEFAULT_RECENT_QUERIES_LIMIT = 50   # default number of rows returned by get_recent_queries
+DEFAULT_BENCHMARK_RUNS_LIMIT = 20   # default number of rows returned by get_benchmark_runs
 
 
 # ── Logging ────────────────────────────────────────────────────
@@ -64,6 +65,30 @@ def _read_all_entries() -> list[dict]:
         return []
     entries = []
     with open(QUERY_LOG_PATH, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                entries.append(json.loads(line))
+    return entries
+
+
+def _read_benchmark_entries() -> list[dict]:
+    """
+    Read every line of benchmark_log.jsonl into dicts. Empty list if the file
+    doesn't exist yet.
+
+    Imports BENCHMARK_LOG_PATH from nova_benchmark locally (not at module
+    top) rather than redefining the path as a separate constant here, which
+    would let the two drift out of sync. A top-level import would create a
+    circular import instead: nova_benchmark imports nova_query, which
+    imports log_query from this module.
+    """
+    from nova_benchmark import BENCHMARK_LOG_PATH
+
+    if not os.path.exists(BENCHMARK_LOG_PATH):
+        return []
+    entries = []
+    with open(BENCHMARK_LOG_PATH, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
@@ -151,3 +176,28 @@ def get_recent_queries(
     filtered.sort(key=lambda e: e["timestamp"], reverse=True)
 
     return filtered[:limit]
+
+
+def get_benchmark_runs(
+    limit: int = DEFAULT_BENCHMARK_RUNS_LIMIT,
+    model: str | None = None,
+) -> list[dict]:
+    """
+    Return the most recent benchmark_log.jsonl entries, most-recent-first.
+
+    Backs the Nova Log Benchmark view (Section 1 spec, Step 3) — each entry
+    is a full golden-query benchmark run written by
+    nova_benchmark.run_golden_benchmark(): timestamp, model, avg_latency_ms,
+    avg_latency_ms_by_category, blend_rate, category_mismatches, and
+    per_query_results, returned exactly as logged. `model` is an optional
+    exact filter; None means no filter. Results are sorted by timestamp
+    descending, then truncated to `limit`.
+    """
+    entries = _read_benchmark_entries()
+
+    if model is not None:
+        entries = [e for e in entries if e.get("model") == model]
+
+    entries.sort(key=lambda e: e["timestamp"], reverse=True)
+
+    return entries[:limit]

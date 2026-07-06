@@ -139,6 +139,30 @@
     </table>
   </div>
 
+  <div class="queries">
+    <h2>Benchmark Runs</h2>
+    <div class="query-filters">
+      <label>
+        Model
+        <select id="filter-benchmark-model">
+          <option value="">Any</option>
+        </select>
+      </label>
+    </div>
+    <table class="query-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Model</th>
+          <th>Avg latency (ms)</th>
+          <th>Blend rate</th>
+          <th>Category mismatches</th>
+        </tr>
+      </thead>
+      <tbody id="benchmarks-body"></tbody>
+    </table>
+  </div>
+
   <script>
     async function loadHealth() {
       try {
@@ -253,8 +277,51 @@
     document.getElementById('filter-model').addEventListener('change', loadQueries);
     document.getElementById('filter-blend').addEventListener('change', loadQueries);
 
+    // ── Benchmark Runs (Nova Log Benchmark view) ──────────────
+
+    // Builds the /nova-log/benchmarks URL from the model filter dropdown's
+    // current value. Empty selection means "no filter".
+    function buildBenchmarksUrl() {
+      const model = document.getElementById('filter-benchmark-model').value;
+
+      const params = new URLSearchParams();
+      if (model) params.set('model', model);
+
+      const query = params.toString();
+      return '/nova-log/benchmarks' + (query ? '?' + query : '');
+    }
+
+    // Fetches recent benchmark runs with the current filter applied and redraws the table.
+    async function loadBenchmarks() {
+      try {
+        const res = await fetch(buildBenchmarksUrl());
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const data = await res.json();
+        renderBenchmarks(data.runs || []);
+        fillOptions('filter-benchmark-model', (data.runs || []).map(r => r.model));
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not load benchmark runs: ' + err.message;
+      }
+    }
+
+    function renderBenchmarks(runs) {
+      const body = document.getElementById('benchmarks-body');
+      body.innerHTML = runs.map(r => `
+        <tr>
+          <td>${r.timestamp || '—'}</td>
+          <td>${r.model || '—'}</td>
+          <td>${formatMs(r.avg_latency_ms)}</td>
+          <td>${formatRate(r.blend_rate)}</td>
+          <td>${r.category_mismatches ?? '—'}</td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('filter-benchmark-model').addEventListener('change', loadBenchmarks);
+
     loadHealth();
     loadQueries();
+    loadBenchmarks();
   </script>
 </body>
 </html>
