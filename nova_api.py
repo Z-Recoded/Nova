@@ -369,7 +369,6 @@ def headroom():
 # see the Nova Log v1 plan for why each one is deferred.
 NOVA_LOG_UNAVAILABLE_FIELDS = {
     "retrieval_hit_rate": "Not tracked yet — no ground-truth relevance labels to compare against.",
-    "last_benchmark_run": "nova_benchmark.py doesn't write a log file yet (console output only).",
     "active_augments": "No augment/config-flag system exists in current Nova (single model, no toggles).",
     "orchestrator_failures_count": "nova_orchestrator.py exists (coding sub-agent) but doesn't track an aggregate failure count yet.",
 }
@@ -381,6 +380,8 @@ NOVA_LOG_HTML_PATH = "C:/Nova/nova_log.html"
 def nova_log_data():
     """JSON data backing the /nova-log Health dashboard."""
     summary = compute_health_summary()
+    latest_benchmarks = get_benchmark_runs(limit=1)
+    summary["last_benchmark_run"] = latest_benchmarks[0]["timestamp"] if latest_benchmarks else None
     summary["not_yet_available"] = NOVA_LOG_UNAVAILABLE_FIELDS
     return summary
 

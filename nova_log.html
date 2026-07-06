@@ -182,6 +182,7 @@
         { label: 'Avg latency (24h)', value: formatMs(data.avg_latency_ms_24h) },
         { label: 'Blend rate (last 100)', value: formatRate(data.blend_rate_last_100) },
         { label: 'Last query', value: data.last_query_timestamp || '—' },
+        { label: 'Last benchmark run', value: data.last_benchmark_run || '—' },
       ];
       const container = document.getElementById('tiles');
       container.innerHTML = tiles.map(t =>
