@@ -163,6 +163,20 @@
     </table>
   </div>
 
+  <div class="planned">
+    <h2>Legend — how to read this page</h2>
+    <ul>
+      <li><b>Category</b> — which retrieval routing category the query matched (identity, fiction, project, finance, technical, general).</li>
+      <li><b>Sources</b> — which Second Brain files were retrieved as context for that answer.</li>
+      <li><b>Blend detected</b> — whether a fiction query pulled context from more than one character's file. Only meaningful for fiction-category queries.</li>
+      <li><b>Avg latency (Benchmark Runs)</b> — average response time across all 8 fixed golden queries in that run.</li>
+      <li><b>Blend rate</b> — fraction of the <i>3 fiction-category golden queries specifically</i> where blending was detected — not a fraction of all 8.</li>
+      <li><b>Category mismatches</b> — how many golden queries were routed to a different category than expected. 0 is healthy; anything higher signals a routing regression.</li>
+      <li><b>Note:</b> latency naturally varies a little run to run (LLM inference isn't perfectly deterministic) — watch for large jumps, not small noise.</li>
+      <li><b>Note:</b> this page doesn't auto-refresh. Reload it after running a new benchmark to see the new entry.</li>
+    </ul>
+  </div>
+
   <script>
     async function loadHealth() {
       try {
