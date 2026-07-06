@@ -28,7 +28,7 @@ Nova v0.1 is operational. The following are built and validated:
 
 ### Phase Roadmap
 - Phase 0    | Foundation             | ✓ Complete
-- Phase 1    | Memory Core            | ✓ Operational — Nova Log v1 done (Health view only, see Section 7); Nova Log Benchmark/Pipeline/Query views + log rotation deferred
+- Phase 1    | Memory Core            | ✓ Operational — Nova Log: Health, Query, and Benchmark views all live (see Section 7); only Pipeline view remains, genuinely blocked on the content pipeline (Phase 6, `86bage4ff`); log rotation still deferred
 - Phase 1.5  | Self-Monitoring        | Resource headroom calculator ✓ v1 live (2026-07-05 — `nova_headroom.py`, `GET /headroom`); Task Scheduler auto-start for nova_api.py/Open WebUI ✓ shipped (`nova_watcher.py` itself still not auto-started); periodic benchmarking suite ✓ v1 live (`nova_benchmark.py --golden`) — real Llama 3.2 3B baseline established in `logs/benchmark_log.jsonl`, doubling as the eval harness for Phase 3/3.5's model-swap criteria below
 - Phase 1.75 | Retrieval Intelligence | Backlog — classical-algorithm pass over the retrieval/decision layer: A* graph traversal + document-level embeddings for the heuristic, DP context-window packing, priority-queue routing, two-tier memory decay, weighted wikilinks, link-aware ingestion upgrade, feature-flag system (nova_config.json)
 - Phase 2    | Voice & Capture        | Backlog — Whisper + Piper
@@ -250,6 +250,10 @@ nova-env\Scripts\python -m uvicorn nova_api:app --host 0.0.0.0 --port 8000
 | /v1/chat/completions | POST | ✓ Working | OpenAI-compatible chat — routes Open WebUI through the RAG pipeline |
 | /nova-log | GET | ✓ Working | Nova Log Health dashboard (HTML) |
 | /nova-log/data | GET | ✓ Working | Nova Log Health dashboard data (JSON) — real stats only, see Section 1 |
+| /nova-log/queries | GET | ✓ Working | Nova Log Query view — recent queries, filterable by category/model/blend |
+| /nova-log/benchmarks | GET | ✓ Working | Nova Log Benchmark view — recent golden-query runs, filterable by model |
+| /agent/task | POST | ✓ Working | Run a coding task via Nova's coding sub-agent (nova_orchestrator.py) |
+| /headroom | GET | ✓ Working | Resource headroom report — VRAM/RAM/CPU + task capacity |
 
 ---
 
