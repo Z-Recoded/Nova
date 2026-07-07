@@ -245,6 +245,8 @@ def _log_agent_turn(slug: str, branch: str, turn: int, task: str, response) -> N
         "tool_calls": tool_calls,
         "input_tokens": response.usage.input_tokens,
         "output_tokens": response.usage.output_tokens,
+        "cache_creation_input_tokens": response.usage.cache_creation_input_tokens,
+        "cache_read_input_tokens": response.usage.cache_read_input_tokens,
         "model": response.model,
     }
     with open(AGENT_LOG_PATH, "a", encoding="utf-8") as f:
@@ -281,7 +283,12 @@ def run_coding_task(task_description: str) -> dict:
         response = client.messages.create(
             model=NOVA_AGENT_MODEL,
             max_tokens=NOVA_AGENT_MAX_TOKENS,
-            system=system_prompt,
+            # cache_control: system_prompt (the full CLAUDE.md contents) is
+            # identical every turn of this loop — caching it turns turns 2+
+            # into cheap cache reads instead of full-price resends.
+            system=[
+                {"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}},
+            ],
             tools=TOOL_DEFINITIONS,
             messages=messages,
         )

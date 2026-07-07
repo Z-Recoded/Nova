@@ -55,16 +55,34 @@ def request_correction(client: anthropic.Anthropic, query: str, lore: str) -> st
         "Do not invent details. Do not mix attributes across characters. "
         "Match the tone of a knowledgeable assistant answering a direct question."
     )
-    user = (
-        f"Lore source files:\n\n{lore}\n\n"
-        f"---\n\nQuery: {query}\n\n"
-        "Write the correct response:"
-    )
+    # cache_control: lore is loaded verbatim from the same Second Brain
+    # source files across many flagged entries in one run (e.g. several
+    # entries about the same character) — splitting it into its own cached
+    # block lets repeat calls skip re-billing that text. system is cached
+    # too for correctness, though at its current size it's under
+    # Anthropic's minimum cacheable length so it won't yet produce a hit.
     message = client.messages.create(
         model=CLAUDE_MODEL,
         max_tokens=1024,
-        system=system,
-        messages=[{"role": "user", "content": user}],
+        system=[
+            {"type": "text", "text": system, "cache_control": {"type": "ephemeral"}},
+        ],
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": f"Lore source files:\n\n{lore}",
+                        "cache_control": {"type": "ephemeral"},
+                    },
+                    {
+                        "type": "text",
+                        "text": f"---\n\nQuery: {query}\n\nWrite the correct response:",
+                    },
+                ],
+            }
+        ],
     )
     return message.content[0].text.strip()
 
