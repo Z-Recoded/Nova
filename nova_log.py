@@ -32,11 +32,17 @@ def log_query(
     response_tokens: int | None,
     model: str,
     num_ctx: int,
+    config_snapshot: dict,
 ) -> None:
     """
     Append one real query's telemetry to query_log.jsonl.
     Mirrors nova_logger.log_blend's append convention: JSONL (one JSON
     object per line), mode "a", utf-8, creating the logs directory first.
+
+    config_snapshot ties this entry to the exact feature-flag state (see
+    nova_config.config_snapshot()) active when the query ran — the basis
+    for the Nova Log benchmark dashboard's before/after comparisons once
+    classical algorithm augments start flipping these flags.
     """
     os.makedirs(LOGS_DIR, exist_ok=True)
     entry = {
@@ -53,6 +59,7 @@ def log_query(
         "response_tokens": response_tokens,
         "model": model,
         "num_ctx": num_ctx,
+        "config_snapshot": config_snapshot,
     }
     with open(QUERY_LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")

@@ -13,6 +13,7 @@ import ollama
 from nova_router import route, CODING_AGENT_PREFIX
 from nova_logger import detect_blending, log_blend
 from nova_log import log_query
+from nova_config import config_snapshot
 from nova_memory_store import load_history, save_history
 from graph_builder import get_context_budget
 from nova_orchestrator import run_coding_task
@@ -305,6 +306,7 @@ def ask(query: str, history: list[dict] = None, persist: bool = True) -> dict:
         response_tokens=response.get("eval_count"),
         model=OLLAMA_MODEL,
         num_ctx=NUM_CTX,
+        config_snapshot=config_snapshot(),
     )
 
     # Persist updated history

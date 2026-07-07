@@ -1,0 +1,18 @@
+{
+  "classical_augments": {
+    "enabled": false,
+    "astar_retrieval": false,
+    "dp_context_packing": false,
+    "priority_queue_routing": false,
+    "memory_decay_weighting": false,
+    "memory_decay_tiers": {
+      "task_trail": false,
+      "architectural_anchors": false
+    }
+  },
+  "framework_integrations": {
+    "langgraph_orchestration": false,
+    "openhands_coding_agent": false,
+    "visual_retrieval": false
+  }
+}
