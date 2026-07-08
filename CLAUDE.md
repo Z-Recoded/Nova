@@ -45,7 +45,7 @@ Nova v0.1 is operational. The following are built and validated:
 - Phase 3.5  | Coding Agent Lane      | ✓ v1 live (2026-07-05) — Claude API-backed coding sub-agent (`nova_orchestrator.py`), git-worktree isolated, no Docker/OpenHands yet (deferred as a hardening pass); proven on 6 real merged tasks so far (headroom calculator, `start_nova.ps1` hardening, router integration + its own live test, Nova Log Query view, the golden benchmark suite itself). **Qwen3 8B swap trigger, not a fixed date:** (1) ~30-50 diverse real task transcripts accumulated in `logs/agent_log.jsonl` — already happening automatically every real `/agent/task` run, not a separate curation project; (2) ~20% held out as a never-trained-on eval set (same benchmarking suite as Phase 1.5/3); (3) swap only once Qwen3 clears a defined pass bar against that held-out set (completion rate within turn budget, no worse than Claude's baseline on the same tasks) — this is the path to Nova coding independently
 - Phase 4    | Roaming Layer          | ✓ Lightweight v1 shipped (2026-07-05) — Tailscale installed + authenticated (this machine, "zeed", on the tailnet at `100.122.229.23`); Task Scheduler "Nova Auto-Start" runs `start_nova.ps1 -Silent` at login (idempotent, verified); sleep disabled on AC power only, battery behavior unchanged. Required two admin-elevated firewall rules (`Nova API (Tailscale)`, `Nova Open WebUI (Tailscale)` — ports 8000/3000, Private profile) since Tailscale's virtual adapter classifies as Private while the existing python.exe rules only covered Public/home-WiFi. Verified end-to-end from a phone reaching `http://100.122.229.23:3000` — that test was over the same home WiFi (Tailscale found a direct LAN path), so genuine away-from-home/cellular reachability hasn't been separately confirmed yet, though DERP relay fallback makes it likely to work. Heavier items (headless Ubuntu server, Dockerized services, cloud GPU, hosted inference fallback) remain deferred until there's a concrete forcing function — not a prerequisite for "always present"
 - Phase 5    | Continuous Learning    | Backlog — quarterly fine-tune cycles
-- Phase 6    | Domain Expansion       | Backlog — domain state layer + adapters (financial, alert engine), pixel RAG (CLIP/ColPali), chunk visualization tool, temporal awareness, proactive memory, content transformation pipeline, Art Practice Companion module
+- Phase 6    | Domain Expansion       | Backlog, domain state layer foundation laid — `nova_state.db` schema + system adapter ✓ v1 live (2026-07-07, see Section 2); financial/work/creative/games adapters and the alert engine remain blocked on real open questions (data source approval, ClickUp access from Nova's own runtime). Also backlog: pixel RAG (CLIP/ColPali), chunk visualization tool, temporal awareness, proactive memory, content transformation pipeline, Art Practice Companion module
 
 **Do not build Phase 2+ features without explicit instruction.**
 
@@ -156,6 +156,35 @@ capping (no task queue exists), Open WebUI push notifications, automatic
 ClickUp status updates on halt. `conservative`/`critical` modes are
 classified and reported but have no enforced behavioral difference yet —
 their spec'd effects all depend on the missing task-queue/classifier.
+
+### Domain State Layer (2026-07-07, ClickUp `86bara3qe`) — scoped v1
+Architecture Principles v1.1, Principle 6 distinguishes Chroma (deep
+knowledge — lore, documents, past reality) from `nova_state.db` (current
+reality — live balances, active projects, system health), and defines 5
+domains × 12 entities. **Built:** `nova_state.py` — one generic
+`domain_state` table (`domain`, `entity`, `data` JSON, `updated_at`)
+covering every domain/entity pair Principle 6 defines, rather than fixed
+per-entity columns invented ahead of real data. `write_state`/`get_state`/
+`get_domain` are the only interface; adapters are the only intended
+writers. `nova_state.db` is local-only, gitignored like `memory/` (never
+synced, per Principle 6's data-sensitivity rules). Also built
+`nova_state_system.py`, the one adapter with a real, already-existing data
+source — wraps `nova_headroom.get_headroom_report()` (now including token
+budget) into `system/nova_health` and `system/pending_alerts`.
+**Explicitly deferred, each on a real open question, not stubbed:**
+`nova_state_financial.py` (needs an approved financial data source — none
+named yet, and Principle 6 requires explicit per-connection approval before
+one is picked), `nova_state_work.py` / `nova_state_games.py` (both need a
+ClickUp API/MCP client inside Nova's own runtime code — nothing in
+`nova_tools.py`/`nova_orchestrator.py` gives Nova's own scripts ClickUp
+access today, only this interactive session has it), `nova_state_creative.py`
+(needs an "art practice log" that doesn't appear to exist under that
+description anywhere in the repo or vault). No alert engine (`86bara3qu`)
+yet either — Principle 6's own build order sequences it after the
+adapters. No refresh scheduler — `refresh_system_state()` is a manual/
+future-cron call, since no scheduler infrastructure runs in Nova today
+(`nova_watcher.py` itself is still deferred). No new `nova_api.py` route —
+nothing reads domain state yet to justify one.
 
 **Known limitation (accepted, 2026-07-05):** the worktree boundary is only hard-enforced
 for `read_file`/`write_file`/`list_files` (path-validated against `root` in

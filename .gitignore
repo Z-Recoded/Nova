@@ -12,6 +12,10 @@ __pycache__/
 # Chroma vector DB (local data, not for version control)
 memory/
 
+# nova_state.db (local-only current-state data, never synced — Architecture
+# Principles v1.1 Principle 6, data sensitivity rule #1)
+nova_state.db
+
 # Runtime logs
 logs/
 
