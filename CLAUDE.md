@@ -121,6 +121,17 @@ worktree + branch under `C:/nova-agent-worktrees/`, never the live `C:/Nova` tre
 diff and merges by hand. v1 is driven by the Claude API (not a local model yet) and has
 no Docker/OpenHands sandboxing — that's deferred; see Phase 3.5.
 
+**Tool preference (2026-07-07):** `file_replace(path, old_str, new_str)` — a
+search/replace primitive in `nova_tools.py` — is preferred over `write_file`
+for edits to files that already exist. It sends only the changed text as
+tool-call output instead of the whole file, which compounds savings as
+`nova_api.py`/`nova_orchestrator.py`/`nova_query.py` grow. `old_str` must
+match exactly once in the file; if it doesn't, the agent should pick a more
+specific `old_str` or fall back to `write_file` for that edit. Reserve
+`write_file` for brand-new files. This paragraph is picked up automatically
+by `_build_system_prompt()`, which reads all of CLAUDE.md verbatim into the
+sub-agent's system prompt every run.
+
 **Known limitation (accepted, 2026-07-05):** the worktree boundary is only hard-enforced
 for `read_file`/`write_file`/`list_files` (path-validated against `root` in
 `nova_tools.py`). `run_command` is a raw shell — it can `cd` outside the worktree and

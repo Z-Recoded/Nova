@@ -22,7 +22,7 @@ from pathlib import Path
 import anthropic
 from dotenv import load_dotenv
 
-from nova_tools import list_files, read_file, run_command, write_file
+from nova_tools import file_replace, list_files, read_file, run_command, write_file
 
 load_dotenv(dotenv_path="C:/Nova/.env")
 
@@ -67,6 +67,25 @@ TOOL_DEFINITIONS = [
                 "content": {"type": "string", "description": "Full file contents to write."},
             },
             "required": ["path", "content"],
+        },
+    },
+    {
+        "name": "file_replace",
+        "description": (
+            "Replace a single unique occurrence of old_str with new_str in an "
+            "existing file, relative to the task's worktree root. old_str must "
+            "appear exactly once. Prefer this over write_file for edits to "
+            "existing files — it sends only the changed text as output instead "
+            "of the whole file."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "File path, relative to the worktree root."},
+                "old_str": {"type": "string", "description": "Exact text to replace — must appear exactly once in the file."},
+                "new_str": {"type": "string", "description": "Replacement text."},
+            },
+            "required": ["path", "old_str", "new_str"],
         },
     },
     {
@@ -194,8 +213,15 @@ def _build_system_prompt(root: str) -> str:
         "so just use them directly; no need to hunt for an interpreter path. "
         "run_command can technically reach outside this worktree (e.g. `cd`), "
         "but never do that except through python/pip resolving to the live "
-        "venv as just described — all file edits must go through write_file, "
-        "scoped to this worktree.\n\n"
+        "venv as just described — all file edits must go through write_file "
+        "or file_replace, scoped to this worktree. For edits to a file that "
+        "already exists, prefer file_replace over write_file — it only sends "
+        "the changed old_str/new_str pair as output instead of the whole "
+        "file, which matters for larger files like nova_api.py or "
+        "nova_orchestrator.py. old_str must match exactly once; if it "
+        "doesn't, either pick a larger, more specific old_str or fall back "
+        "to write_file for that edit. Reserve write_file for brand-new "
+        "files.\n\n"
         "Read and follow the project's own coding standards below exactly:\n\n"
         f"{claude_md}\n\n"
         "---\n"
@@ -217,6 +243,9 @@ def _execute_tool(name: str, tool_input: dict, root: str) -> dict:
         if name == "write_file":
             write_file(tool_input["path"], tool_input["content"], root)
             return {"content": f"Wrote {tool_input['path']}"}
+        if name == "file_replace":
+            file_replace(tool_input["path"], tool_input["old_str"], tool_input["new_str"], root)
+            return {"content": f"Replaced content in {tool_input['path']}"}
         if name == "list_files":
             return {"content": "\n".join(list_files(tool_input["path"], root))}
         if name == "run_command":

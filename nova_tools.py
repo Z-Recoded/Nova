@@ -59,6 +59,24 @@ def write_file(path: str, content: str, root: str) -> None:
     resolved.write_text(content, encoding="utf-8")
 
 
+def file_replace(path: str, old_str: str, new_str: str, root: str) -> None:
+    """
+    Replace the single unique occurrence of old_str with new_str in an
+    existing file, scoped to root. Raises ValueError if old_str appears
+    zero or more than once, so the caller can react (pick a more specific
+    old_str, or fall back to write_file) instead of applying an ambiguous
+    or no-op edit.
+    """
+    resolved = _resolve_within_root(path, root)
+    content = resolved.read_text(encoding="utf-8")
+    occurrences = content.count(old_str)
+    if occurrences != 1:
+        raise ValueError(
+            f"old_str appears {occurrences} times in '{path}' — must appear exactly once."
+        )
+    resolved.write_text(content.replace(old_str, new_str, 1), encoding="utf-8")
+
+
 def list_files(path: str, root: str) -> list[str]:
     """List file paths (relative to `root`) under `path`, scoped to `root`."""
     resolved = _resolve_within_root(path, root)
