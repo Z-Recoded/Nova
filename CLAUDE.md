@@ -132,6 +132,31 @@ specific `old_str` or fall back to `write_file` for that edit. Reserve
 by `_build_system_prompt()`, which reads all of CLAUDE.md verbatim into the
 sub-agent's system prompt every run.
 
+**Token Budget Governor — scoped v1 (2026-07-07, ClickUp `86barhqt9`):**
+the finalized spec assumes infrastructure that doesn't exist yet —
+`nova_state.db` (its own ClickUp task, `86bara3qe`, is still "to do"), a
+push-notification channel into an active Open WebUI chat session, and a
+ClickUp-driven task queue with Sonnet/Haiku routing and concurrency slots
+(`nova_orchestrator.py` today is one synchronous call per task, no queue,
+no daemon, one hardcoded model). Matching the earlier Nova Log v1 decision:
+built what's real, explicitly deferred the rest rather than faking it.
+**Built:** `nova_token_budget.py` tracks the coding sub-agent's Claude API
+consumption (`input + output + cache_creation + cache_read×0.1`, the
+finalized formula) against `nova_config.json`'s `token_budget` thresholds,
+persisted to a local JSON file (`logs/token_budget_state.json`) in place of
+`nova_state.db`. Classifies normal/conservative/critical/halt and folds
+into `GET /headroom` via `nova_headroom.py`. `nova_orchestrator.py` checks
+the mode at the top of each turn loop and stops cleanly (no further API
+call, so no new tool_use is ever proposed) once halted, tags the commit
+message, and logs a `budget_halt` outcome to `agent_task_outcomes.jsonl`.
+Gated behind `token_budget_governor` in `nova_config.json` (default off).
+**Explicitly deferred, not built:** Haiku downgrade (no task-type
+classifier exists), task-queue priority-aware selection and concurrency
+capping (no task queue exists), Open WebUI push notifications, automatic
+ClickUp status updates on halt. `conservative`/`critical` modes are
+classified and reported but have no enforced behavioral difference yet —
+their spec'd effects all depend on the missing task-queue/classifier.
+
 **Known limitation (accepted, 2026-07-05):** the worktree boundary is only hard-enforced
 for `read_file`/`write_file`/`list_files` (path-validated against `root` in
 `nova_tools.py`). `run_command` is a raw shell — it can `cd` outside the worktree and

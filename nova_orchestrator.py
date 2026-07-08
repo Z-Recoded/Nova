@@ -22,6 +22,8 @@ from pathlib import Path
 import anthropic
 from dotenv import load_dotenv
 
+from nova_config import is_framework_integration_enabled
+from nova_token_budget import get_budget_status, record_usage
 from nova_tools import file_replace, list_files, read_file, run_command, write_file
 
 load_dotenv(dotenv_path="C:/Nova/.env")
@@ -156,12 +158,13 @@ def _summarize_task(task_description: str) -> str:
     return f"{truncated}..."
 
 
-def _commit_worktree_changes(root: str, task_description: str) -> bool:
+def _commit_worktree_changes(root: str, task_description: str, note: str = "") -> bool:
     """
     Stage and commit whatever the agent changed in its worktree, so the
     branch actually has real content for a human to merge (not just
     uncommitted working-tree edits sitting in a disposable directory).
-    Returns False if there was nothing to commit.
+    Returns False if there was nothing to commit. `note`, if given, is
+    appended as an extra commit body line (e.g. a budget-halt marker).
     """
     subprocess.run(["git", "add", "-A"], cwd=root, check=True, capture_output=True, text=True)
     status = subprocess.run(
@@ -171,6 +174,8 @@ def _commit_worktree_changes(root: str, task_description: str) -> bool:
         return False
 
     commit_message = f"{_summarize_task(task_description)}\n\nWritten by nova_orchestrator.py (Nova's coding sub-agent)."
+    if note:
+        commit_message += f"\n\n{note}"
     subprocess.run(
         ["git", "commit", "-m", commit_message],
         cwd=root,
@@ -295,6 +300,7 @@ def run_coding_task(task_description: str) -> dict:
             "Export it before calling run_coding_task()."
         )
     client = anthropic.Anthropic(api_key=api_key)
+    budget_gate_enabled = is_framework_integration_enabled("token_budget_governor")
 
     slug = _slugify(task_description)
     worktree_path, branch_name = _create_worktree(slug)
@@ -308,6 +314,16 @@ def run_coding_task(task_description: str) -> dict:
     turns_used = 0
 
     for turn in range(1, NOVA_AGENT_MAX_TURNS + 1):
+        if budget_gate_enabled and get_budget_status().get("mode") == "halt":
+            # Checked at the top of the loop, before any further API call —
+            # this means no new tool_use can be proposed at all once halted,
+            # satisfying "don't start a new file edit once halted" without
+            # needing to interrupt a turn already in flight (turns are
+            # atomic: we only ever see a turn after the full response
+            # arrives, never mid-generation).
+            final_status = "stopped_budget_halt"
+            break
+
         turns_used = turn
         response = client.messages.create(
             model=NOVA_AGENT_MODEL,
@@ -323,6 +339,8 @@ def run_coding_task(task_description: str) -> dict:
         )
 
         _log_agent_turn(slug, branch_name, turn, task_description, response)
+        if budget_gate_enabled:
+            record_usage(response.usage)
 
         messages.append({"role": "assistant", "content": response.content})
 
@@ -354,7 +372,22 @@ def run_coding_task(task_description: str) -> dict:
 
     elapsed_s = round(time.time() - started_at, 1)
     diff = _git_diff_against_master(root)
-    committed = _commit_worktree_changes(root, task_description)
+    budget_status = get_budget_status() if budget_gate_enabled else {"enabled": False}
+
+    commit_note = ""
+    if final_status == "stopped_budget_halt":
+        commit_note = (
+            f"[budget-halt] stopped at {budget_status.get('session_pct')}% "
+            f"session budget, task left {final_status}"
+        )
+    committed = _commit_worktree_changes(root, task_description, note=commit_note)
+
+    if final_status == "stopped_budget_halt":
+        record_task_outcome(
+            branch_name,
+            "budget_halt",
+            note=f"Stopped automatically at {budget_status.get('session_pct')}% session budget.",
+        )
 
     return {
         "task": task_description,
@@ -365,6 +398,7 @@ def run_coding_task(task_description: str) -> dict:
         "elapsed_s": elapsed_s,
         "committed": committed,
         "diff": diff,
+        "budget_status": budget_status,
         "next_steps": (
             f"Review: git diff master...{branch_name} (from C:/Nova). "
             f"Merge when satisfied: git merge {branch_name}. "
@@ -375,15 +409,16 @@ def run_coding_task(task_description: str) -> dict:
 
 def record_task_outcome(branch: str, outcome: str, note: str = "") -> None:
     """
-    Record whether a coding-agent branch was merged or discarded, once a
-    human has reviewed it. This is the missing link between raw per-turn
+    Record whether a coding-agent branch was merged, discarded, or stopped
+    itself on a budget halt. This is the missing link between raw per-turn
     telemetry (agent_log.jsonl) and a future curated training set — without
     it, there's no way to tell a clean merged outcome apart from a run that
     hit a harness bug or was simply discarded, just from agent_log.jsonl
-    alone. Call this by hand after each merge/discard decision.
+    alone. Call "merged"/"discarded" by hand after each review decision;
+    "budget_halt" is called automatically by run_coding_task() itself.
     """
-    if outcome not in ("merged", "discarded"):
-        raise ValueError(f"outcome must be 'merged' or 'discarded', got '{outcome}'")
+    if outcome not in ("merged", "discarded", "budget_halt"):
+        raise ValueError(f"outcome must be 'merged', 'discarded', or 'budget_halt', got '{outcome}'")
 
     os.makedirs(LOGS_DIR, exist_ok=True)
     entry = {

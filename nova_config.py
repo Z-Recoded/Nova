@@ -31,6 +31,7 @@ DEFAULT_CONFIG = {
         "langgraph_orchestration": False,
         "openhands_coding_agent": False,
         "visual_retrieval": False,
+        "token_budget_governor": False,
     },
 }
 
@@ -116,6 +117,7 @@ def config_snapshot() -> dict:
         "langgraph_orchestration": bool(integrations.get("langgraph_orchestration")),
         "openhands_coding_agent": bool(integrations.get("openhands_coding_agent")),
         "visual_retrieval": bool(integrations.get("visual_retrieval")),
+        "token_budget_governor": bool(integrations.get("token_budget_governor")),
     }
 
 

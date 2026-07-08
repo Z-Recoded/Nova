@@ -19,6 +19,8 @@ import subprocess
 
 import psutil
 
+from nova_token_budget import get_budget_status
+
 # ── Config ─────────────────────────────────────────────────────
 
 # nvidia-smi query used to read GPU name + memory. CSV with a header row,
@@ -238,24 +240,37 @@ def _describe_pipeline_status(queue_depth: int | None) -> str:
     return f"pipeline processing ({queue_depth} queued)"
 
 
+def _describe_budget_status(budget_status: dict) -> str:
+    """Turn token budget status into a short plain-English clause, or '' if disabled."""
+    if not budget_status.get("enabled"):
+        return ""
+    return f", budget: {budget_status['mode']} ({budget_status['session_pct']}%)"
+
+
 def build_headroom_summary(
-    gpu_stats: dict, system_stats: dict, headroom_by_profile: dict, queue_depth: int | None
+    gpu_stats: dict,
+    system_stats: dict,
+    headroom_by_profile: dict,
+    queue_depth: int | None,
+    budget_status: dict,
 ) -> str:
     """
     Compose the one-line plain-English headroom summary Nova reports,
-    e.g. '52% VRAM, 34% CPU, pipeline idle. Headroom: 2 heavy or
-    4 light tasks before hitting nominal thresholds.'
+    e.g. '52% VRAM, 34% CPU, pipeline idle, budget: normal (23%). Headroom:
+    2 heavy or 4 light tasks before hitting nominal thresholds.'
+    The budget clause is omitted entirely when token_budget_governor is off.
     """
     vram_percent = gpu_stats["vram_percent_used"]
     vram_phrase = f"{vram_percent:.0f}% VRAM" if vram_percent is not None else "VRAM unknown"
     cpu_phrase = f"{system_stats['cpu_percent']:.0f}% CPU"
     pipeline_phrase = _describe_pipeline_status(queue_depth)
+    budget_phrase = _describe_budget_status(budget_status)
 
     heavy_count = headroom_by_profile["heavy"]
     light_count = headroom_by_profile["light"]
 
     return (
-        f"{vram_phrase}, {cpu_phrase}, {pipeline_phrase}. "
+        f"{vram_phrase}, {cpu_phrase}, {pipeline_phrase}{budget_phrase}. "
         f"Headroom: {heavy_count} heavy or {light_count} light tasks "
         f"before hitting nominal thresholds."
     )
@@ -274,14 +289,18 @@ def get_headroom_report() -> dict:
     system_stats = get_system_stats()
     queue_depth = get_ingestion_queue_depth()
     active_sessions = get_active_session_count()
+    budget_status = get_budget_status()
     headroom_by_profile = compute_task_headroom(gpu_stats, system_stats)
-    summary = build_headroom_summary(gpu_stats, system_stats, headroom_by_profile, queue_depth)
+    summary = build_headroom_summary(
+        gpu_stats, system_stats, headroom_by_profile, queue_depth, budget_status
+    )
 
     return {
         "gpu": gpu_stats,
         "system": system_stats,
         "ingestion_queue_depth": queue_depth,
         "active_session_count": active_sessions,
+        "token_budget": budget_status,
         "task_headroom": headroom_by_profile,
         "task_cost_profiles": TASK_COST_PROFILES,
         "nominal_thresholds": {
@@ -305,6 +324,7 @@ def main():
     print(f"Ingestion queue depth: {report['ingestion_queue_depth']}")
     print(f"Active session count:  {report['active_session_count']}")
     print(f"Task headroom: {report['task_headroom']}")
+    print(f"Token budget: {report['token_budget']}")
 
 
 if __name__ == "__main__":
