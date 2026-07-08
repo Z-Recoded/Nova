@@ -23,6 +23,7 @@ import anthropic
 from dotenv import load_dotenv
 
 from nova_config import is_framework_integration_enabled
+from nova_skills import get_skill_version, load_skill
 from nova_token_budget import get_budget_status, record_usage
 from nova_tools import file_replace, list_files, read_file, run_command, write_file
 
@@ -261,7 +262,9 @@ def _execute_tool(name: str, tool_input: dict, root: str) -> dict:
         return {"content": str(e), "is_error": True}
 
 
-def _log_agent_turn(slug: str, branch: str, turn: int, task: str, response) -> None:
+def _log_agent_turn(
+    slug: str, branch: str, turn: int, task: str, response, skill_category: str | None, skill_version: str | None
+) -> None:
     """Append one turn of an agent task to agent_log.jsonl (JSONL, mirrors nova_log.py)."""
     os.makedirs(LOGS_DIR, exist_ok=True)
     tool_calls = [
@@ -275,6 +278,8 @@ def _log_agent_turn(slug: str, branch: str, turn: int, task: str, response) -> N
         "branch": branch,
         "turn": turn,
         "task": task,
+        "skill_category": skill_category,
+        "skill_version": skill_version,
         "stop_reason": response.stop_reason,
         "tool_calls": tool_calls,
         "input_tokens": response.usage.input_tokens,
@@ -287,11 +292,17 @@ def _log_agent_turn(slug: str, branch: str, turn: int, task: str, response) -> N
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
-def run_coding_task(task_description: str) -> dict:
+def run_coding_task(task_description: str, category: str | None = None) -> dict:
     """
     Run one coding task end-to-end: spin up a disposable worktree, drive a
     Claude-backed tool-use loop against it, log every turn, and return a
     diff summary for human review. Never merges or deletes the worktree.
+
+    `category`, if given, selects a Nova Skills Library file (see
+    nova_skills.py) to prepend to the task's context when skill_injection
+    is enabled in nova_config.json — orients the model with precise,
+    compact conventions instead of the model re-deriving them from
+    CLAUDE.md alone. No effect if the flag is off or category is None.
     """
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -301,13 +312,25 @@ def run_coding_task(task_description: str) -> dict:
         )
     client = anthropic.Anthropic(api_key=api_key)
     budget_gate_enabled = is_framework_integration_enabled("token_budget_governor")
+    skill_injection_enabled = is_framework_integration_enabled("skill_injection")
 
     slug = _slugify(task_description)
     worktree_path, branch_name = _create_worktree(slug)
     root = str(worktree_path)
 
     system_prompt = _build_system_prompt(root)
-    messages = [{"role": "user", "content": task_description}]
+
+    skill_category = None
+    skill_version = None
+    first_message_content = task_description
+    if skill_injection_enabled and category:
+        skill_content = load_skill(category)
+        if skill_content:
+            skill_category = category
+            skill_version = get_skill_version(category)
+            first_message_content = f"{skill_content}\n\n---\n\n{task_description}"
+
+    messages = [{"role": "user", "content": first_message_content}]
 
     started_at = time.time()
     final_status = "incomplete"
@@ -338,7 +361,7 @@ def run_coding_task(task_description: str) -> dict:
             messages=messages,
         )
 
-        _log_agent_turn(slug, branch_name, turn, task_description, response)
+        _log_agent_turn(slug, branch_name, turn, task_description, response, skill_category, skill_version)
         if budget_gate_enabled:
             record_usage(response.usage)
 

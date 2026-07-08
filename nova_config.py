@@ -32,6 +32,7 @@ DEFAULT_CONFIG = {
         "openhands_coding_agent": False,
         "visual_retrieval": False,
         "token_budget_governor": False,
+        "skill_injection": False,
     },
 }
 
@@ -118,6 +119,7 @@ def config_snapshot() -> dict:
         "openhands_coding_agent": bool(integrations.get("openhands_coding_agent")),
         "visual_retrieval": bool(integrations.get("visual_retrieval")),
         "token_budget_governor": bool(integrations.get("token_budget_governor")),
+        "skill_injection": bool(integrations.get("skill_injection")),
     }
 
 

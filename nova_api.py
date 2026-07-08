@@ -97,6 +97,7 @@ class RebuildNodeRequest(BaseModel):
 
 class AgentTaskRequest(BaseModel):
     task: str
+    category: str | None = None
 
 
 # ── Routes ─────────────────────────────────────────────────────
@@ -318,10 +319,13 @@ def agent_task(req: AgentTaskRequest):
 
     The task runs in a disposable git worktree — nothing touches the live
     Nova codebase. Returns the branch name and diff for human review; never
-    auto-merges.
+    auto-merges. `category` optionally selects a Nova Skills Library file
+    (coding/retrieval/financial/orchestration/lore/memory) to prepend to
+    the task's context — no effect unless skill_injection is enabled in
+    nova_config.json.
     """
     try:
-        return run_coding_task(req.task)
+        return run_coding_task(req.task, category=req.category)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

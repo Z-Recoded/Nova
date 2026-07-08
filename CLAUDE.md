@@ -157,6 +157,25 @@ ClickUp status updates on halt. `conservative`/`critical` modes are
 classified and reported but have no enforced behavioral difference yet —
 their spec'd effects all depend on the missing task-queue/classifier.
 
+### Nova Skills Library (2026-07-07, ClickUp `86barguac`)
+Structured per-category instruction files (`skills/coding.md`, `retrieval.md`,
+`financial.md`, `orchestration.md`, `lore.md`, `memory.md`) that
+`nova_orchestrator.py` can prepend to a coding task's context — a compact
+skill prompt orients the model with precise conventions instead of the
+model re-deriving them from scratch (Nova Reference — Token Efficiency
+Strategy v1.0). All six files were already fully drafted in the Nova
+Skills Library Index doc; this shipped the wiring, not new content.
+**One trim from the literal spec:** category was meant to come from a
+ClickUp task's tag, but nothing in Nova's own runtime code reads ClickUp
+today (only this interactive session does) — `run_coding_task(task,
+category=None)` and `POST /agent/task`'s `category` field take an
+explicit caller-supplied string instead. `load_skill()`/`get_skill_version()`
+live in `nova_skills.py`; a missing category or skill file is a graceful
+no-op, not an error. Each turn's `agent_log.jsonl` entry now carries
+`skill_category`/`skill_version` for traceability, per the skill files'
+own maintenance note. Gated behind `skill_injection` in `nova_config.json`
+(default off).
+
 ### Domain State Layer (2026-07-07, ClickUp `86bara3qe`) — scoped v1
 Architecture Principles v1.1, Principle 6 distinguishes Chroma (deep
 knowledge — lore, documents, past reality) from `nova_state.db` (current
