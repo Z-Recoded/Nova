@@ -336,62 +336,76 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
     final_status = "incomplete"
     turns_used = 0
 
-    for turn in range(1, NOVA_AGENT_MAX_TURNS + 1):
-        if budget_gate_enabled and get_budget_status().get("mode") == "halt":
-            # Checked at the top of the loop, before any further API call —
-            # this means no new tool_use can be proposed at all once halted,
-            # satisfying "don't start a new file edit once halted" without
-            # needing to interrupt a turn already in flight (turns are
-            # atomic: we only ever see a turn after the full response
-            # arrives, never mid-generation).
-            final_status = "stopped_budget_halt"
-            break
-
-        turns_used = turn
-        response = client.messages.create(
-            model=NOVA_AGENT_MODEL,
-            max_tokens=NOVA_AGENT_MAX_TOKENS,
-            # cache_control: system_prompt (the full CLAUDE.md contents) is
-            # identical every turn of this loop — caching it turns turns 2+
-            # into cheap cache reads instead of full-price resends.
-            system=[
-                {"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}},
-            ],
-            tools=TOOL_DEFINITIONS,
-            messages=messages,
+    if is_framework_integration_enabled("langgraph_orchestration"):
+        # Lazy import: langgraph is only ever imported when this flag is on,
+        # so a missing/broken install can't affect Nova while the feature is
+        # disabled (the default). See nova_orchestrator_graph.py for the
+        # graph itself — same turn-by-turn behavior as the inline loop below,
+        # just expressed as LangGraph nodes/edges instead.
+        from nova_orchestrator_graph import run_via_langgraph
+        final_status, turns_used = run_via_langgraph(
+            client, system_prompt, messages, root, slug, branch_name, task_description,
+            skill_category, skill_version, budget_gate_enabled,
+            NOVA_AGENT_MAX_TURNS, NOVA_AGENT_MODEL, NOVA_AGENT_MAX_TOKENS,
+            _log_agent_turn, _execute_tool,
         )
-
-        _log_agent_turn(slug, branch_name, turn, task_description, response, skill_category, skill_version)
-        if budget_gate_enabled:
-            record_usage(response.usage)
-
-        messages.append({"role": "assistant", "content": response.content})
-
-        if response.stop_reason == "end_turn":
-            final_status = "completed"
-            break
-
-        if response.stop_reason != "tool_use":
-            # e.g. "max_tokens" — the response (possibly mid tool-call) got cut
-            # off. Executing a truncated tool call could apply garbage, so stop
-            # and surface it honestly rather than silently treating it as done.
-            final_status = f"stopped_{response.stop_reason}"
-            break
-
-        tool_results = []
-        for block in response.content:
-            if block.type != "tool_use":
-                continue
-            result = _execute_tool(block.name, block.input, root)
-            tool_results.append({
-                "type": "tool_result",
-                "tool_use_id": block.id,
-                "content": result["content"],
-                "is_error": result.get("is_error", False),
-            })
-        messages.append({"role": "user", "content": tool_results})
     else:
-        final_status = "max_turns_reached"
+        for turn in range(1, NOVA_AGENT_MAX_TURNS + 1):
+            if budget_gate_enabled and get_budget_status().get("mode") == "halt":
+                # Checked at the top of the loop, before any further API call —
+                # this means no new tool_use can be proposed at all once halted,
+                # satisfying "don't start a new file edit once halted" without
+                # needing to interrupt a turn already in flight (turns are
+                # atomic: we only ever see a turn after the full response
+                # arrives, never mid-generation).
+                final_status = "stopped_budget_halt"
+                break
+
+            turns_used = turn
+            response = client.messages.create(
+                model=NOVA_AGENT_MODEL,
+                max_tokens=NOVA_AGENT_MAX_TOKENS,
+                # cache_control: system_prompt (the full CLAUDE.md contents) is
+                # identical every turn of this loop — caching it turns turns 2+
+                # into cheap cache reads instead of full-price resends.
+                system=[
+                    {"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}},
+                ],
+                tools=TOOL_DEFINITIONS,
+                messages=messages,
+            )
+
+            _log_agent_turn(slug, branch_name, turn, task_description, response, skill_category, skill_version)
+            if budget_gate_enabled:
+                record_usage(response.usage)
+
+            messages.append({"role": "assistant", "content": response.content})
+
+            if response.stop_reason == "end_turn":
+                final_status = "completed"
+                break
+
+            if response.stop_reason != "tool_use":
+                # e.g. "max_tokens" — the response (possibly mid tool-call) got cut
+                # off. Executing a truncated tool call could apply garbage, so stop
+                # and surface it honestly rather than silently treating it as done.
+                final_status = f"stopped_{response.stop_reason}"
+                break
+
+            tool_results = []
+            for block in response.content:
+                if block.type != "tool_use":
+                    continue
+                result = _execute_tool(block.name, block.input, root)
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": result["content"],
+                    "is_error": result.get("is_error", False),
+                })
+            messages.append({"role": "user", "content": tool_results})
+        else:
+            final_status = "max_turns_reached"
 
     elapsed_s = round(time.time() - started_at, 1)
     diff = _git_diff_against_master(root)
