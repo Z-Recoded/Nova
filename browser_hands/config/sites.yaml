@@ -1,0 +1,13 @@
+# Per-adapter configuration for Nova Browser Hands.
+#
+# No real adapters exist yet (M1 ships only the harness — see ClickUp
+# 86barqzmv). Each future adapter (M2 PiSignage, M3 website audit, M4
+# subscription audit, M5 Base44) adds one real top-level entry here as it's
+# built. The commented block below is a template showing the expected
+# shape only — it is NOT a real, active adapter config.
+#
+# example_adapter:
+#   cdp_port: 9222
+#   target_urls:
+#     - "https://example.com/dashboard"
+#   output_dir: "C:/Nova/browser_hands/output/example_adapter"
