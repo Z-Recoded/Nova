@@ -13,7 +13,7 @@ import ollama
 from nova_router import route, CODING_AGENT_PREFIX
 from nova_logger import detect_blending, log_blend
 from nova_log import log_query
-from nova_config import config_snapshot
+from nova_config import config_snapshot, get_routed_model
 from nova_memory_store import load_history, save_history
 from graph_builder import get_context_budget
 from nova_orchestrator import run_coding_task
@@ -208,13 +208,17 @@ def handle_coding_task(query: str) -> dict:
     }
 
 # ── Generation ─────────────────────────────────────────────────
-def ask(query: str, history: list[dict] = None, persist: bool = True) -> dict:
+def ask(query: str, history: list[dict] = None, persist: bool = True, model_override: str = None) -> dict:
     """
     Full RAG pipeline: route → retrieve → generate.
     Returns dict with 'answer', 'sources', 'chunks', 'category'.
 
     history: list of {"role": "user"|"assistant", "content": "..."} dicts
     persist: if True, saves updated history to disk after responding
+    model_override: if given, forces this exact Ollama model for this call,
+        skipping per-category routing entirely — used by nova_benchmark.py's
+        model-swap evaluator to run every golden query on one specific
+        candidate model regardless of the routing table.
 
     Queries prefixed with CODING_AGENT_PREFIX (e.g. "/code ...") are handed
     off to the coding sub-agent instead — see handle_coding_task().
@@ -231,6 +235,11 @@ def ask(query: str, history: list[dict] = None, persist: bool = True) -> dict:
     # Ollama call, no blend detection, no query_log.jsonl or history.json writes.
     if route_result.category == "coding_agent":
         return handle_coding_task(query)
+
+    # Resolve once: model_override wins outright (benchmark/eval use), otherwise
+    # look up this category's routed model, falling back to OLLAMA_MODEL when
+    # model_routing is disabled (the default — zero behavior change).
+    model = model_override or get_routed_model(route_result.category, fallback=OLLAMA_MODEL)
 
     # Retrieve relevant chunks
     n_results = 3 if route_result.category == "fiction" else route_result.n_results
@@ -275,7 +284,7 @@ def ask(query: str, history: list[dict] = None, persist: bool = True) -> dict:
 
     inference_start = time.perf_counter()
     response = ollama.chat(
-        model=OLLAMA_MODEL,
+        model=model,
         messages=messages,
         options={"num_ctx": NUM_CTX}
     )
@@ -304,7 +313,7 @@ def ask(query: str, history: list[dict] = None, persist: bool = True) -> dict:
         total_ms=total_ms,
         prompt_tokens=response.get("prompt_eval_count"),
         response_tokens=response.get("eval_count"),
-        model=OLLAMA_MODEL,
+        model=model,
         num_ctx=NUM_CTX,
         config_snapshot=config_snapshot(),
     )

@@ -24,5 +24,17 @@
     "halt_threshold_pct": 0.85,
     "daily_ceiling": 400000,
     "daily_warn_pct": 0.80
+  },
+  "model_routing": {
+    "enabled": false,
+    "routes": {
+      "identity": "llama3.2",
+      "fiction": "llama3.2",
+      "project": "llama3.2",
+      "finance": "llama3.2",
+      "technical": "llama3.2",
+      "general": "llama3.2"
+    },
+    "default_model": "llama3.2"
   }
 }

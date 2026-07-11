@@ -14,6 +14,7 @@
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 from datetime import datetime
@@ -118,17 +119,22 @@ def run_benchmark():
 
 
 # ── Golden-query RAG benchmark ──────────────────────────────────
-def _run_single_golden_query(entry: dict) -> dict:
+def _run_single_golden_query(entry: dict, model: str) -> dict:
     """
     Run one golden query through the full RAG pipeline (nova_query.ask),
     timing it and checking routing/blending. Returns the per-query result
     dict recorded in the benchmark log.
+
+    `model` is passed as nova_query.ask()'s model_override, so the query
+    actually runs on this model — previously this function only ever ran
+    the query on nova_query.py's own hardcoded OLLAMA_MODEL regardless of
+    what model_label the caller intended to benchmark.
     """
     query = entry["query"]
     expected_category = entry["expected_category"]
 
     start = time.perf_counter()
-    result = nova_query.ask(query, persist=False)
+    result = nova_query.ask(query, persist=False, model_override=model)
     latency_ms = int((time.perf_counter() - start) * 1000)
 
     actual_category = result["category"]
@@ -210,6 +216,10 @@ def run_golden_benchmark(model_label: str = MODEL) -> dict:
     This establishes/re-checks the base-model baseline referenced by
     CLAUDE.md Phase 3's swap trigger — a candidate model must clearly beat
     these numbers before a swap, not just match a fixed timeline.
+
+    `model_label` now genuinely controls which model generates every answer
+    (via nova_query.ask()'s model_override), not just the label recorded in
+    benchmark_log.jsonl — see _run_single_golden_query.
     """
     print(f"\nNova Golden Query Benchmark")
     print(f"Model: {model_label}")
@@ -218,7 +228,7 @@ def run_golden_benchmark(model_label: str = MODEL) -> dict:
     per_query_results = []
     for entry in GOLDEN_QUERIES:
         print(f"  Querying: \"{entry['query']}\"...", end=" ", flush=True)
-        result = _run_single_golden_query(entry)
+        result = _run_single_golden_query(entry, model=model_label)
         per_query_results.append(result)
         status = "✓" if result["category_match"] else "✗ MISMATCH"
         print(f"{status} ({result['actual_category']}, {result['latency_ms']}ms)")
@@ -255,6 +265,105 @@ def run_golden_benchmark(model_label: str = MODEL) -> dict:
     }
 
 
+# ── Model-swap candidate evaluator ──────────────────────────────
+def _get_latest_baseline_entry(baseline_model: str) -> dict | None:
+    """
+    Read benchmark_log.jsonl and return the most recent entry whose "model"
+    field matches baseline_model (nova_query.OLLAMA_MODEL — today's deployed
+    model), or None if no such entry exists yet. Used to compare a candidate
+    against the real, currently-logged baseline rather than a guess.
+    """
+    if not os.path.exists(BENCHMARK_LOG_PATH):
+        return None
+    latest = None
+    with open(BENCHMARK_LOG_PATH, encoding="utf-8") as f:
+        for line in f:
+            entry = json.loads(line)
+            if entry.get("model") == baseline_model:
+                latest = entry
+    return latest
+
+
+def evaluate_candidate(candidate_model: str) -> dict:
+    """
+    One-command model-swap check: pull the candidate, run the golden
+    benchmark on it for real, and compare against the most recent logged
+    baseline for nova_query.py's current deployed model.
+
+    Pass/fail rule (this function's own operationalization of CLAUDE.md
+    Phase 3's "must clearly beat the baseline" — the spec doesn't quantify
+    a threshold): PASS only if the candidate is not worse than baseline on
+    every metric (avg_latency_ms, blend_rate, category_mismatches) AND
+    strictly better on at least one. Every metric's raw delta is always
+    printed alongside the verdict, so the call is never a black box.
+    """
+    baseline_model = nova_query.OLLAMA_MODEL
+
+    print(f"\nPulling candidate model: {candidate_model}...")
+    # encoding="utf-8", errors="replace": ollama pull's terminal output (progress
+    # bars, etc.) can contain bytes Windows' default cp1252 console codepage
+    # can't decode — same class of bug already hit and fixed elsewhere in this
+    # file (see the sys.stdout.reconfigure call above) and in nova_orchestrator.py's
+    # git subprocess calls.
+    pull_result = subprocess.run(
+        ["ollama", "pull", candidate_model], capture_output=True, text=True,
+        encoding="utf-8", errors="replace",
+    )
+    if pull_result.returncode != 0:
+        print(f"✗ Failed to pull {candidate_model}: {pull_result.stderr}")
+        return {"candidate_model": candidate_model, "pulled": False, "error": pull_result.stderr}
+
+    candidate_summary = run_golden_benchmark(model_label=candidate_model)
+    baseline_entry = _get_latest_baseline_entry(baseline_model)
+
+    if baseline_entry is None:
+        print(
+            f"\nNo logged baseline found for '{baseline_model}' yet — run "
+            f"`nova_benchmark.py --golden` against it first to establish one. "
+            f"Skipping comparison."
+        )
+        return {"candidate_model": candidate_model, "pulled": True, "baseline_found": False,
+                 "candidate_summary": candidate_summary}
+
+    # All three metrics are "lower is better" (latency, blend rate, mismatches).
+    metric_names = ["avg_latency_ms", "blend_rate", "category_mismatches"]
+    comparisons = {}
+    not_worse_on_all = True
+    strictly_better_on_one = False
+    for metric_name in metric_names:
+        candidate_value = candidate_summary.get(metric_name)
+        baseline_value = baseline_entry.get(metric_name)
+        if candidate_value is None or baseline_value is None:
+            comparisons[metric_name] = {"candidate": candidate_value, "baseline": baseline_value, "delta": None}
+            continue
+        delta = candidate_value - baseline_value
+        comparisons[metric_name] = {"candidate": candidate_value, "baseline": baseline_value, "delta": delta}
+        if delta > 0:
+            not_worse_on_all = False
+        elif delta < 0:
+            strictly_better_on_one = True
+
+    passed = not_worse_on_all and strictly_better_on_one
+
+    print(f"\n── Candidate vs. baseline ({baseline_model}) ──────────────")
+    for metric_name, comparison in comparisons.items():
+        delta = comparison["delta"]
+        delta_str = "n/a" if delta is None else f"{delta:+g}"
+        print(f"  {metric_name:>22} — candidate {comparison['candidate']}, baseline {comparison['baseline']} (Δ {delta_str})")
+
+    verdict = "PASS — clearly beats baseline" if passed else "FAIL — does not clearly beat baseline"
+    print(f"\nVerdict: {verdict}")
+
+    return {
+        "candidate_model": candidate_model,
+        "baseline_model": baseline_model,
+        "pulled": True,
+        "baseline_found": True,
+        "comparisons": comparisons,
+        "passed": passed,
+    }
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Nova benchmarking suite")
     parser.add_argument(
@@ -262,9 +371,17 @@ if __name__ == "__main__":
         action="store_true",
         help="Run the golden-query RAG benchmark instead of the context-window benchmark"
     )
+    parser.add_argument(
+        "--evaluate",
+        metavar="MODEL",
+        help="One-command model-swap check: pull MODEL, run the golden benchmark on it, "
+             "and compare against the current logged baseline (e.g. --evaluate llama3.1:8b)"
+    )
     args = parser.parse_args()
 
-    if args.golden:
+    if args.evaluate:
+        evaluate_candidate(args.evaluate)
+    elif args.golden:
         run_golden_benchmark()
     else:
         run_benchmark()

@@ -34,6 +34,11 @@ DEFAULT_CONFIG = {
         "token_budget_governor": False,
         "skill_injection": False,
     },
+    "model_routing": {
+        "enabled": False,
+        "routes": {},
+        "default_model": "llama3.2",
+    },
 }
 
 
@@ -93,6 +98,27 @@ def is_framework_integration_enabled(flag_name: str) -> bool:
     return bool(integrations.get(flag_name))
 
 
+def is_model_routing_enabled() -> bool:
+    """True if per-category model routing is on. Independent flag, no shared master switch."""
+    return bool(load_config().get("model_routing", {}).get("enabled"))
+
+
+def get_routed_model(category: str, fallback: str) -> str:
+    """
+    Look up which Ollama model to use for a given nova_router.py category.
+    Returns `fallback` unchanged whenever routing is disabled, so callers that
+    pass their own current model constant as `fallback` see zero behavior
+    change while the flag is off. When enabled, looks up `category` in
+    model_routing.routes, falling back to model_routing.default_model if the
+    category has no entry, and to `fallback` itself if even that is missing.
+    """
+    if not is_model_routing_enabled():
+        return fallback
+    routing = load_config().get("model_routing", {})
+    default_model = routing.get("default_model", fallback)
+    return routing.get("routes", {}).get(category, default_model)
+
+
 # ── Reporting ──────────────────────────────────────────────────
 
 def config_snapshot() -> dict:
@@ -106,6 +132,7 @@ def config_snapshot() -> dict:
     augments = config.get("classical_augments", {})
     tiers = augments.get("memory_decay_tiers", {})
     integrations = config.get("framework_integrations", {})
+    model_routing = config.get("model_routing", {})
 
     return {
         "classical_augments_enabled": bool(augments.get("enabled")),
@@ -120,6 +147,7 @@ def config_snapshot() -> dict:
         "visual_retrieval": bool(integrations.get("visual_retrieval")),
         "token_budget_governor": bool(integrations.get("token_budget_governor")),
         "skill_injection": bool(integrations.get("skill_injection")),
+        "model_routing_enabled": bool(model_routing.get("enabled")),
     }
 
 
