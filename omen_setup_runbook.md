@@ -1,5 +1,8 @@
 # HP Omen Headless Ubuntu Server — Setup Runbook (v1.2)
 
+> **✓ STATUS: COMPLETE (2026-07-12).** All 13 phases (0-12) done and verified live. See
+> ClickUp `86baeyfm1`.
+
 > Reconciles the "Nova Reference — HP Omen Headless Ubuntu Server Setup Workbook v1.2"
 > (pasted in from Claude Chat, 2026-07-12 — Drive's create-file tool errored, so this local
 > file is now the authoritative working copy) with what's actually been verified live via
@@ -237,7 +240,7 @@ sudo ufw status
 
 Tightened from "Anywhere" to LAN-subnet-only after initial verification.
 
-## ⏳ Phase 11 — Tailscale on Ubuntu (not done — the one remaining step)
+## ✓ Phase 11 — Tailscale on Ubuntu (done — 2026-07-12)
 
 ```bash
 curl -fsSL https://tailscale.com/install.sh | sh
@@ -245,32 +248,39 @@ sudo tailscale up
 tailscale ip -4   # note this — it's the Omen's tailnet address
 ```
 
-Confirmed via `tailscale status` from the Aero (2026-07-12): no Omen peer yet. Remember the
-Windows-side gotcha already hit on the Aero (CLAUDE.md Phase 4): Tailscale's adapter classifies
-as Private, not Public — irrelevant on Ubuntu since `ufw` rules above are already scoped
-correctly, but worth re-checking if anything unexpectedly can't reach the Omen over the tailnet.
+**Omen's tailnet address: `100.114.197.117`** (hostname `nova`). Confirmed in `tailscale
+status` from the Aero right after auth completed. Ran through the interactive browser-auth URL
+`tailscale up` printed — same account as the Aero (`marvinroyal5@`), same pattern as the
+Windows-side gotcha already hit there (CLAUDE.md Phase 4): Tailscale's adapter classifies as
+Private, not Public — irrelevant here since `ufw` rules above are already scoped correctly.
 
-**Aero-side half of the Ollama callback path already done and verified (2026-07-12):**
-Ollama's `OLLAMA_HOST` set to `0.0.0.0` + restarted, and a `Nova Ollama (Omen callback)`
-inbound firewall rule (TCP 11434, Private profile) added on the Aero — verified locally by
-hitting the Aero's own Tailscale IP (`100.122.229.23:11434`) and getting back `200 Ollama is
-running`. **Once `tailscale up` succeeds here, validate the actual cross-machine hop from the
-Omen:**
+**Aero-side half of the Ollama callback path done and verified (2026-07-12):** Ollama's
+`OLLAMA_HOST` set to `0.0.0.0` + restarted, and a `Nova Ollama (Omen callback)` inbound firewall
+rule (TCP 11434, Private profile) added on the Aero. **Cross-machine hop confirmed live from the
+Omen itself:**
 
 ```bash
 curl http://100.122.229.23:11434/
+# → Ollama is running
 ```
 
-A response of `Ollama is running` confirms the Omen can reach the Aero's Ollama instance over
-the tailnet — this is what makes hosted-service-only inference on the Omen actually work day
-to day.
+The Omen can reach the Aero's Ollama instance over the tailnet — this is what makes
+hosted-service-only inference on the Omen actually work day to day.
 
-## ⏳ Phase 12 — Validate End-to-End (partially done)
+## ✓ Phase 12 — Validate End-to-End (done — 2026-07-12)
 
-- [x] Chroma reachable on LAN IP (8000) — confirmed live, see Phase 6
-- [ ] Chroma reachable on Tailscale IP (8000) — blocked on Phase 11
-- [ ] `nova_api.py` reachable on LAN IP (8001)
-- [ ] `nova_api.py` reachable on Tailscale IP (8001) — blocked on Phase 11
+- [x] Chroma reachable on LAN IP (`192.168.1.250:8000`) — full 4-step `nova_chroma_omen_check.py`
+      pass, 479 chunks, real query results
+- [x] Chroma reachable on Tailscale IP (`100.114.197.117:8000`) — same full pass, confirmed
+      identical after the Tailscale hop
+- [x] `nova_api.py` reachable on LAN IP (`192.168.1.250:8001`) — `200` on `/`
+- [x] `nova_api.py` reachable on Tailscale IP (`100.114.197.117:8001`) — `200` on `/`,
+      `/headroom`, `/docs`. `/graph` correctly returns a 404 ("Graph not built yet") — expected,
+      `nova_graph.json` just hasn't been generated on this clone yet, unrelated to setup
+- [x] Ollama callback, Omen → Aero (`100.122.229.23:11434`) — `Ollama is running`, confirmed
+      from the Omen's own shell
+
+**Runbook complete.** All 13 phases (0-12) done and verified live, not just reported.
 
 ---
 
