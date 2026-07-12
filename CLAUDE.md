@@ -438,6 +438,10 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
   - Why
 - Flag anything that might break an existing system before making the change.
 - When editing an existing function, preserve its behavior unless explicitly told to change it.
+- Check `git status` at session start (see Section 11) and again before ending a session —
+  if changes from earlier work are still uncommitted, tell Marvin what's sitting there and
+  ask whether to commit. Don't commit unprompted (still requires his go-ahead per the rule
+  below), just don't let it go unmentioned.
 - When responding to a change request, do three things together in this order:
   1. **Offer to make the change yourself** — don't just describe it and stop.
   2. **Show the specific line(s) the change affects** — with file path and actual lines.
@@ -488,6 +492,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-11 | Fixed hardcoded Windows path in `nova_orchestrator.py`'s `load_dotenv()` (commit `5146222`) | `dotenv_path="C:/Nova/.env"` silently returned `False` on Linux instead of raising, so the real failure only would have surfaced later as a confusing "env var not set" error once the orchestrator ran on the Omen. Fixed to resolve relative to the script's own location, OS-agnostic |
 | 2026-07-12 | Added `nova_status_digest.py` + `NOVA_STATUS.md`/`.nova_status_snapshot.json` board-state digest (commit `3278dec`) to Sections 1 & 2 | One-way board-state handoff: Claude Code writes the digest after sessions that change board state, Claude Chat reads it as a cheap starting point instead of always querying ClickUp fresh |
 | 2026-07-12 | Live Omen Ubuntu setup verified through step 9 of 11 (OS, static IP, packages, Chroma data transfer, lid-close, SSH, systemd units, firewall), Chroma reachability confirmed live from the Aero, real port conflict fixed (`nova-api` moved to 8001 on the Omen), Aero-side Ollama-callback groundwork added (`OLLAMA_HOST=0.0.0.0` + `Nova Ollama (Omen callback)` firewall rule) — added to Sections 1, 2, 5, 7 and the Phase 4 roadmap | Doc catch-up after a real SSH session on the Omen plus Windows-side prep on the Aero; only step 10 (Tailscale on the Omen) remains before `86baeyfm1` is done. Also audited the ClickUp board against the session recap rather than trusting it at face value — `86bavtz06` moved from a claimed-but-inaccurate "complete" to "in progress" (real scope is 3 onboarding targets, only 1 done), `86baeyfm1` commented with the verified step-by-step status so it doesn't need re-deriving from prose next session |
+| 2026-07-12 | Added an uncommitted-changes check to Sections 8 & 11 — run `git status` at session start and again before ending, tell Marvin what's sitting there | Today's session had real changes (CLAUDE.md doc catch-up, the Ollama-client fix, the Omen runbook) sit uncommitted for a while before Marvin had to ask about them directly — nothing in this file previously said to surface that proactively |
 
 ---
 
@@ -496,10 +501,16 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 At the start of every session, confirm:
 1. You have read this file fully.
 2. nova_api.py is running (`uvicorn nova_api:app --host 0.0.0.0 --port 8000`)
-3. You know which task this session is focused on.
-4. You are in Plan Mode if the task touches more than one file.
+3. Run `git status` — if there are uncommitted changes from earlier work, tell Marvin what's
+   sitting there before starting anything new (see Section 8).
+4. You know which task this session is focused on.
+5. You are in Plan Mode if the task touches more than one file.
 
 Then say: **"Ready. Working on [task]. Here's what I'm planning to do: [brief plan]."**
+
+Repeat the `git status` check before ending a session, for the same reason — same-session
+work is easy to remember to mention, but it's the changes from a prior session that are
+most likely to go unmentioned without a deliberate check.
 
 ## graphify
 
