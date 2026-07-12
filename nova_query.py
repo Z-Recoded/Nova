@@ -22,9 +22,11 @@ from nova_orchestrator import run_coding_task
 OLLAMA_MODEL = "llama3.2"
 NUM_CTX = 8192  # set based on nova_benchmark.py results
 PROFILE_PATH = "C:/Users/marvi/OneDrive/Documents/Second Brain/marvin_profile.md"
+CHROMA_HOST = "192.168.1.250"  # Chroma now runs as a standalone server on the Omen
+CHROMA_PORT = 8000
 
 # ── Setup ──────────────────────────────────────────────────────
-chroma_client = chromadb.PersistentClient(path="C:/Nova/memory")
+chroma_client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
 embedding_fn = embedding_functions.DefaultEmbeddingFunction()
 collection = chroma_client.get_or_create_collection(
     name="nova_memory",

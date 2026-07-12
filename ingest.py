@@ -12,9 +12,11 @@ from chromadb.utils import embedding_functions
 from nova_sources import SOURCES, SUPPORTED_EXTENSIONS, IGNORE_PATTERNS
 
 MANIFEST_PATH = "C:/Nova/ingest_manifest.json"
+CHROMA_HOST = "192.168.1.250"  # Chroma now runs as a standalone server on the Omen
+CHROMA_PORT = 8000
 
 # ── Setup ──────────────────────────────────────────────────────
-client = chromadb.PersistentClient(path="C:/Nova/memory")
+client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
 embedding_fn = embedding_functions.DefaultEmbeddingFunction()
 collection = client.get_or_create_collection(
     name="nova_memory",
