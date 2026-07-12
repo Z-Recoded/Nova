@@ -458,6 +458,18 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
   3. **Explain how and where you would refactor** before applying.
   The goal is to keep Marvin oriented and build troubleshooting intuition — never apply
   a change silently without surfacing what it touches and why.
+- **End every response with a low-effort call to action** for what happens next — Marvin
+  wants to type/decide as little as possible to keep things moving. Pick whichever format
+  actually fits, don't force one:
+  - **Lettered options (A/B/C...)** when there are a few clear next steps to choose from.
+  - **Yes/no** for a single binary decision.
+  - **"Type here:"** style prompt when free-text input is genuinely needed and multiple-choice
+    doesn't fit (e.g. a name, a value, a description).
+  - If the honest next step actually needs a fuller written answer from him, say that plainly
+    instead of forcing a fake menu — don't shrink a real question down to A/B/C just to match
+    this format.
+  This is the lightweight, end-of-turn version — use the AskUserQuestion tool instead for a
+  real branching decision that needs to happen mid-task, not just at the end.
 
 ---
 
@@ -505,6 +517,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-12 | Added an uncommitted-changes check to Sections 8 & 11 — run `git status` at session start and again before ending, tell Marvin what's sitting there | Today's session had real changes (CLAUDE.md doc catch-up, the Ollama-client fix, the Omen runbook) sit uncommitted for a while before Marvin had to ask about them directly — nothing in this file previously said to surface that proactively |
 | 2026-07-12 | **HP Omen headless server (`86baeyfm1`) marked complete** — Tailscale live on the Omen (`100.114.197.117`), full Phase 12 end-to-end validation passed (Chroma + `nova_api` reachable on both LAN and Tailscale IPs, Ollama callback confirmed working in both directions including a real curl from the Omen's own shell) — updated Sections 1 & 2, `omen_setup_runbook.md` marked complete | Closes out the runbook Marvin and Claude Chat worked through together this session; `86baf4e29` (Dockerize) is now genuinely unblocked, next real candidate for the coding sub-agent or a direct session |
 | 2026-07-12 | Board check of the Nova "in progress" column: documented the Phi-4 Mini/Qwen3 dual-model VRAM NO-GO finding from `86bagek35` in the Phase 3 roadmap line; documented Phase 2's explicit early greenlight (`86baeyg3q`) in the Phase 2 roadmap line, confirmed with Marvin rather than assumed; moved `86baw3016` (GPU purchase) back to "to do" on the board — its own description says nothing is scoped yet, "in progress" overstated real state | Neither finding was in CLAUDE.md despite being real, dated work — the VRAM result directly affects Phase 3 dual-model planning and was sitting only in a ClickUp task body; the Phase 2 exception needed recording so a future session doesn't either silently build on a misread "Backlog" line or refuse work Marvin already authorized |
+| 2026-07-12 | Added an end-of-turn call-to-action requirement to Section 8 (lettered options / yes-no / "type here" / plain statement when a real written answer is needed) | Marvin asked to cut down how much he has to type to steer each turn — a low-effort menu at the end of every response, matched to what the actual next decision looks like, instead of open-ended prose he has to respond to freeform every time |
 
 ---
 
