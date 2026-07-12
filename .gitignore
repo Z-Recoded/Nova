@@ -30,3 +30,6 @@ desktop.ini
 
 # Stray download, not project source
 drive-download-20260702T030658Z-3-001.zip
+
+# Install media (3.4GB Ubuntu ISO for the Omen setup), not project source
+tooling/

@@ -33,6 +33,16 @@ Nova v0.1 is operational. The following are built and validated:
   streamable-http on port 8100; thin `httpx` client over the FastAPI routes, no direct Chroma/Ollama
   access. Not yet wired into anything — nothing in Nova's own codebase calls it, and no MCP client
   has been pointed at it
+- `nova_chroma_omen_check.py` — 4-step Chroma-on-Omen reachability probe (raw TCP → HttpClient
+  heartbeat → `nova_memory` collection lookup → a real query), `--host`/`--port` overridable;
+  distinguishes "infra not up yet" from a real code bug before anything gets wired to it
+- `nova_board.py` / `nova_clickup_client.py` — terminal CLI enforcing the ClickUp board's
+  dependency/status house rules (`ready`/`why`/`check`/`audit`/`move`/`block`/`link`/`split`);
+  a cheaper path to board maintenance than round-tripping the ClickUp MCP tools for every action
+- `nova_status_digest.py` — snapshots the board's ready/in-progress/blocked state to
+  `NOVA_STATUS.md`, diffed against the previous run via `.nova_status_snapshot.json`; one-way
+  (Claude Code writes it after sessions that change board state, Claude Chat reads it as a cheap
+  starting point)
 
 ### Phase Roadmap
 - Phase 0    | Foundation             | ✓ Complete
@@ -43,7 +53,7 @@ Nova v0.1 is operational. The following are built and validated:
 - Phase 2.5  | Agent Layer            | Backlog — file CRUD ✓ v1 live (`nova_tools.py`); Nova MCP Server ✓ v1 live (2026-07-06, `nova_mcp_server.py`, wraps `/ask` `/graph` `/neighbors` `/context-budget` `/ingest` as MCP tools over streamable-http:8100) but not yet wired to any MCP client or into `nova_orchestrator.py` itself — `mcp`/`httpx` are installed in `nova-env` but this is an unused standalone server until something connects to it; Docker sub-agent orchestration deferred, see Phase 3.5. **Browser Hands harness (M1) ✓ v1 live (2026-07-10, ClickUp `86barqzmv`):** `browser_hands/` package (`harness/cdp_connect.py`, `retry.py`, `selector_discovery.py`, `tree_walk.py`, `state_writer.py`, `config/sites.yaml`) — CDP-attach-only browser automation foundation, generalized from the proven `C:\Projects\developer_tools\base44_export.py` reference script. No automated login, ever (hard rule). Adapters (M2 PiSignage health-check `86barqztk`, M3 website audit `86barqzy8`, M4 subscription audit `86barr02x`, M5 Base44 conform `86barr06e`) are separate, still-backlog tasks — `browser_hands/adapters/` stays empty until then. New `playwright` dependency (pip package only, no browser-binary download needed since it only ever attaches to Marvin's own already-running Chrome). Writes to a new `browser_tasks` table in `nova_state.db`, separate from the generic `domain_state` table (an event log, not a state snapshot)
 - Phase 3    | First Fine-Tune        | Backlog — Unsloth + DPO → GGUF → Ollama (conversational/lore lane); base-model re-eval (Llama 3.2 3B vs. Phi-4 Mini 128K). **Swap trigger, now measurable:** `nova_benchmark.py --golden` (Phase 1.5) established a real Llama 3.2 3B baseline in `logs/benchmark_log.jsonl` (8 golden queries across every router category — latency, routing accuracy, fiction blend rate); a candidate model must clearly beat that logged baseline, re-running the same script, before a swap — not a fixed timeline. **Model-swap eval wrapper ✓ v1 live (2026-07-10, `nova_benchmark.py --evaluate <model>`):** one command pulls a candidate, runs the golden benchmark on it for real (fixed a real bug first — `run_golden_benchmark`'s `model_label` used to only change the log tag, never the actual model used for generation), and prints a pass/fail verdict against the logged baseline with per-metric deltas. **Dynamic model routing ✓ mechanism live (2026-07-10, `nova_config.json`'s `model_routing`, default off):** `nova_query.ask()` resolves a per-category model via `get_routed_model()` instead of a single hardcoded constant — every category maps to `llama3.2` today (the only model actually adopted), so behavior is unchanged by default; swapping in Phi-4 Mini/Qwen3 8B once either is actually adopted (still blocked on `86bagf51n`/`86bagek35`/`86bara7zk`, all backlog) is a config edit, not a code change. Verified live by temporarily routing one category to `llama3.1:8b` (the other model already pulled locally) and confirming the logged model field showed the swap really happened
 - Phase 3.5  | Coding Agent Lane      | ✓ v1 live (2026-07-05) — Claude API-backed coding sub-agent (`nova_orchestrator.py`), git-worktree isolated, no Docker/OpenHands yet (deferred as a hardening pass); proven on 6 real merged tasks so far (headroom calculator, `start_nova.ps1` hardening, router integration + its own live test, Nova Log Query view, the golden benchmark suite itself). **Qwen3 8B swap trigger, not a fixed date:** (1) ~30-50 diverse real task transcripts accumulated in `logs/agent_log.jsonl` — already happening automatically every real `/agent/task` run, not a separate curation project; (2) ~20% held out as a never-trained-on eval set (same benchmarking suite as Phase 1.5/3); (3) swap only once Qwen3 clears a defined pass bar against that held-out set (completion rate within turn budget, no worse than Claude's baseline on the same tasks) — this is the path to Nova coding independently. **LangGraph orchestration v1 live (2026-07-10, ClickUp `86bat0u81`):** `nova_orchestrator.py`'s per-task turn loop can now run through `nova_orchestrator_graph.py` (new file) instead of the original inline loop — LangGraph owns graph state, node transitions, and checkpointing; Nova keeps the task registry schema, Docker container lifecycle, and ClickUp/skill injection. **Scope note:** this ports the loop that actually exists today (`run_coding_task()` runs exactly one task, no parallelism) — the ticket's own language about "sequential + parallel patterns" assumed multi-task orchestration that was never built; that's Section 17's future sub-agent-orchestration vision, not this task. Gated behind `framework_integrations.langgraph_orchestration` in `nova_config.json` (default off, original inline loop untouched when off — including at import time, since `nova_orchestrator_graph` is only imported inside the flag branch). Verified: the same trivial task run through both paths produced identical `final_status`, turn counts, and `agent_log.jsonl` shape. Coordinated with the still-backlogged OpenHands integration (`86barex1u`), which plugs into this same layer as the coding-lane sub-agent
-- Phase 4    | Roaming Layer          | ✓ Lightweight v1 shipped (2026-07-05) — Tailscale installed + authenticated (this machine, "zeed", on the tailnet at `100.122.229.23`); Task Scheduler "Nova Auto-Start" runs `start_nova.ps1 -Silent` at login (idempotent, verified); sleep disabled on AC power only, battery behavior unchanged. Required two admin-elevated firewall rules (`Nova API (Tailscale)`, `Nova Open WebUI (Tailscale)` — ports 8000/3000, Private profile) since Tailscale's virtual adapter classifies as Private while the existing python.exe rules only covered Public/home-WiFi. Verified end-to-end from a phone reaching `http://100.122.229.23:3000` — that test was over the same home WiFi (Tailscale found a direct LAN path), so genuine away-from-home/cellular reachability hasn't been separately confirmed yet, though DERP relay fallback makes it likely to work. **Heavier items now started, not deferred (2026-07-10):** HP Omen headless Ubuntu server setup (`86baeyfm1`) is in progress — confirmed as a service host only (Chroma, `nova_state.db`, orchestration; its GTX 1050 Ti is too weak for dual-model inference). Inference while Nova runs standalone on the Omen is split two ways: hosted chat-API fallback (`86baf4eah` — Groq/Together.ai/Fireworks, non-sensitive queries only), serverless/raw GPU rental to run Nova's own weights (`86baw3010` — RunPod/Modal/Vast.ai-style), and a dedicated GPU machine purchase from a third-party vendor for local heavy inference (`86baw3016`). Dockerized services (`86baf4e29`) remains deliberately held until the Omen setup itself is done
+- Phase 4    | Roaming Layer          | ✓ Lightweight v1 shipped (2026-07-05) — Tailscale installed + authenticated (this machine, "zeed", on the tailnet at `100.122.229.23`); Task Scheduler "Nova Auto-Start" runs `start_nova.ps1 -Silent` at login (idempotent, verified); sleep disabled on AC power only, battery behavior unchanged. Required two admin-elevated firewall rules (`Nova API (Tailscale)`, `Nova Open WebUI (Tailscale)` — ports 8000/3000, Private profile) since Tailscale's virtual adapter classifies as Private while the existing python.exe rules only covered Public/home-WiFi. Verified end-to-end from a phone reaching `http://100.122.229.23:3000` — that test was over the same home WiFi (Tailscale found a direct LAN path), so genuine away-from-home/cellular reachability hasn't been separately confirmed yet, though DERP relay fallback makes it likely to work. **HP Omen headless Ubuntu server (`86baeyfm1`) — steps 0-9 of 11 live, verified 2026-07-12 (see Section 2):** OS/static-IP/packages/Chroma-data-transfer/lid-close/SSH/systemd/firewall all done and confirmed via live SSH session + a real `nova_chroma_omen_check.py` run from the Aero (479-chunk `nova_memory` collection, real query returned real results). Chroma migrated `PersistentClient` → `HttpClient`, now hosted on the Omen at `192.168.1.250:8000`; `nova-api` runs there on **8001**, not 8000 (real port conflict with Chroma, both defaulted there). **Only step 10 (Tailscale on Ubuntu) remains** before this task is genuinely done — confirmed via `tailscale status` showing no Omen peer yet. Aero-side groundwork for the Omen calling back to this machine's Ollama also done: `OLLAMA_HOST=0.0.0.0` + a `Nova Ollama (Omen callback)` firewall rule (TCP 11434, Private profile), verified locally via the Aero's own Tailscale IP; the actual Omen→Aero hop is untested pending step 10. Inference while Nova runs standalone on the Omen is split three ways: the Aero's own Ollama as primary (above), hosted chat-API fallback (`86baf4eah` — Groq/Together.ai/Fireworks, non-sensitive queries only), serverless/raw GPU rental to run Nova's own weights (`86baw3010` — RunPod/Modal/Vast.ai-style), and a dedicated GPU machine purchase from a third-party vendor for local heavy inference (`86baw3016`). Dockerized services (`86baf4e29`) remains deliberately held until the Omen setup itself is done. New ClickUp task `86bawf2z2` (token-based auth for `nova_api.py`) filed as separate, deliberately deferred scope — network-level controls (Tailscale/ufw) come first
 - Phase 5    | Continuous Learning    | Backlog — quarterly fine-tune cycles
 - Phase 6    | Domain Expansion       | Backlog, domain state layer foundation laid — `nova_state.db` schema + system adapter ✓ v1 live (2026-07-07, see Section 2); financial/work/creative/games adapters and the alert engine remain blocked on real open questions (data source approval, ClickUp access from Nova's own runtime). Also backlog: pixel RAG (CLIP/ColPali), chunk visualization tool, temporal awareness, proactive memory, content transformation pipeline, Art Practice Companion module
 
@@ -81,6 +91,12 @@ C:/Nova/
 ├── nova_config.py          # Feature-flag reads (is_augment_enabled, config_snapshot, etc.)
 ├── nova_config.json        # Feature-flag values — all off today (Phase 1.75 gating)
 ├── nova_mcp_server.py      # Standalone MCP server wrapping nova_api.py routes (unwired, port 8100)
+├── nova_chroma_omen_check.py # Chroma-on-Omen reachability probe (TCP → heartbeat → collection → real query)
+├── nova_board.py           # Terminal CLI for ClickUp board dependency/status maintenance
+├── nova_clickup_client.py  # ClickUp API client used by nova_board.py and nova_status_digest.py
+├── nova_status_digest.py   # Writes NOVA_STATUS.md — board state snapshot, diffed run to run
+├── NOVA_STATUS.md          # Output of nova_status_digest.py — ready/in-progress/blocked digest
+├── .nova_status_snapshot.json # Previous digest run, tracked in-repo (diff source for the next one)
 ├── browser_hands/          # Browser automation harness (M1 only — see Phase 2.5). First nested package in the repo.
 │   ├── harness/            # cdp_connect.py, retry.py, selector_discovery.py, tree_walk.py, state_writer.py
 │   ├── adapters/           # Empty — M2-M5 (PiSignage, website audit, subscription audit, Base44) not built yet
@@ -89,7 +105,9 @@ C:/Nova/
 ├── ingest_manifest.json    # Tracks file mtimes for incremental ingest
 ├── start_nova.ps1          # Launches nova_api.py + Open WebUI, one command
 ├── launch_openwebui.ps1    # Open WebUI env vars + launch (called by start_nova.ps1)
-├── memory/                 # Chroma vector database (persistent)
+├── omen_setup_runbook.md   # HP Omen headless Ubuntu server setup — concrete step-by-step commands
+├── memory/                 # Legacy local Chroma PersistentClient data — superseded by the Omen-hosted
+│                           # HttpClient server (see Key External Dependencies below), kept as-is, not deleted
 └── logs/
     ├── query_log.jsonl          # Per-query telemetry (nova_log.py) — Nova Log Health data source
     ├── agent_log.jsonl          # Per-turn coding sub-agent telemetry (nova_orchestrator.py)
@@ -110,12 +128,55 @@ This is Marvin's Obsidian vault. It is the corpus Nova ingests. Never write to t
 Read-only always.
 
 ### Key External Dependencies
-- **Ollama** — local LLM runner, model: `llama3.2` (LLaMA 3.2 3B)
-- **Chroma** — local vector database at `C:/Nova/memory/`
+- **Ollama** — local LLM runner on the Aero, model: `llama3.2` (LLaMA 3.2 3B). As of
+  2026-07-12, also reachable over Tailscale (`OLLAMA_HOST=0.0.0.0` + a `Nova Ollama (Omen
+  callback)` firewall rule, TCP 11434, Private profile) so the Omen — once on the tailnet —
+  can call back to the Aero's Ollama instead of running inference itself
+- **Chroma** — **as of 2026-07-11, Omen-hosted via `chromadb.HttpClient(host="192.168.1.250",
+  port=8000)`**, not the local `PersistentClient` this file originally documented. All three
+  call sites (`ingest.py`, `graph_builder.py`, `nova_query.py`) use identical
+  host/port/collection/embedding-function config — same discipline as the original
+  `/context-budget` fix (Section 5). `C:/Nova/memory/` still exists on disk but is legacy —
+  no script reads it anymore. See "HP Omen Headless Server" below
 - **Collection name** — `nova_memory`
 - **Embedding function** — `DefaultEmbeddingFunction()` from `chromadb.utils`
 - **Claude API** — used by `nova_corrector.py` for DPO pair generation, and by
   `nova_orchestrator.py` as the interim coding sub-agent brain (see below)
+
+### HP Omen Headless Server (ClickUp `86baeyfm1`, steps 0-9 of 11 live as of 2026-07-12)
+Repurposing the HP Omen as an always-on Ubuntu service host for Chroma, `nova_state.db`, and
+orchestration — replacing the Aero (which sleeps) for those specifically. **Confirmed service-
+host-only, not a model-inference host**: its GTX 1050 Ti (4GB, Pascal) can't run the planned
+dual-model routing. Full step-by-step commands live in `omen_setup_runbook.md`.
+
+**Live and verified, not just reported:** Ubuntu 24.04 installed (static IP `192.168.1.250` on
+`eno1`), Chroma migrated from `PersistentClient` to `HttpClient` and running as a standalone
+server there (port 8000), Chroma data transferred from the Aero, lid-close set to ignore (SSH-
+able while closed), SSH from the Aero via key-based auth, `nova-chroma` and `nova-api` running
+as permanent systemd units, `ufw` tightened to LAN-subnet-only. **`nova-api` runs on port 8001
+on the Omen** — not the 8000 this file documents elsewhere for local Aero dev — because both
+services defaulted to 8000 and conflicted once co-located on the same box. Verified via a live
+`nova_chroma_omen_check.py --host 192.168.1.250 --port 8000` run from the Aero: TCP reachable,
+heartbeat OK, `nova_memory` collection found (479 chunks), a real query returned real results.
+
+**Not yet done:** Tailscale on the Omen itself (`tailscale status` from the Aero shows no Omen
+peer yet) — the one remaining step before this task is genuinely complete. Dockerizing these
+services (`86baf4e29`) is deliberately held until then, not run in parallel.
+
+**Real bugs found and fixed along the way, not just workbook steps:** a second physical disk
+still had the old Windows install — wiped and reclaimed; a nested-folder flatten, a UTF-16-
+encoded `requirements.txt` (artifact of PowerShell's default output encoding), and `pywin32`
+(Windows-only) needed stripping from the cloned repo/venv on Ubuntu; the Chroma/`nova-api` port
+conflict above; `nova_orchestrator.py`'s `load_dotenv(dotenv_path="C:/Nova/.env")` was hardcoded
+to a Windows path — broke silently on Linux (returns `False`, not a raised error, so the real
+failure only surfaced later as a confusing "env var not set") — fixed to resolve relative to the
+script's own location instead.
+
+**Board hygiene note:** the runbook itself claimed SSH access into the Omen "closes out ClickUp
+`86bavtz06`" — checked the actual task and it's really "Onboard Nova server, Pi fleet, and
+trading bot box via SSH," three targets, only one done. Moved to "in progress," not "complete."
+Same class of false-completeness as the OpenHands/RAGAS cases the ClickUp workflow-split memory
+already flagged — always open the real task before trusting a prose completion claim.
 
 ### Nova Coding Sub-Agent (nova_orchestrator.py)
 Nova can now write to its own codebase — the one sanctioned exception to a human
@@ -303,10 +364,12 @@ between `get_context_budget()` and `nova_query.py`'s Chroma client path / collec
 embedding function.
 
 **Verified fixed on 2026-07-04:** `graph_builder.py` and `nova_query.py` now use identical
-Chroma setup (`PersistentClient(path="C:/Nova/memory")`, collection `nova_memory`,
-`DefaultEmbeddingFunction()`). Calling `get_context_budget("Tell me about Null")` directly
-returns a 15-file ranked list including `Null.md`, `Nullius.md`, `Fatale Wildman.md`, and
-`SYS_Symphony.EXE.md` — matching the expected post-fix behavior.
+Chroma setup (at the time, `PersistentClient(path="C:/Nova/memory")`; both since migrated to
+`HttpClient` against the Omen — see Section 2 — but the same "keep every call site's Chroma
+config identical" discipline is what made this fix work and still applies). Calling
+`get_context_budget("Tell me about Null")` directly returns a 15-file ranked list including
+`Null.md`, `Nullius.md`, `Fatale Wildman.md`, and `SYS_Symphony.EXE.md` — matching the expected
+post-fix behavior.
 
 No known active bugs at this time.
 
@@ -338,10 +401,12 @@ query → get_context_budget() → ranked filenames → Chroma $in filter → ch
 
 ## 7. Nova API Routes
 
-All routes live in `nova_api.py`. Run with:
+All routes live in `nova_api.py`. Local Aero dev, run with:
 ```bash
 nova-env\Scripts\python -m uvicorn nova_api:app --host 0.0.0.0 --port 8000
 ```
+On the Omen (`192.168.1.250`), the `nova-api` systemd unit runs this on **port 8001** instead —
+Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Section 2).
 
 | Route | Method | Status | Description |
 |---|---|---|---|
@@ -419,6 +484,10 @@ nova-env\Scripts\python -m uvicorn nova_api:app --host 0.0.0.0 --port 8000
 | 2026-07-10 | Shipped LangGraph orchestration v1 (`nova_orchestrator_graph.py`, new; `nova_orchestrator.py` edited) to Sections 1 & 2, ClickUp `86bat0u81` | Ports the turn loop that actually exists (single task, no parallelism) rather than the ticket's assumed "sequential + parallel patterns" — that's unbuilt future scope, not this task. New `langgraph` dependency approved by Marvin first. Gated behind `framework_integrations.langgraph_orchestration` (default off, lazy-imported so a missing/broken install can't affect the disabled default path). Verified: same trivial task run through both the old inline loop and the new LangGraph path produced identical `final_status`, turn counts, and `agent_log.jsonl` shape |
 | 2026-07-10 | Shipped dynamic model routing mechanism + model-swap eval wrapper (`nova_config.json`/`nova_config.py`/`nova_query.py`/`nova_benchmark.py`) to Phase 3 roadmap, ClickUp `86bagbqk0` & `86bauwqqd` | Routing table's named targets (Phi-4 Mini, Qwen3 8B) aren't adopted locally yet (confirmed via `ollama list` — only `llama3.2`/`llama3.1:8b` pulled; adoption tasks `86bagf51n`/`86bagek35`/`86bara7zk` still backlog), so built the real routing *mechanism* instead (every category → `llama3.2` today), confirmed with Marvin first. Also fixed a real bug found while scoping the eval wrapper: `run_golden_benchmark`'s `model_label` only ever changed the log tag, never the model that actually generated answers — `nova_query.ask()` had no override mechanism at all. Both verified live: routing by temporarily pointing one category at `llama3.1:8b` and confirming the logged model field; the eval wrapper via a real `--evaluate llama3.1:8b` run (pull → real generation → baseline comparison → printed verdict → new log entry), which also caught and fixed a Windows cp1252 subprocess-decode crash on `ollama pull`'s output |
 | 2026-07-10 | Shipped Browser Hands harness M1 (`browser_hands/` package, new) to Sections 1 & 2, ClickUp `86barqzmv` | First nested-package structure in the repo (approved) and new `playwright` dependency (approved) — generalized the proven CDP-attach/discover-mode/bounded-timeout/virtualized-tree-walk patterns from the standalone reference script at `C:\Projects\developer_tools\base44_export.py` (outside this repo, not touched). Verified against a real Chrome instance (CDP debug port) and a synthetic local HTML fixture rather than a live site, since no adapter/login exists yet and automating a real login is against the spec's own hard rule. Verification caught and fixed two real bugs: the scrollable-container check only ran once before any content existed to overflow it, silently missing virtualized rows revealed later (now re-checked every pass); and an em-dash in a print statement risked the same Windows cp1252 console crash already hit twice elsewhere tonight (fixed proactively across the new files). M2-M5 (adapters) remain separate, still-backlog tasks |
+| 2026-07-11 | Migrated Chroma from local `PersistentClient` to Omen-hosted `HttpClient` across `ingest.py`/`graph_builder.py`/`nova_query.py` (commit `b5f7f68`); added `nova_board.py`/`nova_clickup_client.py` board-maintenance CLI and `nova_chroma_omen_check.py` reachability probe (commit `5d79cf8`), later given `--host`/`--port` overrides (commit `a524623`) | Prerequisite for the Omen actually hosting Chroma (Section 2) — `PersistentClient` has no network protocol at all, this wasn't a config change but a real architecture shift. The board CLI and reachability probe were both built in anticipation of the live Omen setup session, to make board maintenance and infra checks cheaper than round-tripping MCP tools or guessing whether a failure is "not up yet" vs. a real bug |
+| 2026-07-11 | Fixed hardcoded Windows path in `nova_orchestrator.py`'s `load_dotenv()` (commit `5146222`) | `dotenv_path="C:/Nova/.env"` silently returned `False` on Linux instead of raising, so the real failure only would have surfaced later as a confusing "env var not set" error once the orchestrator ran on the Omen. Fixed to resolve relative to the script's own location, OS-agnostic |
+| 2026-07-12 | Added `nova_status_digest.py` + `NOVA_STATUS.md`/`.nova_status_snapshot.json` board-state digest (commit `3278dec`) to Sections 1 & 2 | One-way board-state handoff: Claude Code writes the digest after sessions that change board state, Claude Chat reads it as a cheap starting point instead of always querying ClickUp fresh |
+| 2026-07-12 | Live Omen Ubuntu setup verified through step 9 of 11 (OS, static IP, packages, Chroma data transfer, lid-close, SSH, systemd units, firewall), Chroma reachability confirmed live from the Aero, real port conflict fixed (`nova-api` moved to 8001 on the Omen), Aero-side Ollama-callback groundwork added (`OLLAMA_HOST=0.0.0.0` + `Nova Ollama (Omen callback)` firewall rule) — added to Sections 1, 2, 5, 7 and the Phase 4 roadmap | Doc catch-up after a real SSH session on the Omen plus Windows-side prep on the Aero; only step 10 (Tailscale on the Omen) remains before `86baeyfm1` is done. Also audited the ClickUp board against the session recap rather than trusting it at face value — `86bavtz06` moved from a claimed-but-inaccurate "complete" to "in progress" (real scope is 3 onboarding targets, only 1 done), `86baeyfm1` commented with the verified step-by-step status so it doesn't need re-deriving from prose next session |
 
 ---
 

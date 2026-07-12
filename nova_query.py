@@ -2,6 +2,7 @@
 # Nova retrieval + generation layer
 # Queries Chroma memory, builds context, calls local Ollama model
 
+import os
 import re
 import time
 
@@ -25,8 +26,15 @@ PROFILE_PATH = "C:/Users/marvi/OneDrive/Documents/Second Brain/marvin_profile.md
 CHROMA_HOST = "192.168.1.250"  # Chroma now runs as a standalone server on the Omen
 CHROMA_PORT = 8000
 
+# Unset (None) on the Aero itself -- ollama.Client(host=None) is the same local
+# behavior as the bare ollama.chat() this replaced. Set OLLAMA_HOST when this
+# file runs somewhere else (e.g. the Omen) so it calls back to the Aero's
+# Ollama instead of trying (and failing) to find one on localhost.
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST")
+
 # ── Setup ──────────────────────────────────────────────────────
 chroma_client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
+ollama_client = ollama.Client(host=OLLAMA_HOST)
 embedding_fn = embedding_functions.DefaultEmbeddingFunction()
 collection = chroma_client.get_or_create_collection(
     name="nova_memory",
@@ -285,7 +293,7 @@ def ask(query: str, history: list[dict] = None, persist: bool = True, model_over
     })
 
     inference_start = time.perf_counter()
-    response = ollama.chat(
+    response = ollama_client.chat(
         model=model,
         messages=messages,
         options={"num_ctx": NUM_CTX}
