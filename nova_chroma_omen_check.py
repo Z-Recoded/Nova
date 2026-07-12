@@ -22,11 +22,12 @@
 # a zero-count collection or a zero-result query as a FAIL to investigate, not
 # a pass.
 
+import argparse
 import socket
 import sys
 
 OMEN_HOST = "192.168.1.250"
-CHROMA_HTTP_PORT = 8000  # chromadb's own default standalone-server port (`chroma run`)
+CHROMA_HTTP_PORT = 8000  # chromadb's own default standalone-server port (`chroma run`) -- override with --port if it ends up elsewhere (e.g. the nova-chroma docker-compose mapping)
 COLLECTION_NAME = "nova_memory"
 # Same query CLAUDE.md documents as the known-good /context-budget verification
 # query (Section 5) -- reusing it here gives a sanity check against a
@@ -45,24 +46,25 @@ def _tcp_reachable(host: str, port: int, timeout: float = TCP_PROBE_TIMEOUT_SECO
         return False
 
 
-def main() -> int:
-    print(f"--- Step 1: raw TCP reachability check, {OMEN_HOST}:{CHROMA_HTTP_PORT} ---")
-    if not _tcp_reachable(OMEN_HOST, CHROMA_HTTP_PORT):
+def main(host: str = OMEN_HOST, port: int = CHROMA_HTTP_PORT) -> int:
+    print(f"--- Step 1: raw TCP reachability check, {host}:{port} ---")
+    if not _tcp_reachable(host, port):
         print(
-            f"FAIL: nothing is listening on {OMEN_HOST}:{CHROMA_HTTP_PORT} from this machine (the Aero).\n"
+            f"FAIL: nothing is listening on {host}:{port} from this machine (the Aero).\n"
             f"This is an infrastructure gap, not a code bug: either Chroma isn't running as a server\n"
             f"process on the Omen yet, it's bound to a different port, or a firewall is blocking it.\n"
+            f"If it's meant to be on a different port, rerun with --port <n>.\n"
             f"Nothing further to test until a Chroma server is actually up and reachable on that port."
         )
         return 1
-    print(f"OK: {OMEN_HOST}:{CHROMA_HTTP_PORT} is accepting TCP connections.")
+    print(f"OK: {host}:{port} is accepting TCP connections.")
 
     print("\n--- Step 2: chromadb.HttpClient connection + heartbeat ---")
     import chromadb
     from chromadb.utils import embedding_functions
 
     try:
-        client = chromadb.HttpClient(host=OMEN_HOST, port=CHROMA_HTTP_PORT)
+        client = chromadb.HttpClient(host=host, port=port)
         client.heartbeat()
     except Exception as e:
         print(
@@ -125,4 +127,12 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    parser = argparse.ArgumentParser(
+        description="Confirm Chroma running on the Omen is reachable from the Aero and returns real results."
+    )
+    parser.add_argument("--host", default=OMEN_HOST, help=f"Chroma server host (default: {OMEN_HOST})")
+    parser.add_argument(
+        "--port", type=int, default=CHROMA_HTTP_PORT, help=f"Chroma server port (default: {CHROMA_HTTP_PORT})"
+    )
+    args = parser.parse_args()
+    sys.exit(main(args.host, args.port))
