@@ -27,7 +27,7 @@ from nova_skills import get_skill_version, load_skill
 from nova_token_budget import get_budget_status, record_usage
 from nova_tools import file_replace, list_files, read_file, run_command, write_file
 
-load_dotenv(dotenv_path="C:/Nova/.env")
+load_dotenv(dotenv_path=Path(__file__).parent / ".env")
 
 # ── Config ─────────────────────────────────────────────────────
 NOVA_REPO_ROOT = "C:/Nova"
