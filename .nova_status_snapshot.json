@@ -1,0 +1,276 @@
+{
+  "ready": [
+    {
+      "id": "86bawf2z2",
+      "name": "Design and implement token-based auth for nova_api.py"
+    },
+    {
+      "id": "86bawbzbz",
+      "name": "Check ClickUp native Automations \u2014 dependency-triggered actions"
+    },
+    {
+      "id": "86bawbh07",
+      "name": "Credential/breach exposure check (Have I Been Pwned)"
+    },
+    {
+      "id": "86bawbgne",
+      "name": "\ud83d\udccc Reference: Task Dependency & Status Discipline v1.0"
+    },
+    {
+      "id": "86bawbfak",
+      "name": "Name + approve financial data source (spreadsheet vs. Firefly III)"
+    },
+    {
+      "id": "86baux91c",
+      "name": "Evaluate Outline \u2014 check for redundancy with Obsidian first"
+    },
+    {
+      "id": "86baux8y5",
+      "name": "Evaluate WebAssembly/WebLLM for a browser-based Nova client"
+    },
+    {
+      "id": "86baux8pq",
+      "name": "Evaluate Podman for coding sub-agent container hardening"
+    },
+    {
+      "id": "86baux89f",
+      "name": "Evaluate vLLM for the rented 24GB-tier model serving"
+    },
+    {
+      "id": "86baux7zm",
+      "name": "Evaluate DSPy for prompt/skill optimization against real outcomes"
+    },
+    {
+      "id": "86baux7nd",
+      "name": "Evaluate Qdrant as a Chroma alternative (situational only)"
+    },
+    {
+      "id": "86baux7bb",
+      "name": "Evaluate Chonkie for ingest.py chunking"
+    },
+    {
+      "id": "86baux6zb",
+      "name": "Evaluate Marker for PDF-to-Markdown corpus ingestion"
+    },
+    {
+      "id": "86baux6me",
+      "name": "Evaluate Crawl4AI for Browser Hands adapter extraction layer"
+    },
+    {
+      "id": "86baux696",
+      "name": "Evaluate Instructor for structured LLM output validation"
+    },
+    {
+      "id": "86baux60t",
+      "name": "Evaluate Ragas for retrieval-quality scoring in the benchmark suite"
+    },
+    {
+      "id": "86baux5py",
+      "name": "Evaluate LangWatch as Nova Log/benchmark suite complement"
+    },
+    {
+      "id": "86baux5c3",
+      "name": "Evaluate LiteLLM as Nova's model-routing/gateway layer"
+    },
+    {
+      "id": "86bau47mb",
+      "name": "[Initiative \u2014 not scoped] Omen self-hosted service stack (Coolify, NocoDB, Vaultwarden, Firefly III, and more)"
+    },
+    {
+      "id": "86bau2zd9",
+      "name": "[Initiative \u2014 not scoped] Jack In: three-tier diagnostics (network-resident, disposable external, local voice interface)"
+    },
+    {
+      "id": "86batba53",
+      "name": "[Initiative \u2014 not scoped] Unified Nova presence across all devices (shared memory/identity)"
+    },
+    {
+      "id": "86barue4h",
+      "name": "Creative domain node \u2014 nova_state_creative.py adapter"
+    },
+    {
+      "id": "86barr06e",
+      "name": "Conform Base44 export script to Browser Hands adapter contract"
+    },
+    {
+      "id": "86barr02x",
+      "name": "Build subscription-audit browser adapter (login-gated, proves CDP session-reuse at scale)"
+    },
+    {
+      "id": "86barqzy8",
+      "name": "Fold website audit pipeline into Browser Hands adapter structure"
+    },
+    {
+      "id": "86barqztk",
+      "name": "Build PiSignage health-check browser adapter (screenshot + drift detection)"
+    },
+    {
+      "id": "86bargufp",
+      "name": "Evaluate Hermes 3 vs Qwen3 8B for Nova's agentic reasoning lane"
+    },
+    {
+      "id": "86bargucp",
+      "name": "Evaluate + integrate n8n for domain adapter refresh and alert routing"
+    },
+    {
+      "id": "86barby7t",
+      "name": "Nova Log rotation \u2014 archive entries older than 90 days, keep last 1000 active"
+    },
+    {
+      "id": "86barby7m",
+      "name": "Build Nova Art Practice Companion module (5 phases)"
+    },
+    {
+      "id": "86bara3uj",
+      "name": "Spec: Proactive memory \u2014 surface connections on ingest"
+    },
+    {
+      "id": "86bara3u1",
+      "name": "Spec: Temporal awareness layer"
+    },
+    {
+      "id": "86bara3tj",
+      "name": "Spec + Build: Chunk visualization tool \u2014 RAG retrieval audit"
+    },
+    {
+      "id": "86bara3pp",
+      "name": "Pixel RAG layer \u2014 visual retrieval path (CLIP + ColPali)"
+    },
+    {
+      "id": "86bagf51n",
+      "name": "Re-scope fine-tune pipeline for Phi-4 Mini as Nova's base model"
+    },
+    {
+      "id": "86bafvrff",
+      "name": "Brute force trail depth test \u2014 establish \u03bb and parallel work nominal rates"
+    },
+    {
+      "id": "86bafvrek",
+      "name": "Implement two-tier memory decay in nova_memory_store.py"
+    },
+    {
+      "id": "86bafvrd3",
+      "name": "Implement priority queue routing in nova_router.py"
+    },
+    {
+      "id": "86bafvrbp",
+      "name": "Implement DP context window packing in nova_query.py"
+    },
+    {
+      "id": "86bafvrax",
+      "name": "Add document-level embeddings to ingest.py for A* heuristic"
+    },
+    {
+      "id": "86bafvr98",
+      "name": "Implement A* graph traversal for graph-guided retrieval"
+    },
+    {
+      "id": "86bafv3b4",
+      "name": "Add weighted wikilinks to Obsidian notes for stronger graph edges"
+    },
+    {
+      "id": "86bafunj2",
+      "name": "Research & Plan: Classical Algorithm Integration into Nova's Decision Layer"
+    },
+    {
+      "id": "86baf4e70",
+      "name": "RunPod/Vast.ai \u2014 cloud GPU for fine-tune runs"
+    },
+    {
+      "id": "86baeyfua",
+      "name": "Link-aware ingestion upgrade (Option B)"
+    }
+  ],
+  "in_progress": [
+    {
+      "id": "86bawbzg1",
+      "name": "Build NOVA_STATUS.md digest file"
+    },
+    {
+      "id": "86bawbbrx",
+      "name": "Resolve MCP credentials (ClickUp/Google/Slack scopes)"
+    },
+    {
+      "id": "86bawbbrk",
+      "name": "Set up RunPod account + API key"
+    },
+    {
+      "id": "86baw3016",
+      "name": "Purchase dedicated GPU compute machine from third-party vendor"
+    },
+    {
+      "id": "86bat0ue1",
+      "name": "Run Tailscale DERP relay reachability test from a genuine remote network"
+    },
+    {
+      "id": "86bagek35",
+      "name": "Test Phi-4 Mini 128K routing strategy \u2014 context fill vs latency + dual VRAM validation"
+    },
+    {
+      "id": "86baf4eah",
+      "name": "Hosted inference fallback (Groq / Together.ai / Fireworks)"
+    },
+    {
+      "id": "86baeyg3q",
+      "name": "Voice interface (Whisper + Piper)"
+    },
+    {
+      "id": "86baeyfm1",
+      "name": "HP Omen Ubuntu headless server setup"
+    }
+  ],
+  "blocked": [
+    {
+      "id": "86baw3010",
+      "name": "Rent serverless/raw GPU compute for Nova's own model weights (RunPod/Modal/Vast.ai)"
+    },
+    {
+      "id": "86bauwkvq",
+      "name": "Token Budget Governor \u2014 remaining scope (Haiku routing, queue concurrency, push notifications, auto ClickUp updates)"
+    },
+    {
+      "id": "86barue80",
+      "name": "Games domain node \u2014 nova_state_games.py adapter"
+    },
+    {
+      "id": "86barudz2",
+      "name": "Work domain node \u2014 nova_state_work.py adapter"
+    },
+    {
+      "id": "86barex1u",
+      "name": "Integrate OpenHands as Nova's coding lane sub-agent (nova-code-agent container)"
+    },
+    {
+      "id": "86bara7zk",
+      "name": "Source + curate agentic reasoning training data for Qwen3 8B fine-tune"
+    },
+    {
+      "id": "86bara7pn",
+      "name": "Source + curate coding training data for Nova's coding model"
+    },
+    {
+      "id": "86bara3rm",
+      "name": "Financial domain node \u2014 nova_state_financial.py adapter"
+    },
+    {
+      "id": "86bara3qu",
+      "name": "Alert engine \u2014 proactive state monitoring against nova_state.db"
+    },
+    {
+      "id": "86bage4ff",
+      "name": "Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)"
+    },
+    {
+      "id": "86baf72qq",
+      "name": "Docker sub-agent orchestration \u2014 ephemeral task containers"
+    },
+    {
+      "id": "86baf72n5",
+      "name": "MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)"
+    },
+    {
+      "id": "86baf4e29",
+      "name": "Dockerize Nova services"
+    }
+  ]
+}
