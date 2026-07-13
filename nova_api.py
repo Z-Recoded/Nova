@@ -16,6 +16,8 @@
 #   GET  /nova-log/benchmarks       → Nova Log Benchmark view — recent golden-query runs (JSON)
 #   POST /agent/task                → run a coding task via Nova's coding sub-agent
 #   GET  /headroom                  → resource headroom report (VRAM/RAM/CPU + task capacity)
+#   GET  /embedding-viz             → Embedding-Space Visualization page (HTML)
+#   GET  /embedding-viz/data        → Embedding-Space Visualization data (JSON, optional ?query=, ?refresh=)
 #
 # Run:
 #   cd C:/Nova
@@ -46,6 +48,7 @@ from nova_log import (
     get_benchmark_runs,
     get_recent_queries,
 )
+from nova_embedding_viz import build_embedding_viz_data
 from nova_orchestrator import run_coding_task
 from nova_query import ask
 from nova_sources import SOURCES
@@ -433,3 +436,26 @@ def nova_log_benchmarks(
 def nova_log_page():
     """Serve the Nova Log Health dashboard — static HTML/JS, fetches /nova-log/data."""
     return FileResponse(NOVA_LOG_HTML_PATH, media_type="text/html")
+
+
+# ── Embedding-Space Visualization (86bawjg14) ───────────────────
+
+EMBEDDING_VIZ_HTML_PATH = "C:/Nova/nova_embedding_viz.html"
+
+
+@app.get("/embedding-viz/data")
+def embedding_viz_data(
+    query: Optional[str] = Query(None, description="Query to highlight retrieval hits for"),
+    refresh: bool = Query(False, description="Force a fresh t-SNE projection instead of the cached one"),
+):
+    """JSON data backing the /embedding-viz page — one point per Chroma chunk."""
+    try:
+        return build_embedding_viz_data(query=query, refresh=refresh)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/embedding-viz")
+def embedding_viz_page():
+    """Serve the Embedding-Space Visualization page — static HTML/JS, fetches /embedding-viz/data."""
+    return FileResponse(EMBEDDING_VIZ_HTML_PATH, media_type="text/html")

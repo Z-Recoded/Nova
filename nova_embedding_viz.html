@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — Embedding-Space Visualization</title>
+<style>
+  body {
+    font-family: -apple-system, Segoe UI, sans-serif;
+    background: #111318;
+    color: #e6e6e6;
+    max-width: 1100px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+  p.subtitle { color: #888; margin-top: 0; margin-bottom: 1.5rem; }
+  #error { color: #e06060; }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .controls label {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.75rem;
+    color: #999;
+    gap: 0.25rem;
+  }
+  .controls input[type="text"] {
+    background: #111318;
+    color: #e6e6e6;
+    border: 1px solid #2a2e38;
+    border-radius: 4px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.85rem;
+    min-width: 260px;
+  }
+  .controls button {
+    background: #1b1e26;
+    color: #e6e6e6;
+    border: 1px solid #2a2e38;
+    border-radius: 4px;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .controls button:hover { background: #23272f; }
+  .controls .status { color: #999; font-size: 0.8rem; }
+
+  .viz-panel {
+    background: #1b1e26;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  .viz-caption { color: #888; font-size: 0.8rem; margin-top: 0.5rem; }
+
+  svg#scatter { display: block; width: 100%; height: auto; }
+  .point { cursor: pointer; }
+  .point-hit-target { fill: transparent; }
+  .point-dimmed { opacity: 0.08; }
+
+  #tooltip {
+    position: fixed;
+    display: none;
+    background: #1b1e26;
+    border: 1px solid #2a2e38;
+    border-radius: 6px;
+    padding: 0.5rem 0.65rem;
+    font-size: 0.78rem;
+    max-width: 280px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  #tooltip .t-character { font-weight: 600; margin-bottom: 0.15rem; }
+  #tooltip .t-meta { color: #999; margin-bottom: 0.3rem; }
+  #tooltip .t-preview { color: #ccc; }
+  #tooltip .t-badge {
+    display: inline-block;
+    margin-top: 0.3rem;
+    margin-right: 0.3rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.7rem;
+  }
+  #tooltip .badge-hit { background: #2a2e38; color: #ffffff; border: 1px solid #ffffff; }
+  #tooltip .badge-dpo { background: #2a2e38; color: #e6e6e6; border: 1px dashed #999; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    margin-top: 0.75rem;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    color: #ccc;
+    cursor: pointer;
+    user-select: none;
+    padding: 0.15rem 0.3rem;
+    border-radius: 4px;
+  }
+  .legend-item:hover { background: #23272f; }
+  .legend-item.legend-soloed { background: #2a2e38; color: #fff; }
+  .legend-swatch { width: 10px; height: 10px; flex-shrink: 0; }
+
+  .planned {
+    background: #1b1e26;
+    border: 1px dashed #3a3e48;
+    border-radius: 8px;
+    padding: 1rem;
+    color: #888;
+    margin-top: 1rem;
+  }
+  .planned h2 { font-size: 1rem; color: #aaa; margin-top: 0; }
+  .planned ul { padding-left: 1.2rem; margin: 0; }
+  .planned li { margin-bottom: 0.5rem; font-size: 0.9rem; }
+  .planned li b { color: #bbb; }
+
+  details.table-view { margin-top: 1rem; }
+  details.table-view summary {
+    cursor: pointer;
+    color: #999;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+  }
+  table.query-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+  table.query-table th,
+  table.query-table td {
+    text-align: left;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid #2a2e38;
+  }
+  table.query-table th { color: #999; font-weight: 600; }
+  table.query-table td { color: #e6e6e6; }
+</style>
+</head>
+<body>
+  <h1>Nova — Embedding-Space Visualization</h1>
+  <p class="subtitle">Every chunk in Chroma, projected to 2D — spot character cluster overlap at a glance.</p>
+
+  <div id="error"></div>
+
+  <div class="controls">
+    <label>
+      Highlight retrieval hits for a query
+      <input type="text" id="query-input" placeholder="e.g. Tell me about Null">
+    </label>
+    <button id="query-button">Highlight</button>
+    <button id="query-clear">Clear</button>
+    <span class="status" id="status-text"></span>
+  </div>
+
+  <div class="viz-panel">
+    <svg id="scatter" viewBox="0 0 900 600" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="viz-caption">
+      Axes are unitless — t-SNE preserves relative distance/clustering, not a real coordinate scale.
+      White ring = retrieval hit for the highlighted query. Dashed square/circle = part of a corrected training pair.
+    </div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div id="tooltip"></div>
+
+  <details class="table-view">
+    <summary>Table view (accessible fallback — same data as the chart)</summary>
+    <table class="query-table">
+      <thead>
+        <tr>
+          <th>Filename</th>
+          <th>Chunk</th>
+          <th>Character</th>
+          <th>Retrieval hit</th>
+          <th>DPO corrected</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </details>
+
+  <div class="planned">
+    <h2>Legend — how to read this page</h2>
+    <ul>
+      <li><b>Position</b> — chunks placed near each other have similar embeddings. Tight, separated clusters per character are healthy; characters whose clusters overlap in 2D are the ones production retrieval is most likely to blend together.</li>
+      <li><b>Color + shape</b> — each of the 14 characters gets a fixed hue+shape combination (circles for the first 8, squares for the rest, reusing hues). With 14 categories, color alone isn't always colorblind-distinguishable between every pair — click a legend swatch to isolate one character if two look similar, or hover any point for its exact identity as text.</li>
+      <li><b>Other</b> (muted gray) — the 426 non-character chunks (Second Brain notes, source files) that aren't tied to a specific character.</li>
+      <li><b>White ring</b> — this chunk was actually returned by a real retrieval call for the query typed above, using the same logic <code>nova_query.ask()</code> uses in production.</li>
+      <li><b>Dashed outline</b> — this chunk's file was involved in a blend event that already has a real DPO correction written (see <code>logs/training_flags.jsonl</code>).</li>
+      <li><b>Note:</b> the projection is cached after the first load — click "Highlight" with a query to re-check overlays without waiting for a fresh projection.</li>
+    </ul>
+  </div>
+
+  <script>
+    // ── Palette: fixed alphabetical character order → hue+shape slot ──
+    // Colors are the dataviz skill's validated dark-mode categorical set
+    // (references/palette.md). 14 characters exceeds the 8-hue-safe
+    // ceiling, so slots 9-14 reuse hues 1-6 with a square instead of a
+    // circle -- color gives a rough grouping cue, shape narrows it
+    // further, and hover/legend text is always the definitive identity
+    // signal (never color-alone).
+    const HUES = ['#3987e5', '#199e70', '#c98500', '#008300', '#9085e9', '#e66767', '#d55181', '#d95926'];
+    const OTHER_COLOR = '#5a5f6b';
+
+    // Fixed alphabetical order -- NOT derived from chunk counts, so colors
+    // don't reshuffle as the corpus grows.
+    const CHARACTER_ORDER = [
+      'aseir', 'beat', 'fatale', 'felicity', 'helel', 'kille', 'luci', 'marisol',
+      'null', 'nullius', 'raven', 'rhythm', 'sys_symphony', 'varas',
+    ];
+
+    const CHARACTER_STYLE = {};
+    CHARACTER_ORDER.forEach((name, i) => {
+      CHARACTER_STYLE[name] = {
+        color: HUES[i % HUES.length],
+        shape: i < HUES.length ? 'circle' : 'square',
+      };
+    });
+
+    function styleFor(character) {
+      if (character === 'Other') return { color: OTHER_COLOR, shape: 'circle', other: true };
+      return CHARACTER_STYLE[character] || { color: OTHER_COLOR, shape: 'circle', other: true };
+    }
+
+    function displayName(character) {
+      if (character === 'Other') return 'Other';
+      return character.charAt(0).toUpperCase() + character.slice(1);
+    }
+
+    // ── State ──────────────────────────────────────────────────
+    let allPoints = [];
+    let soloedCharacter = null;
+    const svgNS = 'http://www.w3.org/2000/svg';
+
+    async function loadData(query) {
+      const statusEl = document.getElementById('status-text');
+      try {
+        statusEl.textContent = 'Loading...';
+        const url = '/embedding-viz/data' + (query ? '?query=' + encodeURIComponent(query) : '');
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const data = await res.json();
+        allPoints = data.points || [];
+        statusEl.textContent = data.point_count + ' chunks' + (data.query ? ' — highlighting "' + data.query + '"' : '');
+        renderScatter();
+        renderLegend();
+        renderTable();
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not load embedding data: ' + err.message;
+        statusEl.textContent = '';
+      }
+    }
+
+    // ── Scatter (SVG) ──────────────────────────────────────────
+    function renderScatter() {
+      const svg = document.getElementById('scatter');
+      svg.innerHTML = '';
+      if (!allPoints.length) return;
+
+      const xs = allPoints.map(p => p.x);
+      const ys = allPoints.map(p => p.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const pad = 40;
+      const width = 900, height = 600;
+
+      function scaleX(x) {
+        return pad + (x - minX) / (maxX - minX || 1) * (width - 2 * pad);
+      }
+      function scaleY(y) {
+        return pad + (y - minY) / (maxY - minY || 1) * (height - 2 * pad);
+      }
+
+      // Draw "Other" first so character points render on top of it.
+      const otherPoints = allPoints.filter(p => p.character === 'Other');
+      const characterPoints = allPoints.filter(p => p.character !== 'Other');
+      [...otherPoints, ...characterPoints].forEach(p => drawPoint(svg, p, scaleX, scaleY));
+    }
+
+    function drawPoint(svg, point, scaleX, scaleY) {
+      const style = styleFor(point.character);
+      const cx = scaleX(point.x);
+      const cy = scaleY(point.y);
+      const dimmed = soloedCharacter && point.character !== soloedCharacter;
+      const radius = point.is_dpo_corrected ? 7 : 5;
+
+      const group = document.createElementNS(svgNS, 'g');
+      group.setAttribute('class', 'point' + (dimmed ? ' point-dimmed' : ''));
+      group.dataset.filename = point.filename;
+      group.dataset.chunkIndex = point.chunk_index;
+      group.dataset.character = point.character;
+      group.dataset.preview = point.text_preview;
+      group.dataset.hit = point.is_retrieval_hit;
+      group.dataset.dpo = point.is_dpo_corrected;
+
+      const marker = document.createElementNS(svgNS, style.shape === 'square' ? 'rect' : 'circle');
+      if (style.shape === 'square') {
+        marker.setAttribute('x', cx - radius);
+        marker.setAttribute('y', cy - radius);
+        marker.setAttribute('width', radius * 2);
+        marker.setAttribute('height', radius * 2);
+      } else {
+        marker.setAttribute('cx', cx);
+        marker.setAttribute('cy', cy);
+        marker.setAttribute('r', radius);
+      }
+      marker.setAttribute('fill', style.color);
+      marker.setAttribute('opacity', style.other ? '0.45' : '0.9');
+      if (point.is_dpo_corrected) {
+        marker.setAttribute('stroke', style.color);
+        marker.setAttribute('stroke-width', '1.5');
+        marker.setAttribute('stroke-dasharray', '2,2');
+      }
+      group.appendChild(marker);
+
+      if (point.is_retrieval_hit) {
+        const ring = document.createElementNS(svgNS, 'circle');
+        ring.setAttribute('cx', cx);
+        ring.setAttribute('cy', cy);
+        ring.setAttribute('r', radius + 3);
+        ring.setAttribute('fill', 'none');
+        ring.setAttribute('stroke', '#ffffff');
+        ring.setAttribute('stroke-width', '2.5');
+        group.appendChild(ring);
+      }
+
+      // Larger invisible hit target -- easier to hover/click than the
+      // small visible marker, especially in dense clusters.
+      const hitTarget = document.createElementNS(svgNS, 'circle');
+      hitTarget.setAttribute('cx', cx);
+      hitTarget.setAttribute('cy', cy);
+      hitTarget.setAttribute('r', 12);
+      hitTarget.setAttribute('class', 'point-hit-target');
+      group.appendChild(hitTarget);
+
+      group.addEventListener('mouseenter', (e) => showTooltip(e, point));
+      group.addEventListener('mousemove', (e) => positionTooltip(e));
+      group.addEventListener('mouseleave', hideTooltip);
+      group.setAttribute('tabindex', '0');
+      group.addEventListener('focus', (e) => showTooltip(e, point));
+      group.addEventListener('blur', hideTooltip);
+
+      svg.appendChild(group);
+    }
+
+    // ── Tooltip ────────────────────────────────────────────────
+    function showTooltip(evt, point) {
+      const tooltip = document.getElementById('tooltip');
+      tooltip.innerHTML = '';
+
+      const character = document.createElement('div');
+      character.className = 't-character';
+      character.textContent = displayName(point.character);
+      tooltip.appendChild(character);
+
+      const meta = document.createElement('div');
+      meta.className = 't-meta';
+      meta.textContent = point.filename + ' · chunk ' + point.chunk_index;
+      tooltip.appendChild(meta);
+
+      const preview = document.createElement('div');
+      preview.className = 't-preview';
+      preview.textContent = point.text_preview;
+      tooltip.appendChild(preview);
+
+      if (point.is_retrieval_hit) {
+        const badge = document.createElement('span');
+        badge.className = 't-badge badge-hit';
+        badge.textContent = 'retrieval hit';
+        tooltip.appendChild(badge);
+      }
+      if (point.is_dpo_corrected) {
+        const badge = document.createElement('span');
+        badge.className = 't-badge badge-dpo';
+        badge.textContent = 'DPO corrected';
+        tooltip.appendChild(badge);
+      }
+
+      tooltip.style.display = 'block';
+      positionTooltip(evt);
+    }
+
+    function positionTooltip(evt) {
+      const tooltip = document.getElementById('tooltip');
+      const x = evt.clientX !== undefined ? evt.clientX : 100;
+      const y = evt.clientY !== undefined ? evt.clientY : 100;
+      tooltip.style.left = Math.min(x + 14, window.innerWidth - 300) + 'px';
+      tooltip.style.top = Math.min(y + 14, window.innerHeight - 120) + 'px';
+    }
+
+    function hideTooltip() {
+      document.getElementById('tooltip').style.display = 'none';
+    }
+
+    // ── Legend (click to solo/restore) ────────────────────────
+    function renderLegend() {
+      const legend = document.getElementById('legend');
+      legend.innerHTML = '';
+
+      const entries = [...CHARACTER_ORDER, 'Other'];
+      entries.forEach(name => {
+        const style = styleFor(name);
+        const item = document.createElement('div');
+        item.className = 'legend-item' + (soloedCharacter === name ? ' legend-soloed' : '');
+
+        const swatch = document.createElement('span');
+        swatch.className = 'legend-swatch';
+        swatch.style.background = style.color;
+        swatch.style.borderRadius = style.shape === 'square' ? '2px' : '50%';
+        item.appendChild(swatch);
+
+        const label = document.createElement('span');
+        label.textContent = displayName(name);
+        item.appendChild(label);
+
+        item.addEventListener('click', () => {
+          soloedCharacter = soloedCharacter === name ? null : name;
+          renderScatter();
+          renderLegend();
+        });
+
+        legend.appendChild(item);
+      });
+    }
+
+    // ── Table view (accessible fallback) ──────────────────────
+    function renderTable() {
+      const body = document.getElementById('table-body');
+      body.innerHTML = allPoints.map(p => `
+        <tr>
+          <td>${p.filename}</td>
+          <td>${p.chunk_index}</td>
+          <td>${displayName(p.character)}</td>
+          <td>${p.is_retrieval_hit ? 'yes' : 'no'}</td>
+          <td>${p.is_dpo_corrected ? 'yes' : 'no'}</td>
+        </tr>
+      `).join('');
+    }
+
+    // ── Controls ───────────────────────────────────────────────
+    document.getElementById('query-button').addEventListener('click', () => {
+      loadData(document.getElementById('query-input').value.trim());
+    });
+    document.getElementById('query-clear').addEventListener('click', () => {
+      document.getElementById('query-input').value = '';
+      loadData('');
+    });
+    document.getElementById('query-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') loadData(document.getElementById('query-input').value.trim());
+    });
+
+    loadData('');
+  </script>
+</body>
+</html>
