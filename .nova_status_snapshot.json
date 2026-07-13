@@ -1,6 +1,94 @@
 {
   "ready": [
     {
+      "id": "86bawpc67",
+      "name": "Vivarium experiment: bidirectional visual control panel for Nova"
+    },
+    {
+      "id": "86bawpc5v",
+      "name": "Set up watchdog-based hot-restart pattern for Nova services"
+    },
+    {
+      "id": "86bawpc5f",
+      "name": "R&D spike: world-model / latent game-state representation"
+    },
+    {
+      "id": "86bawp01b",
+      "name": "Build session-continuity layer for unified Nova presence"
+    },
+    {
+      "id": "86bawntpm",
+      "name": "Draft Nova audit process (tool-call log review)"
+    },
+    {
+      "id": "86bawntpb",
+      "name": "Build tool-call logging schema for Nova subagents"
+    },
+    {
+      "id": "86bawnqqv",
+      "name": "Research: benchmark suites for Nova's agentic/tool-use eval"
+    },
+    {
+      "id": "86bawnqdp",
+      "name": "Monitor at-risk character pairs for blending (embedding-distance analysis)"
+    },
+    {
+      "id": "86bawnkfy",
+      "name": "Nova Tutor \u2014 Phase 7: DPO pairs + fine-tune (3 categories)"
+    },
+    {
+      "id": "86bawnkf1",
+      "name": "Nova Tutor \u2014 Phase 6: Blend-quality flagging log"
+    },
+    {
+      "id": "86bawnke6",
+      "name": "Nova Tutor \u2014 Phase 5: Cross-domain secondary retrieval"
+    },
+    {
+      "id": "86bawnkd9",
+      "name": "Nova Tutor \u2014 Phase 4: Synthesis links (Claude-assisted proposal + approval)"
+    },
+    {
+      "id": "86bawnkcg",
+      "name": "Nova Tutor \u2014 Phase 3: Domain-aware routing (primary only)"
+    },
+    {
+      "id": "86bawnkc6",
+      "name": "Nova Tutor \u2014 Phase 2: Spaced repetition + quiz engine"
+    },
+    {
+      "id": "86bawnkbv",
+      "name": "Nova Tutor \u2014 Phase 1: Chunk schema + storage"
+    },
+    {
+      "id": "86bawna2g",
+      "name": "Ingestion Principles addendum \u2014 chunking discipline, Tika/Docling rejection, injection-surface note"
+    },
+    {
+      "id": "86bawna1k",
+      "name": "Router/Governor spec \u2014 conditional router as front door to Token Budget Governor"
+    },
+    {
+      "id": "86bawna17",
+      "name": "Hybrid Retrieval spec \u2014 dense + BM25/FTS5 fusion, cross-encoder reranker"
+    },
+    {
+      "id": "86bawm2rb",
+      "name": "Spec: Multi-device sensor fusion for spatial reconstruction (echolocation) \u2014 with consent/privacy boundaries"
+    },
+    {
+      "id": "86bawkz7t",
+      "name": "Apply Information Dimensionality & Abstraction Principle to upcoming specs"
+    },
+    {
+      "id": "86bawkcha",
+      "name": "Spec: Network traversal landscape \u2014 rewind + live ambient views for self/subagents"
+    },
+    {
+      "id": "86bawk37h",
+      "name": "Set up security & code hygiene tooling (ruff, mypy, pre-commit, bandit, detect-secrets, pip-audit)"
+    },
+    {
       "id": "86bawf2z2",
       "name": "Design and implement token-based auth for nova_api.py"
     },
@@ -19,6 +107,10 @@
     {
       "id": "86bawbfak",
       "name": "Name + approve financial data source (spreadsheet vs. Firefly III)"
+    },
+    {
+      "id": "86baw3016",
+      "name": "Purchase dedicated GPU compute machine from third-party vendor"
     },
     {
       "id": "86baux91c",
@@ -82,7 +174,7 @@
     },
     {
       "id": "86batba53",
-      "name": "[Initiative \u2014 not scoped] Unified Nova presence across all devices (shared memory/identity)"
+      "name": "Unified Nova presence across all devices (shared memory/identity)"
     },
     {
       "id": "86barue4h",
@@ -129,10 +221,6 @@
       "name": "Spec: Temporal awareness layer"
     },
     {
-      "id": "86bara3tj",
-      "name": "Spec + Build: Chunk visualization tool \u2014 RAG retrieval audit"
-    },
-    {
       "id": "86bara3pp",
       "name": "Pixel RAG layer \u2014 visual retrieval path (CLIP + ColPali)"
     },
@@ -161,10 +249,6 @@
       "name": "Add document-level embeddings to ingest.py for A* heuristic"
     },
     {
-      "id": "86bafvr98",
-      "name": "Implement A* graph traversal for graph-guided retrieval"
-    },
-    {
       "id": "86bafv3b4",
       "name": "Add weighted wikilinks to Obsidian notes for stronger graph edges"
     },
@@ -177,15 +261,15 @@
       "name": "RunPod/Vast.ai \u2014 cloud GPU for fine-tune runs"
     },
     {
+      "id": "86baf4e29",
+      "name": "Dockerize Nova services"
+    },
+    {
       "id": "86baeyfua",
       "name": "Link-aware ingestion upgrade (Option B)"
     }
   ],
   "in_progress": [
-    {
-      "id": "86bawbzg1",
-      "name": "Build NOVA_STATUS.md digest file"
-    },
     {
       "id": "86bawbbrx",
       "name": "Resolve MCP credentials (ClickUp/Google/Slack scopes)"
@@ -195,12 +279,12 @@
       "name": "Set up RunPod account + API key"
     },
     {
-      "id": "86baw3016",
-      "name": "Purchase dedicated GPU compute machine from third-party vendor"
-    },
-    {
       "id": "86bat0ue1",
       "name": "Run Tailscale DERP relay reachability test from a genuine remote network"
+    },
+    {
+      "id": "86bara3tj",
+      "name": "Spec + Build: Chunk visualization tool \u2014 RAG retrieval audit"
     },
     {
       "id": "86bagek35",
@@ -213,13 +297,13 @@
     {
       "id": "86baeyg3q",
       "name": "Voice interface (Whisper + Piper)"
-    },
-    {
-      "id": "86baeyfm1",
-      "name": "HP Omen Ubuntu headless server setup"
     }
   ],
   "blocked": [
+    {
+      "id": "86bawjyj8",
+      "name": "Spec: Subagent escalation ladder + \"travel to\" central command console"
+    },
     {
       "id": "86baw3010",
       "name": "Rent serverless/raw GPU compute for Nova's own model weights (RunPod/Modal/Vast.ai)"
@@ -267,10 +351,6 @@
     {
       "id": "86baf72n5",
       "name": "MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)"
-    },
-    {
-      "id": "86baf4e29",
-      "name": "Dockerize Nova services"
     }
   ]
 }
