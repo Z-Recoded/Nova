@@ -200,6 +200,40 @@ trading bot box via SSH," three targets, only one done. Moved to "in progress," 
 Same class of false-completeness as the OpenHands/RAGAS cases the ClickUp workflow-split memory
 already flagged — always open the real task before trusting a prose completion claim.
 
+### Important gap in the "COMPLETE" verification above, found and fixed same day (`86bawfn19`)
+The verification that marked `86baeyfm1` complete checked **reachability** (`200` on `/`,
+`/headroom`, `/docs`) but never actually exercised `/ask`'s real RAG behavior on the Omen's own
+deployment. Picking up `86bawfn19` (deploy `nova_api.py` to the Omen, independent of the Aero)
+surfaced a real, serious gap that reachability checks alone had missed:
+
+1. **The Omen's git clone was 15 commits stale** — still on `5146222`, missing `b5f7f68` (the
+   actual `PersistentClient` → `HttpClient` migration) and everything after it. `nova_query.py`
+   there was still the old code, silently defaulting to an empty local Chroma store instead of
+   the real `nova-chroma` server — `collection.count()` was `0`, and `/ask` returned fluent but
+   **completely hallucinated** answers (e.g. claimed Null "was the lead singer of a fictional
+   industrial rock band called Riven" — not in the corpus at all) with empty `sources`/`chunks`,
+   no error, no signal anything was wrong except the content being wrong.
+2. **Root cause of the stale clone: the GitHub deploy key (`id_ed25519_github`) was
+   passphrase-protected**, which silently breaks any unattended `git pull`/`fetch` — there's no
+   TTY to prompt for it. `ssh -T git@github.com` returned a flat `Permission denied (publickey)`
+   even after re-pasting the (correct) public key to GitHub, because the private key could never
+   actually be used to authenticate in the first place. Fixed by regenerating the key with no
+   passphrase (`ssh-keygen -N ''`) — the whole point of a deploy key is unattended access, so a
+   passphrase defeats its purpose; already locked to 600 perms and scoped to one repo.
+3. Once fetchable, `git pull` brought the Omen fully current (`5146222` → `01b0866`, 14 files).
+   `requirements.txt` needed `pywin32` filtered out before `pip install` (Windows-only, same
+   gotcha the runbook already documented) — piped through `grep -v` rather than editing the
+   tracked file, to avoid recreating the exact "local diff drifts from origin" problem that
+   caused the stale-requirements.txt half of this mess in the first place.
+4. **A second hardcoded-Windows-path bug, same class as the dotenv one already fixed**:
+   `nova_api.py`'s `GRAPH_PATH = "C:/Nova/nova_graph.json"` silently returned empty nodes/edges
+   on Linux instead of erroring. Fixed to resolve relative to the script's own location
+   (`nova_api.py:58`).
+
+**Lesson:** "reachable" and "functionally correct" are different claims — a route returning `200`
+doesn't mean it's doing real work. Verify the payload, not just the status code, especially for
+routes that can fail open (wrong data, not an error) rather than fail loud.
+
 ### Nova Coding Sub-Agent (nova_orchestrator.py)
 Nova can now write to its own codebase — the one sanctioned exception to a human
 surfacing every change before it's applied (Section 8). Safety comes from **git worktree
@@ -550,6 +584,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-12 | Added an end-of-turn call-to-action requirement to Section 8 (lettered options / yes-no / "type here" / plain statement when a real written answer is needed) | Marvin asked to cut down how much he has to type to steer each turn — a low-effort menu at the end of every response, matched to what the actual next decision looks like, instead of open-ended prose he has to respond to freeform every time |
 | 2026-07-12 | Shipped `nova_chunk_viz.py` — Chunk Visualization Tool, CLI stage (`86bara3tj`, urgent) — to Sections 1 & 2, Phase 6 roadmap | Task's linked "Section 25" doc turned out to be unrelated (classical-algorithm integration, not this tool) — built from the task's own inline spec instead, which was complete on its own. Deliberately scoped to CLI only (stage 1 of 3, web view/Open WebUI panel deferred) per this project's standing practice of building exactly the real, unblocked slice. Retrieval logic mirrors `nova_query.ask()`'s exact branching (character-filtered vs. graph-scoped) so the tool reflects real production behavior. Verified live against the Omen-hosted Chroma across 6 real queries — character-filtered scoping, `--no-graph` comparison, non-fiction graph-scoped path, and the character-mismatch color signal all confirmed working |
 | 2026-07-12 | Shipped `nova_embedding_viz.py`/`.html` — Embedding-Space Visualization (`86bawjg14`, urgent), `GET /embedding-viz`(`/data`) — to Sections 1, 2 & 7, Phase 6 roadmap | Distinct from the same day's chunk-viz CLI (single-query debug vs. whole-corpus cluster audit) — Marvin caught the conflation himself before this got built. Zero new pip dependencies: `sklearn.manifold.TSNE` (already installed) instead of `umap-learn`; rendered as an interactive page matching `nova_log.html`'s exact pattern instead of matplotlib/Artifact, per Marvin's explicit choice. Used the dataviz skill's method throughout — ran `scripts/validate_palette.js` against the reference 8-hue dark palette before shipping it (result: FAILS an all-pairs CVD check on non-adjacent hues, which the palette was never validated for — it's only adjacent-safe; documented as a known, inherent limitation of 8 simultaneously-distinct hues rather than chased with hand-picked replacements, mitigated via shape + always-visible text identity in hover/legend, never color-alone). Verified live: exact point/character counts matched the live Chroma distribution, DPO overlay found a real nonzero set (43 of 479), and a `?query=Tell me about Null` retrieval-hit overlay correctly returned only `Null.md` chunks — mirroring `nova_query.ask()`'s real character-filter branching via reused `nova_chunk_viz.resolve_chunks()` |
+| 2026-07-12 | Found and fixed a serious gap in the earlier "Omen COMPLETE" verification (`86bawfn19`): the Omen's git clone was 15 commits stale (missing the actual Chroma HttpClient migration), caused by a passphrase-protected GitHub deploy key silently breaking unattended `git pull`; fixed the key (regenerated with no passphrase), pulled the Omen current, and fixed a second hardcoded-Windows-path bug in `nova_api.py`'s `GRAPH_PATH` — added a new subsection to Section 2 | `/ask` on the Omen was returning fluent, completely hallucinated answers with empty sources/chunks and a `200` status — no error, just wrong. Reachability checks (`200` on `/`, `/headroom`, `/docs`) had never caught this because they don't exercise real RAG behavior. Verified fully fixed: real `collection.count()` of 479, real grounded answers, `/graph` matching the Aero's exact 257 nodes/301 edges |
 | 2026-07-12 | Added "Known At-Risk Character Pairs" to Section 6, ClickUp `86bawnqdp` | Real, quantitative validation that the new embedding-viz tool actually predicts production blending, not just looks interesting: the two closest character pairs by embedding centroid distance are exactly the two most frequent real blend pairs in `training_flags.jsonl` (Null↔Nullius, 9 real events, and Helel↔Luci, 4 events). Flagged 4 pairs that are similarly close in embedding space but haven't blended yet (Helel↔Raven, Aseir↔Luci, Fatale Wildman↔Marisol, Aseir↔Raven) as a watch list, so a future blend event on one of these reads as expected, not a new mystery |
 
 ---
