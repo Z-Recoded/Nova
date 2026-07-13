@@ -419,6 +419,22 @@ query → get_context_budget() → ranked filenames → Chroma $in filter → ch
                               unfiltered Chroma search → chunks
 ```
 
+### Known At-Risk Character Pairs (embedding-distance analysis, 2026-07-12)
+Real validation that `/embedding-viz` (Section 1/2, `86bawjg14`) actually predicts blending,
+not just looks interesting: computed cosine distance between each character's chunk-embedding
+centroid, ranked closest pairs, cross-referenced against real blend events in
+`logs/training_flags.jsonl`. **The two closest pairs by embedding distance are exactly the two
+most frequent real blend pairs** — Helel↔Luci (distance 0.166, closest overall, 4 real blend
+events) and Null↔Nullius (distance 0.193, 2nd closest, **9 real events** — the single most
+common blend). Beat↔Rhythm and Aseir↔Helel (both mid-pack close) also each had a real event.
+
+**Watch list — close in embedding space, no blend event yet, but worth monitoring:** Helel↔Raven
+(0.278), Aseir↔Luci (0.285), Fatale Wildman↔Marisol (0.303), Aseir↔Raven (0.356). If a future
+blend event involves any of these pairs, that's expected, not a new mystery — re-run the
+embedding-distance analysis (see `nova_embedding_viz.py`, or query `/embedding-viz` directly)
+before assuming it's a new/unrelated bug. Tracked as a watch item, not active work, in
+ClickUp `86bawnqdp`.
+
 ---
 
 ## 7. Nova API Routes
@@ -534,6 +550,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-12 | Added an end-of-turn call-to-action requirement to Section 8 (lettered options / yes-no / "type here" / plain statement when a real written answer is needed) | Marvin asked to cut down how much he has to type to steer each turn — a low-effort menu at the end of every response, matched to what the actual next decision looks like, instead of open-ended prose he has to respond to freeform every time |
 | 2026-07-12 | Shipped `nova_chunk_viz.py` — Chunk Visualization Tool, CLI stage (`86bara3tj`, urgent) — to Sections 1 & 2, Phase 6 roadmap | Task's linked "Section 25" doc turned out to be unrelated (classical-algorithm integration, not this tool) — built from the task's own inline spec instead, which was complete on its own. Deliberately scoped to CLI only (stage 1 of 3, web view/Open WebUI panel deferred) per this project's standing practice of building exactly the real, unblocked slice. Retrieval logic mirrors `nova_query.ask()`'s exact branching (character-filtered vs. graph-scoped) so the tool reflects real production behavior. Verified live against the Omen-hosted Chroma across 6 real queries — character-filtered scoping, `--no-graph` comparison, non-fiction graph-scoped path, and the character-mismatch color signal all confirmed working |
 | 2026-07-12 | Shipped `nova_embedding_viz.py`/`.html` — Embedding-Space Visualization (`86bawjg14`, urgent), `GET /embedding-viz`(`/data`) — to Sections 1, 2 & 7, Phase 6 roadmap | Distinct from the same day's chunk-viz CLI (single-query debug vs. whole-corpus cluster audit) — Marvin caught the conflation himself before this got built. Zero new pip dependencies: `sklearn.manifold.TSNE` (already installed) instead of `umap-learn`; rendered as an interactive page matching `nova_log.html`'s exact pattern instead of matplotlib/Artifact, per Marvin's explicit choice. Used the dataviz skill's method throughout — ran `scripts/validate_palette.js` against the reference 8-hue dark palette before shipping it (result: FAILS an all-pairs CVD check on non-adjacent hues, which the palette was never validated for — it's only adjacent-safe; documented as a known, inherent limitation of 8 simultaneously-distinct hues rather than chased with hand-picked replacements, mitigated via shape + always-visible text identity in hover/legend, never color-alone). Verified live: exact point/character counts matched the live Chroma distribution, DPO overlay found a real nonzero set (43 of 479), and a `?query=Tell me about Null` retrieval-hit overlay correctly returned only `Null.md` chunks — mirroring `nova_query.ask()`'s real character-filter branching via reused `nova_chunk_viz.resolve_chunks()` |
+| 2026-07-12 | Added "Known At-Risk Character Pairs" to Section 6, ClickUp `86bawnqdp` | Real, quantitative validation that the new embedding-viz tool actually predicts production blending, not just looks interesting: the two closest character pairs by embedding centroid distance are exactly the two most frequent real blend pairs in `training_flags.jsonl` (Null↔Nullius, 9 real events, and Helel↔Luci, 4 events). Flagged 4 pairs that are similarly close in embedding space but haven't blended yet (Helel↔Raven, Aseir↔Luci, Fatale Wildman↔Marisol, Aseir↔Raven) as a watch list, so a future blend event on one of these reads as expected, not a new mystery |
 
 ---
 
