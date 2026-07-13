@@ -55,7 +55,7 @@ from nova_sources import SOURCES
 
 app = FastAPI(title="Nova API", version="0.3")
 
-GRAPH_PATH = "C:/Nova/nova_graph.json"
+GRAPH_PATH = os.path.join(os.path.dirname(__file__), "nova_graph.json")
 
 # Model name shown in Open WebUI's model picker. All requests for this model
 # run through Nova's full RAG pipeline — never raw Ollama.
