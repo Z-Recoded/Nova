@@ -55,6 +55,37 @@ Nova v0.1 is operational. The following are built and validated:
   results, this audits the whole corpus's cluster structure at once. Served at
   `GET /embedding-viz` (page) / `GET /embedding-viz/data` (JSON), matching `/nova-log`'s
   pattern exactly
+- `nova_usage_logger.py` — usage-history-baseline component of `86bawx7vj` (headless Nova
+  coding runner). Scans every local Claude Code session transcript
+  (`~/.claude/projects/**/*.jsonl`, all projects — usage draws from one account-wide
+  subscription pool, not per-project) and aggregates real token usage + estimated cost by
+  calendar day into `logs/claude_usage_history.json` (fully regenerated each run, same
+  convention as `nova_status_digest.py` — not an append log). Exists because `/cost`
+  doesn't work through headless `-p` mode (confirmed live — it gets sent as literal text to
+  the model instead of being intercepted as a UI command); local transcripts already carry
+  the same per-message `usage` data `/cost` would have shown interactively. No live
+  quota-forecast API exists for Claude Code, so this is the self-tracked substitute
+  `86bawx7vj` calls for. **Centralization (2026-07-14):** a `SessionEnd` hook
+  (`.claude/settings.json`, all termination reasons) runs `--push` on every session
+  end, sending this machine's aggregate to `nova_api.py`'s new `POST /usage-history`,
+  which merges it into `nova_state.db`'s `system/claude_usage_history` entity — a
+  deliberate extension beyond Architecture Principles v1.1's original Principle 6
+  list. Push target defaults to `localhost:8000` (verified end-to-end there);
+  pointing it at the Omen is a separate commit+deploy step, not done yet
+- `nova_tool_call_log.py` — tool-call logging schema for the coding sub-agent
+  (`86bawntpb`). One JSONL entry per tool call (`logs/tool_call_log.jsonl`) —
+  `tool_call_id`, `agent`, `session_id`, `tool`, `args`, `result`
+  (success/error — `timeout` isn't distinguishable yet, `run_command` has no
+  separate timeout signal), `latency_ms`, plus `was_necessary`/`was_used`
+  fields that start `null` and get filled by a future async judge-pass or
+  manual flag (not built — see `86bawntpm`). Wired into
+  `nova_orchestrator.py`'s `_execute_tool` (logs every call regardless of
+  caller; `session_id` is optional so the LangGraph path, which doesn't pass
+  one yet, degrades safely rather than breaking). **Deliberately interim**:
+  `86bax697m` (Langfuse, confirmed as the definite direction) is expected to
+  absorb this as trace/observation instrumentation later — built now anyway
+  per Marvin's explicit sequencing call, accepted as throwaway once Langfuse
+  actually lands
 
 ### Phase Roadmap
 - Phase 0    | Foundation             | ✓ Complete
@@ -104,6 +135,8 @@ C:/Nova/
 ├── nova_config.json        # Feature-flag values — all off today (Phase 1.75 gating)
 ├── nova_mcp_server.py      # Standalone MCP server wrapping nova_api.py routes (unwired, port 8100)
 ├── nova_chroma_omen_check.py # Chroma-on-Omen reachability probe (TCP → heartbeat → collection → real query)
+├── nova_usage_logger.py    # Local Claude Code usage/cost history (scans ~/.claude/projects/**/*.jsonl, all projects)
+├── nova_tool_call_log.py   # Tool-call logging schema for the coding sub-agent (interim — Langfuse will absorb this)
 ├── nova_board.py           # Terminal CLI for ClickUp board dependency/status maintenance
 ├── nova_clickup_client.py  # ClickUp API client used by nova_board.py and nova_status_digest.py
 ├── nova_status_digest.py   # Writes NOVA_STATUS.md — board state snapshot, diffed run to run
@@ -508,6 +541,8 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | /headroom | GET | ✓ Working | Resource headroom report — VRAM/RAM/CPU + task capacity |
 | /embedding-viz | GET | ✓ Working | Embedding-Space Visualization page (HTML) |
 | /embedding-viz/data | GET | ✓ Working | Embedding-Space Visualization data (JSON) — optional ?query=, ?refresh= |
+| /usage-history | POST | ✓ Working | Merge one machine's daily Claude Code usage aggregate into nova_state.db (system/claude_usage_history) — called by nova_usage_logger.py's SessionEnd hook |
+| /usage-history | GET | ✓ Working | Return the merged Claude Code usage history across every machine that's pushed to it |
 
 ---
 

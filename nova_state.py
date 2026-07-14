@@ -25,12 +25,16 @@ DB_PATH = "C:/Nova/nova_state.db"
 # Every domain/entity pair Principle 6 defines, even if no adapter writes
 # to it yet — lets get_domain() return a real "not yet populated" answer
 # instead of confusing an unbuilt adapter with a missing table.
+# system/claude_usage_history is a deliberate extension beyond Principle 6's
+# original list (2026-07-14) — cross-machine Claude Code usage history,
+# pushed by nova_usage_logger.py, doesn't fit financial/work/creative/games
+# but belongs in system alongside nova_health.
 KNOWN_ENTITIES = {
     "financial": ["debt_sequence", "budget_pace", "upcoming_obligations", "subscription_audit", "atm_fees"],
     "work": ["active_projects", "next_actions"],
     "creative": ["art_output_rhythm", "active_characters"],
     "games": ["active_builds"],
-    "system": ["nova_health", "pending_alerts"],
+    "system": ["nova_health", "pending_alerts", "claude_usage_history"],
 }
 
 

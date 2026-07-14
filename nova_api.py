@@ -52,6 +52,7 @@ from nova_embedding_viz import build_embedding_viz_data
 from nova_orchestrator import run_coding_task
 from nova_query import ask
 from nova_sources import SOURCES
+from nova_state import get_state, write_state
 
 app = FastAPI(title="Nova API", version="0.3")
 
@@ -101,6 +102,11 @@ class RebuildNodeRequest(BaseModel):
 class AgentTaskRequest(BaseModel):
     task: str
     category: str | None = None
+
+
+class UsageHistoryPushRequest(BaseModel):
+    source_machine: str
+    daily_usage: dict
 
 
 # ── Routes ─────────────────────────────────────────────────────
@@ -367,6 +373,34 @@ def headroom():
         return get_headroom_report()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Claude Code usage history (86bawx7vj usage-history baseline) ────
+
+@app.post("/usage-history")
+def push_usage_history(req: UsageHistoryPushRequest):
+    """
+    Merge one machine's locally-computed daily Claude Code usage history into
+    nova_state.db (system/claude_usage_history), keyed by source machine.
+    Called by nova_usage_logger.py's SessionEnd-hook-triggered push — each
+    machine running Claude Code (Aero interactive today, the Omen once
+    headless runs land there) pushes its own local aggregate; nothing here
+    computes usage itself, it only merges what's pushed.
+    """
+    try:
+        merged = get_state("system", "claude_usage_history") or {}
+        merged.pop("_updated_at", None)
+        merged[req.source_machine] = req.daily_usage
+        write_state("system", "claude_usage_history", merged)
+        return {"status": "ok", "source_machine": req.source_machine, "days": len(req.daily_usage)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/usage-history")
+def get_usage_history():
+    """Return the merged Claude Code usage history across every machine that has pushed to it."""
+    return get_state("system", "claude_usage_history") or {"_note": "No usage history pushed yet."}
 
 
 # ── Nova Log — Health dashboard ────────────────────────────────

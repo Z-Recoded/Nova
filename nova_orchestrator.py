@@ -25,6 +25,7 @@ from dotenv import load_dotenv
 from nova_config import is_framework_integration_enabled
 from nova_skills import get_skill_version, load_skill
 from nova_token_budget import get_budget_status, record_usage
+from nova_tool_call_log import log_tool_call
 from nova_tools import file_replace, list_files, read_file, run_command, write_file
 
 load_dotenv(dotenv_path=Path(__file__).parent / ".env")
@@ -241,25 +242,44 @@ def _build_system_prompt(root: str) -> str:
     )
 
 
-def _execute_tool(name: str, tool_input: dict, root: str) -> dict:
-    """Dispatch one Claude tool_use call to the matching nova_tools function."""
+def _execute_tool(name: str, tool_input: dict, root: str, session_id: str | None = None) -> dict:
+    """
+    Dispatch one Claude tool_use call to the matching nova_tools function.
+    Logs every call to tool_call_log.jsonl (86bawntpb) regardless of caller —
+    session_id is optional so this stays a safe drop-in for callers (e.g.
+    nova_orchestrator_graph.py) that don't pass one yet.
+    """
+    start = time.monotonic()
     try:
         if name == "read_file":
-            return {"content": read_file(tool_input["path"], root)}
-        if name == "write_file":
+            outcome = {"content": read_file(tool_input["path"], root)}
+        elif name == "write_file":
             write_file(tool_input["path"], tool_input["content"], root)
-            return {"content": f"Wrote {tool_input['path']}"}
-        if name == "file_replace":
+            outcome = {"content": f"Wrote {tool_input['path']}"}
+        elif name == "file_replace":
             file_replace(tool_input["path"], tool_input["old_str"], tool_input["new_str"], root)
-            return {"content": f"Replaced content in {tool_input['path']}"}
-        if name == "list_files":
-            return {"content": "\n".join(list_files(tool_input["path"], root))}
-        if name == "run_command":
+            outcome = {"content": f"Replaced content in {tool_input['path']}"}
+        elif name == "list_files":
+            outcome = {"content": "\n".join(list_files(tool_input["path"], root))}
+        elif name == "run_command":
             result = run_command(tool_input["cmd"], root)
-            return {"content": json.dumps(result)}
-        return {"content": f"Unknown tool '{name}'", "is_error": True}
+            outcome = {"content": json.dumps(result)}
+        else:
+            outcome = {"content": f"Unknown tool '{name}'", "is_error": True}
     except Exception as e:
-        return {"content": str(e), "is_error": True}
+        outcome = {"content": str(e), "is_error": True}
+
+    latency_ms = (time.monotonic() - start) * 1000
+    log_tool_call(
+        agent="nova_orchestrator",
+        session_id=session_id,
+        tool=name,
+        args=tool_input,
+        result="error" if outcome.get("is_error") else "success",
+        error_detail=outcome["content"] if outcome.get("is_error") else None,
+        latency_ms=round(latency_ms, 1),
+    )
+    return outcome
 
 
 def _log_agent_turn(
@@ -396,7 +416,7 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
             for block in response.content:
                 if block.type != "tool_use":
                     continue
-                result = _execute_tool(block.name, block.input, root)
+                result = _execute_tool(block.name, block.input, root, session_id=slug)
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": block.id,
