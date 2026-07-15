@@ -15,11 +15,11 @@ import json
 import os
 import socket
 import sys
+import urllib.error
+import urllib.request
 from collections import defaultdict
 from pathlib import Path
 from typing import Optional
-
-import requests
 
 # ── Constants ──
 
@@ -27,10 +27,13 @@ PROJECTS_DIR = Path.home() / ".claude" / "projects"
 OUTPUT_PATH = Path(__file__).resolve().parent / "logs" / "claude_usage_history.json"
 
 # Where to push this machine's daily aggregate for cross-machine centralization
-# (see nova_api.py's POST /usage-history). Defaults to localhost for local
-# dev/verification — pointing this at the Omen requires that route actually
-# being deployed there first, a separate commit+deploy step, not assumed here.
-NOVA_API_URL = os.environ.get("NOVA_API_URL", "http://localhost:8000")
+# (see nova_api.py's POST /usage-history). Defaults to the Omen's permanent
+# Tailscale address — the real centralization target from ANY machine,
+# including the Omen itself (pushing to its own Tailscale IP works the same
+# as localhost would, just through the tailscale0 interface). No more
+# per-machine env var overrides needed — this is what makes it safe to run
+# the same hook command on every machine, worktree sessions included.
+NOVA_API_URL = os.environ.get("NOVA_API_URL", "http://100.114.197.117:8001")
 
 # Identifies which machine pushed this data, e.g. "zeed" (Aero) or "nova" (Omen)
 # — matches this project's existing Tailscale hostname convention.
@@ -213,15 +216,18 @@ def push_daily_usage_history(history: dict) -> bool:
     False on any failure — never raises, since a failed push (e.g. nova-api
     not running) shouldn't break the local write this script already did.
     """
+    payload = json.dumps({"source_machine": SOURCE_MACHINE, "daily_usage": history}).encode("utf-8")
+    request = urllib.request.Request(
+        f"{NOVA_API_URL}/usage-history",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
     try:
-        response = requests.post(
-            f"{NOVA_API_URL}/usage-history",
-            json={"source_machine": SOURCE_MACHINE, "daily_usage": history},
-            timeout=10,
-        )
-        response.raise_for_status()
+        with urllib.request.urlopen(request, timeout=10) as response:
+            response.read()
         return True
-    except requests.RequestException as e:
+    except (urllib.error.URLError, urllib.error.HTTPError) as e:
         print(f"Push to {NOVA_API_URL}/usage-history failed (local write still succeeded): {e}")
         return False
 

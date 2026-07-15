@@ -5,6 +5,37 @@
     ]
   },
   "hooks": {
+    "SessionEnd": [
+      {
+        "matcher": "clear|resume|logout|prompt_input_exit|bypass_permissions_disabled|other",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mkdir -p logs && python3 nova_usage_logger.py --push >> logs/usage_logger_hook.log 2>&1"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mkdir -p logs && python3 nova_tool_call_log.py success"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mkdir -p logs && python3 nova_tool_call_log.py error"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
