@@ -2,6 +2,12 @@
 .env
 .webui_secret_key
 
+# graphify machine-local markers — hardcode this machine's absolute Python
+# interpreter/repo-root paths, would break graphify on any other checkout
+# (e.g. the Omen, whose paths are entirely different)
+graphify-out/.graphify_python
+graphify-out/.graphify_root
+
 # Virtual environment
 nova-env/
 
