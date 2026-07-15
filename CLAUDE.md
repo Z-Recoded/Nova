@@ -620,6 +620,14 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
   if changes from earlier work are still uncommitted, tell Marvin what's sitting there and
   ask whether to commit. Don't commit unprompted (still requires his go-ahead per the rule
   below), just don't let it go unmentioned.
+- **Standard git strategy (2026-07-14, until Nova's deployment story stabilizes):** once a
+  commit is made and pushed to `origin/master`, run `nova_omen_sync.py` right after — don't
+  leave the Omen's checkout to drift until someone notices. This is exactly the two-step gap
+  (push, then a separate manual pull+restart on the Omen) that caused the 15-commit stale-clone
+  incident documented in Section 2. `nova_omen_sync.py` still requires an explicit run each
+  time (deliberately not a git hook, Marvin's call — see that script's own docstring) but
+  should be treated as a normal trailing step of "push," not an optional extra. Revisit this
+  once the Omen sync path is automated or replaced.
 - When responding to a change request, do three things together in this order:
   1. **Offer to make the change yourself** — don't just describe it and stop.
   2. **Show the specific line(s) the change affects** — with file path and actual lines.
