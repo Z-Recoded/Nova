@@ -97,9 +97,35 @@ Nova v0.1 is operational. The following are built and validated:
   `--max-turns` flag (checked directly) — a wall-clock subprocess timeout
   (30 min) is the real safety backstop, not a turn count, contrary to what
   `86bawx7vj`'s original spec assumed was available. Invocation primitive
-  only — no task-queue polling, no escalation handling (`86bax0wkj`, not
-  built), no pause-at-will (not built). Never merges/deletes its own
-  worktrees, matching `nova_orchestrator.py`'s safety model exactly
+  only — no task-queue polling, no real escalation *detection* logic
+  (`86bax0wkj`, still not built). Pause-at-will and the escalation-hook
+  interface itself now exist, see `nova_escalation.py` below. Never
+  merges/deletes its own worktrees, matching `nova_orchestrator.py`'s
+  safety model exactly
+- `nova_escalation.py` — escalation-hook stub + pause-at-will switch for
+  headless dispatch, step 5 of `86bax0exx`'s checklist. Its own module
+  (not folded into `nova_omen_dispatch.py`), mirroring why
+  `nova_token_budget.py` isn't folded into `nova_orchestrator.py` — this
+  is a plausible second caller for `nova_orchestrator.py`'s own worktree
+  loop later, not just the Omen dispatch path. `check_escalation()` is a
+  stub only — always `{"escalation_needed": False}` — taking the generic
+  result dict `dispatch_headless_task()` already returns rather than raw
+  Claude Code CLI session internals, per `86bax0exx`'s requirement that
+  the interface stay backend-agnostic (Claude Code CLI today,
+  OpenHands+local-model later). `is_dispatch_paused()`/
+  `set_dispatch_pause()` are real, not stubbed — built 2026-07-14 after
+  Marvin explicitly asked for the ability to pause the headless runner at
+  will ("no simultaneous building between me and the headless session").
+  State persists to `nova_state.db` (`system/dispatch_pause`, a
+  deliberate extension beyond Principle 6's original list, same
+  precedent as `claude_usage_history`) rather than a local JSON file —
+  `nova_state.db` is the "current reality" layer a future Controller UI
+  (`86bax0wkj`) would read/write anyway. `nova_omen_dispatch.py`'s
+  `--pause "<reason>"`/`--resume` CLI flags are the only lever today,
+  since no Controller UI exists yet. Verified live 2026-07-14: a real
+  dispatch was blocked cleanly while paused (no SSH call fired), then
+  fired normally end-to-end once resumed, returning a real
+  `"escalation": {"escalation_needed": false}` key
 - `nova_omen_sync.py` — one-command sync for the Omen's MAIN checkout
   (distinct from `nova_omen_dispatch.py`'s worktree path above, which
   already self-syncs by fetching fresh from origin every run). Collapses
@@ -168,6 +194,7 @@ C:/Nova/
 ├── nova_usage_logger.py    # Local Claude Code usage/cost history (scans ~/.claude/projects/**/*.jsonl, all projects)
 ├── nova_tool_call_log.py   # Tool-call logging schema for the coding sub-agent (interim — Langfuse will absorb this)
 ├── nova_omen_dispatch.py   # Headless task dispatch on the Omen via `claude -p --worktree` over SSH (86bax0exx's invocation step)
+├── nova_escalation.py      # Escalation-hook stub + pause-at-will switch for headless dispatch (86bax0exx step 5)
 ├── nova_omen_sync.py       # One-command sync for the Omen's main checkout — git pull, restart nova-api/nova-chroma, verify listening
 ├── nova_board.py           # Terminal CLI for ClickUp board dependency/status maintenance
 ├── nova_clickup_client.py  # ClickUp API client used by nova_board.py and nova_status_digest.py
@@ -665,6 +692,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-12 | Added "Known At-Risk Character Pairs" to Section 6, ClickUp `86bawnqdp` | Real, quantitative validation that the new embedding-viz tool actually predicts production blending, not just looks interesting: the two closest character pairs by embedding centroid distance are exactly the two most frequent real blend pairs in `training_flags.jsonl` (Null↔Nullius, 9 real events, and Helel↔Luci, 4 events). Flagged 4 pairs that are similarly close in embedding space but haven't blended yet (Helel↔Raven, Aseir↔Luci, Fatale Wildman↔Marisol, Aseir↔Raven) as a watch list, so a future blend event on one of these reads as expected, not a new mystery |
 | 2026-07-12 | **`86bawfn19` marked complete** — `nova_api.py` deployed to the Omen independent of the Aero, all 4 scope items done including the real test (reached the Omen's `nova-api` over Tailscale with the Aero fully powered off, real grounded answer) — updated Section 2 and the Phase 4 roadmap line | Closes the last real gap in "Nova reachable from my phone independent of the Aero being on." The phone-off test itself was done by Marvin in the prior session; this session re-verified the Omen's `nova-api`/`nova-chroma` systemd units are still active and serving real grounded answers, then updated the board and docs to reflect it |
 | 2026-07-14 | Shipped `nova_omen_sync.py` — one-command Omen sync (`git pull` → restart `nova-api`/`nova-chroma` → TCP-verify both listening again) — added to Sections 1 & 2 | The Omen's main checkout only ever updates via a manual `git pull`, and the running systemd services don't pick up new code until a separate manual restart — the exact two-step gap that caused the earlier 15-commit stale-clone incident. Collapses both into one command, deliberately manual-trigger only (not a git post-push hook) per Marvin's explicit choice to keep a human decision point before new code goes live on the Omen. Required a one-time scoped sudoers grant (`NOPASSWD` for exactly the two `systemctl restart` commands, nothing broader) — added and verified live via `sudo -l`, then the full pull→restart→verify sequence run for real against the Omen (forced restart since there was nothing new to pull at the time). Caught and fixed one real bug along the way: the first draft issued one combined `systemctl restart nova-api nova-chroma` call, which doesn't match the sudoers grant's two separate exact-command entries — fixed to issue one sudo call per unit |
+| 2026-07-14 | Shipped `nova_escalation.py` — escalation-hook stub + pause-at-will switch for `nova_omen_dispatch.py` (`86bax0exx` step 5), added `system/dispatch_pause` to `nova_state.py`'s `KNOWN_ENTITIES` — added to Sections 1 & 2 | Closes a documented TODO in `nova_omen_dispatch.py`'s own docstring, and answers a real requirement Marvin stated directly this session: the ability to pause the headless runner at will so it never runs while he's building interactively. `check_escalation()` stays a stub (always "no escalation needed") per `86bax0exx`'s own spec — real detection logic is `86bax0wkj`, not scoped yet. Pause state persists to `nova_state.db` rather than a local JSON file (unlike `nova_token_budget.py`'s precedent) since `nova_state.db` is the layer a future Controller UI would read/write anyway. Verified live: a real dispatch to the Omen was cleanly blocked while paused (no SSH call fired), then completed normally end-to-end once resumed, returning a real `escalation` key on the result |
 
 ---
 

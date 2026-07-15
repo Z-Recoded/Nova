@@ -16,19 +16,24 @@
 # exist, so a timeout is what's actually enforced.
 #
 # This is the invocation primitive only. Not built: task-queue polling (a
-# separate piece), escalation handling (86bax0wkj), pause-at-will (not
-# built). Marvin picks the task and calls this directly for now, matching
-# how nova_orchestrator.py's very first real task was manually kicked off
+# separate piece), real escalation *detection* logic (86bax0wkj — the
+# check_escalation() hook below is a stub only). Pause-at-will and the
+# escalation-hook interface itself are built (nova_escalation.py, 2026-07-
+# 14). Marvin picks the task and calls this directly for now, matching how
+# nova_orchestrator.py's very first real task was manually kicked off
 # before any queue existed.
 #
 # Never merges or deletes the worktree it creates — matches
 # nova_orchestrator.py's own safety model exactly: a human reviews the diff
 # and merges by hand.
 
+import argparse
 import json
 import shlex
 import subprocess
 from typing import Optional
+
+from nova_escalation import check_escalation, is_dispatch_paused, set_dispatch_pause
 
 OMEN_HOST = "100.114.197.117"  # Tailscale IP — works whether or not the Aero is on the same LAN as the Omen
 OMEN_USER = "marvinroyal5"
@@ -46,6 +51,16 @@ def dispatch_headless_task(task_description: str, worktree_name: Optional[str] =
     success=False with an error message and the raw SSH/claude output for
     debugging — never raises.
     """
+    pause_state = is_dispatch_paused()
+    if pause_state["paused"]:
+        return {
+            "success": False,
+            "paused": True,
+            "reason": pause_state.get("reason"),
+            "error": "Dispatch is paused — call set_dispatch_pause(False) or "
+                     "`python nova_omen_dispatch.py --resume` to clear it.",
+        }
+
     worktree_flag = f"--worktree {worktree_name}" if worktree_name else "--worktree"
     quoted_task = shlex.quote(task_description)
     remote_command = (
@@ -92,7 +107,7 @@ def dispatch_headless_task(task_description: str, worktree_name: Optional[str] =
         }
 
     result = json.loads(json_line)
-    return {
+    dispatch_result = {
         "success": not result.get("is_error", False) and result.get("stop_reason") == "end_turn",
         "session_id": result.get("session_id"),
         "summary": result.get("result"),
@@ -100,10 +115,21 @@ def dispatch_headless_task(task_description: str, worktree_name: Optional[str] =
         "cost_usd": result.get("total_cost_usd"),
         "num_turns": result.get("num_turns"),
     }
+    dispatch_result["escalation"] = check_escalation(dispatch_result)
+    return dispatch_result
 
 
 if __name__ == "__main__":
-    import sys
+    parser = argparse.ArgumentParser(description="Dispatch a headless coding task to the Omen.")
+    parser.add_argument("task", nargs="?", help="Task description. Omitted with --pause/--resume.")
+    parser.add_argument("--pause", metavar="REASON", help="Pause dispatch until --resume is called.")
+    parser.add_argument("--resume", action="store_true", help="Clear a previously set pause.")
+    args = parser.parse_args()
 
-    task = sys.argv[1] if len(sys.argv) > 1 else "Reply with exactly: dispatch module smoke test ok"
-    print(json.dumps(dispatch_headless_task(task), indent=2))
+    if args.pause is not None:
+        print(json.dumps(set_dispatch_pause(True, args.pause), indent=2))
+    elif args.resume:
+        print(json.dumps(set_dispatch_pause(False), indent=2))
+    else:
+        task = args.task or "Reply with exactly: dispatch module smoke test ok"
+        print(json.dumps(dispatch_headless_task(task), indent=2))
