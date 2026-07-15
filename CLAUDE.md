@@ -86,6 +86,20 @@ Nova v0.1 is operational. The following are built and validated:
   absorb this as trace/observation instrumentation later — built now anyway
   per Marvin's explicit sequencing call, accepted as throwaway once Langfuse
   actually lands
+- `nova_omen_dispatch.py` — headless task dispatch on the Omen, the real
+  "invocation" step of `86bax0exx`'s orchestration layer. Wraps
+  `claude -p --worktree` over SSH (Tailscale IP, works whether or not the
+  Aero is on the same LAN) — worktree isolation uses Claude Code's own
+  native `--worktree` flag, not `nova_orchestrator.py`'s hand-rolled
+  version. Proven live 2026-07-14: `dispatch_headless_task()` returns a
+  clean structured result (session_id, summary, cost, stop_reason).
+  **Bounding mechanism, honestly stated**: this CLI version has no
+  `--max-turns` flag (checked directly) — a wall-clock subprocess timeout
+  (30 min) is the real safety backstop, not a turn count, contrary to what
+  `86bawx7vj`'s original spec assumed was available. Invocation primitive
+  only — no task-queue polling, no escalation handling (`86bax0wkj`, not
+  built), no pause-at-will (not built). Never merges/deletes its own
+  worktrees, matching `nova_orchestrator.py`'s safety model exactly
 
 ### Phase Roadmap
 - Phase 0    | Foundation             | ✓ Complete
@@ -137,6 +151,7 @@ C:/Nova/
 ├── nova_chroma_omen_check.py # Chroma-on-Omen reachability probe (TCP → heartbeat → collection → real query)
 ├── nova_usage_logger.py    # Local Claude Code usage/cost history (scans ~/.claude/projects/**/*.jsonl, all projects)
 ├── nova_tool_call_log.py   # Tool-call logging schema for the coding sub-agent (interim — Langfuse will absorb this)
+├── nova_omen_dispatch.py   # Headless task dispatch on the Omen via `claude -p --worktree` over SSH (86bax0exx's invocation step)
 ├── nova_board.py           # Terminal CLI for ClickUp board dependency/status maintenance
 ├── nova_clickup_client.py  # ClickUp API client used by nova_board.py and nova_status_digest.py
 ├── nova_status_digest.py   # Writes NOVA_STATUS.md — board state snapshot, diffed run to run
