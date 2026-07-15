@@ -100,6 +100,22 @@ Nova v0.1 is operational. The following are built and validated:
   only — no task-queue polling, no escalation handling (`86bax0wkj`, not
   built), no pause-at-will (not built). Never merges/deletes its own
   worktrees, matching `nova_orchestrator.py`'s safety model exactly
+- `nova_omen_sync.py` — one-command sync for the Omen's MAIN checkout
+  (distinct from `nova_omen_dispatch.py`'s worktree path above, which
+  already self-syncs by fetching fresh from origin every run). Collapses
+  the sequence that caused the earlier 15-commit stale-clone incident
+  (Section 2, "HP Omen Headless Server") into one call: `git pull` →
+  restart `nova-api`/`nova-chroma` (skipped if nothing new pulled) →
+  confirm both are listening again via TCP probe. Deliberately
+  manual-trigger only, not a git post-push hook — Marvin's explicit call,
+  keeping a human decision point before new code goes live on the Omen,
+  matching the review-before-merge posture `nova_orchestrator.py`'s
+  worktrees already use. Requires a one-time scoped sudoers grant on the
+  Omen (`NOPASSWD` for exactly `systemctl restart nova-api` and
+  `systemctl restart nova-chroma`, nothing broader) — added and verified
+  live 2026-07-14. Proven end-to-end the same day: real `git pull` over
+  SSH, real service restart via the new sudoers grant, real TCP
+  reachability confirmation on both `8001` and `8000` after restart
 
 ### Phase Roadmap
 - Phase 0    | Foundation             | ✓ Complete
@@ -152,6 +168,7 @@ C:/Nova/
 ├── nova_usage_logger.py    # Local Claude Code usage/cost history (scans ~/.claude/projects/**/*.jsonl, all projects)
 ├── nova_tool_call_log.py   # Tool-call logging schema for the coding sub-agent (interim — Langfuse will absorb this)
 ├── nova_omen_dispatch.py   # Headless task dispatch on the Omen via `claude -p --worktree` over SSH (86bax0exx's invocation step)
+├── nova_omen_sync.py       # One-command sync for the Omen's main checkout — git pull, restart nova-api/nova-chroma, verify listening
 ├── nova_board.py           # Terminal CLI for ClickUp board dependency/status maintenance
 ├── nova_clickup_client.py  # ClickUp API client used by nova_board.py and nova_status_digest.py
 ├── nova_status_digest.py   # Writes NOVA_STATUS.md — board state snapshot, diffed run to run
@@ -647,6 +664,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-12 | Found and fixed a serious gap in the earlier "Omen COMPLETE" verification (`86bawfn19`): the Omen's git clone was 15 commits stale (missing the actual Chroma HttpClient migration), caused by a passphrase-protected GitHub deploy key silently breaking unattended `git pull`; fixed the key (regenerated with no passphrase), pulled the Omen current, and fixed a second hardcoded-Windows-path bug in `nova_api.py`'s `GRAPH_PATH` — added a new subsection to Section 2 | `/ask` on the Omen was returning fluent, completely hallucinated answers with empty sources/chunks and a `200` status — no error, just wrong. Reachability checks (`200` on `/`, `/headroom`, `/docs`) had never caught this because they don't exercise real RAG behavior. Verified fully fixed: real `collection.count()` of 479, real grounded answers, `/graph` matching the Aero's exact 257 nodes/301 edges |
 | 2026-07-12 | Added "Known At-Risk Character Pairs" to Section 6, ClickUp `86bawnqdp` | Real, quantitative validation that the new embedding-viz tool actually predicts production blending, not just looks interesting: the two closest character pairs by embedding centroid distance are exactly the two most frequent real blend pairs in `training_flags.jsonl` (Null↔Nullius, 9 real events, and Helel↔Luci, 4 events). Flagged 4 pairs that are similarly close in embedding space but haven't blended yet (Helel↔Raven, Aseir↔Luci, Fatale Wildman↔Marisol, Aseir↔Raven) as a watch list, so a future blend event on one of these reads as expected, not a new mystery |
 | 2026-07-12 | **`86bawfn19` marked complete** — `nova_api.py` deployed to the Omen independent of the Aero, all 4 scope items done including the real test (reached the Omen's `nova-api` over Tailscale with the Aero fully powered off, real grounded answer) — updated Section 2 and the Phase 4 roadmap line | Closes the last real gap in "Nova reachable from my phone independent of the Aero being on." The phone-off test itself was done by Marvin in the prior session; this session re-verified the Omen's `nova-api`/`nova-chroma` systemd units are still active and serving real grounded answers, then updated the board and docs to reflect it |
+| 2026-07-14 | Shipped `nova_omen_sync.py` — one-command Omen sync (`git pull` → restart `nova-api`/`nova-chroma` → TCP-verify both listening again) — added to Sections 1 & 2 | The Omen's main checkout only ever updates via a manual `git pull`, and the running systemd services don't pick up new code until a separate manual restart — the exact two-step gap that caused the earlier 15-commit stale-clone incident. Collapses both into one command, deliberately manual-trigger only (not a git post-push hook) per Marvin's explicit choice to keep a human decision point before new code goes live on the Omen. Required a one-time scoped sudoers grant (`NOPASSWD` for exactly the two `systemctl restart` commands, nothing broader) — added and verified live via `sudo -l`, then the full pull→restart→verify sequence run for real against the Omen (forced restart since there was nothing new to pull at the time). Caught and fixed one real bug along the way: the first draft issued one combined `systemctl restart nova-api nova-chroma` call, which doesn't match the sudoers grant's two separate exact-command entries — fixed to issue one sudo call per unit |
 
 ---
 
