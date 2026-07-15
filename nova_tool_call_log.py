@@ -31,7 +31,29 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-LOG_PATH = Path(__file__).resolve().parent / "logs" / "tool_call_log.jsonl"
+def _resolve_log_dir() -> Path:
+    """
+    Determine where to write tool_call_log.jsonl. If this script is
+    currently running from inside a `claude --worktree` checkout (detected
+    via a .claude/worktrees/<name>/ path segment), redirect to the MAIN
+    repo's logs/ directory instead of the worktree's own — worktrees get
+    discarded after review, so a worktree-local log would be lost the
+    moment that happens, and this data (unlike usage stats) can't be
+    recomputed afterward. No env var or hardcoded machine path needed:
+    the main repo root is just everything before the .claude/worktrees/
+    segment, which is structurally identical on every machine.
+    """
+    script_path = Path(__file__).resolve()
+    parts = script_path.parts
+    if ".claude" in parts:
+        claude_index = parts.index(".claude")
+        if parts[claude_index + 1] == "worktrees":
+            main_repo_root = Path(*parts[:claude_index])
+            return main_repo_root / "logs"
+    return script_path.parent / "logs"
+
+
+LOG_PATH = _resolve_log_dir() / "tool_call_log.jsonl"
 
 
 def log_tool_call(
