@@ -69,6 +69,14 @@ def check_escalation(session_result: dict) -> dict:
     "escalation" key, letting real detection logic slot in later without
     touching the dispatch call site again. session_result is the same
     generic dict dispatch_headless_task() returns to its own caller.
+
+    Intended landing spot for real-time scope-violation detection once
+    86bax0wkj lands (e.g. flagging when a headless run acted outside its
+    task's declared scope). Today that boundary is prompt/policy-only —
+    see nova_task_queue.resolve_task_description()'s DATA-marker framing
+    (86baxbt1x) — and this stub is only ever called after the SSH run has
+    already completed, so it can't yet gate execution, only flag after
+    the fact.
     """
     return {"escalation_needed": False}
 

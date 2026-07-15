@@ -1,6 +1,110 @@
 {
   "ready": [
     {
+      "id": "86baxzadt",
+      "name": "RF/SDR sensor layer for Nova: ambient data feed (Tier 1) + RF security (Tier 2)"
+    },
+    {
+      "id": "86baxw8jw",
+      "name": "[Initiative \u2014 not scoped] Migrate off ClickUp to local-first PM tool (NocoDB likely)"
+    },
+    {
+      "id": "86baxv3yp",
+      "name": "Board hygiene retrofit: custom fields, tag cleanup, link reclassification"
+    },
+    {
+      "id": "86baxuq12",
+      "name": "Self-hosted git remote (Gitea/Forgejo) on the Omen"
+    },
+    {
+      "id": "86baxu9u9",
+      "name": "Rollback/safety boundary: chain-level revert for multi-step autonomous runs"
+    },
+    {
+      "id": "86baxty6d",
+      "name": "Omen capacity audit (gate \u2014 do before further self-hosting work)"
+    },
+    {
+      "id": "86baxtb4m",
+      "name": "Migrate Nova design docs: Google Drive \u2192 self-hosted Obsidian vault"
+    },
+    {
+      "id": "86baxkrzq",
+      "name": "Spatializing networks: the internet as an explorable place (long-horizon exploration)"
+    },
+    {
+      "id": "86baxftxd",
+      "name": "Vivarium extension: swarm/determinism sandbox (Game of Life + LLM-judgment cells)"
+    },
+    {
+      "id": "86baxc3xy",
+      "name": "Harness pruning review (periodic \u2014 cut what no longer earns its place)"
+    },
+    {
+      "id": "86baxc3xh",
+      "name": "Modular/swappable harness architecture (charter vs. task-specific control logic)"
+    },
+    {
+      "id": "86baxbt82",
+      "name": "Security: Nova Controller auth layer (bearer token/passphrase)"
+    },
+    {
+      "id": "86baxbmh3",
+      "name": "Nova security posture \u2014 consolidated review (standing task, revisit on infra changes)"
+    },
+    {
+      "id": "86baxbeuc",
+      "name": "Tactical practice-mode LLM opponent (Pok\u00e9Champ-style, turn-based grid tactics)"
+    },
+    {
+      "id": "86baxb10x",
+      "name": "Visual sequence capture: lightweight frame/video recording for agent + game sessions"
+    },
+    {
+      "id": "86baxauzc",
+      "name": "Discover/Stories as disposable media-prototyping ground (images + low-cost video)"
+    },
+    {
+      "id": "86baxahn7",
+      "name": "Nova Controller UX: feed/cards/react-gestures (PWA, Tailscale-served)"
+    },
+    {
+      "id": "86bax8bb5",
+      "name": "Capability\u2013understanding differential scorer (Nova vs. Marvin)"
+    },
+    {
+      "id": "86bax7zt8",
+      "name": "Content pipeline: automated packaging + suggestion-only creative diffs (3-tier)"
+    },
+    {
+      "id": "86bax7zna",
+      "name": "Explore: Hookpad Aria, MIDI Agent, LIA (music) + Promethean AI (game design)"
+    },
+    {
+      "id": "86bax697m",
+      "name": "Adopt Langfuse as Nova's observability + auto-training-data backbone"
+    },
+    {
+      "id": "86bax4akx",
+      "name": "Training-data accumulation oversight: live counts + verification status + coverage view"
+    },
+    {
+      "id": "86bax0wkj",
+      "name": "Nova Controller v1: escalation answer UI (tap or expand-to-text)"
+    },
+    {
+      "id": "86bax0exx",
+      "name": "Nova orchestration layer: task-queue \u2192 headless run \u2192 review loop"
+    },
+    {
+      "id": "86bawx7vj",
+      "name": "Headless Nova coding: usage-aware autonomous runner + branch-based diff confirmation"
+    },
+    {
+      "id": "86bawpvzz",
+      "name": "[Initiative \u2014 not scoped] Autonomous coding sessions \u2014 Nova writes its own code to build local-model training data"
+    },
+    {
       "id": "86bawpc67",
       "name": "Vivarium experiment: bidirectional visual control panel for Nova"
     },
@@ -113,6 +217,10 @@
       "name": "Purchase dedicated GPU compute machine from third-party vendor"
     },
     {
+      "id": "86baw3010",
+      "name": "Rent serverless/raw GPU compute for Nova's own model weights (RunPod/Modal/Vast.ai)"
+    },
+    {
       "id": "86baux91c",
       "name": "Evaluate Outline \u2014 check for redundancy with Obsidian first"
     },
@@ -155,10 +263,6 @@
     {
       "id": "86baux60t",
       "name": "Evaluate Ragas for retrieval-quality scoring in the benchmark suite"
-    },
-    {
-      "id": "86baux5py",
-      "name": "Evaluate LangWatch as Nova Log/benchmark suite complement"
     },
     {
       "id": "86baux5c3",
@@ -275,10 +379,6 @@
       "name": "Resolve MCP credentials (ClickUp/Google/Slack scopes)"
     },
     {
-      "id": "86bawbbrk",
-      "name": "Set up RunPod account + API key"
-    },
-    {
       "id": "86bat0ue1",
       "name": "Run Tailscale DERP relay reachability test from a genuine remote network"
     },
@@ -303,10 +403,6 @@
     {
       "id": "86bawjyj8",
       "name": "Spec: Subagent escalation ladder + \"travel to\" central command console"
-    },
-    {
-      "id": "86baw3010",
-      "name": "Rent serverless/raw GPU compute for Nova's own model weights (RunPod/Modal/Vast.ai)"
     },
     {
       "id": "86bauwkvq",

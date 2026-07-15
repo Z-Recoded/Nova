@@ -460,15 +460,24 @@ future-cron call, since no scheduler infrastructure runs in Nova today
 (`nova_watcher.py` itself is still deferred). No new `nova_api.py` route —
 nothing reads domain state yet to justify one.
 
-**Known limitation (accepted, 2026-07-05):** the worktree boundary is only hard-enforced
-for `read_file`/`write_file`/`list_files` (path-validated against `root` in
-`nova_tools.py`). `run_command` is a raw shell — it can `cd` outside the worktree and
-reach the live tree, same trust level as Marvin's own shell. `nova_tools.py` has a
-best-effort denylist for obviously destructive patterns (`rm -rf`, `git push`, `git reset
---hard`, etc.), but this is a speed bump, not real sandboxing. Confirmed live: a run
-legitimately needed a Python interpreter (worktrees have no venv — `nova-env/` isn't
-git-tracked) and ended up running `pip install` against the shared live venv rather than
-something worktree-local. Accepted as reasonable for v1 — Claude is driving this, not an
+**Known limitation, updated 2026-07-15 (`86baxbrmj` interim hardening):** the worktree
+boundary is fully hard-enforced for `read_file`/`write_file`/`list_files` (path-validated
+against `root` in `nova_tools.py`). `run_command` is a raw shell, so it is not equally
+hard-enforced, but as of `86baxbrmj` it is no longer unrestricted either: it refuses any
+`cd` that resolves outside the worktree root (`_cd_targets_outside_root`), and restricts
+both `PATH` (`_build_restricted_path` — the live venv's Scripts dir, Git Bash's own bin
+dirs, and the worktree root only, not the full inherited system PATH) and the subprocess
+environment (`_build_restricted_env` — an explicit non-secret Windows/process-plumbing
+allowlist, no longer a full `os.environ.copy()` carrying `.env` secrets like
+`ANTHROPIC_API_KEY`/`CLICKUP_API_KEY` into every shell command). This closes the specific
+failure previously observed here (a run cd'ing out looking for a Python interpreter and
+falling back to the shared live venv) and the credential-exposure gap `86baxbrvv`'s audit
+surfaced. **Remaining gap, deliberately accepted:** none of this stops an *allowed* binary
+from taking an absolute-path argument — `git -C /c/Nova status` or `cat /c/Nova/.env` still
+reach the live tree, since only `cd` targets are checked, not every argument to every
+command. `nova_tools.py` also still has its best-effort denylist for obviously destructive
+patterns (`rm -rf`, `git push`, `git reset --hard`, etc.) — a speed bump, not real
+sandboxing, same as before. Accepted as reasonable for v1 — Claude is driving this, not an
 adversarial actor, and every action is logged to `logs/agent_log.jsonl` — real containment
 for `run_command` specifically remains deferred to the Docker/OpenHands hardening pass.
 
@@ -729,6 +738,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-14 | Shipped `nova_escalation.py` — escalation-hook stub + pause-at-will switch for `nova_omen_dispatch.py` (`86bax0exx` step 5), added `system/dispatch_pause` to `nova_state.py`'s `KNOWN_ENTITIES` — added to Sections 1 & 2 | Closes a documented TODO in `nova_omen_dispatch.py`'s own docstring, and answers a real requirement Marvin stated directly this session: the ability to pause the headless runner at will so it never runs while he's building interactively. `check_escalation()` stays a stub (always "no escalation needed") per `86bax0exx`'s own spec — real detection logic is `86bax0wkj`, not scoped yet. Pause state persists to `nova_state.db` rather than a local JSON file (unlike `nova_token_budget.py`'s precedent) since `nova_state.db` is the layer a future Controller UI would read/write anyway. Verified live: a real dispatch to the Omen was cleanly blocked while paused (no SSH call fired), then completed normally end-to-end once resumed, returning a real `escalation` key on the result |
 | 2026-07-14 | Documented the standard git strategy (push → `nova_omen_sync.py`) in Section 8 | Marvin's explicit instruction, same session — treat the Omen sync as a normal trailing step of every push, not an optional extra, until Nova's deployment story stabilizes. Closes the exact two-step gap that caused the earlier 15-commit stale-clone incident |
 | 2026-07-14 | Shipped `nova_task_queue.py` — readiness detection + task resolution (`86bax0exx` steps 1 & 2) — added to Sections 1 & 2 | Two scope decisions confirmed with Marvin before building: scope text comes from ClickUp's own `description` field (confirmed populated, no extra auth) rather than the linked Drive doc the original spec named (Nova's runtime has zero Drive credentials, confirmed via `.env` + a repo-wide grep); and this stays "functions Marvin calls by hand" rather than an auto-picking loop, since `86bawpvzz` already flagged autonomous task selection as its own unresolved trust-boundary question. Real finding from the first live run: `--list-ready` returned ~100 of ~110 backlog tasks — technically correct against the literal spec (status + ClickUp-native dependency chain), but concrete proof of `86bawpvzz`'s implication #3, that most real blockers (financial decisions, research-only tasks, a "gate" task with no enforced dependency link) aren't encoded as ClickUp dependencies at all. `--resolve` verified live against a real task (`86bax0wkj`) — full untruncated description, clean prompt. Live `--dispatch` test deliberately skipped per Marvin's call, rather than guessing which real backlog task was safe to spend real cost/create a real branch on |
+| 2026-07-15 | Shipped the security-cluster's three unblocked tickets: `86baxbrmj` (`nova_tools.py` `run_command` hardening — rejects `cd` outside the worktree, restricts `PATH`/env to explicit allowlists instead of the full inherited system PATH/environment), `86baxbt1x` (`nova_task_queue.py`'s `resolve_task_description()` now delimits the ClickUp description as data, not instructions, with explicit boundary language), and `86baxbrvv` (audited — `.env` confirmed git-ignored and never committed; the env-stripping change above is its practical interim mechanism). Updated Section 2's "Known limitation" block and `nova_orchestrator.py`'s system prompt to match. Checked the other two security tickets against real repo state before building: `86baxbt82` (Controller auth) is genuinely blocked — it depends on `86bax0wkj`/`86baxahn7`, neither built yet — flagged on ClickUp rather than stubbed; `86baxbmh3` is the standing tracker itself, updated via comment, not code | Marvin's stated near-term goal is Nova Controller + headless sessions, gated on security first. Verifying each ticket's real dependencies (this project's standing practice) before starting caught that 2 of 5 tickets in the cluster weren't actually buildable yet — building `86baxbt82` regardless would have produced an auth layer with nothing to gate. `PATH`/env restriction had to preserve two load-bearing exceptions found during exploration: `NOVA_ENV_SCRIPTS_PATH` (every coding sub-agent turn's `python`/`pip` depend on it) and Git Bash's own `bin`/`usr/bin` dirs (needed for `git`/`ls`/`grep`/`cat`, which the sub-agent's own system prompt tells it to use) — a naive worktree-local-only PATH would have broken both |
 
 ---
 

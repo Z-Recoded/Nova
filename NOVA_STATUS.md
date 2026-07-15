@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-13 03:16 UTC
+Last updated: 2026-07-15 05:23 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,50 +8,22 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- NEW -> ready: 86bawpc67 (Vivarium experiment: bidirectional visual control panel for Nova)
-- NEW -> ready: 86bawpc5v (Set up watchdog-based hot-restart pattern for Nova services)
-- NEW -> ready: 86bawpc5f (R&D spike: world-model / latent game-state representation)
-- NEW -> ready: 86bawp01b (Build session-continuity layer for unified Nova presence)
-- NEW -> ready: 86bawntpm (Draft Nova audit process (tool-call log review))
-- NEW -> ready: 86bawntpb (Build tool-call logging schema for Nova subagents)
-- NEW -> ready: 86bawnqqv (Research: benchmark suites for Nova's agentic/tool-use eval)
-- NEW -> ready: 86bawnqdp (Monitor at-risk character pairs for blending (embedding-distance analysis))
-- NEW -> ready: 86bawnkfy (Nova Tutor — Phase 7: DPO pairs + fine-tune (3 categories))
-- NEW -> ready: 86bawnkf1 (Nova Tutor — Phase 6: Blend-quality flagging log)
-- NEW -> ready: 86bawnke6 (Nova Tutor — Phase 5: Cross-domain secondary retrieval)
-- NEW -> ready: 86bawnkd9 (Nova Tutor — Phase 4: Synthesis links (Claude-assisted proposal + approval))
-- NEW -> ready: 86bawnkcg (Nova Tutor — Phase 3: Domain-aware routing (primary only))
-- NEW -> ready: 86bawnkc6 (Nova Tutor — Phase 2: Spaced repetition + quiz engine)
-- NEW -> ready: 86bawnkbv (Nova Tutor — Phase 1: Chunk schema + storage)
-- NEW -> ready: 86bawna2g (Ingestion Principles addendum — chunking discipline, Tika/Docling rejection, injection-surface note)
-- NEW -> ready: 86bawna1k (Router/Governor spec — conditional router as front door to Token Budget Governor)
-- NEW -> ready: 86bawna17 (Hybrid Retrieval spec — dense + BM25/FTS5 fusion, cross-encoder reranker)
-- NEW -> ready: 86bawm2rb (Spec: Multi-device sensor fusion for spatial reconstruction (echolocation) — with consent/privacy boundaries)
-- NEW -> ready: 86bawkz7t (Apply Information Dimensionality & Abstraction Principle to upcoming specs)
-- NEW -> ready: 86bawkcha (Spec: Network traversal landscape — rewind + live ambient views for self/subagents)
-- NEW -> ready: 86bawk37h (Set up security & code hygiene tooling (ruff, mypy, pre-commit, bandit, detect-secrets, pip-audit))
-- in_progress -> ready: 86baw3016 (Purchase dedicated GPU compute machine from third-party vendor)
-- blocked -> ready: 86baf4e29 (Dockerize Nova services)
-- ready -> in_progress: 86bara3tj (Spec + Build: Chunk visualization tool — RAG retrieval audit)
-- NEW -> blocked: 86bawjyj8 (Spec: Subagent escalation ladder + "travel to" central command console)
-- ready -> complete/removed: 86bafvr98 (Implement A* graph traversal for graph-guided retrieval)
-- in_progress -> complete/removed: 86bawbzg1 (Build NOVA_STATUS.md digest file)
-- in_progress -> complete/removed: 86baeyfm1 (HP Omen Ubuntu headless server setup)
+- ready -> complete/removed: 86baxbt1x (Security: headless-run instruction-source-boundary policy)
+- ready -> complete/removed: 86baxbrvv (Security: interim .env credential discipline (pre-Vaultwarden))
+- ready -> complete/removed: 86baxbrmj (Security: interim run_exec hardening (cwd/PATH/env restriction))
 
-## In progress (7)
+## In progress (6)
 
 - 86bawbbrx  Resolve MCP credentials (ClickUp/Google/Slack scopes)
-- 86bawbbrk  Set up RunPod account + API key
 - 86bat0ue1  Run Tailscale DERP relay reachability test from a genuine remote network
 - 86bara3tj  Spec + Build: Chunk visualization tool — RAG retrieval audit
 - 86bagek35  Test Phi-4 Mini 128K routing strategy — context fill vs latency + dual VRAM validation
 - 86baf4eah  Hosted inference fallback (Groq / Together.ai / Fireworks)
 - 86baeyg3q  Voice interface (Whisper + Piper)
 
-## Blocked (13)
+## Blocked (12)
 
 - 86bawjyj8  Spec: Subagent escalation ladder + "travel to" central command console
-- 86baw3010  Rent serverless/raw GPU compute for Nova's own model weights (RunPod/Modal/Vast.ai)
 - 86bauwkvq  Token Budget Governor — remaining scope (Haiku routing, queue concurrency, push notifications, auto ClickUp updates)
 - 86barue80  Games domain node — nova_state_games.py adapter
 - 86barudz2  Work domain node — nova_state_work.py adapter
@@ -64,8 +36,34 @@ falls back to querying ClickUp directly if it looks stale.
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 - 86baf72n5  MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)
 
-## Ready (67)
+## Ready (93)
 
+- 86baxzadt  RF/SDR sensor layer for Nova: ambient data feed (Tier 1) + RF security (Tier 2)
+- 86baxw8jw  [Initiative — not scoped] Migrate off ClickUp to local-first PM tool (NocoDB likely)
+- 86baxv3yp  Board hygiene retrofit: custom fields, tag cleanup, link reclassification
+- 86baxuq12  Self-hosted git remote (Gitea/Forgejo) on the Omen
+- 86baxu9u9  Rollback/safety boundary: chain-level revert for multi-step autonomous runs
+- 86baxty6d  Omen capacity audit (gate — do before further self-hosting work)
+- 86baxtb4m  Migrate Nova design docs: Google Drive → self-hosted Obsidian vault
+- 86baxkrzq  Spatializing networks: the internet as an explorable place (long-horizon exploration)
+- 86baxftxd  Vivarium extension: swarm/determinism sandbox (Game of Life + LLM-judgment cells)
+- 86baxc3xy  Harness pruning review (periodic — cut what no longer earns its place)
+- 86baxc3xh  Modular/swappable harness architecture (charter vs. task-specific control logic)
+- 86baxbt82  Security: Nova Controller auth layer (bearer token/passphrase)
+- 86baxbmh3  Nova security posture — consolidated review (standing task, revisit on infra changes)
+- 86baxbeuc  Tactical practice-mode LLM opponent (PokéChamp-style, turn-based grid tactics)
+- 86baxb10x  Visual sequence capture: lightweight frame/video recording for agent + game sessions
+- 86baxauzc  Discover/Stories as disposable media-prototyping ground (images + low-cost video)
+- 86baxahn7  Nova Controller UX: feed/cards/react-gestures (PWA, Tailscale-served)
+- 86bax8bb5  Capability–understanding differential scorer (Nova vs. Marvin)
+- 86bax7zt8  Content pipeline: automated packaging + suggestion-only creative diffs (3-tier)
+- 86bax7zna  Explore: Hookpad Aria, MIDI Agent, LIA (music) + Promethean AI (game design)
+- 86bax697m  Adopt Langfuse as Nova's observability + auto-training-data backbone
+- 86bax4akx  Training-data accumulation oversight: live counts + verification status + coverage view
+- 86bax0wkj  Nova Controller v1: escalation answer UI (tap or expand-to-text)
+- 86bax0exx  Nova orchestration layer: task-queue → headless run → review loop
+- 86bawx7vj  Headless Nova coding: usage-aware autonomous runner + branch-based diff confirmation
+- 86bawpvzz  [Initiative — not scoped] Autonomous coding sessions — Nova writes its own code to build local-model training data
 - 86bawpc67  Vivarium experiment: bidirectional visual control panel for Nova
 - 86bawpc5v  Set up watchdog-based hot-restart pattern for Nova services
 - 86bawpc5f  R&D spike: world-model / latent game-state representation
@@ -94,6 +92,7 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bawbgne  📌 Reference: Task Dependency & Status Discipline v1.0
 - 86bawbfak  Name + approve financial data source (spreadsheet vs. Firefly III)
 - 86baw3016  Purchase dedicated GPU compute machine from third-party vendor
+- 86baw3010  Rent serverless/raw GPU compute for Nova's own model weights (RunPod/Modal/Vast.ai)
 - 86baux91c  Evaluate Outline — check for redundancy with Obsidian first
 - 86baux8y5  Evaluate WebAssembly/WebLLM for a browser-based Nova client
 - 86baux8pq  Evaluate Podman for coding sub-agent container hardening
@@ -105,7 +104,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86baux6me  Evaluate Crawl4AI for Browser Hands adapter extraction layer
 - 86baux696  Evaluate Instructor for structured LLM output validation
 - 86baux60t  Evaluate Ragas for retrieval-quality scoring in the benchmark suite
-- 86baux5py  Evaluate LangWatch as Nova Log/benchmark suite complement
 - 86baux5c3  Evaluate LiteLLM as Nova's model-routing/gateway layer
 - 86bau47mb  [Initiative — not scoped] Omen self-hosted service stack (Coolify, NocoDB, Vaultwarden, Firefly III, and more)
 - 86bau2zd9  [Initiative — not scoped] Jack In: three-tier diagnostics (network-resident, disposable external, local voice interface)
