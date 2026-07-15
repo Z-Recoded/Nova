@@ -142,6 +142,31 @@ Nova v0.1 is operational. The following are built and validated:
   live 2026-07-14. Proven end-to-end the same day: real `git pull` over
   SSH, real service restart via the new sudoers grant, real TCP
   reachability confirmation on both `8001` and `8000` after restart
+- `nova_task_queue.py` — readiness detection + task resolution, steps 1
+  and 2 of `86bax0exx`'s checklist. `get_ready_tasks()` reuses
+  `nova_clickup_client.get_unresolved_blockers()` (the same dependency-
+  chain check `nova_board.py`'s `ready` command already applies) plus a
+  status/description-length filter. `resolve_task_description(task_id)`
+  builds the exact prompt `nova_omen_dispatch.dispatch_headless_task()`
+  expects. **Two scope decisions, confirmed with Marvin 2026-07-14:**
+  scope text comes from ClickUp's own `description` field, not the
+  linked Google Drive doc the original spec named — Nova's runtime has
+  zero Drive credentials anywhere (`.env` has only three unrelated API
+  keys, no code calls the Drive/Docs API); and this stays "functions
+  Marvin calls by hand" (`--list-ready`/`--resolve`/`--dispatch <task_id>`
+  CLI) rather than an auto-picking loop, since `86bawpvzz` already
+  flagged autonomous task selection as its own unresolved trust-boundary
+  question. **Real finding from the first live `--list-ready` run:** it
+  returned ~100 of the board's ~110 backlog tasks as "ready" — technically
+  correct (zero ClickUp-native dependency links + a real description),
+  but confirms `86bawpvzz`'s implication #3 concretely: most real-world
+  blockers (financial-decision tasks, research-only tasks, a task
+  literally named "gate — do before further self-hosting work" with no
+  enforced ClickUp dependency) aren't encoded as dependencies at all, so
+  "ready" here means "not explicitly blocked," not "safe to dispatch
+  unattended." No polling loop or webhook receiver built — nothing calls
+  this on a schedule yet, so one would be speculative against an
+  undecided autonomy model.
 
 ### Phase Roadmap
 - Phase 0    | Foundation             | ✓ Complete
@@ -196,6 +221,7 @@ C:/Nova/
 ├── nova_omen_dispatch.py   # Headless task dispatch on the Omen via `claude -p --worktree` over SSH (86bax0exx's invocation step)
 ├── nova_escalation.py      # Escalation-hook stub + pause-at-will switch for headless dispatch (86bax0exx step 5)
 ├── nova_omen_sync.py       # One-command sync for the Omen's main checkout — git pull, restart nova-api/nova-chroma, verify listening
+├── nova_task_queue.py      # Readiness detection + task resolution for headless dispatch (86bax0exx steps 1-2)
 ├── nova_board.py           # Terminal CLI for ClickUp board dependency/status maintenance
 ├── nova_clickup_client.py  # ClickUp API client used by nova_board.py and nova_status_digest.py
 ├── nova_status_digest.py   # Writes NOVA_STATUS.md — board state snapshot, diffed run to run
@@ -701,6 +727,8 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-12 | **`86bawfn19` marked complete** — `nova_api.py` deployed to the Omen independent of the Aero, all 4 scope items done including the real test (reached the Omen's `nova-api` over Tailscale with the Aero fully powered off, real grounded answer) — updated Section 2 and the Phase 4 roadmap line | Closes the last real gap in "Nova reachable from my phone independent of the Aero being on." The phone-off test itself was done by Marvin in the prior session; this session re-verified the Omen's `nova-api`/`nova-chroma` systemd units are still active and serving real grounded answers, then updated the board and docs to reflect it |
 | 2026-07-14 | Shipped `nova_omen_sync.py` — one-command Omen sync (`git pull` → restart `nova-api`/`nova-chroma` → TCP-verify both listening again) — added to Sections 1 & 2 | The Omen's main checkout only ever updates via a manual `git pull`, and the running systemd services don't pick up new code until a separate manual restart — the exact two-step gap that caused the earlier 15-commit stale-clone incident. Collapses both into one command, deliberately manual-trigger only (not a git post-push hook) per Marvin's explicit choice to keep a human decision point before new code goes live on the Omen. Required a one-time scoped sudoers grant (`NOPASSWD` for exactly the two `systemctl restart` commands, nothing broader) — added and verified live via `sudo -l`, then the full pull→restart→verify sequence run for real against the Omen (forced restart since there was nothing new to pull at the time). Caught and fixed one real bug along the way: the first draft issued one combined `systemctl restart nova-api nova-chroma` call, which doesn't match the sudoers grant's two separate exact-command entries — fixed to issue one sudo call per unit |
 | 2026-07-14 | Shipped `nova_escalation.py` — escalation-hook stub + pause-at-will switch for `nova_omen_dispatch.py` (`86bax0exx` step 5), added `system/dispatch_pause` to `nova_state.py`'s `KNOWN_ENTITIES` — added to Sections 1 & 2 | Closes a documented TODO in `nova_omen_dispatch.py`'s own docstring, and answers a real requirement Marvin stated directly this session: the ability to pause the headless runner at will so it never runs while he's building interactively. `check_escalation()` stays a stub (always "no escalation needed") per `86bax0exx`'s own spec — real detection logic is `86bax0wkj`, not scoped yet. Pause state persists to `nova_state.db` rather than a local JSON file (unlike `nova_token_budget.py`'s precedent) since `nova_state.db` is the layer a future Controller UI would read/write anyway. Verified live: a real dispatch to the Omen was cleanly blocked while paused (no SSH call fired), then completed normally end-to-end once resumed, returning a real `escalation` key on the result |
+| 2026-07-14 | Documented the standard git strategy (push → `nova_omen_sync.py`) in Section 8 | Marvin's explicit instruction, same session — treat the Omen sync as a normal trailing step of every push, not an optional extra, until Nova's deployment story stabilizes. Closes the exact two-step gap that caused the earlier 15-commit stale-clone incident |
+| 2026-07-14 | Shipped `nova_task_queue.py` — readiness detection + task resolution (`86bax0exx` steps 1 & 2) — added to Sections 1 & 2 | Two scope decisions confirmed with Marvin before building: scope text comes from ClickUp's own `description` field (confirmed populated, no extra auth) rather than the linked Drive doc the original spec named (Nova's runtime has zero Drive credentials, confirmed via `.env` + a repo-wide grep); and this stays "functions Marvin calls by hand" rather than an auto-picking loop, since `86bawpvzz` already flagged autonomous task selection as its own unresolved trust-boundary question. Real finding from the first live run: `--list-ready` returned ~100 of ~110 backlog tasks — technically correct against the literal spec (status + ClickUp-native dependency chain), but concrete proof of `86bawpvzz`'s implication #3, that most real blockers (financial decisions, research-only tasks, a "gate" task with no enforced dependency link) aren't encoded as ClickUp dependencies at all. `--resolve` verified live against a real task (`86bax0wkj`) — full untruncated description, clean prompt. Live `--dispatch` test deliberately skipped per Marvin's call, rather than guessing which real backlog task was safe to spend real cost/create a real branch on |
 
 ---
 
