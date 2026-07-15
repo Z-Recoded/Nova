@@ -362,6 +362,35 @@ real grounded answer back. This closes the last real gap in "Nova reachable from
 independent of the Aero being on" (note: no Open WebUI on the Omen yet, so this is the raw API,
 not a chat UI — Open WebUI still only runs on the Aero).
 
+### Working Directly on the Omen via SSH (away from the Aero)
+When SSHed into the Omen to do real work away from the Aero — a real interactive/manual
+session, not the automated `nova_omen_dispatch.py` headless path — **never edit the main
+checkout (`~/nova`) directly.** That directory is a one-directional deployment target:
+`nova_omen_sync.py` pulls into it and restarts `nova-api`/`nova-chroma`. Hand-editing and
+pushing from there recreates the exact two-way drift that caused the 15-commit stale-clone
+incident documented above ("Important gap in the 'COMPLETE' verification above").
+
+Instead, use the same worktree discipline `nova_orchestrator.py` already uses for headless
+dispatch — `origin` is the only source of truth, every worktree fetches fresh from it, the
+main checkout only ever receives, never originates:
+
+1. `git worktree add ~/nova-work/<task-name> -b <branch> origin/master` — fetches fresh from
+   `origin`, ignores whatever state the main checkout happens to be in.
+2. Do the work there.
+3. Commit and push that branch to `origin`.
+4. Merge to `master` from wherever's convenient (GitHub's web UI, or directly on the Omen).
+5. If the change touches what `nova-api`/`nova-chroma` actually run, trigger
+   `nova_omen_sync.py` (or `git pull` + restart directly, since you're already on the Omen)
+   so the live services pick it up.
+6. Back on the Aero next session: `git pull` before starting new work there — same discipline
+   as any second machine touching a shared repo.
+
+No new tooling required — this is exactly the `git worktree add` + fetch-fresh-from-`origin`
+pattern `nova_orchestrator.py`'s `_create_worktree()` already uses, just applied by hand
+instead of by the dispatcher. Once the Nova Controller (`86bax0wkj`/`86baxahn7`) exists, this
+manual SSH workflow is expected to mostly be replaced by triggering `nova_omen_dispatch.py`
+from the Controller UI instead, which already self-syncs from `origin` on every run.
+
 ### Nova Coding Sub-Agent (nova_orchestrator.py)
 Nova can now write to its own codebase — the one sanctioned exception to a human
 surfacing every change before it's applied (Section 8). Safety comes from **git worktree
@@ -739,6 +768,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-14 | Documented the standard git strategy (push → `nova_omen_sync.py`) in Section 8 | Marvin's explicit instruction, same session — treat the Omen sync as a normal trailing step of every push, not an optional extra, until Nova's deployment story stabilizes. Closes the exact two-step gap that caused the earlier 15-commit stale-clone incident |
 | 2026-07-14 | Shipped `nova_task_queue.py` — readiness detection + task resolution (`86bax0exx` steps 1 & 2) — added to Sections 1 & 2 | Two scope decisions confirmed with Marvin before building: scope text comes from ClickUp's own `description` field (confirmed populated, no extra auth) rather than the linked Drive doc the original spec named (Nova's runtime has zero Drive credentials, confirmed via `.env` + a repo-wide grep); and this stays "functions Marvin calls by hand" rather than an auto-picking loop, since `86bawpvzz` already flagged autonomous task selection as its own unresolved trust-boundary question. Real finding from the first live run: `--list-ready` returned ~100 of ~110 backlog tasks — technically correct against the literal spec (status + ClickUp-native dependency chain), but concrete proof of `86bawpvzz`'s implication #3, that most real blockers (financial decisions, research-only tasks, a "gate" task with no enforced dependency link) aren't encoded as ClickUp dependencies at all. `--resolve` verified live against a real task (`86bax0wkj`) — full untruncated description, clean prompt. Live `--dispatch` test deliberately skipped per Marvin's call, rather than guessing which real backlog task was safe to spend real cost/create a real branch on |
 | 2026-07-15 | Shipped the security-cluster's three unblocked tickets: `86baxbrmj` (`nova_tools.py` `run_command` hardening — rejects `cd` outside the worktree, restricts `PATH`/env to explicit allowlists instead of the full inherited system PATH/environment), `86baxbt1x` (`nova_task_queue.py`'s `resolve_task_description()` now delimits the ClickUp description as data, not instructions, with explicit boundary language), and `86baxbrvv` (audited — `.env` confirmed git-ignored and never committed; the env-stripping change above is its practical interim mechanism). Updated Section 2's "Known limitation" block and `nova_orchestrator.py`'s system prompt to match. Checked the other two security tickets against real repo state before building: `86baxbt82` (Controller auth) is genuinely blocked — it depends on `86bax0wkj`/`86baxahn7`, neither built yet — flagged on ClickUp rather than stubbed; `86baxbmh3` is the standing tracker itself, updated via comment, not code | Marvin's stated near-term goal is Nova Controller + headless sessions, gated on security first. Verifying each ticket's real dependencies (this project's standing practice) before starting caught that 2 of 5 tickets in the cluster weren't actually buildable yet — building `86baxbt82` regardless would have produced an auth layer with nothing to gate. `PATH`/env restriction had to preserve two load-bearing exceptions found during exploration: `NOVA_ENV_SCRIPTS_PATH` (every coding sub-agent turn's `python`/`pip` depend on it) and Git Bash's own `bin`/`usr/bin` dirs (needed for `git`/`ls`/`grep`/`cat`, which the sub-agent's own system prompt tells it to use) — a naive worktree-local-only PATH would have broken both |
+| 2026-07-15 | Committed `graphify-out/` (the graphify-built knowledge graph — 623 nodes, 1019 edges, 45 communities) to the repo, added Section 2's "Working Directly on the Omen via SSH" subsection | The graphify CLI was already installed in the Omen's `nova-env` venv, but the graph output had never been committed, so it was unusable there — committing it (minus `.graphify_python`/`.graphify_root`, gitignored as machine-local absolute-path markers that would break graphify on any other checkout) makes it available on both the Omen's main checkout and any fresh headless-dispatch worktree, since both sync via git. Verified live: synced via `nova_omen_sync.py`, then ran a real `graphify query` directly on the Omen and got correct results. The SSH-workflow subsection records the worktree-based git discipline discussed this session (never edit the Omen's main checkout directly; `git worktree add ... origin/master` instead, matching `nova_orchestrator.py`'s own pattern) directly in CLAUDE.md so it's visible to any Claude Code session running on the Omen, not just this conversation |
 
 ---
 
