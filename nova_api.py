@@ -109,6 +109,11 @@ class UsageHistoryPushRequest(BaseModel):
     daily_usage: dict
 
 
+class ActivityProfilePushRequest(BaseModel):
+    source_machine: str
+    activity_profile: dict
+
+
 # ── Routes ─────────────────────────────────────────────────────
 
 @app.get("/")
@@ -401,6 +406,39 @@ def push_usage_history(req: UsageHistoryPushRequest):
 def get_usage_history():
     """Return the merged Claude Code usage history across every machine that has pushed to it."""
     return get_state("system", "claude_usage_history") or {"_note": "No usage history pushed yet."}
+
+
+@app.post("/activity-profile")
+def push_activity_profile(req: ActivityProfilePushRequest):
+    """
+    Merge one machine's locally-computed Claude Code activity profile (an
+    hour-of-day/day-of-week message-count histogram) into nova_state.db
+    (system/claude_activity_profile), keyed by source machine. Called by
+    nova_usage_logger.py's SessionEnd-hook-triggered push, alongside
+    /usage-history — groundwork for the autonomous-dispatch dual-fuel design
+    (86bawpvzz) to find genuine idle windows instead of guessing a fixed
+    reserve. Deliberately no cross-machine summing here yet — no real
+    consumer needs a merged view until the idle-window scheduler itself
+    exists.
+    """
+    try:
+        merged = get_state("system", "claude_activity_profile") or {}
+        merged.pop("_updated_at", None)
+        merged[req.source_machine] = req.activity_profile
+        write_state("system", "claude_activity_profile", merged)
+        return {
+            "status": "ok",
+            "source_machine": req.source_machine,
+            "total_messages": req.activity_profile.get("total_messages"),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/activity-profile")
+def get_activity_profile():
+    """Return the merged Claude Code activity profile across every machine that has pushed to it."""
+    return get_state("system", "claude_activity_profile") or {"_note": "No activity profile pushed yet."}
 
 
 # ── Nova Log — Health dashboard ────────────────────────────────

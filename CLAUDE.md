@@ -70,8 +70,20 @@ Nova v0.1 is operational. The following are built and validated:
   end, sending this machine's aggregate to `nova_api.py`'s new `POST /usage-history`,
   which merges it into `nova_state.db`'s `system/claude_usage_history` entity — a
   deliberate extension beyond Architecture Principles v1.1's original Principle 6
-  list. Push target defaults to `localhost:8000` (verified end-to-end there);
-  pointing it at the Omen is a separate commit+deploy step, not done yet
+  list. Push target defaults to the Omen's Tailscale address (`NOVA_API_URL`,
+  `http://100.114.197.117:8001`) — the real cross-machine centralization target from any
+  machine, including the Omen itself. **Activity profile (2026-07-15, `86bawpvzz`
+  groundwork):** the same transcripts also feed `build_activity_profile()`, a second
+  derived artifact — an hour-of-day/day-of-week message-count histogram, windowed to the
+  last 60 days (recent-schedule signal, not diluted by stale history), written to
+  `logs/claude_activity_profile.json` and pushed via the same `--push` flag to `nova_api.py`'s
+  new `POST /activity-profile`, merging into `nova_state.db`'s `system/claude_activity_profile`
+  entity. Exists to find genuine "Marvin is away from Claude Code" windows for the planned
+  autonomous-dispatch dual-fuel design (subscription auth by default, fall back to a funded
+  metered key once usage headroom gets low) — a real activity histogram instead of a guessed
+  reserve percentage. Deliberately Claude Code only: claude.ai chat activity timing isn't
+  obtainable on a personal (non-Enterprise) plan, checked directly against Anthropic's
+  Usage/Cost and Enterprise Analytics API docs before assuming otherwise
 - `nova_tool_call_log.py` — tool-call logging schema for the coding sub-agent
   (`86bawntpb`). One JSONL entry per tool call (`logs/tool_call_log.jsonl`) —
   `tool_call_id`, `agent`, `session_id`, `tool`, `args`, `result`
@@ -216,7 +228,7 @@ C:/Nova/
 ├── nova_config.json        # Feature-flag values — all off today (Phase 1.75 gating)
 ├── nova_mcp_server.py      # Standalone MCP server wrapping nova_api.py routes (unwired, port 8100)
 ├── nova_chroma_omen_check.py # Chroma-on-Omen reachability probe (TCP → heartbeat → collection → real query)
-├── nova_usage_logger.py    # Local Claude Code usage/cost history (scans ~/.claude/projects/**/*.jsonl, all projects)
+├── nova_usage_logger.py    # Local Claude Code usage/cost history + activity profile (scans ~/.claude/projects/**/*.jsonl, all projects)
 ├── nova_tool_call_log.py   # Tool-call logging schema for the coding sub-agent (interim — Langfuse will absorb this)
 ├── nova_omen_dispatch.py   # Headless task dispatch on the Omen via `claude -p --worktree` over SSH (86bax0exx's invocation step)
 ├── nova_escalation.py      # Escalation-hook stub + pause-at-will switch for headless dispatch (86bax0exx step 5)
@@ -666,6 +678,8 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | /embedding-viz/data | GET | ✓ Working | Embedding-Space Visualization data (JSON) — optional ?query=, ?refresh= |
 | /usage-history | POST | ✓ Working | Merge one machine's daily Claude Code usage aggregate into nova_state.db (system/claude_usage_history) — called by nova_usage_logger.py's SessionEnd hook |
 | /usage-history | GET | ✓ Working | Return the merged Claude Code usage history across every machine that's pushed to it |
+| /activity-profile | POST | ✓ Working | Merge one machine's Claude Code activity profile (hour-of-day/day-of-week histogram) into nova_state.db (system/claude_activity_profile) — called by nova_usage_logger.py's SessionEnd hook, alongside /usage-history |
+| /activity-profile | GET | ✓ Working | Return the merged Claude Code activity profile across every machine that's pushed to it (no cross-machine summing yet) |
 
 ---
 
@@ -769,6 +783,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-14 | Shipped `nova_task_queue.py` — readiness detection + task resolution (`86bax0exx` steps 1 & 2) — added to Sections 1 & 2 | Two scope decisions confirmed with Marvin before building: scope text comes from ClickUp's own `description` field (confirmed populated, no extra auth) rather than the linked Drive doc the original spec named (Nova's runtime has zero Drive credentials, confirmed via `.env` + a repo-wide grep); and this stays "functions Marvin calls by hand" rather than an auto-picking loop, since `86bawpvzz` already flagged autonomous task selection as its own unresolved trust-boundary question. Real finding from the first live run: `--list-ready` returned ~100 of ~110 backlog tasks — technically correct against the literal spec (status + ClickUp-native dependency chain), but concrete proof of `86bawpvzz`'s implication #3, that most real blockers (financial decisions, research-only tasks, a "gate" task with no enforced dependency link) aren't encoded as ClickUp dependencies at all. `--resolve` verified live against a real task (`86bax0wkj`) — full untruncated description, clean prompt. Live `--dispatch` test deliberately skipped per Marvin's call, rather than guessing which real backlog task was safe to spend real cost/create a real branch on |
 | 2026-07-15 | Shipped the security-cluster's three unblocked tickets: `86baxbrmj` (`nova_tools.py` `run_command` hardening — rejects `cd` outside the worktree, restricts `PATH`/env to explicit allowlists instead of the full inherited system PATH/environment), `86baxbt1x` (`nova_task_queue.py`'s `resolve_task_description()` now delimits the ClickUp description as data, not instructions, with explicit boundary language), and `86baxbrvv` (audited — `.env` confirmed git-ignored and never committed; the env-stripping change above is its practical interim mechanism). Updated Section 2's "Known limitation" block and `nova_orchestrator.py`'s system prompt to match. Checked the other two security tickets against real repo state before building: `86baxbt82` (Controller auth) is genuinely blocked — it depends on `86bax0wkj`/`86baxahn7`, neither built yet — flagged on ClickUp rather than stubbed; `86baxbmh3` is the standing tracker itself, updated via comment, not code | Marvin's stated near-term goal is Nova Controller + headless sessions, gated on security first. Verifying each ticket's real dependencies (this project's standing practice) before starting caught that 2 of 5 tickets in the cluster weren't actually buildable yet — building `86baxbt82` regardless would have produced an auth layer with nothing to gate. `PATH`/env restriction had to preserve two load-bearing exceptions found during exploration: `NOVA_ENV_SCRIPTS_PATH` (every coding sub-agent turn's `python`/`pip` depend on it) and Git Bash's own `bin`/`usr/bin` dirs (needed for `git`/`ls`/`grep`/`cat`, which the sub-agent's own system prompt tells it to use) — a naive worktree-local-only PATH would have broken both |
 | 2026-07-15 | Committed `graphify-out/` (the graphify-built knowledge graph — 623 nodes, 1019 edges, 45 communities) to the repo, added Section 2's "Working Directly on the Omen via SSH" subsection | The graphify CLI was already installed in the Omen's `nova-env` venv, but the graph output had never been committed, so it was unusable there — committing it (minus `.graphify_python`/`.graphify_root`, gitignored as machine-local absolute-path markers that would break graphify on any other checkout) makes it available on both the Omen's main checkout and any fresh headless-dispatch worktree, since both sync via git. Verified live: synced via `nova_omen_sync.py`, then ran a real `graphify query` directly on the Omen and got correct results. The SSH-workflow subsection records the worktree-based git discipline discussed this session (never edit the Omen's main checkout directly; `git worktree add ... origin/master` instead, matching `nova_orchestrator.py`'s own pattern) directly in CLAUDE.md so it's visible to any Claude Code session running on the Omen, not just this conversation |
+| 2026-07-15 | Added a Claude Code activity profile (`build_activity_profile()` in `nova_usage_logger.py`, `POST`/`GET /activity-profile` in `nova_api.py`, `system/claude_activity_profile` added to `nova_state.py`'s `KNOWN_ENTITIES`) — updated Sections 1, 2 & 7; fixed a stale doc claim in the same paragraph (push target said "defaults to `localhost:8000`", real default is the Omen's Tailscale address, `NOVA_API_URL`) | Groundwork for `86bawpvzz`'s autonomous-dispatch dual-fuel design (subscription auth by default, fall back to a funded metered key once usage headroom gets low) — needs a real hour-of-day/day-of-week histogram of when Marvin is actually away from Claude Code, not a guessed reserve percentage. Checked first whether claude.ai chat activity could be included too: confirmed against Anthropic's own Usage/Cost and Enterprise Analytics API docs that chat-activity timing requires a Claude Enterprise plan, not available on a personal subscription — so the profile is deliberately Claude Code only, documented as a real limitation rather than silently scoped down. Windowed to the last 60 days (not full history) so the profile reflects current schedule, not stale habits; a separate full re-scan from the existing daily-cost aggregation (not merged into one pass) to keep the new, lower-stakes feature's code path independent from the existing load-bearing billing numbers — confirmed cheap given the real transcript corpus size (56 files, ~43MB) |
 
 ---
 

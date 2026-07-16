@@ -1,4 +1,4 @@
-# Nova Usage Logger — local Claude Code usage/cost history tracker.
+# Nova Usage Logger — local Claude Code usage/cost history + activity-profile tracker.
 #
 # Scans every local Claude Code session transcript (~/.claude/projects/**/*.jsonl,
 # across ALL projects, since usage draws from one account-wide subscription pool,
@@ -10,6 +10,15 @@
 # Built for the usage-history-baseline component of 86bawx7vj (headless Nova
 # coding runner) — no live quota-forecast API exists for Claude Code, so this is
 # the self-tracked substitute the task calls for.
+#
+# Also builds a second derived artifact from the same transcripts: an hour-of-day
+# x day-of-week activity histogram (see build_activity_profile()), windowed to
+# the last ACTIVITY_PROFILE_WINDOW_DAYS days. This is groundwork for the
+# autonomous-dispatch dual-fuel design (86bawpvzz) — finding genuine "Marvin is
+# away from Claude Code" windows instead of guessing a fixed reserve percentage.
+# claude.ai chat activity isn't included — that data isn't accessible without a
+# Claude Enterprise plan (checked directly against Anthropic's Usage/Cost and
+# Enterprise Analytics API docs), so Claude Code activity is the realistic proxy.
 
 import json
 import os
@@ -18,13 +27,29 @@ import sys
 import urllib.error
 import urllib.request
 from collections import defaultdict
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
+
+# Windows consoles default to cp1252, which can't encode the em-dash in this
+# script's printed summaries — a recurring gotcha in this repo (nova_benchmark.py,
+# browser_hands). Reconfigure stdout to UTF-8 rather than avoid the character.
+sys.stdout.reconfigure(encoding="utf-8")
 
 # ── Constants ──
 
 PROJECTS_DIR = Path.home() / ".claude" / "projects"
 OUTPUT_PATH = Path(__file__).resolve().parent / "logs" / "claude_usage_history.json"
+ACTIVITY_PROFILE_OUTPUT_PATH = Path(__file__).resolve().parent / "logs" / "claude_activity_profile.json"
+
+# How far back the activity profile looks when bucketing messages by local
+# hour-of-day/day-of-week. Windowed (not full-history) on purpose — the
+# profile answers "what does Marvin's *current* schedule look like" for
+# autonomous-dispatch idle-window detection, and old data would dilute a
+# real schedule shift (job change, new sleep pattern) for months. 60 days
+# gives ~8-9 samples per weekday/hour cell, enough to separate signal from
+# single-day noise.
+ACTIVITY_PROFILE_WINDOW_DAYS = 60
 
 # Where to push this machine's daily aggregate for cross-machine centralization
 # (see nova_api.py's POST /usage-history). Defaults to the Omen's permanent
@@ -66,8 +91,25 @@ PRICING_PER_MILLION_TOKENS = {
 # pricing gaps.
 NON_BILLABLE_MODEL_MARKERS = {"<synthetic>"}
 
+# Matches datetime.weekday()'s convention (Monday=0..Sunday=6), used to label
+# build_activity_profile()'s printed summary.
+WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
 
 # ── Helpers ──
+
+
+def parse_local_datetime(timestamp: str) -> datetime:
+    """
+    Parse a Claude Code transcript's UTC ISO timestamp and convert it to this
+    machine's local time zone, so hour-of-day/day-of-week bucketing reflects
+    wall-clock activity rather than UTC. Each machine's own OS timezone
+    setting determines its "local" — if a headless machine is left on UTC,
+    its own activity profile shifts accordingly (only matters for a machine
+    whose own Claude Code sessions get logged here, not for merged/pushed
+    data from elsewhere).
+    """
+    return datetime.fromisoformat(timestamp.replace("Z", "+00:00")).astimezone()
 
 def normalize_model_id(model: str) -> str:
     """
@@ -137,9 +179,12 @@ def find_transcript_files() -> list[Path]:
 
 def iter_usage_entries(transcript_path: Path):
     """
-    Yield (date_string, model, usage_dict) for every assistant message with
-    real token usage in one transcript file. Skips malformed lines and
-    non-usage-carrying entries rather than failing the whole file.
+    Yield (timestamp_string, model, usage_dict) for every assistant message
+    with real token usage in one transcript file. Skips malformed lines and
+    non-usage-carrying entries rather than failing the whole file. Yields the
+    raw UTC ISO timestamp string — callers slice/parse it as needed (e.g.
+    build_daily_usage_history() takes the [:10] date prefix directly;
+    build_activity_profile() parses it into local hour/weekday).
     """
     with open(transcript_path, "r", encoding="utf-8") as f:
         for line in f:
@@ -161,7 +206,7 @@ def iter_usage_entries(transcript_path: Path):
             if not usage or not model or model in NON_BILLABLE_MODEL_MARKERS:
                 continue
 
-            yield timestamp[:10], model, usage
+            yield timestamp, model, usage
 
 
 # ── Core ──
@@ -181,7 +226,8 @@ def build_daily_usage_history() -> dict:
     })
 
     for transcript_path in find_transcript_files():
-        for entry_date, model, usage in iter_usage_entries(transcript_path):
+        for timestamp, model, usage in iter_usage_entries(transcript_path):
+            entry_date = timestamp[:10]
             day = daily[entry_date]
             day["input_tokens"] += usage.get("input_tokens", 0)
             day["output_tokens"] += usage.get("output_tokens", 0)
@@ -232,6 +278,84 @@ def push_daily_usage_history(history: dict) -> bool:
         return False
 
 
+def build_activity_profile() -> dict:
+    """
+    Full re-scan of every local transcript (separate from
+    build_daily_usage_history()'s scan — keeps this newer, lower-stakes
+    feature's code path independent from the existing cost/billing numbers),
+    aggregated into a 7x24 grid of message counts by local weekday and hour.
+    Windowed to the last ACTIVITY_PROFILE_WINDOW_DAYS days so the profile
+    reflects Marvin's current schedule rather than being diluted by stale
+    history. counts[weekday][hour] follows datetime.weekday() (Monday=0).
+    """
+    counts = [[0] * 24 for _ in range(7)]
+    total_messages = 0
+    window_end = datetime.now().astimezone()
+    window_start = window_end - timedelta(days=ACTIVITY_PROFILE_WINDOW_DAYS)
+
+    for transcript_path in find_transcript_files():
+        for timestamp, _model, _usage in iter_usage_entries(transcript_path):
+            local_dt = parse_local_datetime(timestamp)
+            if local_dt < window_start:
+                continue
+            counts[local_dt.weekday()][local_dt.hour] += 1
+            total_messages += 1
+
+    return {
+        "window_days": ACTIVITY_PROFILE_WINDOW_DAYS,
+        "window_start": window_start.isoformat(timespec="seconds"),
+        "window_end": window_end.isoformat(timespec="seconds"),
+        "total_messages": total_messages,
+        "counts": counts,
+    }
+
+
+def write_activity_profile(profile: dict) -> None:
+    """Write the activity profile to logs/claude_activity_profile.json, fully overwriting any prior contents."""
+    ACTIVITY_PROFILE_OUTPUT_PATH.parent.mkdir(exist_ok=True)
+    with open(ACTIVITY_PROFILE_OUTPUT_PATH, "w", encoding="utf-8") as f:
+        json.dump(profile, f, indent=2)
+
+
+def push_activity_profile(profile: dict) -> bool:
+    """
+    Push this machine's activity profile to nova_api.py's POST
+    /activity-profile for cross-machine centralization. Returns True on
+    success, False on any failure — never raises, mirroring
+    push_daily_usage_history()'s failure handling.
+    """
+    payload = json.dumps({"source_machine": SOURCE_MACHINE, "activity_profile": profile}).encode("utf-8")
+    request = urllib.request.Request(
+        f"{NOVA_API_URL}/activity-profile",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            response.read()
+        return True
+    except (urllib.error.URLError, urllib.error.HTTPError) as e:
+        print(f"Push to {NOVA_API_URL}/activity-profile failed (local write still succeeded): {e}")
+        return False
+
+
+def summarize_quietest_hours(profile: dict, top_n: int = 5) -> list[tuple[str, int, int]]:
+    """
+    Return the top_n (weekday_name, hour, count) cells with the lowest
+    message counts in the activity profile — the real idle windows the
+    autonomous-dispatch design needs, instead of a guessed reserve
+    percentage. Ties broken by weekday/hour order for stable output.
+    """
+    cells = [
+        (WEEKDAY_NAMES[weekday], hour, profile["counts"][weekday][hour])
+        for weekday in range(7)
+        for hour in range(24)
+    ]
+    cells.sort(key=lambda cell: cell[2])
+    return cells[:top_n]
+
+
 # ── Main ──
 
 if __name__ == "__main__":
@@ -246,6 +370,19 @@ if __name__ == "__main__":
             f"{day['cache_read_tokens']:,} cache-read tokens)"
         )
 
+    profile = build_activity_profile()
+    write_activity_profile(profile)
+
+    print(
+        f"\nWrote a {profile['window_days']}-day activity profile "
+        f"({profile['total_messages']:,} messages) to {ACTIVITY_PROFILE_OUTPUT_PATH}"
+    )
+    print("  Quietest weekday/hour blocks (real idle-window candidates):")
+    for weekday_name, hour, count in summarize_quietest_hours(profile):
+        print(f"    {weekday_name} {hour:02d}:00 — {count} message(s)")
+
     if "--push" in sys.argv:
         if push_daily_usage_history(history):
-            print(f"Pushed as '{SOURCE_MACHINE}' to {NOVA_API_URL}/usage-history")
+            print(f"Pushed usage history as '{SOURCE_MACHINE}' to {NOVA_API_URL}/usage-history")
+        if push_activity_profile(profile):
+            print(f"Pushed activity profile as '{SOURCE_MACHINE}' to {NOVA_API_URL}/activity-profile")
