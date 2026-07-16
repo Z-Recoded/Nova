@@ -46,4 +46,5 @@ IGNORE_PATTERNS = [
     "ingest_manifest.json",
     "nova_graph.json",   # structured graph data — not prose
     "graphify-out",      # graphify's own derived graph/wiki output — machine-generated, not knowledge
+    ".claude",           # Claude Code config dirs (settings.json etc.) — tooling config, not knowledge
 ]
