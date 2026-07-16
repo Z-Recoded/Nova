@@ -9,11 +9,18 @@
 
 import os
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import httpx
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path="C:/Nova/.env")
+# Resolved relative to this file's own location, not a hardcoded Windows
+# path — the same recurring bug class already fixed twice elsewhere in
+# this repo (nova_orchestrator.py's dotenv path, nova_api.py's GRAPH_PATH)
+# silently breaks anything reading .env on Linux otherwise. Found live
+# 2026-07-16 running nova_scheduled_dispatch.py on the Omen for the first
+# time — this module had never run natively there before.
+load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
 
 # ── Constants / config ──────────────────────────────────────────
 
@@ -46,7 +53,8 @@ def _api_key() -> str:
     if not key:
         raise RuntimeError(
             "CLICKUP_API_KEY environment variable is not set. "
-            "Add it to C:/Nova/.env (ClickUp Settings -> Apps -> API Token)."
+            "Add it to this machine's .env, next to this script "
+            "(ClickUp Settings -> Apps -> API Token)."
         )
     return key
 
