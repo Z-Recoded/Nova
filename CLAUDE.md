@@ -720,21 +720,33 @@ query → get_context_budget() → ranked filenames → Chroma $in filter → ch
                               unfiltered Chroma search → chunks
 ```
 
-### Known At-Risk Character Pairs (embedding-distance analysis, 2026-07-12)
+### Known At-Risk Character Pairs (embedding-distance analysis, re-run 2026-07-16)
 Real validation that `/embedding-viz` (Section 1/2, `86bawjg14`) actually predicts blending,
 not just looks interesting: computed cosine distance between each character's chunk-embedding
 centroid, ranked closest pairs, cross-referenced against real blend events in
-`logs/training_flags.jsonl`. **The two closest pairs by embedding distance are exactly the two
-most frequent real blend pairs** — Helel↔Luci (distance 0.166, closest overall, 4 real blend
-events) and Null↔Nullius (distance 0.193, 2nd closest, **9 real events** — the single most
-common blend). Beat↔Rhythm and Aseir↔Helel (both mid-pack close) also each had a real event.
+`logs/training_flags.jsonl` (`sources_mixed` filtered to `CHARACTER_FILES`). **The two closest
+pairs by embedding distance are exactly the two most frequent real blend pairs** — Helel↔Luci
+(distance 0.124, closest overall, 4 real blend events) and Null↔Nullius (distance 0.134, 2nd
+closest, **9 real events** — the single most common blend). Beat↔Rhythm (0.209, #3) and
+Aseir↔Helel (0.275, #6) also each had a real event.
 
-**Watch list — close in embedding space, no blend event yet, but worth monitoring:** Helel↔Raven
-(0.278), Aseir↔Luci (0.285), Fatale Wildman↔Marisol (0.303), Aseir↔Raven (0.356). If a future
-blend event involves any of these pairs, that's expected, not a new mystery — re-run the
-embedding-distance analysis (see `nova_embedding_viz.py`, or query `/embedding-viz` directly)
-before assuming it's a new/unrelated bug. Tracked as a watch item, not active work, in
-ClickUp `86bawnqdp`.
+**Numbers re-run after the 2026-07-16 token-aware re-chunk (479→1989 chunks, Section 5 / change
+log):** the correlation held cleanly — same top-2 pairs, same watch-list neighborhood — while all
+distances tightened (Helel↔Luci 0.166→0.124, Null↔Nullius 0.193→0.134), as expected from cleaner
+centroids once chunks were no longer truncated at embed time. This is real evidence the re-chunk
+didn't disturb the character-cluster structure, only sharpened it.
+
+**One honest exception found on re-run:** Aseir↔Beat has **2 real blend events** but is *not* among
+the closest pairs by centroid distance — a tail case where embedding proximity under-predicts a
+real blend. So the "closest ⇒ blends" correlation is strong for the top pairs, not perfect for
+low-frequency ones.
+
+**Watch list — close in embedding space, no blend event yet, but worth monitoring:** Aseir↔Luci
+(0.256), Fatale Wildman↔Marisol (0.263), Helel↔Raven (0.289), Aseir↔Raven (0.298). Also newly
+close on the re-chunk: Marisol↔Null (0.286), Fatale Wildman↔Null (0.287). If a future blend event
+involves any of these, that's expected, not a new mystery — re-run the embedding-distance analysis
+(the method above, or query `/embedding-viz` directly with `?refresh=1`) before assuming it's a
+new/unrelated bug. Tracked as a watch item, not active work, in ClickUp `86bawnqdp`.
 
 ---
 
