@@ -45,4 +45,5 @@ IGNORE_PATTERNS = [
     "history.json",      # conversation history — changes constantly
     "ingest_manifest.json",
     "nova_graph.json",   # structured graph data — not prose
+    "graphify-out",      # graphify's own derived graph/wiki output — machine-generated, not knowledge
 ]
