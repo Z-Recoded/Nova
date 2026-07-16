@@ -41,7 +41,8 @@ OMEN_REPO_PATH = "/home/marvinroyal5/nova"
 
 SSH_TIMEOUT_SECONDS = 30
 RESTART_TIMEOUT_SECONDS = 30
-POST_RESTART_SETTLE_SECONDS = 3  # systemd needs a moment before the new process is actually listening
+POST_RESTART_SETTLE_SECONDS = 3  # brief pause so the probe doesn't catch the just-stopped old process's socket
+STARTUP_TIMEOUT_SECONDS = 45  # nova-api's import chain loads the embedding model (~6-17s), so poll until up rather than probing once
 TCP_PROBE_TIMEOUT_SECONDS = 5
 
 NOVA_API_PORT = 8001  # CLAUDE.md Section 2 — 8001 on the Omen specifically, not 8000 (port conflict with Chroma)
@@ -132,18 +133,31 @@ def restart_services() -> dict:
     return {"success": True, "per_unit": results}
 
 
+def _wait_until_listening(host: str, port: int, timeout: int) -> bool:
+    """Poll a port until it accepts a connection or the timeout elapses. Returns True as soon as it's up, so a fast restart isn't penalized and a slow one isn't falsely failed."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if _tcp_reachable(host, port):
+            return True
+        time.sleep(1)
+    return False
+
+
 def verify_services_listening() -> dict:
     """
     Confirm both services are accepting TCP connections again after the
-    restart. This confirms "restarted and listening," not "returns correct
-    RAG answers" — that deeper functional check is nova_chroma_omen_check.py's
-    job, not this script's (see CLAUDE.md's "reachable != functionally
-    correct" lesson from the earlier Omen deploy incident).
+    restart. Polls up to STARTUP_TIMEOUT_SECONDS rather than probing once,
+    because nova-api's startup loads the embedding model (~6-17s) and a
+    single fixed-delay probe races it into a false "down" report. This
+    confirms "restarted and listening," not "returns correct RAG answers" —
+    that deeper functional check is nova_chroma_omen_check.py's job, not this
+    script's (see CLAUDE.md's "reachable != functionally correct" lesson).
     """
+    # Brief settle so we don't catch the just-stopped old process's socket.
     time.sleep(POST_RESTART_SETTLE_SECONDS)
     return {
-        "nova_api_listening": _tcp_reachable(OMEN_HOST, NOVA_API_PORT),
-        "nova_chroma_listening": _tcp_reachable(OMEN_HOST, NOVA_CHROMA_PORT),
+        "nova_api_listening": _wait_until_listening(OMEN_HOST, NOVA_API_PORT, STARTUP_TIMEOUT_SECONDS),
+        "nova_chroma_listening": _wait_until_listening(OMEN_HOST, NOVA_CHROMA_PORT, STARTUP_TIMEOUT_SECONDS),
     }
 
 
