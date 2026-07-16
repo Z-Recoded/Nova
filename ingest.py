@@ -46,9 +46,19 @@ collection = client.get_or_create_collection(
     name="nova_memory",
     embedding_function=embedding_fn
 )
-# Same tokenizer the embedder uses — loaded once so chunk_text() can size
-# chunks in real tokens instead of guessing from word counts.
-tokenizer = AutoTokenizer.from_pretrained(EMBEDDING_MODEL_NAME)
+# Same tokenizer the embedder uses, so chunk_text() can size chunks in real
+# tokens. Loaded lazily (not at import) so merely importing ingest.py — which
+# nova_api.py does for its /ingest route — doesn't pay the tokenizer load or
+# pull in a startup-time network dependency on the HF Hub; only actual
+# ingestion (chunk_text/content_token_budget) needs it.
+_tokenizer = None
+
+def get_tokenizer():
+    """Load the embedder's tokenizer on first use and cache it for reuse."""
+    global _tokenizer
+    if _tokenizer is None:
+        _tokenizer = AutoTokenizer.from_pretrained(EMBEDDING_MODEL_NAME)
+    return _tokenizer
 
 # ── Manifest (tracks last-modified times) ─────────────────────
 def load_manifest() -> dict:
@@ -92,7 +102,7 @@ def content_token_budget(filename):
     depends on the filename's length.
     """
     prefix = f"[{filename}]\n"
-    prefix_tokens = len(tokenizer.encode(prefix, add_special_tokens=True))
+    prefix_tokens = len(get_tokenizer().encode(prefix, add_special_tokens=True))
     return EMBEDDING_MAX_TOKENS - prefix_tokens - BOUNDARY_SAFETY_TOKENS
 
 def chunk_text(text, max_tokens, overlap=CHUNK_OVERLAP_TOKENS):
@@ -105,7 +115,7 @@ def chunk_text(text, max_tokens, overlap=CHUNK_OVERLAP_TOKENS):
     wikilinks) is preserved instead of being flattened by ' '.join().
     max_tokens is the per-file content budget from content_token_budget().
     """
-    encoding = tokenizer(text, add_special_tokens=False, return_offsets_mapping=True)
+    encoding = get_tokenizer()(text, add_special_tokens=False, return_offsets_mapping=True)
     offsets = encoding["offset_mapping"]
     if not offsets:
         return []
