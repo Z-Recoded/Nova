@@ -44,6 +44,7 @@
 # metered key, never toward assumed-idle. See choose_fuel_source().
 
 import argparse
+import base64
 import json
 import os
 import shlex
@@ -84,6 +85,124 @@ IDLE_THRESHOLD_MESSAGES = 0
 # different source-machine key (e.g. "nova") if ever logged there, and
 # must never be treated as a human-activity signal.
 INTERACTIVE_SOURCE_MACHINE = "zeed"
+
+# Runs on the OMEN (via SSH, right after a dispatch) to convert that
+# session's own Claude Code transcript into agent_log.jsonl-shaped turn
+# entries. Exists because headless `claude -p` sessions never went through
+# nova_orchestrator.py's in-process turn loop, so none of this data was
+# reaching the training corpus a future Qwen3 8B fine-tune needs (found
+# 2026-07-16 while checking real progress toward Phase 3.5's swap trigger —
+# the whole point of proving this dispatch mechanism was to grow that
+# corpus, and it wasn't wired in at all). Session transcripts under
+# ~/.claude/projects/**/<session_id>.jsonl already carry everything
+# _log_agent_turn() needs — message.model, .stop_reason, .usage, tool_use
+# content blocks — plus gitBranch/slug per line, so no reconstruction is
+# needed, just extraction. Runs as a standalone script (not importing this
+# repo's own modules) since it executes on the remote Python, which may not
+# have this repo's dependencies installed for a bare `python3` call.
+_AGENT_LOG_CONVERTER_SCRIPT = """
+import glob, json, os, sys, base64
+
+session_id = sys.argv[1]
+task_description = base64.b64decode(sys.argv[2]).decode("utf-8")
+repo_path = os.path.expanduser("~/nova")
+projects_glob = os.path.join(os.path.expanduser("~/.claude/projects"), "**", session_id + ".jsonl")
+matches = glob.glob(projects_glob, recursive=True)
+if not matches:
+    print(json.dumps({"converted": 0, "error": "transcript not found"}))
+    sys.exit(0)
+
+entries = []
+turn = 0
+branch = None
+slug = None
+with open(matches[0], "r", encoding="utf-8") as f:
+    for line in f:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            d = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if d.get("type") != "assistant":
+            continue
+        message = d.get("message") or {}
+        usage = message.get("usage") or {}
+        turn += 1
+        branch = d.get("gitBranch") or branch
+        slug = d.get("slug") or slug
+        tool_calls = [
+            {"name": block.get("name"), "input": block.get("input")}
+            for block in (message.get("content") or [])
+            if block.get("type") == "tool_use"
+        ]
+        entries.append({
+            "timestamp": d.get("timestamp"),
+            "task_slug": slug,
+            "branch": branch,
+            "turn": turn,
+            "task": task_description,
+            "skill_category": None,
+            "skill_version": None,
+            "stop_reason": message.get("stop_reason"),
+            "tool_calls": tool_calls,
+            "input_tokens": usage.get("input_tokens"),
+            "output_tokens": usage.get("output_tokens"),
+            "cache_creation_input_tokens": usage.get("cache_creation_input_tokens"),
+            "cache_read_input_tokens": usage.get("cache_read_input_tokens"),
+            "model": message.get("model"),
+            "source": "headless_dispatch",
+            "session_id": session_id,
+        })
+
+os.makedirs(os.path.join(repo_path, "logs"), exist_ok=True)
+with open(os.path.join(repo_path, "logs", "agent_log.jsonl"), "a", encoding="utf-8") as f:
+    for e in entries:
+        f.write(json.dumps(e, ensure_ascii=False) + "\\n")
+
+print(json.dumps({"converted": len(entries), "branch": branch, "transcript_path": matches[0]}))
+"""
+
+
+def _ingest_transcript_into_agent_log(session_id: str, task_description: str) -> dict:
+    """
+    Convert one headless dispatch's Claude Code transcript into
+    agent_log.jsonl-shaped turn entries and append them to the Omen's own
+    logs/agent_log.jsonl — via SSH, since the transcript only exists on the
+    Omen regardless of which machine dispatch_headless_task() was called
+    from. Never raises: a failure here must not take down a dispatch that
+    already succeeded at its real job. Returns {"converted": N} on success,
+    or {"converted": 0, "error": "..."} if the transcript couldn't be found
+    or converted.
+
+    Verified live against a real dispatch transcript (2026-07-16, the
+    86baux7bb Chonkie eval): 36/36 turns converted correctly, tool_calls and
+    token counts matched the raw transcript exactly. One known caveat found
+    during that verification: the "branch" field comes from the transcript's
+    own gitBranch metadata, which reported "master" for a --worktree session
+    rather than the worktree's real branch — task_slug (from the
+    transcript's own "slug" field) is the reliable per-session identifier,
+    not branch.
+    """
+    encoded_script = base64.b64encode(_AGENT_LOG_CONVERTER_SCRIPT.encode("utf-8")).decode("ascii")
+    encoded_task = base64.b64encode(task_description.encode("utf-8")).decode("ascii")
+    remote_command = (
+        f'python3 -c {shlex.quote("import base64; exec(base64.b64decode(" + repr(encoded_script) + ").decode())")} '
+        f"{shlex.quote(session_id)} {shlex.quote(encoded_task)}"
+    )
+    try:
+        result = subprocess.run(
+            ["ssh", f"{OMEN_USER}@{OMEN_HOST}", remote_command],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if result.returncode != 0:
+            return {"converted": 0, "error": f"converter exited {result.returncode}: {result.stderr.strip()}"}
+        return json.loads(result.stdout.strip().splitlines()[-1])
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, IndexError) as e:
+        return {"converted": 0, "error": f"{type(e).__name__}: {e}"}
 
 
 def _get_activity_count(now: datetime) -> Optional[int]:
@@ -256,6 +375,18 @@ def dispatch_headless_task(
         "num_turns": result.get("num_turns"),
     }
     dispatch_result["escalation"] = check_escalation(dispatch_result)
+
+    # Feed this session's real turn-level data into the same training corpus
+    # nova_orchestrator.py's interactive loop writes to (agent_log.jsonl) —
+    # a real round-trip happened (session_id present) whether the task
+    # itself succeeded or not, and a discarded/failed run's tool-call
+    # telemetry is still real data. Non-fatal: a conversion failure must
+    # never take down a dispatch that already completed its real job.
+    if dispatch_result["session_id"]:
+        dispatch_result["agent_log_ingest"] = _ingest_transcript_into_agent_log(
+            dispatch_result["session_id"], task_description
+        )
+
     return dispatch_result
 
 
