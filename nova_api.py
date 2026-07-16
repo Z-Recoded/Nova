@@ -27,6 +27,7 @@ import json
 import os
 import time
 import uuid
+from datetime import datetime
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
@@ -112,6 +113,11 @@ class UsageHistoryPushRequest(BaseModel):
 class ActivityProfilePushRequest(BaseModel):
     source_machine: str
     activity_profile: dict
+
+
+class DispatchPauseRequest(BaseModel):
+    paused: bool
+    reason: Optional[str] = None
 
 
 # ── Routes ─────────────────────────────────────────────────────
@@ -439,6 +445,43 @@ def push_activity_profile(req: ActivityProfilePushRequest):
 def get_activity_profile():
     """Return the merged Claude Code activity profile across every machine that has pushed to it."""
     return get_state("system", "claude_activity_profile") or {"_note": "No activity profile pushed yet."}
+
+
+# ── Headless-dispatch pause switch (2026-07-16 cross-machine fix) ──
+
+@app.post("/dispatch-pause")
+def set_dispatch_pause_route(req: DispatchPauseRequest):
+    """
+    Set the headless-dispatch pause switch in nova_state.db
+    (system/dispatch_pause) — always the Omen's own copy, regardless of
+    which machine calls this route. nova_escalation.py's
+    is_dispatch_paused()/set_dispatch_pause() call this over HTTP instead
+    of importing nova_state.py directly, so the switch is visible
+    identically whether checked from the Aero or natively on the Omen.
+    Fixes a real bug: nova_state.py's DB_PATH is a hardcoded Windows path
+    that silently resolved to a disconnected file when read on Linux,
+    making a pause set from the Aero invisible to anything checking it on
+    the Omen.
+    """
+    try:
+        data = {
+            "paused": req.paused,
+            "reason": req.reason,
+            "paused_at": datetime.now().isoformat(timespec="seconds") if req.paused else None,
+        }
+        write_state("system", "dispatch_pause", data)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/dispatch-pause")
+def get_dispatch_pause_route():
+    """Return the current headless-dispatch pause state, or the honest 'never set' default."""
+    state = get_state("system", "dispatch_pause")
+    if state is None:
+        return {"paused": False}
+    return state
 
 
 # ── Nova Log — Health dashboard ────────────────────────────────

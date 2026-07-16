@@ -172,7 +172,20 @@ Nova v0.1 is operational. The following are built and validated:
   since no Controller UI exists yet. Verified live 2026-07-14: a real
   dispatch was blocked cleanly while paused (no SSH call fired), then
   fired normally end-to-end once resumed, returning a real
-  `"escalation": {"escalation_needed": false}` key
+  `"escalation": {"escalation_needed": false}` key. **Cross-machine fix
+  (2026-07-16):** `is_dispatch_paused()`/`set_dispatch_pause()` used to
+  import `nova_state.py` directly — broke silently the moment anything
+  checked pause state natively on the Omen (`nova_scheduled_dispatch.py`
+  below), since `nova_state.py`'s `DB_PATH` is a hardcoded Windows path
+  that resolves to a disconnected file on Linux (confirmed live: found
+  the Omen's own accidental copy at
+  `/home/marvinroyal5/nova/C:/Nova/nova_state.db`, invisible to a pause
+  set from the Aero). Fixed by routing both functions through the Omen's
+  own `nova_api.py` (new `POST`/`GET /dispatch-pause`) instead — same
+  canonical-FastAPI-layer pattern the activity profile already uses.
+  `is_dispatch_paused()` fails toward `paused=True` on any network error;
+  `set_dispatch_pause()` does not fail silently, since a pause Marvin
+  explicitly requests needs to be visibly confirmed, not swallowed
 - `nova_omen_sync.py` — one-command sync for the Omen's MAIN checkout
   (distinct from `nova_omen_dispatch.py`'s worktree path above, which
   already self-syncs by fetching fresh from origin every run). Collapses
@@ -211,9 +224,49 @@ Nova v0.1 is operational. The following are built and validated:
   literally named "gate — do before further self-hosting work" with no
   enforced ClickUp dependency) aren't encoded as dependencies at all, so
   "ready" here means "not explicitly blocked," not "safe to dispatch
-  unattended." No polling loop or webhook receiver built — nothing calls
-  this on a schedule yet, so one would be speculative against an
-  undecided autonomy model.
+  unattended." **Scheduler wired in (2026-07-16):** `get_ready_tasks()`
+  now also returns each task's `tags`, and new `get_practice_queue_tasks()`
+  filters further to tasks tagged `"autonomy-safe"` on the board — a
+  deliberate, narrow carve-out of the "no auto-picking" rule above, not a
+  reversal: auto-selection only applies within this small, hand-curated
+  subset. Full-backlog auto-selection is still out of scope, still
+  blocked on `86bawpvzz`'s same unresolved trust-boundary question. See
+  `nova_scheduled_dispatch.py` below for the actual cron-fired consumer.
+- `nova_scheduled_dispatch.py` — the real cron entry point for
+  `86bax0exx`'s invocation/monitoring steps, confirmed with Marvin to fire
+  every 2 hours via a **user crontab entry on the Omen** (`crontab -e` as
+  `marvinroyal5`, no `sudo`) — the only viable trigger of three real
+  options considered. Ruled out both of Claude Code's own scheduling
+  tools first, not assumed: `CronCreate` is session-only (dies when the
+  conversation that created it ends) and `RemoteTrigger`/the `schedule`
+  skill bills through the metered Messages API, never touching the
+  Omen's own `claude -p` subscription login — either would have silently
+  defeated the whole dual-fuel design. Picks one task per firing from
+  `nova_task_queue.get_practice_queue_tasks()`, dispatches via the
+  existing, unmodified `nova_omen_dispatch.dispatch_headless_task()` (the
+  Omen SSHes to itself over a new, dedicated no-passphrase `ed25519`
+  keypair, scoped only to this loop — not reusing `id_ed25519_github`,
+  same narrow-scoping discipline). Deliberately does **not** add a
+  "skip SSH when local" branch to `dispatch_headless_task()` — that would
+  be a second, untested code path for exactly the unattended case where
+  proven behavior matters most. Transitions the ClickUp task to
+  `"in progress"` only when the dispatch result carries a real
+  `session_id` (a genuine round-trip happened, whether the task itself
+  succeeded or reported a real blocker) — not keyed off `success`, so a
+  transient SSH/timeout failure naturally retries next cycle instead of
+  getting stuck, and a completed-but-blocked run still leaves `"to do"`
+  for Marvin to review rather than being silently re-picked forever. A
+  simple atomic-lock file (`O_EXCL`, not check-then-write) prevents
+  overlap with a still-running previous firing. Logs every attempt to
+  `logs/scheduled_dispatch_log.jsonl` (no rotation — same accepted,
+  deferred scope as `86barby7t` at this log's much lower volume).
+  **Known, accepted gap:** one task per 2-hour firing bounds the *rate*
+  of new dispatches (max 12/day) but isn't the deferred review-bandwidth
+  backpressure feature (`86bawpvzz` implication #2) — there's no
+  awareness of how many past results are still unreviewed. The real
+  mitigation is that the curated `autonomy-safe` queue is finite and
+  depletes as tasks leave `"to do"`, capping unreviewed pileup at "queue
+  size," not unbounded
 
 ### Phase Roadmap
 - Phase 0    | Foundation             | ✓ Complete
@@ -269,6 +322,7 @@ C:/Nova/
 ├── nova_escalation.py      # Escalation-hook stub + pause-at-will switch for headless dispatch (86bax0exx step 5)
 ├── nova_omen_sync.py       # One-command sync for the Omen's main checkout — git pull, restart nova-api/nova-chroma, verify listening
 ├── nova_task_queue.py      # Readiness detection + task resolution for headless dispatch (86bax0exx steps 1-2)
+├── nova_scheduled_dispatch.py # Cron-fired entry point on the Omen — picks + dispatches one autonomy-safe-tagged task every 2 hours
 ├── nova_board.py           # Terminal CLI for ClickUp board dependency/status maintenance
 ├── nova_clickup_client.py  # ClickUp API client used by nova_board.py and nova_status_digest.py
 ├── nova_status_digest.py   # Writes NOVA_STATUS.md — board state snapshot, diffed run to run
@@ -715,6 +769,8 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | /usage-history | GET | ✓ Working | Return the merged Claude Code usage history across every machine that's pushed to it |
 | /activity-profile | POST | ✓ Working | Merge one machine's Claude Code activity profile (hour-of-day/day-of-week histogram) into nova_state.db (system/claude_activity_profile) — called by nova_usage_logger.py's SessionEnd hook, alongside /usage-history |
 | /activity-profile | GET | ✓ Working | Return the merged Claude Code activity profile across every machine that's pushed to it (no cross-machine summing yet) |
+| /dispatch-pause | POST | ✓ Working | Set the headless-dispatch pause switch in nova_state.db (system/dispatch_pause) — called by nova_escalation.py's set_dispatch_pause(), always executes on the Omen's own copy regardless of caller's machine |
+| /dispatch-pause | GET | ✓ Working | Return the current headless-dispatch pause state — called by nova_escalation.py's is_dispatch_paused() over HTTP instead of a direct nova_state.py import (2026-07-16 cross-machine fix) |
 
 ---
 
@@ -820,6 +876,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-15 | Committed `graphify-out/` (the graphify-built knowledge graph — 623 nodes, 1019 edges, 45 communities) to the repo, added Section 2's "Working Directly on the Omen via SSH" subsection | The graphify CLI was already installed in the Omen's `nova-env` venv, but the graph output had never been committed, so it was unusable there — committing it (minus `.graphify_python`/`.graphify_root`, gitignored as machine-local absolute-path markers that would break graphify on any other checkout) makes it available on both the Omen's main checkout and any fresh headless-dispatch worktree, since both sync via git. Verified live: synced via `nova_omen_sync.py`, then ran a real `graphify query` directly on the Omen and got correct results. The SSH-workflow subsection records the worktree-based git discipline discussed this session (never edit the Omen's main checkout directly; `git worktree add ... origin/master` instead, matching `nova_orchestrator.py`'s own pattern) directly in CLAUDE.md so it's visible to any Claude Code session running on the Omen, not just this conversation |
 | 2026-07-15 | Added a Claude Code activity profile (`build_activity_profile()` in `nova_usage_logger.py`, `POST`/`GET /activity-profile` in `nova_api.py`, `system/claude_activity_profile` added to `nova_state.py`'s `KNOWN_ENTITIES`) — updated Sections 1, 2 & 7; fixed a stale doc claim in the same paragraph (push target said "defaults to `localhost:8000`", real default is the Omen's Tailscale address, `NOVA_API_URL`) | Groundwork for `86bawpvzz`'s autonomous-dispatch dual-fuel design (subscription auth by default, fall back to a funded metered key once usage headroom gets low) — needs a real hour-of-day/day-of-week histogram of when Marvin is actually away from Claude Code, not a guessed reserve percentage. Checked first whether claude.ai chat activity could be included too: confirmed against Anthropic's own Usage/Cost and Enterprise Analytics API docs that chat-activity timing requires a Claude Enterprise plan, not available on a personal subscription — so the profile is deliberately Claude Code only, documented as a real limitation rather than silently scoped down. Windowed to the last 60 days (not full history) so the profile reflects current schedule, not stale habits; a separate full re-scan from the existing daily-cost aggregation (not merged into one pass) to keep the new, lower-stakes feature's code path independent from the existing load-bearing billing numbers — confirmed cheap given the real transcript corpus size (56 files, ~43MB) |
 | 2026-07-16 | Shipped the dual-fuel credential switch for headless Omen dispatch (`choose_fuel_source()`/`_get_activity_count()`/`_build_credential_prefix()` in `nova_omen_dispatch.py`, new `--fuel-source` CLI flag; `tzdata` added to `requirements.txt`) — updated Section 1 | Second and final piece of `86bawpvzz`'s dual-fuel groundwork (after the activity profile above): makes the existing dispatch primitive actually choose between subscription and metered credentials instead of always taking whatever the shell happened to expose. Three decisions confirmed directly with Marvin before building (timezone, idle threshold, fail-safe direction) rather than assumed. Verified live against the real Omen, not just reviewed: `claude auth status` confirmed today's dispatch was already running on the Pro subscription by accident; a real bug surfaced by actually running the code (not just reviewing it) — `zoneinfo.ZoneInfo("America/Chicago")` throws on Windows with no system tz database, fixed with the `tzdata` pip package after confirming with Marvin first since it's a new dependency; a second real finding — `claude -p`'s own `cost_usd` field turned out to be an estimate independent of which credential actually authenticated the call, so the planned "compare cost_usd between paths" verification wouldn't have proven anything — caught before committing to it, replaced with directly observing `ANTHROPIC_API_KEY`'s presence/absence over SSH for each constructed shell prefix (without ever printing the real key, which the auto-mode permission classifier correctly blocked once when a verification command tried to echo a key fragment). Also caught in a Plan-agent review before writing any code: `env -u` must wrap only the `claude` invocation, not `cd` (a shell builtin `env` can't exec); and blanket-`source`-ing `.env` for the metered path would have leaked `CLICKUP_API_KEY`/`RUNPOD_API_KEY` into the headless session's tool-use environment for no reason, since headless `claude -p` uses Claude Code's native Bash tool (confirmed live: no `.mcp.json` registers `nova_tools.py`'s restricted-env wrapper for this path) — fixed by extracting only `ANTHROPIC_API_KEY` via the Omen's own venv + `python-dotenv` instead |
+| 2026-07-16 | Shipped the actual scheduled dispatch trigger — `nova_scheduled_dispatch.py` (new), `nova_task_queue.py`'s `get_practice_queue_tasks()` (tag-filtered on `"autonomy-safe"`), new `POST`/`GET /dispatch-pause` in `nova_api.py`, and a cross-machine fix to `nova_escalation.py`'s pause switch — updated Section 1 & 7; new user crontab entry on the Omen (every 2 hours, no `sudo`) and a dedicated no-passphrase self-SSH keypair, both confirmed live with Marvin before installing | Final piece of `86bax0exx`'s invocation/monitoring steps and the last item from the earlier "still open on 86bawpvzz" list. Ruled out both of Claude Code's own scheduling tools first: `CronCreate` is session-only, `RemoteTrigger`/the `schedule` skill bills through the metered API and never touches the Omen's own subscription login — either would have silently defeated the dual-fuel design, so a real OS-level cron job on the Omen was the only viable option of the three `nova_task_queue.py`'s own docstring already named. **A serious prerequisite bug found during a Plan-agent review, confirmed live before trusting it:** the pause-at-will safety switch — the exact mechanism Marvin asked for so headless dispatch never runs while he's building interactively — silently didn't work cross-machine. `nova_state.py`'s `DB_PATH` is a hardcoded Windows path; checked from the Omen it resolves to a disconnected file, confirmed by finding the Omen's own accidental copy on disk at `/home/marvinroyal5/nova/C:/Nova/nova_state.db`, invisible to a pause set from the Aero. This design was the first thing to check pause state natively on the Omen, so it would have shipped with a safety valve that silently didn't work. Fixed by routing the pause switch through the Omen's own `nova_api.py` instead of a direct `nova_state.py` import — same canonical-FastAPI-layer pattern the activity profile already uses. Two further real findings from the same review: `get_ready_tasks()` needed a `tags` field added (confirmed via repo-wide grep that it has exactly one caller, safe to extend) rather than duplicating its filters in a second function; and the ClickUp status transition needed to key off "did a real round-trip happen" (`session_id` present) rather than `success`, or a transient SSH failure would get stuck in permanent limbo while a genuinely-blocked-but-completed run would get silently re-picked forever. Explicit, deliberate go-ahead requested and given separately for the two irreversible-in-spirit infra steps (new SSH keypair + `authorized_keys` entry, crontab installation) beyond the design approval itself, since those are the actual moment this starts running unattended |
 
 ---
 

@@ -21,11 +21,15 @@
 #    are reusable building blocks; --dispatch still takes an explicit
 #    task_id every time, no auto-selection.
 #
-# No polling loop or webhook receiver here either — nothing calls this on
-# a schedule yet, so building one now would be speculative. Wiring
-# get_ready_tasks() into a real scheduler later (cron, a RemoteTrigger
-# routine, or extending nova_omen_sync.py's manual-trigger pattern) is a
-# follow-up call, not a redesign of this module.
+# Scheduler wired in (2026-07-16): get_ready_tasks() now also carries each
+# task's tags, and get_practice_queue_tasks() filters further to a small,
+# hand-curated subset Marvin explicitly tags "autonomy-safe" on the board.
+# nova_scheduled_dispatch.py is the actual cron-fired entry point (runs on
+# the Omen, the only always-on machine). This is a deliberate, narrow
+# carve-out of the "no auto-picking" rule above, not a reversal of it:
+# auto-selection only ever applies within the curated tagged subset —
+# full-backlog auto-selection is still out of scope, still blocked on the
+# same trust-boundary question 86bawpvzz named.
 
 import argparse
 import json
@@ -35,6 +39,7 @@ from nova_omen_dispatch import dispatch_headless_task
 
 READY_STATUS = "to do"  # no distinct "Ready" status exists on the board
 MIN_SCOPE_CHARS = 80  # heuristic: skip placeholder-thin descriptions
+PRACTICE_QUEUE_TAG = "autonomy-safe"  # confirmed with Marvin, 2026-07-16
 
 
 def get_ready_tasks() -> list[dict]:
@@ -60,9 +65,24 @@ def get_ready_tasks() -> list[dict]:
                 "name": task["name"],
                 "priority": (task.get("priority") or {}).get("priority"),
                 "description_length": len(description),
+                "tags": [tag["name"] for tag in task.get("tags", [])],
             }
         )
     return ready
+
+
+def get_practice_queue_tasks() -> list[dict]:
+    """
+    The curated subset of get_ready_tasks() that's actually safe for
+    nova_scheduled_dispatch.py's cron job to pick without a human in the
+    loop: ready, plus explicitly tagged PRACTICE_QUEUE_TAG on the board.
+    Case-insensitive tag match — cheap defensive move against inconsistent
+    tag casing. Reuses get_ready_tasks() rather than duplicating its
+    filters, so a future readiness-rule change can't silently diverge
+    between the two.
+    """
+    tag = PRACTICE_QUEUE_TAG.lower()
+    return [task for task in get_ready_tasks() if tag in [t.lower() for t in task["tags"]]]
 
 
 def resolve_task_description(task_id: str) -> dict:
