@@ -113,7 +113,42 @@ Nova v0.1 is operational. The following are built and validated:
   (`86bax0wkj`, still not built). Pause-at-will and the escalation-hook
   interface itself now exist, see `nova_escalation.py` below. Never
   merges/deletes its own worktrees, matching `nova_orchestrator.py`'s
-  safety model exactly
+  safety model exactly. **Dual-fuel credential switch (2026-07-16,
+  `86bawpvzz` groundwork):** `dispatch_headless_task()` now picks which
+  credential `claude -p` uses per run via `choose_fuel_source()` — defaults
+  to the Omen's own Claude Code subscription login (confirmed live via
+  `claude auth status`: Pro plan, no `ANTHROPIC_API_KEY` in the shell env)
+  for hours confirmed idle against the real Claude Code activity profile
+  (`/activity-profile`), falls back to the Omen's existing funded metered
+  `ANTHROPIC_API_KEY` otherwise. Three decisions confirmed directly with
+  Marvin rather than assumed: hardcoded `America/Chicago` timezone via
+  stdlib `zoneinfo` (a real bug surfaced live here — Windows has no system
+  IANA tz database, fixed by adding the `tzdata` pip package, confirmed
+  with Marvin first since it's a new dependency), an hour only counts as
+  idle at exactly zero messages across the profile's 60-day window (the
+  strictest option offered), and any missing/ambiguous signal fails toward
+  the metered key, never toward assumed-idle. Only `"zeed"`'s (the Aero's)
+  activity profile counts as the human-activity signal — the Omen's own
+  dispatched-task sessions would land under a different source-machine key
+  if ever logged, and must never be mistaken for Marvin's own usage.
+  Credential handling itself: `env -u ANTHROPIC_API_KEY -u
+  ANTHROPIC_AUTH_TOKEN` immediately before the `claude` invocation for the
+  subscription path (strips at exec time regardless of shell startup
+  state); the metered path extracts only `ANTHROPIC_API_KEY` from `.env`
+  via the Omen's own venv + `python-dotenv` rather than sourcing the whole
+  file — confirmed live that headless `claude -p` uses Claude Code's native
+  Bash tool (no `.mcp.json` registers `nova_tools.py`'s restricted-env
+  wrapper for this path), so a blanket `source .env` would leak
+  `CLICKUP_API_KEY`/`RUNPOD_API_KEY` into every tool call for no reason.
+  **Verified live, both paths for real:** one real dispatch each with
+  `--fuel-source subscription` and `--fuel-source api_key`, both
+  `stop_reason: end_turn`. Found along the way that `claude -p`'s own
+  `cost_usd` field is an estimate independent of which credential actually
+  authenticated the call, not a reliable way to tell the paths apart after
+  the fact — verified the real mechanism instead by directly observing
+  `ANTHROPIC_API_KEY`'s presence/absence over SSH for each constructed
+  shell prefix (subscription: confirmed empty; metered: confirmed present,
+  without ever printing the real key)
 - `nova_escalation.py` — escalation-hook stub + pause-at-will switch for
   headless dispatch, step 5 of `86bax0exx`'s checklist. Its own module
   (not folded into `nova_omen_dispatch.py`), mirroring why
@@ -784,6 +819,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-15 | Shipped the security-cluster's three unblocked tickets: `86baxbrmj` (`nova_tools.py` `run_command` hardening — rejects `cd` outside the worktree, restricts `PATH`/env to explicit allowlists instead of the full inherited system PATH/environment), `86baxbt1x` (`nova_task_queue.py`'s `resolve_task_description()` now delimits the ClickUp description as data, not instructions, with explicit boundary language), and `86baxbrvv` (audited — `.env` confirmed git-ignored and never committed; the env-stripping change above is its practical interim mechanism). Updated Section 2's "Known limitation" block and `nova_orchestrator.py`'s system prompt to match. Checked the other two security tickets against real repo state before building: `86baxbt82` (Controller auth) is genuinely blocked — it depends on `86bax0wkj`/`86baxahn7`, neither built yet — flagged on ClickUp rather than stubbed; `86baxbmh3` is the standing tracker itself, updated via comment, not code | Marvin's stated near-term goal is Nova Controller + headless sessions, gated on security first. Verifying each ticket's real dependencies (this project's standing practice) before starting caught that 2 of 5 tickets in the cluster weren't actually buildable yet — building `86baxbt82` regardless would have produced an auth layer with nothing to gate. `PATH`/env restriction had to preserve two load-bearing exceptions found during exploration: `NOVA_ENV_SCRIPTS_PATH` (every coding sub-agent turn's `python`/`pip` depend on it) and Git Bash's own `bin`/`usr/bin` dirs (needed for `git`/`ls`/`grep`/`cat`, which the sub-agent's own system prompt tells it to use) — a naive worktree-local-only PATH would have broken both |
 | 2026-07-15 | Committed `graphify-out/` (the graphify-built knowledge graph — 623 nodes, 1019 edges, 45 communities) to the repo, added Section 2's "Working Directly on the Omen via SSH" subsection | The graphify CLI was already installed in the Omen's `nova-env` venv, but the graph output had never been committed, so it was unusable there — committing it (minus `.graphify_python`/`.graphify_root`, gitignored as machine-local absolute-path markers that would break graphify on any other checkout) makes it available on both the Omen's main checkout and any fresh headless-dispatch worktree, since both sync via git. Verified live: synced via `nova_omen_sync.py`, then ran a real `graphify query` directly on the Omen and got correct results. The SSH-workflow subsection records the worktree-based git discipline discussed this session (never edit the Omen's main checkout directly; `git worktree add ... origin/master` instead, matching `nova_orchestrator.py`'s own pattern) directly in CLAUDE.md so it's visible to any Claude Code session running on the Omen, not just this conversation |
 | 2026-07-15 | Added a Claude Code activity profile (`build_activity_profile()` in `nova_usage_logger.py`, `POST`/`GET /activity-profile` in `nova_api.py`, `system/claude_activity_profile` added to `nova_state.py`'s `KNOWN_ENTITIES`) — updated Sections 1, 2 & 7; fixed a stale doc claim in the same paragraph (push target said "defaults to `localhost:8000`", real default is the Omen's Tailscale address, `NOVA_API_URL`) | Groundwork for `86bawpvzz`'s autonomous-dispatch dual-fuel design (subscription auth by default, fall back to a funded metered key once usage headroom gets low) — needs a real hour-of-day/day-of-week histogram of when Marvin is actually away from Claude Code, not a guessed reserve percentage. Checked first whether claude.ai chat activity could be included too: confirmed against Anthropic's own Usage/Cost and Enterprise Analytics API docs that chat-activity timing requires a Claude Enterprise plan, not available on a personal subscription — so the profile is deliberately Claude Code only, documented as a real limitation rather than silently scoped down. Windowed to the last 60 days (not full history) so the profile reflects current schedule, not stale habits; a separate full re-scan from the existing daily-cost aggregation (not merged into one pass) to keep the new, lower-stakes feature's code path independent from the existing load-bearing billing numbers — confirmed cheap given the real transcript corpus size (56 files, ~43MB) |
+| 2026-07-16 | Shipped the dual-fuel credential switch for headless Omen dispatch (`choose_fuel_source()`/`_get_activity_count()`/`_build_credential_prefix()` in `nova_omen_dispatch.py`, new `--fuel-source` CLI flag; `tzdata` added to `requirements.txt`) — updated Section 1 | Second and final piece of `86bawpvzz`'s dual-fuel groundwork (after the activity profile above): makes the existing dispatch primitive actually choose between subscription and metered credentials instead of always taking whatever the shell happened to expose. Three decisions confirmed directly with Marvin before building (timezone, idle threshold, fail-safe direction) rather than assumed. Verified live against the real Omen, not just reviewed: `claude auth status` confirmed today's dispatch was already running on the Pro subscription by accident; a real bug surfaced by actually running the code (not just reviewing it) — `zoneinfo.ZoneInfo("America/Chicago")` throws on Windows with no system tz database, fixed with the `tzdata` pip package after confirming with Marvin first since it's a new dependency; a second real finding — `claude -p`'s own `cost_usd` field turned out to be an estimate independent of which credential actually authenticated the call, so the planned "compare cost_usd between paths" verification wouldn't have proven anything — caught before committing to it, replaced with directly observing `ANTHROPIC_API_KEY`'s presence/absence over SSH for each constructed shell prefix (without ever printing the real key, which the auto-mode permission classifier correctly blocked once when a verification command tried to echo a key fragment). Also caught in a Plan-agent review before writing any code: `env -u` must wrap only the `claude` invocation, not `cd` (a shell builtin `env` can't exec); and blanket-`source`-ing `.env` for the metered path would have leaked `CLICKUP_API_KEY`/`RUNPOD_API_KEY` into the headless session's tool-use environment for no reason, since headless `claude -p` uses Claude Code's native Bash tool (confirmed live: no `.mcp.json` registers `nova_tools.py`'s restricted-env wrapper for this path) — fixed by extracting only `ANTHROPIC_API_KEY` via the Omen's own venv + `python-dotenv` instead |
 
 ---
 
