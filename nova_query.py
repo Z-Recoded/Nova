@@ -30,7 +30,20 @@ CHROMA_PORT = 8000
 # behavior as the bare ollama.chat() this replaced. Set OLLAMA_HOST when this
 # file runs somewhere else (e.g. the Omen) so it calls back to the Aero's
 # Ollama instead of trying (and failing) to find one on localhost.
-OLLAMA_HOST = os.environ.get("OLLAMA_HOST")
+#
+# Guard against "0.0.0.0": OLLAMA_HOST doubles as Ollama's own server-bind
+# variable, and on the Aero it's set to "0.0.0.0" so the Omen can reach this
+# machine's Ollama over Tailscale. But "0.0.0.0" is a bind-all address, not a
+# routable connect target, so a local call must NOT use it. Passing host=None
+# doesn't help either -- ollama.Client(host=None) re-reads OLLAMA_HOST from the
+# environment itself and picks the "0.0.0.0" back up. So when the value is
+# missing or a bind-all address, pass an EXPLICIT localhost URL to override the
+# library's env fallback; a real remote host (an IP/URL, e.g. set on the Omen)
+# still passes through unchanged.
+LOCAL_OLLAMA_URL = "http://127.0.0.1:11434"  # ollama's own default connect target
+_raw_ollama_host = os.environ.get("OLLAMA_HOST")
+_host_is_bind_all = _raw_ollama_host == "0.0.0.0" or (_raw_ollama_host or "").startswith("0.0.0.0:")
+OLLAMA_HOST = LOCAL_OLLAMA_URL if (not _raw_ollama_host or _host_is_bind_all) else _raw_ollama_host
 
 # ── Setup ──────────────────────────────────────────────────────
 chroma_client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
