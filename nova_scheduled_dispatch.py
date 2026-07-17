@@ -34,12 +34,19 @@ from datetime import datetime
 from pathlib import Path
 
 from nova_clickup_client import get_task, update_status
+from nova_config import get_max_unreviewed_dispatches, is_review_backpressure_enabled
 from nova_escalation import is_dispatch_paused
 from nova_omen_dispatch import dispatch_headless_task
 from nova_task_queue import get_practice_queue_tasks, resolve_task_description
 
 LOCK_PATH = Path(__file__).resolve().parent / ".scheduled_dispatch.lock"
 LOG_PATH = Path(__file__).resolve().parent / "logs" / "scheduled_dispatch_log.jsonl"
+# Separate from LOG_PATH (the raw per-firing outcome log, written
+# automatically) — this one is only ever written by a human calling
+# record_dispatch_review() by hand, mirroring nova_orchestrator.py's
+# record_task_outcome()/agent_task_outcomes.jsonl split for the interactive
+# path (86bawpvzz implication #2).
+REVIEW_LOG_PATH = Path(__file__).resolve().parent / "logs" / "dispatch_review_log.jsonl"
 
 # Stable-sort key order — unlisted/None priority sorts last, not first.
 PRIORITY_ORDER = ["urgent", "high", "normal", "low"]
@@ -104,6 +111,61 @@ def _log_outcome(entry: dict) -> None:
         f.write(json.dumps(entry) + "\n")
 
 
+def _read_jsonl(path: Path) -> list[dict]:
+    """Read a JSONL file into a list of dicts, silently skipping blank/malformed lines. Empty list if the file doesn't exist yet."""
+    if not path.exists():
+        return []
+    entries = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return entries
+
+
+def record_dispatch_review(task_id: str, outcome: str, note: str = "") -> None:
+    """
+    Record a human review decision for one headless-dispatched ClickUp
+    task (86bawpvzz implication #2). Mirrors nova_orchestrator.py's
+    record_task_outcome() hand-call discipline, but keyed by task_id
+    rather than git branch — scheduled_dispatch_log.jsonl entries don't
+    carry a branch name (dispatch_headless_task() uses Claude Code's own
+    --worktree flag, which manages its own branch internally). Call this
+    by hand after reviewing a dispatched task's actual diff/outcome.
+    """
+    if outcome not in ("merged", "discarded"):
+        raise ValueError(f"outcome must be 'merged' or 'discarded', got '{outcome}'")
+    REVIEW_LOG_PATH.parent.mkdir(exist_ok=True)
+    entry = {
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "task_id": task_id,
+        "outcome": outcome,
+        "note": note,
+    }
+    with open(REVIEW_LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def count_unreviewed_dispatches() -> int:
+    """
+    Unreviewed = a scheduled_dispatch_log.jsonl entry with a real
+    session_id (a genuine round-trip happened, whether the task succeeded
+    or reported a real blocker) whose task_id has no matching entry yet in
+    dispatch_review_log.jsonl. Deliberately the same "session_id present"
+    definition run_scheduled_dispatch() already uses for its own ClickUp
+    status transition, not "success" — a completed-but-blocked run still
+    needs a human review decision, not just a failed one.
+    """
+    dispatched_task_ids = {e["task_id"] for e in _read_jsonl(LOG_PATH) if e.get("session_id") is not None}
+    reviewed_task_ids = {e["task_id"] for e in _read_jsonl(REVIEW_LOG_PATH)}
+    return len(dispatched_task_ids - reviewed_task_ids)
+
+
 def run_scheduled_dispatch() -> dict:
     """
     One cron-firing's worth of work: pause check, lock, pick, dispatch,
@@ -115,6 +177,12 @@ def run_scheduled_dispatch() -> dict:
     pause_state = is_dispatch_paused()
     if pause_state["paused"]:
         return {"status": "paused", "reason": pause_state.get("reason")}
+
+    if is_review_backpressure_enabled():
+        max_unreviewed = get_max_unreviewed_dispatches()
+        unreviewed = count_unreviewed_dispatches()
+        if unreviewed >= max_unreviewed:
+            return {"status": "review_backlog_full", "unreviewed": unreviewed, "max_unreviewed_dispatches": max_unreviewed}
 
     if not _acquire_lock():
         return {"status": "skipped", "reason": "a dispatch is already in progress (lock held by a live process)"}
@@ -163,4 +231,26 @@ def run_scheduled_dispatch() -> dict:
 
 
 if __name__ == "__main__":
-    print(json.dumps(run_scheduled_dispatch(), indent=2))
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Cron-fired scheduled dispatch entry point, plus manual review-tracking commands."
+    )
+    parser.add_argument(
+        "--review",
+        nargs=2,
+        metavar=("TASK_ID", "OUTCOME"),
+        help="Record a review decision for a dispatched task, e.g. --review 86bayjdrh merged",
+    )
+    parser.add_argument("--note", default="", help="Optional note to attach to --review.")
+    parser.add_argument("--unreviewed-count", action="store_true", help="Print the current unreviewed-dispatch count and exit.")
+    args = parser.parse_args()
+
+    if args.review:
+        review_task_id, review_outcome = args.review
+        record_dispatch_review(review_task_id, review_outcome, args.note)
+        print(f"Recorded '{review_outcome}' for {review_task_id}.")
+    elif args.unreviewed_count:
+        print(json.dumps({"unreviewed": count_unreviewed_dispatches()}, indent=2))
+    else:
+        print(json.dumps(run_scheduled_dispatch(), indent=2))

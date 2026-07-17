@@ -11,7 +11,15 @@ import json
 import os
 
 # ── Config ─────────────────────────────────────────────────────
-CONFIG_PATH = "C:/Nova/nova_config.json"
+# Resolved relative to this file's own location, not a hardcoded Windows
+# path — same class of bug already found and fixed twice elsewhere in this
+# project (nova_orchestrator.py's dotenv path, nova_api.py's GRAPH_PATH).
+# Confirmed live 2026-07-16: the old hardcoded "C:/Nova/nova_config.json"
+# silently fell back to DEFAULT_CONFIG on the Omen (nova_scheduled_dispatch.py
+# runs there natively, not over SSH from the Aero) even though the real file
+# already existed in its own checkout — every flag read there was reading a
+# baked-in default, not the real config, with zero error signal.
+CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nova_config.json")
 
 # Safe fallback if nova_config.json is missing or malformed — every augment
 # stays off, which matches Nova's current unaugmented behavior exactly.
@@ -38,6 +46,10 @@ DEFAULT_CONFIG = {
         "enabled": False,
         "routes": {},
         "default_model": "llama3.2",
+    },
+    "scheduled_dispatch": {
+        "review_backpressure_enabled": False,
+        "max_unreviewed_dispatches": 3,
     },
 }
 
@@ -101,6 +113,26 @@ def is_framework_integration_enabled(flag_name: str) -> bool:
 def is_model_routing_enabled() -> bool:
     """True if per-category model routing is on. Independent flag, no shared master switch."""
     return bool(load_config().get("model_routing", {}).get("enabled"))
+
+
+def is_review_backpressure_enabled() -> bool:
+    """
+    True if nova_scheduled_dispatch.py's review-bandwidth cap is on
+    (86bawpvzz implication #2) — independent flag, no shared master switch.
+    Default off, matching every other augment/integration in this file.
+    """
+    return bool(load_config().get("scheduled_dispatch", {}).get("review_backpressure_enabled"))
+
+
+def get_max_unreviewed_dispatches(fallback: int = 3) -> int:
+    """
+    The review-backpressure cap threshold — nova_scheduled_dispatch.py
+    skips picking a new task once this many past dispatches have a real
+    session_id but no matching review decision yet. Falls back to
+    `fallback` if the config value is missing, same pattern as
+    get_routed_model()'s fallback argument.
+    """
+    return load_config().get("scheduled_dispatch", {}).get("max_unreviewed_dispatches", fallback)
 
 
 def get_routed_model(category: str, fallback: str) -> str:
