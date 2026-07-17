@@ -33,7 +33,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from nova_clickup_client import get_task, update_status
+from nova_clickup_client import add_comment, get_task, update_status
 from nova_config import get_max_unreviewed_dispatches, is_review_backpressure_enabled
 from nova_escalation import is_dispatch_paused
 from nova_omen_dispatch import dispatch_headless_task
@@ -151,6 +151,56 @@ def record_dispatch_review(task_id: str, outcome: str, note: str = "") -> None:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
+def _is_clean_outcome(result: dict) -> bool:
+    """
+    True only if a real dispatch happened and finished the way a normal
+    task should: session_id present (a genuine round-trip happened) and
+    success True (claude -p's own result JSON reported stop_reason
+    "end_turn", not is_error). Everything else — infra failure (no
+    session_id at all: SSH/timeout/no-result-JSON), a non-end_turn stop,
+    or an error before dispatch even started (task resolution failure) —
+    is "non-clean" and triggers a ClickUp comment (86bawpvzz implication
+    #6, Layer 1).
+    """
+    return result.get("session_id") is not None and bool(result.get("success"))
+
+
+def _post_non_clean_comment(task_id: str, task_name: str, result: dict, phase: str) -> None:
+    """
+    Post a ClickUp comment describing a non-clean dispatch outcome, so
+    Marvin finds out without reading scheduled_dispatch_log.jsonl on the
+    Omen by hand. Best-effort: a comment-posting failure must not take
+    down a dispatch that already happened — same defensive pattern as the
+    existing ClickUp status-transition try/except in run_scheduled_dispatch().
+    check_escalation() is still a stub (86bax0wkj) — this only reports what
+    the result dict already says, it does not invent stuck-run detection.
+    ClickUp is the only notification channel that works today (confirmed
+    2026-07-16: Open WebUI push doesn't exist, Slack/email need credentials
+    Nova lacks) — Layer 2 (a dashboard tile) and Layer 3 (real push,
+    Langfuse) are deferred, per 86baykvb7's own layered design.
+    """
+    lines = [f"**Autonomous dispatch — non-clean outcome ({phase}): {task_name}**", ""]
+    if result.get("error"):
+        lines.append(f"- error: {result['error']}")
+    if result.get("stop_reason"):
+        lines.append(f"- stop_reason: {result['stop_reason']}")
+    if "session_id" in result:
+        lines.append(f"- session_id: {result.get('session_id')}")
+    if result.get("fuel_source"):
+        lines.append(f"- fuel_source: {result['fuel_source']}")
+    if result.get("cost_usd") is not None:
+        lines.append(f"- cost_usd: {result['cost_usd']}")
+    if result.get("summary"):
+        lines.append(f"- summary: {result['summary']}")
+    lines.append("")
+    lines.append("Posted automatically by nova_scheduled_dispatch.py (86baykvb7 Layer 1).")
+
+    try:
+        add_comment(task_id, "\n".join(lines))
+    except Exception as e:
+        print(f"Failed to post non-clean-outcome comment on {task_id}: {e}")
+
+
 def count_unreviewed_dispatches() -> int:
     """
     Unreviewed = a scheduled_dispatch_log.jsonl entry with a real
@@ -198,7 +248,9 @@ def run_scheduled_dispatch() -> dict:
         try:
             resolved = resolve_task_description(task_id)
         except Exception as e:
-            return {"status": "error", "phase": "resolve", "task_id": task_id, "error": str(e)}
+            error_result = {"status": "error", "phase": "resolve", "task_id": task_id, "error": str(e)}
+            _post_non_clean_comment(task_id, task["name"], error_result, phase="resolve")
+            return error_result
 
         result = dispatch_headless_task(resolved["prompt"])
 
@@ -225,6 +277,10 @@ def run_scheduled_dispatch() -> dict:
             "summary": result.get("summary"),
         }
         _log_outcome(outcome)
+
+        if not _is_clean_outcome(result):
+            _post_non_clean_comment(task_id, task["name"], result, phase="dispatch")
+
         return {"status": "dispatched", **outcome}
     finally:
         _release_lock()

@@ -137,6 +137,11 @@ def create_task(name: str, description: str = "") -> dict:
     )
 
 
+def add_comment(task_id: str, comment_text: str) -> dict:
+    """Post a comment on a task — used for automated status/outcome notifications (e.g. nova_scheduled_dispatch.py's non-clean-outcome alerts, 86baykvb7)."""
+    return _request("POST", f"/task/{task_id}/comment", json={"comment_text": comment_text})
+
+
 # ── House rules (Task Dependency & Status Discipline v1.0) ─────
 
 def _own_blockers(task: dict) -> list[dict]:
