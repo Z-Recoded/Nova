@@ -21,7 +21,11 @@
 #   POST /escalations               → register a new pending escalation (86bax0wkj)
 #   GET  /escalations                → all escalations, pending and resolved
 #   POST /escalations/{id}/answer   → submit Marvin's answer (token-gated), resumes the session in the background
-#   GET  /escalations-ui            → Escalation Answer UI page (HTML)
+#   GET  /escalations-ui            → redirects to /controller (86baxahn7)
+#   GET  /controller                → Nova Controller Feed page (HTML, PWA-installable)
+#   GET  /dispatch-log              → merged dispatch/outcome history (JSON)
+#   GET  /label-queue               → unlabeled tool-call/blend-flag entries (JSON)
+#   POST /label-queue/{kind}/{id}/decide → patch a label decision (token-gated)
 #
 # Run:
 #   cd C:/Nova
@@ -36,7 +40,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Query
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel
 
 from graph_builder import (
@@ -662,9 +666,9 @@ def answer_escalation(
     return {"status": "resuming", "escalation_id": escalation_id}
 
 
-@app.get("/escalations-ui")
-def escalations_ui_page():
-    return FileResponse(ESCALATIONS_HTML_PATH, media_type="text/html")
+# /escalations-ui itself now lives below, in the Nova Controller UX
+# section, as a redirect to /controller (86baxahn7) — the Feed page
+# supersedes this as the real entry point.
 
 
 # ── Task Tiering (86bb01wur) ────────────────────────────────────
@@ -816,6 +820,197 @@ def decide_tier_proposal(
         print(f"Failed to post tier-decision comment on {task_id}: {e}")
 
     return record
+
+
+# ── Nova Controller UX (86baxahn7) ──────────────────────────────
+# The consolidated Feed page superseding /escalations-ui — one scroll
+# merging escalations, tier proposals, dispatch outcomes, and tool-call/
+# blend-flag labeling prompts, per CLAUDE.md's Nova Controller UX
+# subsection. Tutor-prompt and differential-scorer card types are
+# deliberately not built — no nova_tutor*.py/nova_differential*.py file
+# exists anywhere in this repo (confirmed by grep before scoping this).
+
+CONTROLLER_HTML_PATH = os.path.join(os.path.dirname(__file__), "nova_controller.html")
+MANIFEST_PATH = os.path.join(os.path.dirname(__file__), "manifest.json")
+SERVICE_WORKER_PATH = os.path.join(os.path.dirname(__file__), "sw.js")
+ICON_192_PATH = os.path.join(os.path.dirname(__file__), "icon-192.png")
+ICON_512_PATH = os.path.join(os.path.dirname(__file__), "icon-512.png")
+
+SCHEDULED_DISPATCH_LOG_PATH = os.path.join(os.path.dirname(__file__), "logs", "scheduled_dispatch_log.jsonl")
+AGENT_TASK_OUTCOMES_PATH = os.path.join(os.path.dirname(__file__), "logs", "agent_task_outcomes.jsonl")
+TOOL_CALL_LOG_PATH = os.path.join(os.path.dirname(__file__), "logs", "tool_call_log.jsonl")
+TRAINING_FLAGS_PATH = os.path.join(os.path.dirname(__file__), "logs", "training_flags.jsonl")
+
+DEFAULT_LABEL_QUEUE_LIMIT = 50  # keep the page light -- there are 1700+ tool-call entries total
+
+
+def _read_jsonl_file(path: str) -> list[dict]:
+    """Shared JSONL reader — same silently-skip-malformed-lines convention as nova_scheduled_dispatch._read_jsonl()."""
+    if not os.path.exists(path):
+        return []
+    entries = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return entries
+
+
+@app.get("/controller")
+def controller_page():
+    return FileResponse(CONTROLLER_HTML_PATH, media_type="text/html")
+
+
+@app.get("/escalations-ui")
+def escalations_ui_redirect():
+    """
+    /escalations-ui now redirects to /controller -- the Feed page
+    supersedes it as the real Controller entry point (86baxahn7). Kept as
+    a redirect, not removed outright, so any existing bookmark/link still
+    lands somewhere real.
+    """
+    return RedirectResponse(url="/controller")
+
+
+@app.get("/manifest.json")
+def manifest():
+    return FileResponse(MANIFEST_PATH, media_type="application/manifest+json")
+
+
+@app.get("/sw.js")
+def service_worker():
+    return FileResponse(SERVICE_WORKER_PATH, media_type="application/javascript")
+
+
+@app.get("/icon-192.png")
+def icon_192():
+    return FileResponse(ICON_192_PATH, media_type="image/png")
+
+
+@app.get("/icon-512.png")
+def icon_512():
+    return FileResponse(ICON_512_PATH, media_type="image/png")
+
+
+@app.get("/dispatch-log")
+def get_dispatch_log(limit: int = 50):
+    """
+    Merged, sorted view of every real headless-dispatch outcome — backs
+    the Feed's "completed diffs" cards and the Stories rail. Reads
+    scheduled_dispatch_log.jsonl (per-firing outcomes, has phase/
+    fuel_source/cost_usd) and agent_task_outcomes.jsonl (human merge/
+    discard review decisions, keyed by branch not task_id — kept as a
+    separate "kind" rather than force-joined, since they don't share a
+    reliable join key). Most-recent-first, capped to `limit`.
+    """
+    dispatches = [{"kind": "dispatch", **e} for e in _read_jsonl_file(SCHEDULED_DISPATCH_LOG_PATH)]
+    outcomes = [{"kind": "outcome", **e} for e in _read_jsonl_file(AGENT_TASK_OUTCOMES_PATH)]
+    merged = dispatches + outcomes
+    merged.sort(key=lambda e: e.get("timestamp") or "", reverse=True)
+    return {"entries": merged[:limit]}
+
+
+@app.get("/label-queue")
+def get_label_queue(limit: int = DEFAULT_LABEL_QUEUE_LIMIT):
+    """
+    Unlabeled tool-call and blend-flag entries awaiting a human judge-pass
+    — backs the Feed's swipe-labeling cards, the real UX target of
+    86baxahn7 (both fields already exist waiting for exactly this:
+    tool_call_log.jsonl's was_necessary/was_used start null,
+    training_flags.jsonl's correction starts "").
+
+    blend_flag entries have no stable id field in the log itself (unlike
+    tool_call_id for tool calls) -- "id" here is a synthetic
+    "line:<index>:<timestamp>" token, checked again at decide-time so a
+    stale index (the file changed underneath) fails loudly (409) rather
+    than silently patching the wrong entry.
+    """
+    tool_calls = [
+        {"kind": "tool_call", "id": e["tool_call_id"], **e}
+        for e in _read_jsonl_file(TOOL_CALL_LOG_PATH)
+        if e.get("was_necessary") is None
+    ]
+    blend_flags = [
+        {"kind": "blend_flag", "id": f"line:{i}:{e.get('timestamp')}", **e}
+        for i, e in enumerate(_read_jsonl_file(TRAINING_FLAGS_PATH))
+        if e.get("correction") == ""
+    ]
+    merged = tool_calls + blend_flags
+    merged.sort(key=lambda e: e.get("timestamp") or "", reverse=True)
+    return {"entries": merged[:limit]}
+
+
+class LabelDecisionRequest(BaseModel):
+    was_necessary: Optional[bool] = None  # tool_call kind
+    was_used: Optional[bool] = None       # tool_call kind
+    correction: Optional[str] = None      # blend_flag kind
+
+
+@app.post("/label-queue/{kind}/{entry_id:path}/decide")
+def decide_label_queue_entry(
+    kind: str,
+    entry_id: str,
+    req: LabelDecisionRequest,
+    x_nova_escalation_token: Optional[str] = Header(None),
+):
+    """
+    Patch one tool_call_log.jsonl or training_flags.jsonl entry in place —
+    a real judge-pass write, token-gated the same as the tier-decide
+    route. Read-all/rewrite-all, same idiom as nova_corrector.py's
+    load_entries()/save_entries().
+
+    Known, accepted concurrency limitation, stated plainly rather than
+    hidden: tool_call_log.jsonl is actively appended to by this project's
+    own tool-call-logging hook during any live Claude Code session
+    (confirmed live — this very build's own tool calls are in the file).
+    A rewrite-all write here could theoretically race a concurrent append
+    and drop it. Accepted for a personal, single-user, low-frequency
+    (human-triggered) write against a fast-append-but-rarely-truncated
+    log — real file-locking or a move to sqlite is not justified for this
+    risk profile. Matched by id, not position, so at worst a lost append
+    is dropped once, never silently corrupted or misattributed to the
+    wrong entry.
+    """
+    _check_escalation_token(x_nova_escalation_token)
+
+    if kind == "tool_call":
+        entries = _read_jsonl_file(TOOL_CALL_LOG_PATH)
+        match_index = next((i for i, e in enumerate(entries) if e.get("tool_call_id") == entry_id), None)
+        if match_index is None:
+            raise HTTPException(status_code=404, detail=f"No tool_call entry '{entry_id}'")
+        entries[match_index]["was_necessary"] = req.was_necessary
+        entries[match_index]["was_used"] = req.was_used
+        with open(TOOL_CALL_LOG_PATH, "w", encoding="utf-8") as f:
+            for e in entries:
+                f.write(json.dumps(e, ensure_ascii=False) + "\n")
+        return entries[match_index]
+
+    elif kind == "blend_flag":
+        try:
+            _, index_str, expected_timestamp = entry_id.split(":", 2)
+            index = int(index_str)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Malformed blend_flag id '{entry_id}'")
+        entries = _read_jsonl_file(TRAINING_FLAGS_PATH)
+        if index >= len(entries) or entries[index].get("timestamp") != expected_timestamp:
+            raise HTTPException(
+                status_code=409,
+                detail="This entry's position/timestamp no longer matches -- training_flags.jsonl "
+                       "changed since this card was loaded. Reload the queue and try again.",
+            )
+        entries[index]["correction"] = req.correction or ""
+        with open(TRAINING_FLAGS_PATH, "w", encoding="utf-8") as f:
+            for e in entries:
+                f.write(json.dumps(e, ensure_ascii=False) + "\n")
+        return entries[index]
+
+    else:
+        raise HTTPException(status_code=422, detail="kind must be 'tool_call' or 'blend_flag'")
 
 
 # ── Nova Log — Health dashboard ────────────────────────────────

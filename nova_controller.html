@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#111318">
+<title>Nova Controller</title>
+<style>
+  body {
+    font-family: -apple-system, Segoe UI, sans-serif;
+    background: #111318;
+    color: #e6e6e6;
+    max-width: 720px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    -webkit-tap-highlight-color: transparent;
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+  p.subtitle { color: #888; margin-top: 0; margin-bottom: 1.5rem; }
+  #error { color: #e06060; }
+
+  .token-box {
+    background: #1b1e26;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .token-box label { display: block; font-size: 0.8rem; color: #999; margin-bottom: 0.4rem; }
+  .token-box input {
+    background: #111318;
+    color: #e6e6e6;
+    border: 1px solid #2a2e38;
+    border-radius: 4px;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.85rem;
+    width: 60%;
+  }
+  .token-box button {
+    background: #2a2e38;
+    color: #e6e6e6;
+    border: 1px solid #3a3e48;
+    border-radius: 4px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    margin-left: 0.5rem;
+  }
+  .token-box button:hover { background: #343945; }
+
+  .board-watch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #1b1e26;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .board-watch-label { font-size: 0.85rem; color: #999; }
+  .watch-btn {
+    border: none;
+    border-radius: 999px;
+    padding: 0.5rem 1.2rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .watch-btn.on {
+    background: #3ddc84;
+    color: #08210f;
+    box-shadow: 0 0 12px rgba(61, 220, 132, 0.6);
+  }
+  .watch-btn.on:hover { background: #4de892; }
+  .watch-btn.off {
+    background: #2a2e38;
+    color: #666;
+    box-shadow: none;
+    opacity: 0.6;
+  }
+  .watch-btn.off:hover { background: #343945; }
+  .watch-btn:disabled { cursor: default; opacity: 0.4; }
+
+  /* ── Stories rail ─────────────────────────────────────────── */
+  .stories-rail {
+    display: flex;
+    gap: 0.6rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+    -webkit-overflow-scrolling: touch;
+  }
+  .story {
+    flex: 0 0 auto;
+    width: 110px;
+    background: #1b1e26;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    padding: 0.6rem;
+    font-size: 0.75rem;
+    color: #ccc;
+    cursor: pointer;
+  }
+  .story .story-count { font-size: 1.3rem; font-weight: 700; color: #3ddc84; }
+  .story .story-label { color: #999; }
+
+  .empty { color: #888; font-size: 0.9rem; }
+
+  .section-heading {
+    font-size: 1.1rem;
+    color: #ccc;
+    margin: 1.5rem 0 0.75rem 0;
+  }
+  .section-heading:first-of-type { margin-top: 0; }
+
+  .card {
+    background: #1b1e26;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.9rem;
+  }
+  .card.resolved, .card.resuming, .card.done { opacity: 0.6; }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    gap: 0.5rem;
+  }
+  .task-name { font-weight: 600; }
+  .badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+  }
+  .badge.pending { background: #4a3a1a; color: #e0b060; }
+  .badge.resuming { background: #1a3a4a; color: #60b0e0; }
+  .badge.resolved { background: #2a3a2a; color: #80c080; }
+  .badge.error { background: #4a1a1a; color: #e06060; }
+  .badge.accepted { background: #2a3a2a; color: #80c080; }
+  .badge.overridden { background: #3a2a1a; color: #d08050; }
+  .badge.escalation { background: #2a2440; color: #a080e0; }
+  .badge.tier { background: #1a3a4a; color: #60b0e0; }
+  .badge.dispatch { background: #2a2e38; color: #999; }
+  .badge.label { background: #3a2e1a; color: #d0a060; }
+
+  .question { font-size: 0.95rem; margin-bottom: 0.5rem; }
+  .malformed-note { color: #e0b060; font-size: 0.8rem; margin-bottom: 0.5rem; }
+
+  .context-toggle {
+    color: #999;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: underline dotted;
+    margin-bottom: 0.5rem;
+    display: inline-block;
+  }
+  .context-body {
+    display: none;
+    background: #111318;
+    border: 1px solid #2a2e38;
+    border-radius: 4px;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+    color: #bbb;
+    margin-bottom: 0.5rem;
+    white-space: pre-wrap;
+  }
+  .context-body.open { display: block; }
+
+  .options { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+  .option-btn {
+    background: #263140;
+    color: #e6e6e6;
+    border: 1px solid #35455a;
+    border-radius: 6px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .option-btn:hover { background: #304055; }
+  .option-btn:disabled { cursor: default; opacity: 0.5; }
+
+  .freeform { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
+  .freeform input, .freeform textarea {
+    flex: 1;
+    background: #111318;
+    color: #e6e6e6;
+    border: 1px solid #2a2e38;
+    border-radius: 4px;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.85rem;
+  }
+  .freeform button {
+    background: #2a2e38;
+    color: #e6e6e6;
+    border: 1px solid #3a3e48;
+    border-radius: 4px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .freeform button:hover { background: #343945; }
+
+  .result-summary {
+    font-size: 0.8rem;
+    color: #999;
+    margin-top: 0.5rem;
+    white-space: pre-wrap;
+  }
+  .submit-status { font-size: 0.8rem; color: #999; margin-top: 0.4rem; }
+
+  .tier-badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .tier-badge.autonomous { background: #1a3a24; color: #3ddc84; }
+  .tier-badge.needs-review { background: #4a3a1a; color: #e0b060; }
+  .tier-badge.manual-only { background: #4a1a1a; color: #e06060; }
+
+  .confidence-note { color: #999; font-size: 0.8rem; margin-bottom: 0.5rem; }
+
+  .decision-row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+  .accept-btn {
+    background: #1a3a24;
+    color: #3ddc84;
+    border: 1px solid #2a5a3a;
+    border-radius: 6px;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .accept-btn:hover { background: #234a2e; }
+  .override-toggle, .expand-toggle {
+    background: #2a2e38;
+    color: #e6e6e6;
+    border: 1px solid #3a3e48;
+    border-radius: 6px;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .override-toggle:hover, .expand-toggle:hover { background: #343945; }
+  .override-form {
+    display: none;
+    margin-top: 0.6rem;
+    padding: 0.6rem;
+    background: #111318;
+    border: 1px solid #2a2e38;
+    border-radius: 6px;
+  }
+  .override-form.open { display: block; }
+  .override-form label { display: block; font-size: 0.75rem; color: #999; margin-bottom: 0.3rem; }
+  .override-form select {
+    background: #1b1e26;
+    color: #e6e6e6;
+    border: 1px solid #2a2e38;
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+    margin-bottom: 0.6rem;
+    width: 100%;
+  }
+  .override-form textarea {
+    background: #1b1e26;
+    color: #e6e6e6;
+    border: 1px solid #2a2e38;
+    border-radius: 4px;
+    padding: 0.5rem;
+    font-size: 0.85rem;
+    width: 100%;
+    min-height: 4rem;
+    resize: vertical;
+    box-sizing: border-box;
+    margin-bottom: 0.6rem;
+  }
+  .override-submit {
+    background: #4a1a1a;
+    color: #e06060;
+    border: 1px solid #5a2a2a;
+    border-radius: 6px;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .override-submit:hover { background: #5a2323; }
+  .decision-summary {
+    font-size: 0.8rem;
+    color: #999;
+    margin-top: 0.5rem;
+  }
+
+  /* ── Swipe/tap-react labeling cards (86baxahn7's real UX target) ── */
+  .swipe-wrap {
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    margin-bottom: 0.9rem;
+  }
+  .swipe-hint {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 0 1rem;
+  }
+  .swipe-hint.left { justify-content: flex-end; background: #4a1a1a; color: #e06060; }
+  .swipe-hint.right { justify-content: flex-start; background: #1a3a24; color: #3ddc84; }
+  .swipe-card {
+    position: relative;
+    background: #1b1e26;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    padding: 1rem;
+    touch-action: pan-y;
+    user-select: none;
+  }
+  .swipe-meta { font-size: 0.75rem; color: #999; margin-bottom: 0.4rem; }
+  .swipe-body { font-size: 0.85rem; color: #ccc; white-space: pre-wrap; word-break: break-word; }
+  .swipe-actions { display: flex; gap: 0.5rem; margin-top: 0.7rem; }
+</style>
+</head>
+<body>
+  <h1>Nova Controller</h1>
+  <p class="subtitle">One feed: escalations, tier proposals, dispatch outcomes, and labeling — swipe or tap.</p>
+
+  <div id="error"></div>
+
+  <div class="board-watch">
+    <span class="board-watch-label">Board Watch — headless dispatch loop</span>
+    <button id="board-watch-toggle" class="watch-btn off" disabled>Loading…</button>
+  </div>
+
+  <div class="token-box" id="token-box" style="display:none">
+    <label for="token-input">Escalation token (stored locally in this browser only)</label>
+    <input type="password" id="token-input" placeholder="X-Nova-Escalation-Token">
+    <button id="token-save">Save</button>
+  </div>
+
+  <div class="stories-rail" id="stories-rail"></div>
+
+  <h2 class="section-heading">Feed</h2>
+  <div id="feed"></div>
+
+  <h2 class="section-heading">Discover</h2>
+  <p class="empty">No tutor domain synthesis links yet — depends on Nova Tutor, still backlog.</p>
+
+  <script>
+    const TOKEN_KEY = 'nova_escalation_token';
+
+    function getToken() {
+      return localStorage.getItem(TOKEN_KEY) || '';
+    }
+
+    function showTokenPrompt() {
+      document.getElementById('token-box').style.display = 'block';
+    }
+
+    document.getElementById('token-save').addEventListener('click', () => {
+      const value = document.getElementById('token-input').value.trim();
+      if (value) {
+        localStorage.setItem(TOKEN_KEY, value);
+        document.getElementById('token-box').style.display = 'none';
+        document.getElementById('token-input').value = '';
+      }
+    });
+
+    if (!getToken()) {
+      showTokenPrompt();
+    }
+
+    // Every dashboard page in this repo rendering free text (model
+    // questions, human answers, tool-call args) escapes it before it ever
+    // reaches innerHTML.
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text == null ? '' : String(text);
+      return div.innerHTML;
+    }
+
+    // ── Board Watch toggle ──────────────────────────────────────
+
+    function renderBoardWatch(isOn) {
+      const btn = document.getElementById('board-watch-toggle');
+      btn.textContent = isOn ? 'Board Watch: ON' : 'Board Watch: OFF';
+      btn.className = 'watch-btn ' + (isOn ? 'on' : 'off');
+      btn.dataset.on = isOn ? '1' : '0';
+      btn.disabled = false;
+    }
+
+    async function loadBoardWatch() {
+      try {
+        const res = await fetch('/dispatch-pause');
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const state = await res.json();
+        renderBoardWatch(!state.paused);
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not load board watch state: ' + err.message;
+      }
+    }
+
+    async function toggleBoardWatch() {
+      const btn = document.getElementById('board-watch-toggle');
+      const currentlyOn = btn.dataset.on === '1';
+      btn.disabled = true;
+      try {
+        const res = await fetch('/dispatch-pause', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            paused: currentlyOn,
+            reason: currentlyOn ? 'Paused via Nova Controller toggle' : 'Resumed via Nova Controller toggle',
+          }),
+        });
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const state = await res.json();
+        renderBoardWatch(!state.paused);
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not toggle board watch: ' + err.message;
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById('board-watch-toggle').addEventListener('click', toggleBoardWatch);
+
+    // ── Shared token-gated POST helper ──────────────────────────
+
+    async function tokenPost(url, body, statusEl, onSuccess) {
+      const token = getToken();
+      if (statusEl) statusEl.textContent = 'Submitting…';
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Nova-Escalation-Token': token },
+          body: JSON.stringify(body),
+        });
+        if (res.status === 401) {
+          localStorage.removeItem(TOKEN_KEY);
+          showTokenPrompt();
+          if (statusEl) statusEl.textContent = 'Token rejected — enter it again above and retry.';
+          return null;
+        }
+        if (!res.ok) {
+          const detail = await res.json().catch(() => ({}));
+          if (statusEl) statusEl.textContent = 'Submit failed: ' + (detail.detail || res.status);
+          return null;
+        }
+        if (statusEl) statusEl.textContent = 'Done.';
+        if (onSuccess) onSuccess();
+        return await res.json();
+      } catch (err) {
+        if (statusEl) statusEl.textContent = 'Submit failed: ' + err.message;
+        return null;
+      }
+    }
+
+    // ── Escalation cards (86bax0wkj, ported as-is) ──────────────
+
+    function badgeClass(status) {
+      if (status === 'pending') return 'pending';
+      if (status === 'resuming') return 'resuming';
+      if (status === 'error') return 'error';
+      return 'resolved';
+    }
+
+    function renderEscalationCard(entry) {
+      const status = entry.status || 'pending';
+      const div = document.createElement('div');
+      div.className = 'card ' + status;
+
+      const header = document.createElement('div');
+      header.className = 'card-header';
+      header.innerHTML =
+        `<span class="badge escalation">escalation</span>` +
+        `<span class="task-name" style="flex:1">${escapeHtml(entry.task_name)}</span>` +
+        `<span class="badge ${badgeClass(status)}">${escapeHtml(status)}</span>`;
+      div.appendChild(header);
+
+      if (entry.malformed) {
+        const note = document.createElement('div');
+        note.className = 'malformed-note';
+        note.textContent = 'Escalation block was malformed — question may be incomplete.';
+        div.appendChild(note);
+      }
+
+      const question = document.createElement('div');
+      question.className = 'question';
+      question.textContent = entry.question || '(no question parsed)';
+      div.appendChild(question);
+
+      if (entry.context) {
+        const toggle = document.createElement('span');
+        toggle.className = 'context-toggle';
+        toggle.textContent = 'show context';
+        const body = document.createElement('div');
+        body.className = 'context-body';
+        body.textContent = entry.context;
+        toggle.addEventListener('click', () => {
+          body.classList.toggle('open');
+          toggle.textContent = body.classList.contains('open') ? 'hide context' : 'show context';
+        });
+        div.appendChild(toggle);
+        div.appendChild(body);
+      }
+
+      if (status === 'pending') {
+        const statusEl = document.createElement('div');
+        statusEl.className = 'submit-status';
+
+        const submitAnswer = (answerText) => {
+          tokenPost(`/escalations/${entry.escalation_id}/answer`, { answer_text: answerText }, statusEl, loadFeed);
+        };
+
+        if (entry.options_considered && entry.options_considered.length) {
+          const options = document.createElement('div');
+          options.className = 'options';
+          entry.options_considered.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.textContent = opt;
+            btn.addEventListener('click', () => {
+              options.querySelectorAll('button').forEach(b => b.disabled = true);
+              submitAnswer(opt);
+            });
+            options.appendChild(btn);
+          });
+          div.appendChild(options);
+        }
+
+        const freeform = document.createElement('div');
+        freeform.className = 'freeform';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = 'Or type a free-text answer…';
+        const button = document.createElement('button');
+        button.textContent = 'Submit';
+        button.addEventListener('click', () => {
+          if (input.value.trim()) submitAnswer(input.value.trim());
+        });
+        freeform.appendChild(input);
+        freeform.appendChild(button);
+        div.appendChild(freeform);
+        div.appendChild(statusEl);
+      } else if (entry.resume_result && entry.resume_result.summary) {
+        const summary = document.createElement('div');
+        summary.className = 'result-summary';
+        summary.textContent = entry.resume_result.summary;
+        div.appendChild(summary);
+      }
+
+      return div;
+    }
+
+    // ── Tier proposal cards (86bb01wur, ported as-is) ───────────
+
+    function tierBadgeClass(tier) {
+      return (tier || '').replace(/\s+/g, '-');
+    }
+
+    function renderTierCard(entry) {
+      const status = entry.status || 'pending';
+      const div = document.createElement('div');
+      div.className = 'card ' + (status === 'pending' ? 'pending' : 'resolved');
+
+      const header = document.createElement('div');
+      header.className = 'card-header';
+      header.innerHTML =
+        `<span class="badge tier">tier</span>` +
+        `<span class="task-name" style="flex:1">${escapeHtml(entry.task_name)}</span>` +
+        `<span class="badge ${status}">${escapeHtml(status)}</span>`;
+      div.appendChild(header);
+
+      const tierLine = document.createElement('div');
+      tierLine.className = 'question';
+      tierLine.innerHTML =
+        `Proposed tier: <span class="tier-badge ${tierBadgeClass(entry.proposed_tier)}">` +
+        `${escapeHtml(entry.proposed_tier)}</span> (${escapeHtml(entry.trigger)})`;
+      div.appendChild(tierLine);
+
+      const confidenceLine = document.createElement('div');
+      confidenceLine.className = 'confidence-note';
+      confidenceLine.textContent = `Confidence: ${entry.confidence || 'unknown'}`;
+      div.appendChild(confidenceLine);
+
+      const reasoning = document.createElement('div');
+      reasoning.className = 'question';
+      reasoning.textContent = entry.reasoning || '(no reasoning parsed)';
+      div.appendChild(reasoning);
+
+      if (status === 'pending') {
+        const statusEl = document.createElement('div');
+        statusEl.className = 'submit-status';
+
+        const row = document.createElement('div');
+        row.className = 'decision-row';
+
+        const acceptBtn = document.createElement('button');
+        acceptBtn.className = 'accept-btn';
+        acceptBtn.textContent = `Accept: ${entry.proposed_tier}`;
+        acceptBtn.addEventListener('click', () => {
+          acceptBtn.disabled = true;
+          overrideToggle.disabled = true;
+          tokenPost(`/tier-proposals/${entry.proposal_id}/decide`, { decision: 'accept' }, statusEl, loadFeed);
+        });
+        row.appendChild(acceptBtn);
+
+        const overrideToggle = document.createElement('button');
+        overrideToggle.className = 'override-toggle';
+        overrideToggle.textContent = 'Override';
+        row.appendChild(overrideToggle);
+
+        div.appendChild(row);
+
+        const form = document.createElement('div');
+        form.className = 'override-form';
+
+        const tierLabel = document.createElement('label');
+        tierLabel.textContent = 'Final tier';
+        const select = document.createElement('select');
+        ['autonomous', 'needs review', 'manual only'].forEach(tier => {
+          const opt = document.createElement('option');
+          opt.value = tier;
+          opt.textContent = tier;
+          if (tier === entry.proposed_tier) opt.selected = true;
+          select.appendChild(opt);
+        });
+
+        const reasoningLabel = document.createElement('label');
+        reasoningLabel.textContent = 'Why override this? (required)';
+        const textarea = document.createElement('textarea');
+        textarea.placeholder = 'e.g. This touches a load-bearing file Nova didn\'t weigh heavily enough...';
+
+        const submitBtn = document.createElement('button');
+        submitBtn.className = 'override-submit';
+        submitBtn.textContent = 'Submit override';
+        submitBtn.addEventListener('click', () => {
+          if (!textarea.value.trim()) {
+            statusEl.textContent = 'Reasoning is required for an override.';
+            return;
+          }
+          acceptBtn.disabled = true;
+          submitBtn.disabled = true;
+          tokenPost(
+            `/tier-proposals/${entry.proposal_id}/decide`,
+            { decision: 'override', final_tier: select.value, reasoning: textarea.value.trim() },
+            statusEl,
+            loadFeed
+          );
+        });
+
+        form.appendChild(tierLabel);
+        form.appendChild(select);
+        form.appendChild(reasoningLabel);
+        form.appendChild(textarea);
+        form.appendChild(submitBtn);
+        div.appendChild(form);
+
+        overrideToggle.addEventListener('click', () => form.classList.toggle('open'));
+
+        div.appendChild(statusEl);
+      } else {
+        const summary = document.createElement('div');
+        summary.className = 'decision-summary';
+        if (status === 'overridden') {
+          summary.innerHTML =
+            `Final tier: <span class="tier-badge ${tierBadgeClass(entry.final_tier)}">${escapeHtml(entry.final_tier)}</span><br>` +
+            `Reasoning: ${escapeHtml(entry.override_reasoning)}`;
+        } else {
+          summary.innerHTML =
+            `Final tier: <span class="tier-badge ${tierBadgeClass(entry.final_tier)}">${escapeHtml(entry.final_tier)}</span>`;
+        }
+        div.appendChild(summary);
+      }
+
+      return div;
+    }
+
+    // ── Dispatch outcome cards (read-only, tap-to-expand) ───────
+
+    function renderDispatchCard(entry) {
+      const div = document.createElement('div');
+      div.className = 'card done';
+
+      const label = entry.kind === 'outcome'
+        ? `${escapeHtml(entry.outcome || 'outcome')} — ${escapeHtml(entry.branch || '')}`
+        : `${escapeHtml(entry.task_name || entry.task_id || 'dispatch')}`;
+
+      const header = document.createElement('div');
+      header.className = 'card-header';
+      header.innerHTML =
+        `<span class="badge dispatch">${entry.kind === 'outcome' ? 'reviewed' : 'dispatch'}</span>` +
+        `<span class="task-name" style="flex:1">${label}</span>` +
+        (entry.success !== undefined ? `<span class="badge ${entry.success ? 'resolved' : 'error'}">${entry.success ? 'clean' : 'non-clean'}</span>` : '');
+      div.appendChild(header);
+
+      const summaryText = entry.summary || entry.note || '(no summary)';
+      const toggle = document.createElement('span');
+      toggle.className = 'context-toggle';
+      toggle.textContent = 'show summary';
+      const body = document.createElement('div');
+      body.className = 'context-body';
+      body.textContent = summaryText;
+      toggle.addEventListener('click', () => {
+        body.classList.toggle('open');
+        toggle.textContent = body.classList.contains('open') ? 'hide summary' : 'show summary';
+      });
+      div.appendChild(toggle);
+      div.appendChild(body);
+
+      return div;
+    }
+
+    // ── Label-queue swipe cards — the real UX target ────────────
+    // Hand-rolled touch events (no gesture library — nothing in this repo's
+    // frontend uses a bundler, and a CDN script would fight the PWA's
+    // offline app-shell caching). Swipe right = positive judgment, swipe
+    // left = negative. Tap (no meaningful drag) expands to the same two
+    // choices as buttons, for non-touch input.
+
+    const SWIPE_COMMIT_PX = 80;
+
+    function labelDecisionBody(entry, positive) {
+      if (entry.kind === 'tool_call') {
+        return { was_necessary: positive, was_used: positive };
+      }
+      // blend_flag: positive = reviewed, no correction needed. Negative
+      // needs a real written correction -- more than a swipe can capture,
+      // so it opens the same tap-to-expand-to-text affordance instead of
+      // committing immediately.
+      return { correction: '(reviewed — no correction needed)' };
+    }
+
+    function renderLabelCard(entry) {
+      const wrap = document.createElement('div');
+      wrap.className = 'swipe-wrap';
+
+      const hintLeft = document.createElement('div');
+      hintLeft.className = 'swipe-hint left';
+      hintLeft.textContent = entry.kind === 'tool_call' ? 'Not necessary' : 'Needs correction';
+      const hintRight = document.createElement('div');
+      hintRight.className = 'swipe-hint right';
+      hintRight.textContent = entry.kind === 'tool_call' ? 'Necessary & used' : 'No correction needed';
+      wrap.appendChild(hintLeft);
+      wrap.appendChild(hintRight);
+
+      const card = document.createElement('div');
+      card.className = 'swipe-card';
+
+      const meta = document.createElement('div');
+      meta.className = 'swipe-meta';
+      meta.innerHTML =
+        `<span class="badge label">${entry.kind === 'tool_call' ? 'tool call' : 'blend flag'}</span> ` +
+        escapeHtml(entry.timestamp || '');
+      card.appendChild(meta);
+
+      const body = document.createElement('div');
+      body.className = 'swipe-body';
+      body.textContent = entry.kind === 'tool_call'
+        ? `${entry.tool || 'tool'}: ${JSON.stringify(entry.args || {}).slice(0, 200)}`
+        : `[${entry.category || 'uncategorized'}] sources: ${(entry.sources_mixed || []).join(', ')}`;
+      card.appendChild(body);
+
+      const statusEl = document.createElement('div');
+      statusEl.className = 'submit-status';
+
+      const commit = (positive) => {
+        if (entry.kind === 'blend_flag' && !positive) {
+          openCorrectionForm();
+          return;
+        }
+        const url = `/label-queue/${entry.kind}/${encodeURIComponent(entry.id)}/decide`;
+        tokenPost(url, labelDecisionBody(entry, positive), statusEl, loadFeed);
+      };
+
+      let correctionForm = null;
+      function openCorrectionForm() {
+        if (correctionForm) { correctionForm.classList.add('open'); return; }
+        correctionForm = document.createElement('div');
+        correctionForm.className = 'override-form open';
+        const label = document.createElement('label');
+        label.textContent = 'What should the correct response have been?';
+        const textarea = document.createElement('textarea');
+        const submitBtn = document.createElement('button');
+        submitBtn.className = 'override-submit';
+        submitBtn.textContent = 'Submit correction';
+        submitBtn.addEventListener('click', () => {
+          if (!textarea.value.trim()) {
+            statusEl.textContent = 'A correction is required.';
+            return;
+          }
+          const url = `/label-queue/blend_flag/${encodeURIComponent(entry.id)}/decide`;
+          tokenPost(url, { correction: textarea.value.trim() }, statusEl, loadFeed);
+        });
+        correctionForm.appendChild(label);
+        correctionForm.appendChild(textarea);
+        correctionForm.appendChild(submitBtn);
+        card.appendChild(correctionForm);
+      }
+
+      const actions = document.createElement('div');
+      actions.className = 'swipe-actions';
+      const negBtn = document.createElement('button');
+      negBtn.className = 'expand-toggle';
+      negBtn.textContent = hintLeft.textContent;
+      negBtn.addEventListener('click', () => commit(false));
+      const posBtn = document.createElement('button');
+      posBtn.className = 'accept-btn';
+      posBtn.textContent = hintRight.textContent;
+      posBtn.addEventListener('click', () => commit(true));
+      actions.appendChild(negBtn);
+      actions.appendChild(posBtn);
+      card.appendChild(actions);
+      card.appendChild(statusEl);
+
+      // Touch handling: track drag, translate the card, commit past threshold.
+      let startX = null;
+      let dragging = false;
+
+      card.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        dragging = true;
+        card.style.transition = 'none';
+      }, { passive: true });
+
+      card.addEventListener('touchmove', (e) => {
+        if (!dragging || startX === null) return;
+        const deltaX = e.touches[0].clientX - startX;
+        card.style.transform = `translateX(${deltaX}px)`;
+      }, { passive: true });
+
+      card.addEventListener('touchend', (e) => {
+        if (!dragging || startX === null) return;
+        dragging = false;
+        const deltaX = e.changedTouches[0].clientX - startX;
+        card.style.transition = 'transform 0.2s ease';
+        if (deltaX > SWIPE_COMMIT_PX) {
+          card.style.transform = 'translateX(120%)';
+          commit(true);
+        } else if (deltaX < -SWIPE_COMMIT_PX) {
+          card.style.transform = 'translateX(-120%)';
+          commit(false);
+        } else {
+          card.style.transform = 'translateX(0)';
+        }
+        startX = null;
+      });
+
+      wrap.appendChild(card);
+      return wrap;
+    }
+
+    // ── Merged Feed ──────────────────────────────────────────────
+
+    async function fetchJson(url, fallback) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        return await res.json();
+      } catch (err) {
+        document.getElementById('error').textContent = `Could not load ${url}: ${err.message}`;
+        return fallback;
+      }
+    }
+
+    function renderStories(dispatchEntries) {
+      const rail = document.getElementById('stories-rail');
+      rail.innerHTML = '';
+      const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+      const recent = dispatchEntries.filter(e => {
+        const t = Date.parse(e.timestamp || '');
+        return !isNaN(t) && t >= dayAgo;
+      });
+      const merged = recent.filter(e => e.kind === 'dispatch').length;
+      const reviewed = recent.filter(e => e.kind === 'outcome');
+      const mergedCount = reviewed.filter(e => e.outcome === 'merged').length;
+      const discardedCount = reviewed.filter(e => e.outcome === 'discarded').length;
+
+      const stories = [
+        { count: merged, label: 'dispatches (24h)' },
+        { count: mergedCount, label: 'merged (24h)' },
+        { count: discardedCount, label: 'discarded (24h)' },
+      ];
+      stories.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'story';
+        div.innerHTML = `<div class="story-count">${s.count}</div><div class="story-label">${s.label}</div>`;
+        div.addEventListener('click', () => document.getElementById('feed').scrollIntoView({ behavior: 'smooth' }));
+        rail.appendChild(div);
+      });
+    }
+
+    async function loadFeed() {
+      const [escalationsData, tierData, dispatchData, labelData] = await Promise.all([
+        fetchJson('/escalations', {}),
+        fetchJson('/tier-proposals', {}),
+        fetchJson('/dispatch-log', { entries: [] }),
+        fetchJson('/label-queue', { entries: [] }),
+      ]);
+
+      const escalations = Object.values(escalationsData).filter(v => v && typeof v === 'object' && v.escalation_id)
+        .map(e => ({ ...e, _kind: 'escalation', _pending: e.status === 'pending' || e.status === 'resuming' }));
+      const tiers = Object.values(tierData).filter(v => v && typeof v === 'object' && v.proposal_id)
+        .map(e => ({ ...e, _kind: 'tier', _pending: e.status === 'pending' }));
+      const dispatches = (dispatchData.entries || []).map(e => ({ ...e, _kind: 'dispatch', _pending: false }));
+      const labels = (labelData.entries || []).map(e => ({ ...e, _kind: 'label', _pending: true }));
+
+      renderStories(dispatches);
+
+      const all = [...escalations, ...tiers, ...dispatches, ...labels];
+      all.sort((a, b) => {
+        if (a._pending !== b._pending) return a._pending ? -1 : 1;
+        const ta = a.created_at || a.timestamp || '';
+        const tb = b.created_at || b.timestamp || '';
+        return tb.localeCompare(ta);
+      });
+
+      const container = document.getElementById('feed');
+      if (!all.length) {
+        container.innerHTML = '<p class="empty">Nothing in the feed yet.</p>';
+        return;
+      }
+      container.innerHTML = '';
+      all.forEach(entry => {
+        let el;
+        if (entry._kind === 'escalation') el = renderEscalationCard(entry);
+        else if (entry._kind === 'tier') el = renderTierCard(entry);
+        else if (entry._kind === 'dispatch') el = renderDispatchCard(entry);
+        else el = renderLabelCard(entry);
+        container.appendChild(el);
+      });
+    }
+
+    loadBoardWatch();
+    setInterval(loadBoardWatch, 5000);
+
+    loadFeed();
+    setInterval(loadFeed, 8000);
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW registration failed:', err));
+    }
+  </script>
+</body>
+</html>
