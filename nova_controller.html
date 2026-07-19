@@ -966,13 +966,24 @@
       });
     }
 
+    // Guards against overlapping/out-of-order loadFeed() calls -- found live
+    // 2026-07-19 as the real cause of cards visibly reshuffling on a phone: a
+    // slow call (variable mobile network latency) can still be in flight when
+    // the next 8s interval fires a fresh one; if the older call happens to
+    // resolve LATER than the newer one, its stale render overwrites the
+    // current, correct one a moment after it appeared. Only the most
+    // recently-ISSUED call is ever allowed to touch the DOM.
+    let feedRequestToken = 0;
+
     async function loadFeed() {
+      const requestToken = ++feedRequestToken;
       const [escalationsData, tierData, dispatchData, labelData] = await Promise.all([
         fetchJson('/escalations', {}),
         fetchJson('/tier-proposals', {}),
         fetchJson('/dispatch-log', { entries: [] }),
         fetchJson('/label-queue', { entries: [] }),
       ]);
+      if (requestToken !== feedRequestToken) return; // a newer call has since been issued -- discard this one
 
       const escalations = Object.values(escalationsData).filter(v => v && typeof v === 'object' && v.escalation_id)
         .map(e => ({ ...e, _kind: 'escalation', _pending: e.status === 'pending' || e.status === 'resuming' }));
