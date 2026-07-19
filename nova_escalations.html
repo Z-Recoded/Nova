@@ -45,6 +45,44 @@
   }
   .token-box button:hover { background: #343945; }
 
+  .board-watch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #1b1e26;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .board-watch-label { font-size: 0.85rem; color: #999; }
+  .watch-btn {
+    border: none;
+    border-radius: 999px;
+    padding: 0.5rem 1.2rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  /* Bright when the board watch is ON (headless dispatch actively watching
+     the board) — a lit, glowing button is the "this is live" signal. */
+  .watch-btn.on {
+    background: #3ddc84;
+    color: #08210f;
+    box-shadow: 0 0 12px rgba(61, 220, 132, 0.6);
+  }
+  .watch-btn.on:hover { background: #4de892; }
+  /* Dim when OFF (paused) — deliberately muted/low-contrast so "off" reads
+     at a glance, not just from the label text. */
+  .watch-btn.off {
+    background: #2a2e38;
+    color: #666;
+    box-shadow: none;
+    opacity: 0.6;
+  }
+  .watch-btn.off:hover { background: #343945; }
+  .watch-btn:disabled { cursor: default; opacity: 0.4; }
+
   .empty { color: #888; font-size: 0.9rem; }
 
   .card {
@@ -147,6 +185,11 @@
 
   <div id="error"></div>
 
+  <div class="board-watch">
+    <span class="board-watch-label">Board Watch — headless dispatch loop</span>
+    <button id="board-watch-toggle" class="watch-btn off" disabled>Loading…</button>
+  </div>
+
   <div class="token-box" id="token-box" style="display:none">
     <label for="token-input">Escalation token (stored locally in this browser only)</label>
     <input type="password" id="token-input" placeholder="X-Nova-Escalation-Token">
@@ -187,6 +230,55 @@
       div.textContent = text == null ? '' : String(text);
       return div.innerHTML;
     }
+
+    // ── Board Watch toggle (pauses/resumes the headless dispatch loop —
+    // reuses the existing /dispatch-pause routes nova_escalation.py's own
+    // CLI --pause/--resume flags already call, not a new backend concept) ─
+
+    function renderBoardWatch(isOn) {
+      const btn = document.getElementById('board-watch-toggle');
+      btn.textContent = isOn ? 'Board Watch: ON' : 'Board Watch: OFF';
+      btn.className = 'watch-btn ' + (isOn ? 'on' : 'off');
+      btn.dataset.on = isOn ? '1' : '0';
+      btn.disabled = false;
+    }
+
+    async function loadBoardWatch() {
+      try {
+        const res = await fetch('/dispatch-pause');
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const state = await res.json();
+        renderBoardWatch(!state.paused);
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not load board watch state: ' + err.message;
+      }
+    }
+
+    async function toggleBoardWatch() {
+      const btn = document.getElementById('board-watch-toggle');
+      const currentlyOn = btn.dataset.on === '1';
+      btn.disabled = true;
+      try {
+        const res = await fetch('/dispatch-pause', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            paused: currentlyOn,
+            reason: currentlyOn
+              ? 'Paused via Escalation UI board-watch toggle'
+              : 'Resumed via Escalation UI board-watch toggle',
+          }),
+        });
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const state = await res.json();
+        renderBoardWatch(!state.paused);
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not toggle board watch: ' + err.message;
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById('board-watch-toggle').addEventListener('click', toggleBoardWatch);
 
     function badgeClass(status) {
       if (status === 'pending') return 'pending';
@@ -335,6 +427,9 @@
         document.getElementById('error').textContent = 'Could not load escalations: ' + err.message;
       }
     }
+
+    loadBoardWatch();
+    setInterval(loadBoardWatch, 5000);
 
     loadEscalations();
     setInterval(loadEscalations, 5000);
