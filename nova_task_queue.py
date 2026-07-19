@@ -34,6 +34,7 @@
 import argparse
 import json
 import os
+import re
 
 import anthropic
 import httpx
@@ -168,8 +169,14 @@ def propose_tier(task: dict) -> dict:
         ],
     )
     raw = message.content[0].text.strip()
+    # Claude sometimes wraps the JSON in a markdown code fence (```json ... ```)
+    # despite the system prompt asking for "ONLY a JSON object, no other text"
+    # -- found live 2026-07-19 when a real proposal silently fell back to the
+    # "manual only"/low-confidence parse-failure path because of exactly this.
+    # Strip a leading/trailing fence before parsing, don't just fail on it.
+    unfenced = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.IGNORECASE).strip()
     try:
-        parsed = json.loads(raw)
+        parsed = json.loads(unfenced)
         tier = parsed["tier"]
         confidence = parsed["confidence"]
         reasoning = parsed["reasoning"]
