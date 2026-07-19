@@ -420,7 +420,8 @@ C:/Nova/
 ├── nova_tool_call_log.py   # Tool-call logging schema for the coding sub-agent (interim — Langfuse will absorb this)
 ├── nova_omen_dispatch.py   # Headless task dispatch on the Omen via `claude -p --worktree` over SSH, plus resume_headless_task() for answered escalations (86bax0exx invocation step, 86bax0wkj)
 ├── nova_escalation.py      # Real escalation-block parsing + pause-at-will switch for headless dispatch (86bax0exx step 5, 86bax0wkj)
-├── nova_escalations.html   # Escalation Answer UI — served at /escalations-ui (86bax0wkj)
+├── nova_controller.html    # Nova Controller Feed — served at /controller, PWA-installable (86baxahn7, supersedes nova_escalations.html)
+├── manifest.json, sw.js, icon-192.png, icon-512.png  # PWA manifest/service worker/icons for nova_controller.html
 ├── nova_omen_sync.py       # One-command sync for the Omen's main checkout — git pull, restart nova-api/nova-chroma, verify listening
 ├── nova_task_queue.py      # Readiness detection + task resolution for headless dispatch (86bax0exx steps 1-2)
 ├── nova_scheduled_dispatch.py # Cron-fired entry point on the Omen — picks + dispatches one autonomy-safe-tagged task every 2 hours
@@ -686,6 +687,95 @@ keeping the cap conservative).
 **Manual step required:** Marvin must set `NOVA_ESCALATION_TOKEN` in the Omen's `.env`
 and restart `nova-api` (or run `nova_omen_sync.py`) before the answer route will accept
 anything — it 401s otherwise, by design (fail-closed, not a soft pass).
+
+### Task Tiering (86bb01wur, 2026-07-19)
+Extends `nova_task_queue.py`'s existing `autonomy-safe` batch-tag gating (Phase-4-era
+scheduled dispatch, see "Scheduler wired in" above) with a per-task decision made at
+creation/rescope time instead of a later sweep. Nova proposes an autonomy tier
+(`autonomous` / `needs review` / `manual only`) + a qualitative confidence
+(`low`/`medium`/`high`) + one-sentence reasoning via `propose_tier()` — a single
+non-agentic Claude completion, not the full agent loop (mirrors `nova_corrector.py`'s
+`request_correction()` pattern). Detection is polling-based inside
+`nova_scheduled_dispatch.py`'s existing 2-hour loop
+(`nova_task_queue.detect_tier_candidates()` diffs each task's real `date_updated`
+against a stored per-task watermark) — no ClickUp webhooks exist anywhere in this
+codebase, confirmed by grep, so push-based detection isn't available without new infra.
+
+Reuses `86bax0wkj`'s exact propose→register→notify→answer shape: `system/
+pending_tier_proposals` + `system/task_tier_watermarks` in `nova_state.db`, new
+`/tier-proposals`/`/tier-watermarks` routes, a decide route reusing the same
+`X-Nova-Escalation-Token`. The `autonomous` tier maps to the exact existing
+`autonomy-safe` tag string (`TIER_TAGS`) — `get_practice_queue_tasks()` needed zero
+code change, and every already-hand-tagged task keeps working with no migration.
+Accept is one tap, comment optional (weak positive signal — confirms the guess was
+right); override requires real reasoning (strong signal) — together these are the
+first real mechanism for `86bax8bb5`'s capability-understanding differential scorer,
+which had sat parked with no way to generate its own comparison data.
+
+Only plausibly-dispatchable tasks get tiered — exploratory `"Spec:"`-prefixed tasks
+are skipped (`_is_tierable()`). A `--sweep-tiers [--limit N]` CLI flag on
+`nova_task_queue.py` does the retroactive backlog backfill, reusing the identical
+`register_tier_proposal()` pipeline the ongoing poll uses — not a separate bulk-apply
+path. `--limit` deliberately skips persisting watermarks, for testing a small subset
+before committing to the real full sweep.
+
+**Two real bugs found and fixed during live verification, not code review:**
+(1) `detect_tier_candidates()` originally persisted the watermark map as a side
+effect of merely being called — a pure inspection call with no intent to process
+anything silently marked the whole backlog "seen," which would have quietly
+defeated the retroactive sweep before it ever ran. Fixed by splitting detection
+(pure read/diff) from `persist_tier_watermarks()` (explicit, called only after a
+caller has actually attempted every candidate). (2) `propose_tier()` didn't strip
+markdown code fences from Claude's response — Claude sometimes wraps its JSON in
+` ```json ... ``` ` despite being told not to, which silently tripped the
+fail-toward-restrictive fallback (`manual only`/`low`) on a real proposal. Fixed to
+strip a leading/trailing fence before parsing.
+
+### Nova Controller UX (86baxahn7, 2026-07-19)
+The real UX layer on top of `86bax0wkj`'s backend — one reverse-chronological Feed
+(`nova_controller.html`, served at `GET /controller`) replacing separate dashboards,
+per Marvin's 2026-07-13 framing (lift interaction primitives from social media,
+explicitly reject engagement-optimization mechanics — no unread badges, no
+streak-as-pressure UI, no engagement-ranked ordering; strictly chronological sort).
+`/escalations-ui` now redirects to `/controller`; `nova_escalations.html` itself was
+retired, its escalation/tier-proposal card logic ported in as-is.
+
+**Scoped to real data only, checked before building** (this project's standing
+discipline): the Feed merges escalations, tier proposals, dispatch outcomes
+(new `GET /dispatch-log`, reading `scheduled_dispatch_log.jsonl` +
+`agent_task_outcomes.jsonl`), and tool-call/blend-flag swipe-labeling prompts
+(new `GET /label-queue`, reading `tool_call_log.jsonl` where `was_necessary is None`
+and `training_flags.jsonl` where `correction == ""`). Tutor-prompt and
+differential-scorer card types are **not built** — no `nova_tutor*.py` or
+`nova_differential*.py` file exists anywhere (confirmed by grep), both are pure
+ClickUp backlog. The Discover tab shows an honest "not built yet, depends on Nova
+Tutor" line instead of a fake placeholder card.
+
+**The swipe-labeling cards are the real UX target** the ticket names explicitly —
+`was_necessary`/`was_used` and `correction` have sat `null`/`""` waiting for exactly
+this kind of judge-pass since those logging modules were built. Hand-rolled
+`touchstart`/`touchmove`/`touchend` gestures (`translateX` drag-follow, a
+distance threshold to commit) — no gesture library, since nothing in this repo's
+frontend uses a bundler/npm and a CDN script would fight the PWA's offline
+app-shell caching. A tap (no meaningful drag) falls back to the same two choices as
+buttons, matching the ticket's own "tap-or-expand-to-text" universal card action.
+`POST /label-queue/{kind}/{id}/decide` (token-gated) patches the matching
+`tool_call_log.jsonl`/`training_flags.jsonl` entry in place (read-all/rewrite-all,
+same idiom as `nova_corrector.py`'s `load_entries()`/`save_entries()`) — a known,
+accepted concurrency limitation is documented directly in the route's own docstring
+(`tool_call_log.jsonl` is actively appended to by this project's own tool-call
+logging hook during any live session; real file-locking isn't justified for a
+personal, single-user, human-triggered write against this risk profile).
+
+**PWA**: `manifest.json` + two hand-written flat PNG icons (`icon-192.png`/
+`icon-512.png`, generated via raw `zlib`/`struct` — no Pillow, confirmed not
+installed, and a flat two-color placeholder mark doesn't need an imaging library;
+swappable for real branding later with zero code change) + `sw.js`, a service
+worker caching **only the app shell** (this page's own HTML/CSS/JS/icons), never
+live data — stated explicitly so "offline" never means "stale escalation data."
+Verified live: real browser load at phone width (390×844), zero console errors,
+a real label decision confirmed on disk over SSH after clicking the button in the
+actual browser (`was_necessary`/`was_used` both flipped from `null` to `true`).
 
 **Token Budget Governor — scoped v1 (2026-07-07, ClickUp `86barhqt9`):**
 the finalized spec assumes infrastructure that doesn't exist yet —
@@ -956,7 +1046,14 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | /escalations | POST | ✓ Working | Register a new pending escalation (system/pending_escalations) — called by nova_scheduled_dispatch.py's _handle_escalation(), not token-gated (86bax0wkj) |
 | /escalations | GET | ✓ Working | Return all escalations, pending and resolved — not token-gated (read-only) |
 | /escalations/{id}/answer | POST | ✓ Working | Submit Marvin's answer — requires header X-Nova-Escalation-Token, fires a background resume via nova_omen_dispatch.resume_headless_task(), returns immediately |
-| /escalations-ui | GET | ✓ Working | Escalation Answer UI page (HTML) — nova_escalations.html |
+| /escalations-ui | GET | ✓ Working | Redirects to /controller (86baxahn7) |
+| /controller | GET | ✓ Working | Nova Controller Feed page (HTML, PWA-installable) — nova_controller.html |
+| /dispatch-log | GET | ✓ Working | Merged dispatch/outcome history (scheduled_dispatch_log.jsonl + agent_task_outcomes.jsonl) |
+| /label-queue | GET | ✓ Working | Unlabeled tool-call/blend-flag entries awaiting a judge-pass |
+| /label-queue/{kind}/{id}/decide | POST | ✓ Working | Patch a label decision — token-gated (X-Nova-Escalation-Token) |
+| /tier-proposals | POST/GET | ✓ Working | Register/list pending autonomy-tier proposals (86bb01wur) |
+| /tier-proposals/{id}/decide | POST | ✓ Working | Accept/override a tier proposal — token-gated |
+| /tier-watermarks | GET/POST | ✓ Working | {task_id: last_seen date_updated} for tier-proposal creation/rescope detection |
 
 ---
 
@@ -1066,7 +1163,9 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-16 | Shipped `nova_agent_log_status.py` — read-only CLI merging the Aero's and Omen's separate `agent_log.jsonl` files for a combined Qwen3 8B swap-trigger progress count — added to Sections 1 & 2 | Closes the cross-machine gap flagged in the previous session's entry (headless dispatch transcript wiring, commit `e957191`): `agent_log.jsonl` existed as two disjoint per-machine files with no way to answer "how much do we have toward the 30-50 target" without combining them by hand. Deliberately scoped as a fetch-fresh-every-run CLI, not a `nova_state.db` push-and-merge entity like `usage_history`/`activity_profile` — confirmed with Marvin first (`AskUserQuestion`) rather than defaulting to that precedent, since nothing needs live/dashboard access to this data today, only an occasional manual check. Verified live: real SSH round-trip to the Omen (1 task/36 turns, matching the known `86baux7bb` dispatch exactly) plus a local read (19 tasks/131 turns) — combined 20 distinct task_slugs, 66.7% of the minimum target. Real finding surfaced on first run, not hidden: 3 of the 19 Aero task_slugs are retries of the same two underlying tasks (the resource headroom calculator was attempted 3 times before it landed), so raw task_slug count overstates true diversity — flagged plainly in the CLI's own printed report rather than presented as a clean number |
 | 2026-07-16 | Shipped review-bandwidth backpressure for headless dispatch (`86baykvan`, `86bawpvzz` implication #2) — `record_dispatch_review()`/`count_unreviewed_dispatches()` in `nova_scheduled_dispatch.py`, new `scheduled_dispatch` section in `nova_config.json`/`nova_config.py` — added to Sections 1 & 2; also fixed a hardcoded-Windows-path bug in `nova_config.py`'s `CONFIG_PATH` | Closes the second-to-last unaddressed `86bawpvzz` implication. Found a real, directly-blocking bug before building the feature itself: `nova_config.py`'s `CONFIG_PATH` was hardcoded to `"C:/Nova/nova_config.json"` — confirmed live via SSH that `load_config()` silently returns `DEFAULT_CONFIG` on the Omen (where `nova_scheduled_dispatch.py` actually runs, natively via cron) instead of reading the real file already present in its own checkout. Same bug class as the `nova_orchestrator.py` dotenv path and `nova_api.py`'s `GRAPH_PATH`, both fixed earlier — shipping the new flag without this fix first would have made the review-backpressure gate silently always-off exactly where it needs to run. Fixed with the same `os.path.dirname(os.path.abspath(__file__))` pattern already established. New gate keyed by `task_id` (not branch — `scheduled_dispatch_log.jsonl` entries don't carry one) and by the same "real `session_id` present" definition `run_scheduled_dispatch()` already uses for its own ClickUp status transition, not `success`. Verified live: the pause check (Marvin's own active pause switch) correctly took priority over the new gate in a real end-to-end call; `count_unreviewed_dispatches()`/`record_dispatch_review()` verified directly against seeded fake entries. Backfilled same session (see the row below) rather than left as a standing gap |
 | 2026-07-16 | Backfilled review decisions for the two dispatches that predate `86baykvan` (`86bayjdrh` discarded, `86baux7bb` merged — both via `--review` run directly on the Omen), deleted `86bayjdrh` from the board per its own stated cleanup step; shipped observability Layer 1 (`86baykvb7`, `86bawpvzz` implication #6) — `_is_clean_outcome()`/`_post_non_clean_comment()` in `nova_scheduled_dispatch.py`, new `add_comment()` in `nova_clickup_client.py` — added to Section 1 | Closes the last unaddressed `86bawpvzz` implication (#6), leaving only Layer 2/3 (dashboard tile, real push/Langfuse) explicitly deferred per `86baykvb7`'s own layered design. `add_comment()` didn't exist in `nova_clickup_client.py` before — a real, direct gap, not an oversight to route around. Non-clean is defined identically to the review-backpressure gate's own "real `session_id` present and `success` True" check, for consistency across both features. Verified live against a real disposable ClickUp task (created, two real comments posted covering both the "dispatch" and "resolve" phase formats, content confirmed via `get_task_comments`, task deleted after) rather than just reviewed — same discipline as every other feature shipped this project |
-| 2026-07-18 | Shipped Nova Controller v1 — Escalation Answer UI (`86bax0wkj`): real `nova_escalation.check_escalation()` (regex-parsed `NOVA_ESCALATION_START/END` block, no longer a stub), worktree-path capture + `resume_headless_task()` in `nova_omen_dispatch.py`, idempotent agent-log ingestion via a per-session cursor, `system/pending_escalations` in `nova_state.py`, `add_tag`/`remove_tag` in `nova_clickup_client.py`, new `/escalations` + `/escalations/{id}/answer` (token-gated) + `/escalations-ui` routes in `nova_api.py`, new `nova_escalations.html`, `handle_dispatch_outcome()`/`_handle_escalation()` extracted in `nova_scheduled_dispatch.py`, and a new escalation-protocol paragraph in `nova_task_queue.resolve_task_description()` — added Section 2's Escalation Protocol subsection, Section 7's route table, and Section 1's `nova_escalation.py` bullet | Closes the `check_escalation()` stub that's existed since 2026-07-14, and the last piece of `86bax0exx`'s original checklist. Re-opened an existing draft plan (`greedy-launching-flask.md`) rather than building from scratch, since two features shipped after it was written (review-bandwidth backpressure `86baykvan`, observability Layer 1 `86baykvb7`) needed reconciling first: re-verified every file premise against live code before building, and found a real interaction neither prior feature anticipated — a paused-for-escalation dispatch has a real `session_id` but `success` isn't `True`, so without a fix it would count against the review-backpressure cap as "unreviewed" (it's "not done yet," not unreviewed) and also fire a duplicate non-clean-outcome ClickUp comment alongside the escalation's own comment. Fixed both: `handle_dispatch_outcome()` checks escalation first (mutually exclusive with the non-clean branch), and `count_unreviewed_dispatches()` now excludes `pending`/`resuming` task_ids via a new best-effort `_pending_escalation_task_ids()` (fails toward not-excluding on error, keeping the cap conservative) — confirmed with Marvin to fix now rather than defer, since this build is exactly what starts populating the state that would trigger the miscount. Also confirmed and preserved: `nova_state.py`'s hardcoded Windows `DB_PATH` means even `nova_scheduled_dispatch.py`, which runs natively on the Omen, must register escalations through `nova_api.py`'s HTTP routes rather than importing `nova_state.py` directly — the same cross-machine bug class already fixed for `dispatch_pause`. Not yet verified live end-to-end — that needs Marvin to set `NOVA_ESCALATION_TOKEN` in the Omen's `.env` and restart `nova-api` first (documented as the manual step blocking verification) |
+| 2026-07-18 | Shipped Nova Controller v1 — Escalation Answer UI (`86bax0wkj`): real `nova_escalation.check_escalation()` (regex-parsed `NOVA_ESCALATION_START/END` block, no longer a stub), worktree-path capture + `resume_headless_task()` in `nova_omen_dispatch.py`, idempotent agent-log ingestion via a per-session cursor, `system/pending_escalations` in `nova_state.py`, `add_tag`/`remove_tag` in `nova_clickup_client.py`, new `/escalations` + `/escalations/{id}/answer` (token-gated) + `/escalations-ui` routes in `nova_api.py`, new `nova_escalations.html`, `handle_dispatch_outcome()`/`_handle_escalation()` extracted in `nova_scheduled_dispatch.py`, and a new escalation-protocol paragraph in `nova_task_queue.resolve_task_description()` — added Section 2's Escalation Protocol subsection, Section 7's route table, and Section 1's `nova_escalation.py` bullet | Closes the `check_escalation()` stub that's existed since 2026-07-14, and the last piece of `86bax0exx`'s original checklist. Re-opened an existing draft plan (`greedy-launching-flask.md`) rather than building from scratch, since two features shipped after it was written (review-bandwidth backpressure `86baykvan`, observability Layer 1 `86baykvb7`) needed reconciling first: re-verified every file premise against live code before building, and found a real interaction neither prior feature anticipated — a paused-for-escalation dispatch has a real `session_id` but `success` isn't `True`, so without a fix it would count against the review-backpressure cap as "unreviewed" (it's "not done yet," not unreviewed) and also fire a duplicate non-clean-outcome ClickUp comment alongside the escalation's own comment. Fixed both: `handle_dispatch_outcome()` checks escalation first (mutually exclusive with the non-clean branch), and `count_unreviewed_dispatches()` now excludes `pending`/`resuming` task_ids via a new best-effort `_pending_escalation_task_ids()` (fails toward not-excluding on error, keeping the cap conservative) — confirmed with Marvin to fix now rather than defer, since this build is exactly what starts populating the state that would trigger the miscount. Also confirmed and preserved: `nova_state.py`'s hardcoded Windows `DB_PATH` means even `nova_scheduled_dispatch.py`, which runs natively on the Omen, must register escalations through `nova_api.py`'s HTTP routes rather than importing `nova_state.py` directly — the same cross-machine bug class already fixed for `dispatch_pause`. **Verified live end-to-end same day**, twice: once fully automated (dispatch → escalate → register → tag → answer via curl → resume, same session/worktree confirmed), once with Marvin answering live through the actual browser UI (tapped a real option button, watched it resolve). Also fixed 3 real bugs found during that verification: hardcoded-Windows-path 500s on `ESCALATIONS_HTML_PATH`/`NOVA_LOG_HTML_PATH`/`EMBEDDING_VIZ_HTML_PATH` (same bug class as `GRAPH_PATH`/`DB_PATH`/`CONFIG_PATH` earlier), and a missing mobile viewport meta tag |
+| 2026-07-19 | Merged `86baxbt82` into `86bawf2z2` (both were the same nova_api.py auth-layer need from two angles — a narrow single-secret Controller gate vs. a general multi-token/revocable system); shipped Task Tiering (`86bb01wur`) — `propose_tier()`/`detect_tier_candidates()`/`register_tier_proposal()`/`--sweep-tiers` in `nova_task_queue.py`, `system/pending_tier_proposals`+`system/task_tier_watermarks` in `nova_state.py`, new `/tier-proposals`+`/tier-watermarks` routes in `nova_api.py` — added Section 2's Task Tiering subsection, Section 7's route table | Closes the real gap `86bawpvzz` implication #3 named (batch triage over-approves — the first `--list-ready` run returned ~100 of ~110 tasks as "ready"): moves the autonomy decision to creation/rescope time instead of a later sweep, confirmed with Marvin as propose-and-accept-or-override with required reasoning on override — also the first real mechanism for `86bax8bb5`'s parked differential scorer. Two real bugs found and fixed during live verification, not code review: `detect_tier_candidates()` originally persisted watermarks as a side effect of mere inspection, which would have silently defeated the retroactive sweep before it ran (fixed by splitting read/diff from an explicit `persist_tier_watermarks()`); and `propose_tier()` didn't strip markdown code fences from Claude's response, silently corrupting a real proposal into the fail-toward-restrictive fallback (fixed). The real full `--sweep-tiers` (no `--limit`) was deliberately held back — ~103 real Claude calls + ~103 real ClickUp writes is a large, real spend, not run without Marvin's explicit go-ahead |
+| 2026-07-19 | Shipped Nova Controller UX (`86baxahn7`) — new `nova_controller.html` (Feed, Stories rail, swipe-labeling cards) superseding `nova_escalations.html` (now deleted), `GET /controller`/`/dispatch-log`/`/label-queue`+`POST /label-queue/{kind}/{id}/decide` in `nova_api.py`, PWA `manifest.json`/`sw.js`/hand-written icon PNGs — added Section 2's Nova Controller UX subsection, Section 1 & 7 | Real data audit done before scoping (this project's standing discipline): tutor-prompt and differential-scorer card types from the ticket's own spec have zero backing code (confirmed by grep — no `nova_tutor*.py`/`nova_differential*.py` exists), so they were left out entirely rather than stubbed; the swipe-labeling cards were built instead as the actual best-matched real UX target, since `tool_call_log.jsonl`/`training_flags.jsonl` already have real null/empty fields waiting for exactly this judge-pass. Verified live: real browser load at phone width, zero console errors, a real button-driven label decision confirmed changed on disk over SSH (`was_necessary`/`was_used` flipped `null`→`true`), token-gating confirmed (401 without header). Real swipe touch-gesture itself (as opposed to the equivalent tap-button path, which shares the same commit code) wasn't separately exercised — no touch-emulation tool available in this session |
 
 ---
 

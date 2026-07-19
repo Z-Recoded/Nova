@@ -533,15 +533,10 @@ def get_dispatch_pause_route():
 
 
 # ── Escalation Answer UI (86bax0wkj) ───────────────────────────
-
-# Resolved relative to this script's own location, not hardcoded — the
-# same fix already applied to GRAPH_PATH (Section 2 of CLAUDE.md): this
-# route is served from the Omen (Linux), where a literal "C:/Nova/..."
-# path doesn't resolve at all. Caught live 2026-07-19 (500 on a real
-# /escalations-ui request) rather than assumed fixed by copying the
-# GRAPH_PATH precedent — NOVA_LOG_HTML_PATH/EMBEDDING_VIZ_HTML_PATH below
-# still have the same bug, not yet fixed (out of scope for this ticket).
-ESCALATIONS_HTML_PATH = os.path.join(os.path.dirname(__file__), "nova_escalations.html")
+# nova_escalations.html itself was retired 2026-07-19 (86baxahn7) — its
+# card logic was ported into nova_controller.html, which supersedes it
+# as the real Controller entry point (see /escalations-ui below, now a
+# redirect).
 
 
 def _check_escalation_token(x_nova_escalation_token: Optional[str]) -> None:
