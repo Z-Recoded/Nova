@@ -392,6 +392,16 @@
       return div.innerHTML;
     }
 
+    // A single #error banner is shared across every polling function. Found
+    // live 2026-07-19: none of them ever cleared it on a later success, so
+    // one transient blip (e.g. a backgrounded iOS PWA's network stack
+    // hiccuping on foreground resume) left a stale "could not load" message
+    // displayed forever even after the app had fully recovered. Every load
+    // path now calls this on success.
+    function clearError() {
+      document.getElementById('error').textContent = '';
+    }
+
     // ── Board Watch toggle ──────────────────────────────────────
 
     function renderBoardWatch(isOn) {
@@ -408,6 +418,7 @@
         if (!res.ok) throw new Error('Request failed: ' + res.status);
         const state = await res.json();
         renderBoardWatch(!state.paused);
+        clearError();
       } catch (err) {
         document.getElementById('error').textContent = 'Could not load board watch state: ' + err.message;
       }
@@ -429,6 +440,7 @@
         if (!res.ok) throw new Error('Request failed: ' + res.status);
         const state = await res.json();
         renderBoardWatch(!state.paused);
+        clearError();
       } catch (err) {
         document.getElementById('error').textContent = 'Could not toggle board watch: ' + err.message;
         btn.disabled = false;
@@ -869,7 +881,9 @@
       try {
         const res = await fetch(url);
         if (!res.ok) throw new Error('Request failed: ' + res.status);
-        return await res.json();
+        const data = await res.json();
+        clearError();
+        return data;
       } catch (err) {
         document.getElementById('error').textContent = `Could not load ${url}: ${err.message}`;
         return fallback;
