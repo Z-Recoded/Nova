@@ -373,11 +373,14 @@
   <div id="help-panel" class="help-panel" style="display:none">
     <h2 class="section-heading" style="margin-top:0">What am I looking at?</h2>
     <p><b>Board Watch</b> — whether the headless dispatch loop is allowed to run unattended right now. Bright green = on, dim = paused. Tap to toggle.</p>
-    <p><b>Stories rail</b> — real counts from the last 24 hours: how many tasks were dispatched, and how many of those you've since marked merged or discarded.</p>
+    <p><b>Stories rail</b> — real counts from the last 24 hours. <i>Dispatches</i> = how many times the loop <i>attempted</i> to run something (successful or not, not "tasks completed"). <i>Merged</i>/<i>discarded</i> = how many of those you've since reviewed and decided on.</p>
     <p><b>Escalation</b> cards — a headless run paused mid-task to ask you a real question. Tap an option, or type a free-text answer, to resume that exact session.</p>
-    <p><b>Tier</b> cards — Nova proposes how safe a task is to hand to an unattended run: <i>autonomous</i>, <i>needs review</i>, or <i>manual only</i>, plus a confidence level and its reasoning. <b>Accept</b> is one tap. <b>Override</b> requires you to write why — that reasoning is the whole point, not a formality.</p>
+    <p><b>Tier</b> cards — Nova proposes how safe a task is to hand to an unattended run: <i>autonomous</i>, <i>needs review</i>, or <i>manual only</i>, plus a confidence level and its reasoning. The <b>Accept</b> button's label always names Nova's proposed tier for that specific card (e.g. "Accept: needs review" means accepting sets this task to needs review) — it changes per card, it's not a fixed action. <b>Override</b> requires you to write why — that reasoning is the whole point, not a formality.</p>
     <p><b>Dispatch outcome</b> cards — a record of a past run or review decision. Read-only, tap "show summary" to expand.</p>
-    <p><b>Label queue</b> cards (tool call / blend flag) — real training-data judgments waiting on you: was a tool call actually necessary and used, or did a fiction answer blend two characters that need correcting. <b>Swipe right</b> or tap the green button for a positive judgment, <b>swipe left</b> or tap the red button otherwise. Blend flags that need a real correction open a text box instead of committing immediately.</p>
+    <p><b>Label queue</b> cards — real training-data judgments waiting on you.</p>
+    <p style="margin-left:1rem"><b>Tool call</b> — was calling this tool a <i>good call</i> (right tool, reasonable), or is it something Nova <i>shouldn't have called</i> at all? Note: this is a simplified single judgment — the underlying data actually distinguishes "was the right tool" from "was the result actually used," but today's swipe combines both into one, so a case like "reasonable call, result ended up unused" can't be captured separately yet.</p>
+    <p style="margin-left:1rem"><b>Blend flag</b> — did a fiction answer mix details from two different characters? Swipe right if it's fine as-is; swipe left (or tap red) if it genuinely needs a written correction, which opens a text box instead of committing immediately.</p>
+    <p>Swipe right or tap the green button for the positive judgment, swipe left or tap the red button otherwise.</p>
     <p><b>Discover</b> — empty for now. Depends on Nova Tutor, which hasn't been built yet.</p>
     <p style="color:#888; font-size:0.8rem; margin-bottom:0">This panel lives in the same file as the UI it explains, so it can't silently go stale as the Feed changes.</p>
   </div>
@@ -811,10 +814,10 @@
 
       const hintLeft = document.createElement('div');
       hintLeft.className = 'swipe-hint left';
-      hintLeft.textContent = entry.kind === 'tool_call' ? 'Not necessary' : 'Needs correction';
+      hintLeft.textContent = entry.kind === 'tool_call' ? 'Shouldn\'t have called this' : 'Needs correction';
       const hintRight = document.createElement('div');
       hintRight.className = 'swipe-hint right';
-      hintRight.textContent = entry.kind === 'tool_call' ? 'Necessary & used' : 'No correction needed';
+      hintRight.textContent = entry.kind === 'tool_call' ? 'Good call' : 'No correction needed';
       wrap.appendChild(hintLeft);
       wrap.appendChild(hintRight);
 
