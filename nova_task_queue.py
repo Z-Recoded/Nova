@@ -38,7 +38,7 @@ import os
 import anthropic
 import httpx
 
-from nova_clickup_client import add_comment, add_tag, get_task, get_unresolved_blockers, list_board_tasks, remove_tag
+from nova_clickup_client import add_comment, add_tag, get_task, get_unresolved_blockers, list_board_tasks
 from nova_omen_dispatch import dispatch_headless_task
 
 READY_STATUS = "to do"  # no distinct "Ready" status exists on the board
@@ -184,36 +184,67 @@ def propose_tier(task: dict) -> dict:
         }
 
 
-def detect_tier_candidates() -> list[dict]:
-    """
-    Diffs every board task's real date_updated against a stored per-task
-    watermark (system/task_tier_watermarks) to find tasks that are either
-    brand new (id never seen) or rescoped since last seen (date_updated
-    changed) -- the polling-based detection this project's real
-    infrastructure supports today (86bb01wur: no ClickUp webhooks exist
-    anywhere in this codebase, confirmed by grep, so push-based detection
-    isn't available without new infra). Meant to be called from inside
-    nova_scheduled_dispatch.py's existing 2-hour polling loop, not on its
-    own schedule.
-
-    Only tasks passing _is_tierable() are returned. Advances the stored
-    watermark for every task seen (tierable or not), so a Spec: task that
-    later gets renamed away from that prefix is picked up on its next
-    real change, not silently skipped forever.
-
-    Returns a list of {"task": <raw task dict>, "trigger": "created"|"rescoped",
-    "previous_date_updated": str|None}. Never raises -- a watermark-fetch
-    failure degrades to "treat every task as unseen" rather than crashing
-    the caller's polling loop, since a false "created" candidate is
-    harmless (a proposal Marvin can just accept) but a crash would block
-    the whole cron firing.
-    """
+def _fetch_tier_watermarks() -> dict:
+    """Pure read of the stored {task_id: date_updated} map. Empty dict on any fetch failure."""
     try:
         response = httpx.get(f"{NOVA_API_URL}/tier-watermarks", timeout=10)
         watermarks = response.json() if response.status_code == 200 else {}
     except Exception:
         watermarks = {}
     watermarks.pop("_updated_at", None)
+    return watermarks
+
+
+def persist_tier_watermarks(watermarks: dict) -> None:
+    """
+    Commits a watermark map computed by detect_tier_candidates(). Kept as
+    its own explicit call, deliberately NOT a side effect of computing the
+    diff -- a real bug found live during verification (86bb01wur): the
+    first version persisted watermarks unconditionally inside
+    detect_tier_candidates() itself, so a single inspection call (checking
+    what candidates exist, with no intention of processing them) silently
+    marked the entire backlog "seen" without a real proposal ever being
+    attempted for most of it -- which would have quietly defeated the
+    retroactive sweep before it ever ran. Callers must call this only
+    after they've actually finished attempting to process every candidate
+    the diff produced.
+    """
+    try:
+        httpx.post(f"{NOVA_API_URL}/tier-watermarks", json=watermarks, timeout=10)
+    except Exception as e:
+        print(f"Failed to persist tier watermarks: {e}")
+
+
+def detect_tier_candidates() -> dict:
+    """
+    Pure read/diff, no side effects -- safe to call repeatedly for
+    inspection without mutating anything. Diffs every board task's real
+    date_updated against the stored per-task watermark
+    (system/task_tier_watermarks) to find tasks that are either brand new
+    (id never seen) or rescoped since last seen (date_updated changed) --
+    the polling-based detection this project's real infrastructure
+    supports today (86bb01wur: no ClickUp webhooks exist anywhere in this
+    codebase, confirmed by grep, so push-based detection isn't available
+    without new infra). Meant to be called from inside
+    nova_scheduled_dispatch.py's existing 2-hour polling loop, not on its
+    own schedule.
+
+    Only tasks passing _is_tierable() become real candidates, but the
+    returned watermark map covers every task seen (tierable or not), so a
+    Spec: task that later gets renamed away from that prefix is picked up
+    on its next real change, not silently skipped forever -- the caller
+    must still call persist_tier_watermarks() with this map once it has
+    actually processed the candidates.
+
+    Returns {"candidates": [{"task": <raw task dict>, "trigger":
+    "created"|"rescoped", "previous_date_updated": str|None}, ...],
+    "watermarks": {task_id: date_updated, ...}}. Never raises -- a
+    watermark-fetch failure degrades to "treat every task as unseen"
+    rather than crashing the caller's polling loop, since a false
+    "created" candidate is harmless (a proposal Marvin can just accept)
+    but a crash would block the whole cron firing.
+    """
+    watermarks = _fetch_tier_watermarks()
 
     candidates = []
     updated_watermarks = dict(watermarks)
@@ -233,23 +264,74 @@ def detect_tier_candidates() -> list[dict]:
         if _is_tierable(task):
             candidates.append({"task": task, "trigger": trigger, "previous_date_updated": previous})
 
+    return {"candidates": candidates, "watermarks": updated_watermarks}
+
+
+def register_tier_proposal(task: dict, trigger: str) -> bool:
+    """
+    Full propose->register->tag->comment pipeline for one candidate task --
+    shared by both the ongoing polling loop
+    (nova_scheduled_dispatch.py's _register_tier_proposals()) and the
+    --sweep-tiers CLI backfill below, so there is exactly one code path
+    for "register a tier proposal," not a separate bulk-apply path for
+    the sweep (86bb01wur). Best-effort at each step (never raises) -- one
+    failed proposal must not block the rest of a batch. Returns True if a
+    proposal was successfully registered with nova_api.py (the tag/comment
+    steps are best-effort and don't affect the return value, matching
+    _handle_escalation()'s existing posture).
+    """
     try:
-        httpx.post(f"{NOVA_API_URL}/tier-watermarks", json=updated_watermarks, timeout=10)
+        proposal = propose_tier(task)
     except Exception as e:
-        print(f"Failed to persist tier watermarks: {e}")
+        print(f"Failed to propose a tier for {task['id']}: {e}")
+        return False
 
-    return candidates
+    payload = {
+        "task_id": task["id"],
+        "task_name": task["name"],
+        "trigger": trigger,
+        "previous_tier": None,
+        "proposed_tier": proposal["tier"],
+        "confidence": proposal["confidence"],
+        "reasoning": proposal["reasoning"],
+    }
+    try:
+        httpx.post(f"{NOVA_API_URL}/tier-proposals", json=payload, timeout=10)
+    except Exception as e:
+        print(f"Failed to register tier proposal for {task['id']}: {e}")
+        return False
+
+    try:
+        add_tag(task["id"], TIER_PENDING_TAG)
+    except Exception as e:
+        print(f"Failed to tag {task['id']} {TIER_PENDING_TAG}: {e}")
+
+    try:
+        add_comment(
+            task["id"],
+            f"**Nova proposes a tier — {task['name']}**\n\n"
+            f"- proposed tier: {proposal['tier']}\n"
+            f"- confidence: {proposal['confidence']}\n"
+            f"- reasoning: {proposal['reasoning']}\n\n"
+            "Accept or override at /escalations-ui.",
+        )
+    except Exception as e:
+        print(f"Failed to post tier-proposal comment on {task['id']}: {e}")
+
+    return True
 
 
-def sweep_existing_tasks() -> list[dict]:
+def sweep_existing_tasks() -> dict:
     """
     One-time retroactive backfill (86bb01wur, confirmed with Marvin: do a
     full sweep of the existing ~100+ backlog tasks rather than grandfather
-    them on the old autonomy-safe tag). Reuses the exact same watermark +
-    tierability logic as detect_tier_candidates() via calling it directly
-    -- every task with no watermark yet reads as "created" and becomes a
-    real candidate, going through the identical propose/register path an
-    ongoing poll would use, not a separate bulk-apply code path.
+    them on the old autonomy-safe tag). Identical shape to
+    detect_tier_candidates() -- see that function's own docstring -- since
+    it reuses the exact same watermark + tierability logic: every task
+    with no watermark yet reads as "created" and becomes a real candidate,
+    going through the identical propose/register path an ongoing poll
+    would use, not a separate bulk-apply code path. The caller still owns
+    calling persist_tier_watermarks() only after real processing.
     """
     return detect_tier_candidates()
 
@@ -314,6 +396,19 @@ if __name__ == "__main__":
     parser.add_argument("--list-ready", action="store_true", help="List tasks ready for headless dispatch.")
     parser.add_argument("--resolve", metavar="TASK_ID", help="Print the resolved prompt for one task.")
     parser.add_argument("--dispatch", metavar="TASK_ID", help="Resolve and dispatch one task to the Omen.")
+    parser.add_argument(
+        "--sweep-tiers",
+        action="store_true",
+        help="Retroactive tier-proposal backfill (86bb01wur) -- registers a proposal for every "
+             "tierable board task that has no watermark yet.",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        metavar="N",
+        help="With --sweep-tiers: only process the first N candidates, and do NOT persist "
+             "watermarks -- for testing a small subset before running the real full sweep.",
+    )
     args = parser.parse_args()
 
     if args.list_ready:
@@ -325,5 +420,22 @@ if __name__ == "__main__":
         resolved = resolve_task_description(args.dispatch)
         print(f"Dispatching {args.dispatch}: {resolved['name']}")
         print(json.dumps(dispatch_headless_task(resolved["prompt"]), indent=2))
+    elif args.sweep_tiers:
+        result = sweep_existing_tasks()
+        candidates = result["candidates"]
+        print(f"Found {len(candidates)} tierable candidate(s) out of {len(result['watermarks'])} total board tasks.")
+
+        if args.limit:
+            candidates = candidates[: args.limit]
+            print(f"--limit {args.limit}: processing only the first {len(candidates)}, watermarks will NOT be persisted.")
+
+        registered = sum(register_tier_proposal(c["task"], c["trigger"]) for c in candidates)
+        print(f"Registered {registered} tier proposal(s).")
+
+        if not args.limit:
+            persist_tier_watermarks(result["watermarks"])
+            print("Watermarks persisted -- this sweep won't re-propose these tasks unless they're rescoped later.")
+        else:
+            print("Watermarks NOT persisted -- re-run without --limit for the real full sweep.")
     else:
         parser.print_help()

@@ -42,9 +42,9 @@ from nova_omen_dispatch import dispatch_headless_task
 from nova_task_queue import (
     detect_tier_candidates,
     get_practice_queue_tasks,
-    propose_tier,
+    persist_tier_watermarks,
+    register_tier_proposal,
     resolve_task_description,
-    TIER_PENDING_TAG,
 )
 
 LOCK_PATH = Path(__file__).resolve().parent / ".scheduled_dispatch.lock"
@@ -358,12 +358,20 @@ def handle_dispatch_outcome(task_id: str, task_name: str, result: dict, phase: s
 def _register_tier_proposals() -> int:
     """
     Task tiering (86bb01wur) — calls nova_task_queue.detect_tier_candidates()
-    (the polling-based new/rescoped-task diff) and, for each candidate,
-    calls propose_tier() and registers the proposal via nova_api.py's
-    POST /tier-proposals, tags the task tier-pending, and comments the
-    proposed tier/confidence/reasoning. All best-effort per candidate —
-    one failed proposal must not block the rest, and must not block this
-    firing's actual dispatch work below.
+    (the polling-based new/rescoped-task diff, a pure read with no side
+    effects) and runs nova_task_queue.register_tier_proposal() for each
+    candidate — the exact same propose->register->tag->comment pipeline
+    the --sweep-tiers CLI backfill uses, not a duplicate. All best-effort
+    per candidate — one failed proposal must not block the rest, and must
+    not block this firing's actual dispatch work below.
+
+    Watermarks are persisted only AFTER every candidate has actually been
+    attempted (persist_tier_watermarks(), not a side effect of the diff
+    itself) — a real bug found live during verification: the first
+    version persisted watermarks unconditionally inside
+    detect_tier_candidates(), so an inspection-only call could silently
+    mark the backlog "seen" without a real proposal ever having been
+    attempted for it.
 
     Deliberately runs regardless of the dispatch-pause switch, unlike the
     dispatch flow it precedes: proposing a tier is Nova doing its own
@@ -374,48 +382,12 @@ def _register_tier_proposals() -> int:
     Returns the number of proposals successfully registered, for the
     firing's own summary dict.
     """
-    registered = 0
-    for candidate in detect_tier_candidates():
-        task = candidate["task"]
-        try:
-            proposal = propose_tier(task)
-        except Exception as e:
-            print(f"Failed to propose a tier for {task['id']}: {e}")
-            continue
-
-        payload = {
-            "task_id": task["id"],
-            "task_name": task["name"],
-            "trigger": candidate["trigger"],
-            "previous_tier": None,
-            "proposed_tier": proposal["tier"],
-            "confidence": proposal["confidence"],
-            "reasoning": proposal["reasoning"],
-        }
-        try:
-            httpx.post(f"{NOVA_API_URL}/tier-proposals", json=payload, timeout=10)
-        except Exception as e:
-            print(f"Failed to register tier proposal for {task['id']}: {e}")
-            continue
-
-        try:
-            add_tag(task["id"], TIER_PENDING_TAG)
-        except Exception as e:
-            print(f"Failed to tag {task['id']} {TIER_PENDING_TAG}: {e}")
-
-        try:
-            add_comment(
-                task["id"],
-                f"**Nova proposes a tier — {task['name']}**\n\n"
-                f"- proposed tier: {proposal['tier']}\n"
-                f"- confidence: {proposal['confidence']}\n"
-                f"- reasoning: {proposal['reasoning']}\n\n"
-                "Accept or override at /escalations-ui.",
-            )
-        except Exception as e:
-            print(f"Failed to post tier-proposal comment on {task['id']}: {e}")
-
-        registered += 1
+    result = detect_tier_candidates()
+    registered = sum(
+        register_tier_proposal(candidate["task"], candidate["trigger"])
+        for candidate in result["candidates"]
+    )
+    persist_tier_watermarks(result["watermarks"])
     return registered
 
 
