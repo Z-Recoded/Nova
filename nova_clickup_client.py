@@ -142,6 +142,16 @@ def add_comment(task_id: str, comment_text: str) -> dict:
     return _request("POST", f"/task/{task_id}/comment", json={"comment_text": comment_text})
 
 
+def add_tag(task_id: str, tag_name: str) -> dict:
+    """Attach a tag to a task — used to mark a headless dispatch paused awaiting Marvin's answer (86bax0wkj, tag 'awaiting-answer')."""
+    return _request("POST", f"/task/{task_id}/tag/{tag_name}")
+
+
+def remove_tag(task_id: str, tag_name: str) -> dict:
+    """Remove a previously-attached tag — used once an escalation is answered and the session resumes (86bax0wkj)."""
+    return _request("DELETE", f"/task/{task_id}/tag/{tag_name}")
+
+
 # ── House rules (Task Dependency & Status Discipline v1.0) ─────
 
 def _own_blockers(task: dict) -> list[dict]:

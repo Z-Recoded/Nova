@@ -25,23 +25,28 @@ DB_PATH = "C:/Nova/nova_state.db"
 # Every domain/entity pair Principle 6 defines, even if no adapter writes
 # to it yet — lets get_domain() return a real "not yet populated" answer
 # instead of confusing an unbuilt adapter with a missing table.
-# system/claude_usage_history, system/dispatch_pause, and
-# system/claude_activity_profile are all deliberate extensions beyond
-# Principle 6's original list (2026-07-14, 2026-07-15). Usage history is
-# cross-machine Claude Code usage data pushed by nova_usage_logger.py;
-# dispatch_pause is the pause-at-will switch nova_escalation.py exposes to
-# nova_omen_dispatch.py; claude_activity_profile is the cross-machine
-# hour-of-day/day-of-week Claude Code activity histogram, also pushed by
-# nova_usage_logger.py — groundwork for the autonomous-dispatch dual-fuel
-# design (86bawpvzz) to find genuine idle windows instead of guessing a
-# fixed reserve. None of these fit financial/work/creative/games, but all
-# belong in system alongside nova_health.
+# system/claude_usage_history, system/dispatch_pause,
+# system/claude_activity_profile, and system/pending_escalations are all
+# deliberate extensions beyond Principle 6's original list (2026-07-14,
+# 2026-07-15, 2026-07-18). Usage history is cross-machine Claude Code usage
+# data pushed by nova_usage_logger.py; dispatch_pause is the pause-at-will
+# switch nova_escalation.py exposes to nova_omen_dispatch.py;
+# claude_activity_profile is the cross-machine hour-of-day/day-of-week
+# Claude Code activity histogram, also pushed by nova_usage_logger.py —
+# groundwork for the autonomous-dispatch dual-fuel design (86bawpvzz) to
+# find genuine idle windows instead of guessing a fixed reserve.
+# pending_escalations (86bax0wkj) is a dict keyed by escalation_id — same
+# merge-by-key shape as claude_usage_history/claude_activity_profile, not
+# dispatch_pause's flat shape — holding real-time questions a headless
+# dispatch raised mid-task, awaiting Marvin's answer via /escalations-ui.
+# None of these fit financial/work/creative/games, but all belong in
+# system alongside nova_health.
 KNOWN_ENTITIES = {
     "financial": ["debt_sequence", "budget_pace", "upcoming_obligations", "subscription_audit", "atm_fees"],
     "work": ["active_projects", "next_actions"],
     "creative": ["art_output_rhythm", "active_characters"],
     "games": ["active_builds"],
-    "system": ["nova_health", "pending_alerts", "claude_usage_history", "dispatch_pause", "claude_activity_profile"],
+    "system": ["nova_health", "pending_alerts", "claude_usage_history", "dispatch_pause", "claude_activity_profile", "pending_escalations"],
 }
 
 

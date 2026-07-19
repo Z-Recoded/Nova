@@ -9,14 +9,17 @@
 # into nova_orchestrator.py: nova_orchestrator.py's own worktree loop is a
 # plausible second caller later, not just the Omen dispatch path.
 #
-# check_escalation() is a stub only — always reports "no escalation
-# needed." It takes the generic result dict dispatch_headless_task()
-# already returns (success/session_id/summary/stop_reason), not raw
-# Claude Code CLI session internals, per 86bax0exx's requirement that the
-# escalation interface stay backend-agnostic (Claude Code CLI today,
-# OpenHands+local-model later). Real detection logic — and the
-# pause/package/notify/wait/resume flow this feeds — is 86bax0wkj (Nova
-# Controller v1), not yet scoped.
+# check_escalation() is real as of 86bax0wkj (2026-07-18) — it parses a
+# structured NOVA_ESCALATION_START/END block out of the dispatch/resume
+# result's own summary text via regex. It takes the generic result dict
+# dispatch_headless_task()/resume_headless_task() already return
+# (success/session_id/summary/stop_reason), not raw Claude Code CLI
+# session internals, per 86bax0exx's requirement that the escalation
+# interface stay backend-agnostic (Claude Code CLI today,
+# OpenHands+local-model later). The pause/package/notify/wait/resume flow
+# this feeds lives in nova_scheduled_dispatch.py's _handle_escalation()
+# and nova_api.py's /escalations routes — see CLAUDE.md's "Escalation
+# Protocol" subsection for the exact block format headless tasks emit.
 #
 # is_dispatch_paused()/set_dispatch_pause() are real, not stubbed: Marvin
 # asked directly (2026-07-14, captured on 86bax0exx) for the ability to
@@ -43,6 +46,7 @@
 
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 from typing import Optional
@@ -92,25 +96,62 @@ def set_dispatch_pause(paused: bool, reason: Optional[str] = None) -> dict:
         return json.loads(response.read())
 
 
-# ── Escalation hook (stub) ───────────────────────────────────────
+# ── Escalation hook ──────────────────────────────────────────────
+
+_ESCALATION_BLOCK = re.compile(r"NOVA_ESCALATION_START(.*?)NOVA_ESCALATION_END", re.DOTALL)
+_QUESTION = re.compile(r"QUESTION:\s*(.*?)(?:\n\s*OPTIONS:|\n\s*CONTEXT:|\Z)", re.DOTALL)
+_OPTIONS = re.compile(r"OPTIONS:\s*(.*?)(?:\n\s*CONTEXT:|\Z)", re.DOTALL)
+_CONTEXT = re.compile(r"CONTEXT:\s*(.*)\Z", re.DOTALL)
+
 
 def check_escalation(session_result: dict) -> dict:
     """
-    Stub — always returns {"escalation_needed": False}. Exists so
-    dispatch_headless_task()'s return shape already carries an
-    "escalation" key, letting real detection logic slot in later without
-    touching the dispatch call site again. session_result is the same
-    generic dict dispatch_headless_task() returns to its own caller.
+    Parses a NOVA_ESCALATION_START/END block out of session_result's own
+    "summary" text (the same generic dict dispatch_headless_task()/
+    resume_headless_task() return), per CLAUDE.md's Escalation Protocol
+    format. Pure parsing, no I/O — persistence is the caller's job
+    (nova_scheduled_dispatch.py's _handle_escalation()), keeping this
+    reusable from both the dispatch and resume paths.
 
-    Intended landing spot for real-time scope-violation detection once
-    86bax0wkj lands (e.g. flagging when a headless run acted outside its
-    task's declared scope). Today that boundary is prompt/policy-only —
-    see nova_task_queue.resolve_task_description()'s DATA-marker framing
-    (86baxbt1x) — and this stub is only ever called after the SSH run has
-    already completed, so it can't yet gate execution, only flag after
-    the fact.
+    Returns {"escalation_needed": False} when no block is found. Returns
+    {"escalation_needed": True, "question": str|None, "options_considered":
+    list[str], "context": str|None, "malformed": bool} when found —
+    malformed=True (question is None) if the block exists but QUESTION:
+    didn't parse, so a real attempt with a formatting slip surfaces to
+    Marvin rather than silently vanishing — the same fail-toward-the-
+    restrictive-case instinct as is_dispatch_paused()'s fail-toward-paused.
+
+    Still only ever called after the SSH run has already completed, so it
+    can't gate execution mid-run — only flag after the fact that the task
+    paused itself and is waiting on an answer.
     """
-    return {"escalation_needed": False}
+    match = _ESCALATION_BLOCK.search(session_result.get("summary") or "")
+    if not match:
+        return {"escalation_needed": False}
+
+    block = match.group(1)
+
+    question_match = _QUESTION.search(block)
+    question = question_match.group(1).strip() if question_match else ""
+
+    options_considered = []
+    options_match = _OPTIONS.search(block)
+    if options_match:
+        for line in options_match.group(1).splitlines():
+            line = line.strip()
+            if line.startswith("- "):
+                options_considered.append(line[2:].strip())
+
+    context_match = _CONTEXT.search(block)
+    context = context_match.group(1).strip() if context_match else None
+
+    return {
+        "escalation_needed": True,
+        "question": question or None,
+        "options_considered": options_considered,
+        "context": context or None,
+        "malformed": not bool(question),
+    }
 
 
 # ── Quick test ────────────────────────────────────────────────────

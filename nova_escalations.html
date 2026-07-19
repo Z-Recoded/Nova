@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — Escalation Answer UI</title>
+<style>
+  body {
+    font-family: -apple-system, Segoe UI, sans-serif;
+    background: #111318;
+    color: #e6e6e6;
+    max-width: 720px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+  p.subtitle { color: #888; margin-top: 0; margin-bottom: 1.5rem; }
+  #error { color: #e06060; }
+
+  .token-box {
+    background: #1b1e26;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .token-box label { display: block; font-size: 0.8rem; color: #999; margin-bottom: 0.4rem; }
+  .token-box input {
+    background: #111318;
+    color: #e6e6e6;
+    border: 1px solid #2a2e38;
+    border-radius: 4px;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.85rem;
+    width: 60%;
+  }
+  .token-box button {
+    background: #2a2e38;
+    color: #e6e6e6;
+    border: 1px solid #3a3e48;
+    border-radius: 4px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    margin-left: 0.5rem;
+  }
+  .token-box button:hover { background: #343945; }
+
+  .empty { color: #888; font-size: 0.9rem; }
+
+  .card {
+    background: #1b1e26;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.9rem;
+  }
+  .card.resolved, .card.resuming { opacity: 0.6; }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  .task-name { font-weight: 600; }
+  .badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .badge.pending { background: #4a3a1a; color: #e0b060; }
+  .badge.resuming { background: #1a3a4a; color: #60b0e0; }
+  .badge.resolved { background: #2a3a2a; color: #80c080; }
+  .badge.error { background: #4a1a1a; color: #e06060; }
+
+  .question { font-size: 0.95rem; margin-bottom: 0.5rem; }
+  .malformed-note { color: #e0b060; font-size: 0.8rem; margin-bottom: 0.5rem; }
+
+  .context-toggle {
+    color: #999;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: underline dotted;
+    margin-bottom: 0.5rem;
+    display: inline-block;
+  }
+  .context-body {
+    display: none;
+    background: #111318;
+    border: 1px solid #2a2e38;
+    border-radius: 4px;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+    color: #bbb;
+    margin-bottom: 0.5rem;
+    white-space: pre-wrap;
+  }
+  .context-body.open { display: block; }
+
+  .options { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
+  .option-btn {
+    background: #263140;
+    color: #e6e6e6;
+    border: 1px solid #35455a;
+    border-radius: 6px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .option-btn:hover { background: #304055; }
+  .option-btn:disabled { cursor: default; opacity: 0.5; }
+
+  .freeform { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
+  .freeform input {
+    flex: 1;
+    background: #111318;
+    color: #e6e6e6;
+    border: 1px solid #2a2e38;
+    border-radius: 4px;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.85rem;
+  }
+  .freeform button {
+    background: #2a2e38;
+    color: #e6e6e6;
+    border: 1px solid #3a3e48;
+    border-radius: 4px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .freeform button:hover { background: #343945; }
+
+  .result-summary {
+    font-size: 0.8rem;
+    color: #999;
+    margin-top: 0.5rem;
+    white-space: pre-wrap;
+  }
+  .submit-status { font-size: 0.8rem; color: #999; margin-top: 0.4rem; }
+</style>
+</head>
+<body>
+  <h1>Nova — Escalation Answer UI</h1>
+  <p class="subtitle">Real-time questions raised by headless dispatch runs (86bax0wkj). Answering resumes the exact same session.</p>
+
+  <div id="error"></div>
+
+  <div class="token-box" id="token-box" style="display:none">
+    <label for="token-input">Escalation token (stored locally in this browser only)</label>
+    <input type="password" id="token-input" placeholder="X-Nova-Escalation-Token">
+    <button id="token-save">Save</button>
+  </div>
+
+  <div id="cards"></div>
+
+  <script>
+    const TOKEN_KEY = 'nova_escalation_token';
+
+    function getToken() {
+      return localStorage.getItem(TOKEN_KEY) || '';
+    }
+
+    function showTokenPrompt() {
+      document.getElementById('token-box').style.display = 'block';
+    }
+
+    document.getElementById('token-save').addEventListener('click', () => {
+      const value = document.getElementById('token-input').value.trim();
+      if (value) {
+        localStorage.setItem(TOKEN_KEY, value);
+        document.getElementById('token-box').style.display = 'none';
+        document.getElementById('token-input').value = '';
+      }
+    });
+
+    if (!getToken()) {
+      showTokenPrompt();
+    }
+
+    // First of these dashboard pages rendering genuinely free text (model
+    // questions, human answers) rather than purely structured telemetry —
+    // escape everything before it ever reaches innerHTML.
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text == null ? '' : String(text);
+      return div.innerHTML;
+    }
+
+    function badgeClass(status) {
+      if (status === 'pending') return 'pending';
+      if (status === 'resuming') return 'resuming';
+      if (status === 'error') return 'error';
+      return 'resolved';
+    }
+
+    async function submitAnswer(escalationId, answerText, statusEl) {
+      const token = getToken();
+      statusEl.textContent = 'Submitting…';
+      try {
+        const res = await fetch(`/escalations/${escalationId}/answer`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Nova-Escalation-Token': token,
+          },
+          body: JSON.stringify({ answer_text: answerText }),
+        });
+        if (res.status === 401) {
+          localStorage.removeItem(TOKEN_KEY);
+          showTokenPrompt();
+          statusEl.textContent = 'Token rejected — enter it again above and retry.';
+          return;
+        }
+        if (!res.ok) {
+          statusEl.textContent = 'Submit failed: ' + res.status;
+          return;
+        }
+        statusEl.textContent = 'Answer sent — resuming…';
+        loadEscalations();
+      } catch (err) {
+        statusEl.textContent = 'Submit failed: ' + err.message;
+      }
+    }
+
+    function renderCard(entry) {
+      const status = entry.status || 'pending';
+      const div = document.createElement('div');
+      div.className = 'card ' + status;
+
+      const header = document.createElement('div');
+      header.className = 'card-header';
+      header.innerHTML =
+        `<span class="task-name">${escapeHtml(entry.task_name)}</span>` +
+        `<span class="badge ${badgeClass(status)}">${escapeHtml(status)}</span>`;
+      div.appendChild(header);
+
+      if (entry.malformed) {
+        const note = document.createElement('div');
+        note.className = 'malformed-note';
+        note.textContent = 'Escalation block was malformed — question may be incomplete.';
+        div.appendChild(note);
+      }
+
+      const question = document.createElement('div');
+      question.className = 'question';
+      question.textContent = entry.question || '(no question parsed)';
+      div.appendChild(question);
+
+      if (entry.context) {
+        const toggle = document.createElement('span');
+        toggle.className = 'context-toggle';
+        toggle.textContent = 'show context';
+        const body = document.createElement('div');
+        body.className = 'context-body';
+        body.textContent = entry.context;
+        toggle.addEventListener('click', () => {
+          body.classList.toggle('open');
+          toggle.textContent = body.classList.contains('open') ? 'hide context' : 'show context';
+        });
+        div.appendChild(toggle);
+        div.appendChild(body);
+      }
+
+      if (status === 'pending') {
+        const statusEl = document.createElement('div');
+        statusEl.className = 'submit-status';
+
+        if (entry.options_considered && entry.options_considered.length) {
+          const options = document.createElement('div');
+          options.className = 'options';
+          entry.options_considered.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.textContent = opt;
+            btn.addEventListener('click', () => {
+              options.querySelectorAll('button').forEach(b => b.disabled = true);
+              submitAnswer(entry.escalation_id, opt, statusEl);
+            });
+            options.appendChild(btn);
+          });
+          div.appendChild(options);
+        }
+
+        const freeform = document.createElement('div');
+        freeform.className = 'freeform';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = 'Or type a free-text answer…';
+        const button = document.createElement('button');
+        button.textContent = 'Submit';
+        button.addEventListener('click', () => {
+          if (input.value.trim()) {
+            submitAnswer(entry.escalation_id, input.value.trim(), statusEl);
+          }
+        });
+        freeform.appendChild(input);
+        freeform.appendChild(button);
+        div.appendChild(freeform);
+        div.appendChild(statusEl);
+      } else if (entry.resume_result && entry.resume_result.summary) {
+        const summary = document.createElement('div');
+        summary.className = 'result-summary';
+        summary.textContent = entry.resume_result.summary;
+        div.appendChild(summary);
+      }
+
+      return div;
+    }
+
+    async function loadEscalations() {
+      try {
+        const res = await fetch('/escalations');
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const data = await res.json();
+        const entries = Object.values(data).filter(v => v && typeof v === 'object' && v.escalation_id);
+
+        // Pending first, then most recently created within each group.
+        entries.sort((a, b) => {
+          const aPending = a.status === 'pending' ? 0 : 1;
+          const bPending = b.status === 'pending' ? 0 : 1;
+          if (aPending !== bPending) return aPending - bPending;
+          return (b.created_at || '').localeCompare(a.created_at || '');
+        });
+
+        const container = document.getElementById('cards');
+        if (!entries.length) {
+          container.innerHTML = '<p class="empty">No escalations yet.</p>';
+          return;
+        }
+        container.innerHTML = '';
+        entries.forEach(entry => container.appendChild(renderCard(entry)));
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not load escalations: ' + err.message;
+      }
+    }
+
+    loadEscalations();
+    setInterval(loadEscalations, 5000);
+  </script>
+</body>
+</html>

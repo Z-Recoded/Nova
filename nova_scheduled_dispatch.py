@@ -33,9 +33,11 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from nova_clickup_client import add_comment, get_task, update_status
+import httpx
+
+from nova_clickup_client import add_comment, add_tag, get_task, update_status
 from nova_config import get_max_unreviewed_dispatches, is_review_backpressure_enabled
-from nova_escalation import is_dispatch_paused
+from nova_escalation import NOVA_API_URL, is_dispatch_paused
 from nova_omen_dispatch import dispatch_headless_task
 from nova_task_queue import get_practice_queue_tasks, resolve_task_description
 
@@ -172,12 +174,15 @@ def _post_non_clean_comment(task_id: str, task_name: str, result: dict, phase: s
     Omen by hand. Best-effort: a comment-posting failure must not take
     down a dispatch that already happened — same defensive pattern as the
     existing ClickUp status-transition try/except in run_scheduled_dispatch().
-    check_escalation() is still a stub (86bax0wkj) — this only reports what
-    the result dict already says, it does not invent stuck-run detection.
-    ClickUp is the only notification channel that works today (confirmed
-    2026-07-16: Open WebUI push doesn't exist, Slack/email need credentials
-    Nova lacks) — Layer 2 (a dashboard tile) and Layer 3 (real push,
-    Langfuse) are deferred, per 86baykvb7's own layered design.
+    Only ever reached for a genuinely non-clean, non-escalation outcome —
+    handle_dispatch_outcome() checks escalation first (86bax0wkj) and
+    routes those to _handle_escalation() instead — so this still only
+    reports what the result dict already says, it does not invent
+    stuck-run detection. ClickUp is the only notification channel that
+    works today (confirmed 2026-07-16: Open WebUI push doesn't exist,
+    Slack/email need credentials Nova lacks) — Layer 2 (a dashboard tile)
+    and Layer 3 (real push, Langfuse) are deferred, per 86baykvb7's own
+    layered design.
     """
     lines = [f"**Autonomous dispatch — non-clean outcome ({phase}): {task_name}**", ""]
     if result.get("error"):
@@ -201,19 +206,147 @@ def _post_non_clean_comment(task_id: str, task_name: str, result: dict, phase: s
         print(f"Failed to post non-clean-outcome comment on {task_id}: {e}")
 
 
+def _pending_escalation_task_ids() -> set:
+    """
+    task_ids currently mid-escalation (status "pending" or "resuming" in
+    nova_api.py's system/pending_escalations) — excluded from
+    count_unreviewed_dispatches() below, since a task awaiting Marvin's
+    answer isn't "done and unreviewed," it's "not done yet" (86bax0wkj).
+
+    Fails toward an EMPTY set on any error (unreachable API, bad JSON) —
+    i.e. toward NOT excluding anything, keeping the backpressure cap
+    conservative (may still block a new dispatch it didn't strictly need
+    to) rather than under-counting and letting more autonomous dispatches
+    through than max_unreviewed_dispatches intends. Same fail-toward-the-
+    restrictive-case instinct as is_dispatch_paused()'s fail-toward-paused.
+    """
+    try:
+        response = httpx.get(f"{NOVA_API_URL}/escalations", timeout=10)
+        escalations = response.json()
+    except Exception:
+        return set()
+    return {
+        entry["task_id"]
+        for entry in escalations.values()
+        if isinstance(entry, dict) and entry.get("status") in ("pending", "resuming")
+    }
+
+
 def count_unreviewed_dispatches() -> int:
     """
     Unreviewed = a scheduled_dispatch_log.jsonl entry with a real
     session_id (a genuine round-trip happened, whether the task succeeded
     or reported a real blocker) whose task_id has no matching entry yet in
-    dispatch_review_log.jsonl. Deliberately the same "session_id present"
-    definition run_scheduled_dispatch() already uses for its own ClickUp
-    status transition, not "success" — a completed-but-blocked run still
-    needs a human review decision, not just a failed one.
+    dispatch_review_log.jsonl, AND isn't currently sitting mid-escalation
+    awaiting Marvin's answer (86bax0wkj — see
+    _pending_escalation_task_ids()). Deliberately the same "session_id
+    present" definition run_scheduled_dispatch() already uses for its own
+    ClickUp status transition, not "success" — a completed-but-blocked run
+    still needs a human review decision, not just a failed one.
     """
     dispatched_task_ids = {e["task_id"] for e in _read_jsonl(LOG_PATH) if e.get("session_id") is not None}
     reviewed_task_ids = {e["task_id"] for e in _read_jsonl(REVIEW_LOG_PATH)}
-    return len(dispatched_task_ids - reviewed_task_ids)
+    pending_escalation_task_ids = _pending_escalation_task_ids()
+    return len(dispatched_task_ids - reviewed_task_ids - pending_escalation_task_ids)
+
+
+def _handle_escalation(task_id: str, task_name: str, result: dict, phase: str) -> None:
+    """
+    Register a paused-for-escalation dispatch outcome (86bax0wkj) —
+    registers it with nova_api.py's /escalations (never a direct
+    nova_state.py import: nova_state.py's DB_PATH is a hardcoded Windows
+    path, the same cross-machine bug class that already broke
+    dispatch_pause when read directly on the Omen — see
+    nova_escalation.py's own header comment), tags the ClickUp task
+    awaiting-answer, and posts a comment with the question so it's visible
+    without opening /escalations-ui. All three best-effort (never raise
+    past this function) — a comment/tag/registration failure can't take
+    down a dispatch that already happened, same posture as
+    _post_non_clean_comment().
+    """
+    escalation = result.get("escalation") or {}
+    payload = {
+        "task_id": task_id,
+        "task_name": task_name,
+        "session_id": result.get("session_id"),
+        "worktree_path": result.get("worktree_path"),
+        "worktree_name": result.get("worktree_name"),
+        "question": escalation.get("question"),
+        "options_considered": escalation.get("options_considered", []),
+        "context": escalation.get("context"),
+        "fuel_source": result.get("fuel_source"),
+        "phase": phase,
+        "malformed": escalation.get("malformed", False),
+    }
+    try:
+        httpx.post(f"{NOVA_API_URL}/escalations", json=payload, timeout=10)
+    except Exception as e:
+        print(f"Failed to register escalation for {task_id}: {e}")
+
+    try:
+        add_tag(task_id, "awaiting-answer")
+    except Exception as e:
+        print(f"Failed to tag {task_id} awaiting-answer: {e}")
+
+    lines = [f"**Awaiting your answer — {task_name}**", ""]
+    if escalation.get("malformed"):
+        lines.append("_Escalation block was malformed — question may be incomplete. Check the raw summary below._")
+    lines.append(f"- question: {escalation.get('question') or '(none parsed)'}")
+    if escalation.get("options_considered"):
+        lines.append("- options: " + "; ".join(escalation["options_considered"]))
+    if escalation.get("context"):
+        lines.append(f"- context: {escalation['context']}")
+    lines.append("")
+    lines.append("Answer at /escalations-ui.")
+    try:
+        add_comment(task_id, "\n".join(lines))
+    except Exception as e:
+        print(f"Failed to post escalation comment on {task_id}: {e}")
+
+
+def handle_dispatch_outcome(task_id: str, task_name: str, result: dict, phase: str) -> dict:
+    """
+    Shared tail for both a fresh dispatch (phase="dispatch", called from
+    run_scheduled_dispatch() below) and a resumed escalation
+    (phase="resume", called later from nova_api.py's background task once
+    Marvin answers via /escalations-ui — not from run_scheduled_dispatch()
+    itself, since a resume doesn't go through the pick/lock/resolve steps).
+
+    Ordering matters and is deliberately if/elif, mutually exclusive: the
+    escalation branch is checked FIRST. A result that paused for an
+    escalation has a real session_id but success is not True (the run
+    didn't finish) — without checking escalation first, it would also
+    trip _is_clean_outcome() == False and fire _post_non_clean_comment()
+    as if it were a real failure, double-commenting alongside whatever
+    _handle_escalation() itself posts. It never falls through to both.
+    """
+    if result.get("session_id") is not None:
+        try:
+            get_task(task_id)  # confirm it still exists before writing
+            update_status(task_id, "in progress")
+        except Exception as e:
+            result["status_update_error"] = str(e)
+
+    outcome = {
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "task_id": task_id,
+        "task_name": task_name,
+        "fuel_source": result.get("fuel_source"),
+        "success": result.get("success"),
+        "cost_usd": result.get("cost_usd"),
+        "session_id": result.get("session_id"),
+        "summary": result.get("summary"),
+        "phase": phase,
+    }
+    _log_outcome(outcome)
+
+    escalation = result.get("escalation") or {}
+    if escalation.get("escalation_needed"):
+        _handle_escalation(task_id, task_name, result, phase)
+    elif not _is_clean_outcome(result):
+        _post_non_clean_comment(task_id, task_name, result, phase=phase)
+
+    return {"status": "dispatched", **outcome}
 
 
 def run_scheduled_dispatch() -> dict:
@@ -254,34 +387,12 @@ def run_scheduled_dispatch() -> dict:
 
         result = dispatch_headless_task(resolved["prompt"])
 
-        # Only transition status when a real round-trip actually happened
-        # (session_id present) — not on "success", which would leave a
-        # genuinely-blocked-but-completed run silently re-picked forever,
-        # and not on an infra failure (no session_id), which should
-        # naturally retry next cycle rather than get stuck in limbo.
-        if result.get("session_id") is not None:
-            try:
-                get_task(task_id)  # confirm it still exists before writing
-                update_status(task_id, "in progress")
-            except Exception as e:
-                result["status_update_error"] = str(e)
-
-        outcome = {
-            "timestamp": datetime.now().isoformat(timespec="seconds"),
-            "task_id": task_id,
-            "task_name": task["name"],
-            "fuel_source": result.get("fuel_source"),
-            "success": result.get("success"),
-            "cost_usd": result.get("cost_usd"),
-            "session_id": result.get("session_id"),
-            "summary": result.get("summary"),
-        }
-        _log_outcome(outcome)
-
-        if not _is_clean_outcome(result):
-            _post_non_clean_comment(task_id, task["name"], result, phase="dispatch")
-
-        return {"status": "dispatched", **outcome}
+        # Status transition, logging, and escalation/non-clean handling are
+        # all shared with the resume-completion path (triggered later from
+        # nova_api.py's background task) via handle_dispatch_outcome() —
+        # see that function's own docstring for why the ordering there
+        # matters (86bax0wkj).
+        return handle_dispatch_outcome(task_id, task["name"], result, phase="dispatch")
     finally:
         _release_lock()
 

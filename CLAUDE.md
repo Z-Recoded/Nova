@@ -192,7 +192,28 @@ Nova v0.1 is operational. The following are built and validated:
   canonical-FastAPI-layer pattern the activity profile already uses.
   `is_dispatch_paused()` fails toward `paused=True` on any network error;
   `set_dispatch_pause()` does not fail silently, since a pause Marvin
-  explicitly requests needs to be visibly confirmed, not swallowed
+  explicitly requests needs to be visibly confirmed, not swallowed.
+  **`check_escalation()` shipped for real (2026-07-18, `86bax0wkj`)** —
+  no longer a stub. Real regex parsing of a `NOVA_ESCALATION_START/END`
+  block (see CLAUDE.md's Escalation Protocol subsection above for the
+  exact format) out of a dispatch/resume result's own summary text, pure
+  parsing/no I/O so it's reusable from both `dispatch_headless_task()`
+  and the new `resume_headless_task()` in `nova_omen_dispatch.py`.
+  Alongside it: `dispatch_headless_task()` now always creates an
+  explicitly-named worktree and captures its real path via a before/after
+  `git worktree list --porcelain` diff (needed so a resume can `cd` back
+  into the exact same worktree); `resume_headless_task()` runs
+  `claude -p --resume <session_id>` with no `--worktree` flag, and
+  deliberately does not call `is_dispatch_paused()` — answering a direct
+  question was confirmed with Marvin as a different act than a new
+  autonomous run starting mid-build; and agent-log ingestion is now
+  idempotent via a per-session turn cursor
+  (`logs/agent_log_ingest_cursor.json` on the Omen), so a resumed
+  session's earlier turns don't duplicate into the training corpus. The
+  pause/package/notify/wait/resume flow this hook feeds lives in
+  `nova_scheduled_dispatch.py`'s `_handle_escalation()` and `nova_api.py`'s
+  new `/escalations` routes + `nova_escalations.html` UI — see the
+  Escalation Protocol subsection and Section 7's route table
 - `nova_omen_sync.py` — one-command sync for the Omen's MAIN checkout
   (distinct from `nova_omen_dispatch.py`'s worktree path above, which
   already self-syncs by fetching fresh from origin every run). Collapses
@@ -397,8 +418,9 @@ C:/Nova/
 ├── nova_chroma_omen_check.py # Chroma-on-Omen reachability probe (TCP → heartbeat → collection → real query)
 ├── nova_usage_logger.py    # Local Claude Code usage/cost history + activity profile (scans ~/.claude/projects/**/*.jsonl, all projects)
 ├── nova_tool_call_log.py   # Tool-call logging schema for the coding sub-agent (interim — Langfuse will absorb this)
-├── nova_omen_dispatch.py   # Headless task dispatch on the Omen via `claude -p --worktree` over SSH (86bax0exx's invocation step)
-├── nova_escalation.py      # Escalation-hook stub + pause-at-will switch for headless dispatch (86bax0exx step 5)
+├── nova_omen_dispatch.py   # Headless task dispatch on the Omen via `claude -p --worktree` over SSH, plus resume_headless_task() for answered escalations (86bax0exx invocation step, 86bax0wkj)
+├── nova_escalation.py      # Real escalation-block parsing + pause-at-will switch for headless dispatch (86bax0exx step 5, 86bax0wkj)
+├── nova_escalations.html   # Escalation Answer UI — served at /escalations-ui (86bax0wkj)
 ├── nova_omen_sync.py       # One-command sync for the Omen's main checkout — git pull, restart nova-api/nova-chroma, verify listening
 ├── nova_task_queue.py      # Readiness detection + task resolution for headless dispatch (86bax0exx steps 1-2)
 ├── nova_scheduled_dispatch.py # Cron-fired entry point on the Omen — picks + dispatches one autonomy-safe-tagged task every 2 hours
@@ -596,6 +618,74 @@ specific `old_str` or fall back to `write_file` for that edit. Reserve
 `write_file` for brand-new files. This paragraph is picked up automatically
 by `_build_system_prompt()`, which reads all of CLAUDE.md verbatim into the
 sub-agent's system prompt every run.
+
+### Escalation Protocol — Headless Dispatch (86bax0wkj, 2026-07-18)
+A headless task dispatched via `nova_omen_dispatch.dispatch_headless_task()` can now
+pause mid-task to ask Marvin a real question and resume once he answers, instead of
+either guessing or running to completion with no way to get real-time input. Distinct
+from `nova_task_queue.resolve_task_description()`'s existing "stop and say so plainly"
+instruction: use that for blockers no answer would fix (missing credentials, an ask
+outside scope); use the escalation block below only when a real answer from Marvin
+would genuinely let the task continue.
+
+**Block format** — must be the entire final message, with no further tool calls after
+it (there is no way to "un-stop" a turn that kept going — `check_escalation()` only
+ever runs after the SSH call has already returned):
+```
+NOVA_ESCALATION_START
+QUESTION: <question text, may span multiple lines>
+OPTIONS:
+- <option 1>
+- <option 2>
+CONTEXT: <optional freeform context>
+NOVA_ESCALATION_END
+```
+`OPTIONS` and `CONTEXT` are optional; `QUESTION` is required — its absence still
+escalates (marked `malformed: true`, surfaced to Marvin rather than silently dropped).
+
+**Mechanism, end to end:** `nova_escalation.check_escalation()` parses the block out of
+the dispatch/resume result's own summary text via regex. `nova_scheduled_dispatch.py`'s
+`_handle_escalation()` registers it with `nova_api.py`'s `POST /escalations` (never a
+direct `nova_state.py` import — see that file's `pending_escalations` entity note: the
+same cross-machine hardcoded-`DB_PATH` bug that already broke `dispatch_pause`), tags
+the ClickUp task `awaiting-answer`, and comments the question. Marvin answers via
+`GET /escalations-ui` (`nova_escalations.html`); the answer is accepted immediately
+(fire-and-forget `BackgroundTasks`), and `nova_omen_dispatch.resume_headless_task()`
+runs `claude -p --resume <session_id>` in the background, `cd`'d into the exact
+original worktree (never re-passing `--worktree`, which would create a new one).
+`dispatch_headless_task()` always creates an explicitly-named worktree now
+(`nova-dispatch-<uuid8>`, never the bare `--worktree` flag) and captures its real path
+via a before/after `git worktree list --porcelain` diff, since `claude -p`'s own JSON
+result never reports it — safe because `nova_scheduled_dispatch.py`'s atomic lock file
+already serializes every cron-triggered dispatch (a manual `--dispatch` call bypassing
+that lock is a documented, accepted narrow gap). The resumed result goes through the
+identical `handle_dispatch_outcome()` logic shared with a fresh dispatch — can escalate
+again, uncapped, or finish clean/non-clean like any other run.
+
+**Four decisions confirmed with Marvin:** (1) resuming an escalated session is **not**
+blocked by the global dispatch-pause switch — answering a direct question is a
+different act than a new autonomous run starting while he's mid-build; (2) agent-log
+transcript ingestion is now genuinely idempotent via a per-session turn cursor
+(`logs/agent_log_ingest_cursor.json` on the Omen) — a resumed session's earlier turns
+must not duplicate into the Qwen3 training corpus; (3) `POST /escalations/{id}/answer`
+requires header `X-Nova-Escalation-Token` matching env var `NOVA_ESCALATION_TOKEN` —
+the first cost-incurring write route on `nova_api.py`'s otherwise-unauthenticated
+Tailscale-only surface, ahead of the general token-auth ticket (`86bawf2z2`); (4) a
+task awaiting an answer gets ClickUp tag `awaiting-answer`, not just a comment.
+
+**Review-backpressure interaction (found and fixed same day):** a paused-for-escalation
+dispatch has a real `session_id` but `success` is not `True` — without a fix, it would
+count against both the review-backpressure cap (`86baykvan`, a "not done yet" task
+counted as "done and unreviewed") and fire a non-clean-outcome ClickUp comment
+(`86baykvb7`) alongside the escalation comment. Fixed via `handle_dispatch_outcome()`
+checking escalation first (mutually exclusive `if`/`elif` with the clean/non-clean
+branch) and `count_unreviewed_dispatches()` excluding `pending`/`resuming` task_ids via
+new `_pending_escalation_task_ids()` (fails toward an empty/non-excluding set on error,
+keeping the cap conservative).
+
+**Manual step required:** Marvin must set `NOVA_ESCALATION_TOKEN` in the Omen's `.env`
+and restart `nova-api` (or run `nova_omen_sync.py`) before the answer route will accept
+anything — it 401s otherwise, by design (fail-closed, not a soft pass).
 
 **Token Budget Governor — scoped v1 (2026-07-07, ClickUp `86barhqt9`):**
 the finalized spec assumes infrastructure that doesn't exist yet —
@@ -863,6 +953,10 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | /activity-profile | GET | ✓ Working | Return the merged Claude Code activity profile across every machine that's pushed to it (no cross-machine summing yet) |
 | /dispatch-pause | POST | ✓ Working | Set the headless-dispatch pause switch in nova_state.db (system/dispatch_pause) — called by nova_escalation.py's set_dispatch_pause(), always executes on the Omen's own copy regardless of caller's machine |
 | /dispatch-pause | GET | ✓ Working | Return the current headless-dispatch pause state — called by nova_escalation.py's is_dispatch_paused() over HTTP instead of a direct nova_state.py import (2026-07-16 cross-machine fix) |
+| /escalations | POST | ✓ Working | Register a new pending escalation (system/pending_escalations) — called by nova_scheduled_dispatch.py's _handle_escalation(), not token-gated (86bax0wkj) |
+| /escalations | GET | ✓ Working | Return all escalations, pending and resolved — not token-gated (read-only) |
+| /escalations/{id}/answer | POST | ✓ Working | Submit Marvin's answer — requires header X-Nova-Escalation-Token, fires a background resume via nova_omen_dispatch.resume_headless_task(), returns immediately |
+| /escalations-ui | GET | ✓ Working | Escalation Answer UI page (HTML) — nova_escalations.html |
 
 ---
 
@@ -972,6 +1066,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-16 | Shipped `nova_agent_log_status.py` — read-only CLI merging the Aero's and Omen's separate `agent_log.jsonl` files for a combined Qwen3 8B swap-trigger progress count — added to Sections 1 & 2 | Closes the cross-machine gap flagged in the previous session's entry (headless dispatch transcript wiring, commit `e957191`): `agent_log.jsonl` existed as two disjoint per-machine files with no way to answer "how much do we have toward the 30-50 target" without combining them by hand. Deliberately scoped as a fetch-fresh-every-run CLI, not a `nova_state.db` push-and-merge entity like `usage_history`/`activity_profile` — confirmed with Marvin first (`AskUserQuestion`) rather than defaulting to that precedent, since nothing needs live/dashboard access to this data today, only an occasional manual check. Verified live: real SSH round-trip to the Omen (1 task/36 turns, matching the known `86baux7bb` dispatch exactly) plus a local read (19 tasks/131 turns) — combined 20 distinct task_slugs, 66.7% of the minimum target. Real finding surfaced on first run, not hidden: 3 of the 19 Aero task_slugs are retries of the same two underlying tasks (the resource headroom calculator was attempted 3 times before it landed), so raw task_slug count overstates true diversity — flagged plainly in the CLI's own printed report rather than presented as a clean number |
 | 2026-07-16 | Shipped review-bandwidth backpressure for headless dispatch (`86baykvan`, `86bawpvzz` implication #2) — `record_dispatch_review()`/`count_unreviewed_dispatches()` in `nova_scheduled_dispatch.py`, new `scheduled_dispatch` section in `nova_config.json`/`nova_config.py` — added to Sections 1 & 2; also fixed a hardcoded-Windows-path bug in `nova_config.py`'s `CONFIG_PATH` | Closes the second-to-last unaddressed `86bawpvzz` implication. Found a real, directly-blocking bug before building the feature itself: `nova_config.py`'s `CONFIG_PATH` was hardcoded to `"C:/Nova/nova_config.json"` — confirmed live via SSH that `load_config()` silently returns `DEFAULT_CONFIG` on the Omen (where `nova_scheduled_dispatch.py` actually runs, natively via cron) instead of reading the real file already present in its own checkout. Same bug class as the `nova_orchestrator.py` dotenv path and `nova_api.py`'s `GRAPH_PATH`, both fixed earlier — shipping the new flag without this fix first would have made the review-backpressure gate silently always-off exactly where it needs to run. Fixed with the same `os.path.dirname(os.path.abspath(__file__))` pattern already established. New gate keyed by `task_id` (not branch — `scheduled_dispatch_log.jsonl` entries don't carry one) and by the same "real `session_id` present" definition `run_scheduled_dispatch()` already uses for its own ClickUp status transition, not `success`. Verified live: the pause check (Marvin's own active pause switch) correctly took priority over the new gate in a real end-to-end call; `count_unreviewed_dispatches()`/`record_dispatch_review()` verified directly against seeded fake entries. Backfilled same session (see the row below) rather than left as a standing gap |
 | 2026-07-16 | Backfilled review decisions for the two dispatches that predate `86baykvan` (`86bayjdrh` discarded, `86baux7bb` merged — both via `--review` run directly on the Omen), deleted `86bayjdrh` from the board per its own stated cleanup step; shipped observability Layer 1 (`86baykvb7`, `86bawpvzz` implication #6) — `_is_clean_outcome()`/`_post_non_clean_comment()` in `nova_scheduled_dispatch.py`, new `add_comment()` in `nova_clickup_client.py` — added to Section 1 | Closes the last unaddressed `86bawpvzz` implication (#6), leaving only Layer 2/3 (dashboard tile, real push/Langfuse) explicitly deferred per `86baykvb7`'s own layered design. `add_comment()` didn't exist in `nova_clickup_client.py` before — a real, direct gap, not an oversight to route around. Non-clean is defined identically to the review-backpressure gate's own "real `session_id` present and `success` True" check, for consistency across both features. Verified live against a real disposable ClickUp task (created, two real comments posted covering both the "dispatch" and "resolve" phase formats, content confirmed via `get_task_comments`, task deleted after) rather than just reviewed — same discipline as every other feature shipped this project |
+| 2026-07-18 | Shipped Nova Controller v1 — Escalation Answer UI (`86bax0wkj`): real `nova_escalation.check_escalation()` (regex-parsed `NOVA_ESCALATION_START/END` block, no longer a stub), worktree-path capture + `resume_headless_task()` in `nova_omen_dispatch.py`, idempotent agent-log ingestion via a per-session cursor, `system/pending_escalations` in `nova_state.py`, `add_tag`/`remove_tag` in `nova_clickup_client.py`, new `/escalations` + `/escalations/{id}/answer` (token-gated) + `/escalations-ui` routes in `nova_api.py`, new `nova_escalations.html`, `handle_dispatch_outcome()`/`_handle_escalation()` extracted in `nova_scheduled_dispatch.py`, and a new escalation-protocol paragraph in `nova_task_queue.resolve_task_description()` — added Section 2's Escalation Protocol subsection, Section 7's route table, and Section 1's `nova_escalation.py` bullet | Closes the `check_escalation()` stub that's existed since 2026-07-14, and the last piece of `86bax0exx`'s original checklist. Re-opened an existing draft plan (`greedy-launching-flask.md`) rather than building from scratch, since two features shipped after it was written (review-bandwidth backpressure `86baykvan`, observability Layer 1 `86baykvb7`) needed reconciling first: re-verified every file premise against live code before building, and found a real interaction neither prior feature anticipated — a paused-for-escalation dispatch has a real `session_id` but `success` isn't `True`, so without a fix it would count against the review-backpressure cap as "unreviewed" (it's "not done yet," not unreviewed) and also fire a duplicate non-clean-outcome ClickUp comment alongside the escalation's own comment. Fixed both: `handle_dispatch_outcome()` checks escalation first (mutually exclusive with the non-clean branch), and `count_unreviewed_dispatches()` now excludes `pending`/`resuming` task_ids via a new best-effort `_pending_escalation_task_ids()` (fails toward not-excluding on error, keeping the cap conservative) — confirmed with Marvin to fix now rather than defer, since this build is exactly what starts populating the state that would trigger the miscount. Also confirmed and preserved: `nova_state.py`'s hardcoded Windows `DB_PATH` means even `nova_scheduled_dispatch.py`, which runs natively on the Omen, must register escalations through `nova_api.py`'s HTTP routes rather than importing `nova_state.py` directly — the same cross-machine bug class already fixed for `dispatch_pause`. Not yet verified live end-to-end — that needs Marvin to set `NOVA_ESCALATION_TOKEN` in the Omen's `.env` and restart `nova-api` first (documented as the manual step blocking verification) |
 
 ---
 

@@ -18,11 +18,16 @@
 #   GET  /headroom                  → resource headroom report (VRAM/RAM/CPU + task capacity)
 #   GET  /embedding-viz             → Embedding-Space Visualization page (HTML)
 #   GET  /embedding-viz/data        → Embedding-Space Visualization data (JSON, optional ?query=, ?refresh=)
+#   POST /escalations               → register a new pending escalation (86bax0wkj)
+#   GET  /escalations                → all escalations, pending and resolved
+#   POST /escalations/{id}/answer   → submit Marvin's answer (token-gated), resumes the session in the background
+#   GET  /escalations-ui            → Escalation Answer UI page (HTML)
 #
 # Run:
 #   cd C:/Nova
 #   nova-env\Scripts\uvicorn nova_api:app --host 0.0.0.0 --port 8000 --reload
 
+import hmac
 import json
 import os
 import time
@@ -30,7 +35,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -41,6 +46,7 @@ from graph_builder import (
     rebuild_node,
 )
 from ingest import ingest_file, run_ingestion
+from nova_clickup_client import remove_tag
 from nova_headroom import get_headroom_report
 from nova_log import (
     compute_health_summary,
@@ -50,8 +56,10 @@ from nova_log import (
     get_recent_queries,
 )
 from nova_embedding_viz import build_embedding_viz_data
+from nova_omen_dispatch import resume_headless_task
 from nova_orchestrator import run_coding_task
 from nova_query import ask
+from nova_scheduled_dispatch import handle_dispatch_outcome
 from nova_sources import SOURCES
 from nova_state import get_state, write_state
 
@@ -118,6 +126,24 @@ class ActivityProfilePushRequest(BaseModel):
 class DispatchPauseRequest(BaseModel):
     paused: bool
     reason: Optional[str] = None
+
+
+class EscalationCreateRequest(BaseModel):
+    task_id: str
+    task_name: str
+    session_id: Optional[str] = None
+    worktree_path: Optional[str] = None
+    worktree_name: Optional[str] = None
+    question: Optional[str] = None
+    options_considered: list[str] = []
+    context: Optional[str] = None
+    fuel_source: Optional[str] = None
+    phase: str
+    malformed: bool = False
+
+
+class EscalationAnswerRequest(BaseModel):
+    answer_text: str
 
 
 # ── Routes ─────────────────────────────────────────────────────
@@ -482,6 +508,138 @@ def get_dispatch_pause_route():
     if state is None:
         return {"paused": False}
     return state
+
+
+# ── Escalation Answer UI (86bax0wkj) ───────────────────────────
+
+ESCALATIONS_HTML_PATH = "C:/Nova/nova_escalations.html"
+
+
+def _check_escalation_token(x_nova_escalation_token: Optional[str]) -> None:
+    """
+    Fail-closed token check for the one cost-incurring write route on this
+    otherwise-unauthenticated Tailscale-only surface (ahead of 86bawf2z2's
+    general auth ticket). 401 on a missing header, a missing/unconfigured
+    server-side env var, or a mismatch — never a soft pass.
+    hmac.compare_digest avoids a timing side-channel on the comparison.
+    """
+    expected = os.environ.get("NOVA_ESCALATION_TOKEN")
+    if not expected or not x_nova_escalation_token or not hmac.compare_digest(x_nova_escalation_token, expected):
+        raise HTTPException(status_code=401, detail="Missing or invalid X-Nova-Escalation-Token")
+
+
+@app.post("/escalations")
+def create_escalation(req: EscalationCreateRequest):
+    """
+    Register a new pending escalation — called by
+    nova_scheduled_dispatch.py's _handle_escalation() when a headless
+    dispatch pauses mid-task for a real answer. Not token-gated: this only
+    records that a question exists, it doesn't spend anything or resume a
+    session. Merge-into-dict keyed by a generated escalation_id, same
+    read-modify-write idiom as /usage-history and /activity-profile.
+    """
+    try:
+        escalation_id = str(uuid.uuid4())
+        pending = get_state("system", "pending_escalations") or {}
+        pending.pop("_updated_at", None)
+        pending[escalation_id] = {
+            **req.dict(),
+            "escalation_id": escalation_id,
+            "status": "pending",
+            "created_at": datetime.now().isoformat(timespec="seconds"),
+            "answered_at": None,
+            "answer_text": None,
+            "resume_result": None,
+        }
+        write_state("system", "pending_escalations", pending)
+        return pending[escalation_id]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/escalations")
+def get_escalations():
+    """All escalations, pending and resolved — not token-gated (read-only)."""
+    return get_state("system", "pending_escalations") or {}
+
+
+def _resume_escalated_task(escalation_id: str) -> None:
+    """
+    Runs in the background after POST /escalations/{id}/answer returns.
+    Resumes the exact original session/worktree via
+    nova_omen_dispatch.resume_headless_task(), removes the awaiting-answer
+    ClickUp tag, and hands the result to
+    nova_scheduled_dispatch.handle_dispatch_outcome() so ClickUp comment/log
+    behavior is identical to a fresh dispatch's tail — including
+    re-escalating uncapped if the resumed run asks another question.
+    Wrapped so a failure updates status: "error" rather than vanishing
+    silently into an unawaited background task.
+    """
+    pending = get_state("system", "pending_escalations") or {}
+    record = pending.get(escalation_id)
+    if record is None:
+        return
+
+    try:
+        result = resume_headless_task(record["worktree_path"], record["session_id"], record["answer_text"])
+    except Exception as e:
+        record["status"] = "error"
+        record["resume_result"] = {"error": str(e)}
+        pending.pop("_updated_at", None)
+        pending[escalation_id] = record
+        write_state("system", "pending_escalations", pending)
+        return
+
+    try:
+        remove_tag(record["task_id"], "awaiting-answer")
+    except Exception as e:
+        print(f"Failed to remove awaiting-answer tag on {record['task_id']}: {e}")
+
+    record["status"] = "resolved"
+    record["resume_result"] = result
+    pending.pop("_updated_at", None)
+    pending[escalation_id] = record
+    write_state("system", "pending_escalations", pending)
+
+    handle_dispatch_outcome(record["task_id"], record["task_name"], result, phase="resume")
+
+
+@app.post("/escalations/{escalation_id}/answer")
+def answer_escalation(
+    escalation_id: str,
+    req: EscalationAnswerRequest,
+    background_tasks: BackgroundTasks,
+    x_nova_escalation_token: Optional[str] = Header(None),
+):
+    """
+    Accept Marvin's answer immediately (fire-and-forget) and resume the
+    exact same session/worktree in the background. Token-gated — the
+    first cost-incurring write route on this surface (see
+    _check_escalation_token()).
+    """
+    _check_escalation_token(x_nova_escalation_token)
+
+    pending = get_state("system", "pending_escalations") or {}
+    record = pending.get(escalation_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"No escalation '{escalation_id}'")
+    if record["status"] != "pending":
+        raise HTTPException(status_code=409, detail=f"Escalation '{escalation_id}' is already '{record['status']}'")
+
+    record["status"] = "resuming"
+    record["answered_at"] = datetime.now().isoformat(timespec="seconds")
+    record["answer_text"] = req.answer_text
+    pending.pop("_updated_at", None)
+    pending[escalation_id] = record
+    write_state("system", "pending_escalations", pending)
+
+    background_tasks.add_task(_resume_escalated_task, escalation_id)
+    return {"status": "resuming", "escalation_id": escalation_id}
+
+
+@app.get("/escalations-ui")
+def escalations_ui_page():
+    return FileResponse(ESCALATIONS_HTML_PATH, media_type="text/html")
 
 
 # ── Nova Log — Health dashboard ────────────────────────────────

@@ -15,13 +15,16 @@
 # headless runner" spec named --max-turns as one option; that option doesn't
 # exist, so a timeout is what's actually enforced.
 #
-# This is the invocation primitive only. Not built: task-queue polling (a
-# separate piece), real escalation *detection* logic (86bax0wkj — the
-# check_escalation() hook below is a stub only). Pause-at-will and the
-# escalation-hook interface itself are built (nova_escalation.py, 2026-07-
-# 14). Marvin picks the task and calls this directly for now, matching how
-# nova_orchestrator.py's very first real task was manually kicked off
-# before any queue existed.
+# This is the invocation primitive. Task-queue polling is a separate piece
+# (nova_task_queue.py/nova_scheduled_dispatch.py). Real escalation
+# detection (86bax0wkj) is now built: every dispatch always creates an
+# explicitly-named worktree (never the bare --worktree flag) and captures
+# its real path via a before/after `git worktree list --porcelain` diff,
+# since claude -p's own JSON result never reports it; resume_headless_task()
+# uses that captured path to `claude -p --resume <session_id>` back into
+# the exact same worktree once Marvin answers via /escalations-ui, with no
+# --worktree flag at all (that would create a new worktree instead of
+# continuing this one).
 #
 # Never merges or deletes the worktree it creates — matches
 # nova_orchestrator.py's own safety model exactly: a human reviews the diff
@@ -51,6 +54,7 @@ import shlex
 import subprocess
 import urllib.error
 import urllib.request
+import uuid
 from datetime import datetime
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -100,6 +104,17 @@ INTERACTIVE_SOURCE_MACHINE = "zeed"
 # needed, just extraction. Runs as a standalone script (not importing this
 # repo's own modules) since it executes on the remote Python, which may not
 # have this repo's dependencies installed for a bare `python3` call.
+#
+# Idempotent as of 86bax0wkj (2026-07-18): a resumed session's transcript
+# is the same, now-longer, file as the original — re-running this against
+# it must only append the genuinely-new post-resume turns, not re-append
+# everything from the start. Fixed via a small per-session cursor file,
+# logs/agent_log_ingest_cursor.json ({session_id: last_ingested_turn}),
+# read/written inside this remote script since the cursor only needs to
+# exist where the transcript and agent_log.jsonl already live. Turn
+# numbering itself is unchanged (still counts every assistant-type
+# transcript line from the start, so numbers stay stable across calls) —
+# only which entries get appended changes.
 _AGENT_LOG_CONVERTER_SCRIPT = """
 import glob, json, os, sys, base64
 
@@ -111,6 +126,14 @@ matches = glob.glob(projects_glob, recursive=True)
 if not matches:
     print(json.dumps({"converted": 0, "error": "transcript not found"}))
     sys.exit(0)
+
+cursor_path = os.path.join(repo_path, "logs", "agent_log_ingest_cursor.json")
+try:
+    with open(cursor_path, "r", encoding="utf-8") as f:
+        cursor = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    cursor = {}
+already_ingested = cursor.get(session_id, 0)
 
 entries = []
 turn = 0
@@ -132,6 +155,8 @@ with open(matches[0], "r", encoding="utf-8") as f:
         turn += 1
         branch = d.get("gitBranch") or branch
         slug = d.get("slug") or slug
+        if turn <= already_ingested:
+            continue
         tool_calls = [
             {"name": block.get("name"), "input": block.get("input")}
             for block in (message.get("content") or [])
@@ -161,6 +186,10 @@ with open(os.path.join(repo_path, "logs", "agent_log.jsonl"), "a", encoding="utf
     for e in entries:
         f.write(json.dumps(e, ensure_ascii=False) + "\\n")
 
+cursor[session_id] = turn
+with open(cursor_path, "w", encoding="utf-8") as f:
+    json.dump(cursor, f)
+
 print(json.dumps({"converted": len(entries), "branch": branch, "transcript_path": matches[0]}))
 """
 
@@ -184,6 +213,16 @@ def _ingest_transcript_into_agent_log(session_id: str, task_description: str) ->
     rather than the worktree's real branch — task_slug (from the
     transcript's own "slug" field) is the reliable per-session identifier,
     not branch.
+
+    Idempotent as of 86bax0wkj: safe to call again against the same
+    session_id after a resume appends new turns to the same transcript —
+    only genuinely-new turns get appended to agent_log.jsonl, via a cursor
+    file the remote script itself maintains (see the script's own comment
+    above). One accepted, honest gap: resume_headless_task() passes the
+    answer text as task_description here (it doesn't have the original
+    task string in scope), so post-resume turns' "task" field reads as the
+    answer, not the original prompt — task_slug still ties every turn
+    (pre- and post-resume) back to the same session correctly.
     """
     encoded_script = base64.b64encode(_AGENT_LOG_CONVERTER_SCRIPT.encode("utf-8")).decode("ascii")
     encoded_task = base64.b64encode(task_description.encode("utf-8")).decode("ascii")
@@ -283,6 +322,81 @@ def _build_credential_prefix(fuel_source: str) -> str:
     return f'ANTHROPIC_API_KEY=$({OMEN_VENV_PYTHON} -c "{dotenv_code}")'
 
 
+def _run_claude_over_ssh(remote_command: str, timeout: int = DISPATCH_TIMEOUT_SECONDS) -> dict:
+    """
+    Shared SSH-run-and-parse logic for both a fresh dispatch and a resume
+    (86bax0wkj) — extracted so resume_headless_task() doesn't duplicate it.
+    Runs remote_command over SSH, scans stdout for claude -p's own
+    "type":"result" JSON line (claude -p's stdout can carry warning lines
+    before it, e.g. the "workspace not trusted" notice seen in earlier live
+    testing — find the real result line rather than assuming stdout is
+    pure JSON), and decodes it.
+
+    Returns the parsed result dict (claude -p's own JSON shape) on success,
+    or {"error": ..., "raw_stdout"/"raw_stderr": ...} on any failure
+    (timeout, non-zero exit, no result JSON found) — never raises. Callers
+    branch on `"error" in raw`.
+    """
+    try:
+        ssh_result = subprocess.run(
+            ["ssh", f"{OMEN_USER}@{OMEN_HOST}", remote_command],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return {"error": f"Dispatch exceeded the {timeout}s hard timeout"}
+
+    if ssh_result.returncode != 0:
+        return {
+            "error": f"SSH/claude exited {ssh_result.returncode}: {ssh_result.stderr.strip()}",
+            "raw_stderr": ssh_result.stderr,
+        }
+
+    json_line = None
+    for line in ssh_result.stdout.splitlines():
+        line = line.strip()
+        if line.startswith("{") and '"type":"result"' in line:
+            json_line = line
+            break
+
+    if json_line is None:
+        return {
+            "error": "No result JSON found in claude's output",
+            "raw_stdout": ssh_result.stdout,
+        }
+
+    return json.loads(json_line)
+
+
+def _snapshot_omen_worktrees() -> set:
+    """
+    Best-effort snapshot of every worktree path currently registered
+    against the Omen's main checkout (`git worktree list --porcelain`).
+    Used by dispatch_headless_task() to spot the one new path a dispatch
+    just created — claude -p's own JSON result never reports its worktree
+    path directly. Returns an empty set on any failure (unreachable SSH,
+    non-zero exit) rather than raising; a failed snapshot just means
+    worktree_path capture degrades to None for that dispatch, not a crash.
+    """
+    try:
+        result = subprocess.run(
+            ["ssh", f"{OMEN_USER}@{OMEN_HOST}", f"git -C {OMEN_REPO_PATH} worktree list --porcelain"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except subprocess.TimeoutExpired:
+        return set()
+    if result.returncode != 0:
+        return set()
+    return {
+        line[len("worktree "):].strip()
+        for line in result.stdout.splitlines()
+        if line.startswith("worktree ")
+    }
+
+
 def dispatch_headless_task(
     task_description: str,
     worktree_name: Optional[str] = None,
@@ -293,10 +407,14 @@ def dispatch_headless_task(
     the Omen, over SSH. Returns a dict with the real result: success,
     fuel_source (which credential actually ran — "subscription" or
     "api_key", attached to every return path, not just the success one),
-    session_id (for resumability via `claude --resume`), the model's own
-    summary text, cost, stop_reason, and turn count. On failure, returns
-    success=False with an error message and the raw SSH/claude output for
-    debugging — never raises.
+    session_id (for resumability via resume_headless_task()), worktree_path/
+    worktree_name (for the same resume — captured via a before/after
+    `git worktree list --porcelain` diff, since claude -p's own JSON result
+    never reports it; None on paths that never got far enough to create
+    one), escalation (from check_escalation() — real as of 86bax0wkj), the
+    model's own summary text, cost, stop_reason, and turn count. On
+    failure, returns success=False with an error message and the raw
+    SSH/claude output for debugging — never raises.
 
     fuel_source: "auto" (default) resolves via choose_fuel_source() against
     the real activity profile; pass "subscription" or "api_key" directly to
@@ -310,70 +428,76 @@ def dispatch_headless_task(
             "success": False,
             "paused": True,
             "fuel_source": resolved_fuel_source,
+            "worktree_path": None,
+            "worktree_name": None,
             "reason": pause_state.get("reason"),
             "error": "Dispatch is paused — call set_dispatch_pause(False) or "
                      "`python nova_omen_dispatch.py --resume` to clear it.",
         }
 
-    worktree_flag = f"--worktree {worktree_name}" if worktree_name else "--worktree"
+    # Always pass an explicit, generated worktree name now — never the bare
+    # --worktree flag — so the diff below has a known name to cross-check
+    # against, and so a resume always has a real name to log alongside the
+    # captured path.
+    resolved_worktree_name = worktree_name or f"nova-dispatch-{uuid.uuid4().hex[:8]}"
     quoted_task = shlex.quote(task_description)
     credential_prefix = _build_credential_prefix(resolved_fuel_source)
     remote_command = (
         f"cd {OMEN_REPO_PATH} && {credential_prefix} "
-        f"claude -p {worktree_flag} --permission-mode acceptEdits "
+        f"claude -p --worktree {resolved_worktree_name} --permission-mode acceptEdits "
         f"--output-format json {quoted_task}"
     )
 
-    try:
-        ssh_result = subprocess.run(
-            ["ssh", f"{OMEN_USER}@{OMEN_HOST}", remote_command],
-            capture_output=True,
-            text=True,
-            timeout=DISPATCH_TIMEOUT_SECONDS,
+    # Safe to diff for exactly one new path because nova_scheduled_dispatch.py's
+    # atomic lock file already serializes every cron-triggered dispatch — no
+    # two dispatches from that path ever create worktrees concurrently. The
+    # one honest gap: manual `nova_task_queue.py --dispatch` calls bypass
+    # that lock, so two truly simultaneous manual dispatches could produce
+    # an ambiguous diff (surfaced via worktree_capture_note below, not
+    # silently guessed).
+    before_worktrees = _snapshot_omen_worktrees()
+    raw = _run_claude_over_ssh(remote_command)
+    after_worktrees = _snapshot_omen_worktrees()
+    new_worktrees = after_worktrees - before_worktrees
+
+    worktree_capture_note = None
+    if len(new_worktrees) == 1:
+        worktree_path = new_worktrees.pop()
+    elif not new_worktrees:
+        worktree_path = None
+    else:
+        worktree_path = None
+        worktree_capture_note = (
+            f"Expected at most one new worktree, found {len(new_worktrees)}: {sorted(new_worktrees)} "
+            f"— worktree_path could not be captured unambiguously."
         )
-    except subprocess.TimeoutExpired:
-        return {
+
+    if "error" in raw:
+        result = {
             "success": False,
             "fuel_source": resolved_fuel_source,
-            "error": f"Dispatch exceeded the {DISPATCH_TIMEOUT_SECONDS}s hard timeout",
+            "worktree_path": worktree_path,
+            "worktree_name": resolved_worktree_name,
+            **raw,
         }
+        if worktree_capture_note:
+            result["worktree_capture_note"] = worktree_capture_note
+        return result
 
-    if ssh_result.returncode != 0:
-        return {
-            "success": False,
-            "fuel_source": resolved_fuel_source,
-            "error": f"SSH/claude exited {ssh_result.returncode}: {ssh_result.stderr.strip()}",
-            "raw_stderr": ssh_result.stderr,
-        }
-
-    # claude -p's own stdout can carry warning lines before the JSON result
-    # (e.g. the "workspace not trusted" notice seen in earlier live testing)
-    # — find the actual result line rather than assuming stdout is pure JSON.
-    json_line = None
-    for line in ssh_result.stdout.splitlines():
-        line = line.strip()
-        if line.startswith("{") and '"type":"result"' in line:
-            json_line = line
-            break
-
-    if json_line is None:
-        return {
-            "success": False,
-            "fuel_source": resolved_fuel_source,
-            "error": "No result JSON found in claude's output",
-            "raw_stdout": ssh_result.stdout,
-        }
-
-    result = json.loads(json_line)
     dispatch_result = {
-        "success": not result.get("is_error", False) and result.get("stop_reason") == "end_turn",
+        "success": not raw.get("is_error", False) and raw.get("stop_reason") == "end_turn",
         "fuel_source": resolved_fuel_source,
-        "session_id": result.get("session_id"),
-        "summary": result.get("result"),
-        "stop_reason": result.get("stop_reason"),
-        "cost_usd": result.get("total_cost_usd"),
-        "num_turns": result.get("num_turns"),
+        "session_id": raw.get("session_id"),
+        "summary": raw.get("result"),
+        "stop_reason": raw.get("stop_reason"),
+        "cost_usd": raw.get("total_cost_usd"),
+        "num_turns": raw.get("num_turns"),
+        "worktree_path": worktree_path,
+        "worktree_name": resolved_worktree_name,
     }
+    if worktree_capture_note:
+        dispatch_result["worktree_capture_note"] = worktree_capture_note
+
     dispatch_result["escalation"] = check_escalation(dispatch_result)
 
     # Feed this session's real turn-level data into the same training corpus
@@ -388,6 +512,74 @@ def dispatch_headless_task(
         )
 
     return dispatch_result
+
+
+def resume_headless_task(
+    worktree_path: str,
+    session_id: str,
+    answer_text: str,
+    fuel_source: str = "auto",
+) -> dict:
+    """
+    Resume a session that previously escalated (86bax0wkj) — cd's into the
+    exact original worktree (worktree_path, as captured by
+    dispatch_headless_task()) and runs `claude -p --resume <session_id>`
+    with Marvin's answer, continuing that same session rather than starting
+    a new one. No --worktree flag at all: passing one would create a fresh
+    worktree instead of continuing this one.
+
+    Deliberately does NOT call is_dispatch_paused() — confirmed with
+    Marvin: answering a direct question you were asked is a different act
+    than a new autonomous run starting while he's mid-build, so the global
+    dispatch-pause switch does not block a resume. This is a deliberate
+    asymmetry with dispatch_headless_task(), not an oversight.
+
+    Re-runs check_escalation() on the result, so a second escalation on the
+    same task is handled identically to the first, uncapped — no special-
+    casing for "this is already a resume."
+
+    fuel_source: "auto" (default) resolves independently via
+    choose_fuel_source() — a resume is a genuinely separate invocation and
+    can land on either credential regardless of what the original dispatch
+    used.
+    """
+    resolved_fuel_source = choose_fuel_source() if fuel_source == "auto" else fuel_source
+    credential_prefix = _build_credential_prefix(resolved_fuel_source)
+    quoted_answer = shlex.quote(answer_text)
+    remote_command = (
+        f"cd {shlex.quote(worktree_path)} && {credential_prefix} "
+        f"claude -p --resume {shlex.quote(session_id)} --permission-mode acceptEdits "
+        f"--output-format json {quoted_answer}"
+    )
+
+    raw = _run_claude_over_ssh(remote_command)
+    if "error" in raw:
+        return {
+            "success": False,
+            "fuel_source": resolved_fuel_source,
+            "worktree_path": worktree_path,
+            **raw,
+        }
+
+    result = {
+        "success": not raw.get("is_error", False) and raw.get("stop_reason") == "end_turn",
+        "fuel_source": resolved_fuel_source,
+        "session_id": raw.get("session_id"),
+        "summary": raw.get("result"),
+        "stop_reason": raw.get("stop_reason"),
+        "cost_usd": raw.get("total_cost_usd"),
+        "num_turns": raw.get("num_turns"),
+        "worktree_path": worktree_path,
+    }
+    result["escalation"] = check_escalation(result)
+
+    # See _ingest_transcript_into_agent_log()'s own docstring for the one
+    # accepted gap here: answer_text stands in for task_description on
+    # resumed turns since the original task string isn't in scope here.
+    if result["session_id"]:
+        result["agent_log_ingest"] = _ingest_transcript_into_agent_log(result["session_id"], answer_text)
+
+    return result
 
 
 if __name__ == "__main__":
