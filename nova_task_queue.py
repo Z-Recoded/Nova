@@ -32,6 +32,7 @@
 # same trust-boundary question 86bawpvzz named.
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -191,8 +192,26 @@ def propose_tier(task: dict) -> dict:
         }
 
 
+def _description_hash(task: dict) -> str:
+    """
+    A content hash of a task's description, used as the watermark value
+    instead of ClickUp's own date_updated field. Real bug found live
+    2026-07-19: date_updated changes any time Nova itself tags a task
+    (confirmed directly -- add_tag()/remove_tag() alone bump it, no other
+    field touched), so using it as the rescope signal meant every proposal
+    registration or accept/override decision looked like a fresh "rescope"
+    on the very next 2-hour poll -- a self-perpetuating loop that
+    duplicated proposals and comments on nearly every tiered task,
+    forever, regardless of Board Watch. Hashing the description text
+    itself is immune to Nova's own tag/comment writes, since those never
+    touch the description field -- it only changes when the task's real
+    scope changes.
+    """
+    return hashlib.sha256((task.get("description") or "").encode("utf-8")).hexdigest()
+
+
 def _fetch_tier_watermarks() -> dict:
-    """Pure read of the stored {task_id: date_updated} map. Empty dict on any fetch failure."""
+    """Pure read of the stored {task_id: description_hash} map. Empty dict on any fetch failure."""
     try:
         response = httpx.get(f"{NOVA_API_URL}/tier-watermarks", timeout=10)
         watermarks = response.json() if response.status_code == 200 else {}
@@ -225,14 +244,16 @@ def persist_tier_watermarks(watermarks: dict) -> None:
 def detect_tier_candidates() -> dict:
     """
     Pure read/diff, no side effects -- safe to call repeatedly for
-    inspection without mutating anything. Diffs every board task's real
-    date_updated against the stored per-task watermark
+    inspection without mutating anything. Diffs every board task's
+    description-content hash (_description_hash(), NOT ClickUp's
+    date_updated field -- see that function's own docstring for the real
+    bug this fixed) against the stored per-task watermark
     (system/task_tier_watermarks) to find tasks that are either brand new
-    (id never seen) or rescoped since last seen (date_updated changed) --
-    the polling-based detection this project's real infrastructure
-    supports today (86bb01wur: no ClickUp webhooks exist anywhere in this
-    codebase, confirmed by grep, so push-based detection isn't available
-    without new infra). Meant to be called from inside
+    (id never seen) or rescoped since last seen (description hash
+    changed) -- the polling-based detection this project's real
+    infrastructure supports today (86bb01wur: no ClickUp webhooks exist
+    anywhere in this codebase, confirmed by grep, so push-based detection
+    isn't available without new infra). Meant to be called from inside
     nova_scheduled_dispatch.py's existing 2-hour polling loop, not on its
     own schedule.
 
@@ -244,8 +265,8 @@ def detect_tier_candidates() -> dict:
     actually processed the candidates.
 
     Returns {"candidates": [{"task": <raw task dict>, "trigger":
-    "created"|"rescoped", "previous_date_updated": str|None}, ...],
-    "watermarks": {task_id: date_updated, ...}}. Never raises -- a
+    "created"|"rescoped", "previous_description_hash": str|None}, ...],
+    "watermarks": {task_id: description_hash, ...}}. Never raises -- a
     watermark-fetch failure degrades to "treat every task as unseen"
     rather than crashing the caller's polling loop, since a false
     "created" candidate is harmless (a proposal Marvin can just accept)
@@ -257,19 +278,19 @@ def detect_tier_candidates() -> dict:
     updated_watermarks = dict(watermarks)
     for task in list_board_tasks():
         task_id = task["id"]
-        date_updated = task.get("date_updated")
+        current_hash = _description_hash(task)
         previous = watermarks.get(task_id)
-        updated_watermarks[task_id] = date_updated
+        updated_watermarks[task_id] = current_hash
 
         if previous is None:
             trigger = "created"
-        elif previous != date_updated:
+        elif previous != current_hash:
             trigger = "rescoped"
         else:
             continue
 
         if _is_tierable(task):
-            candidates.append({"task": task, "trigger": trigger, "previous_date_updated": previous})
+            candidates.append({"task": task, "trigger": trigger, "previous_description_hash": previous})
 
     return {"candidates": candidates, "watermarks": updated_watermarks}
 

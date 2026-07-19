@@ -677,9 +677,15 @@ def answer_escalation(
 @app.get("/tier-watermarks")
 def get_tier_watermarks():
     """
-    {task_id: last_seen date_updated} -- lets nova_task_queue.detect_tier_candidates()
-    tell "new" (id never seen) from "rescoped" (date_updated changed) from
-    "unchanged" (skip) across polling cycles. Not token-gated (read-only).
+    {task_id: description_hash} -- lets nova_task_queue.detect_tier_candidates()
+    tell "new" (id never seen) from "rescoped" (description hash changed)
+    from "unchanged" (skip) across polling cycles. Content-hashed rather
+    than ClickUp's own date_updated field -- date_updated changes any time
+    Nova itself tags a task (confirmed live 2026-07-19: add_tag()/
+    remove_tag() alone bump it), which made every proposal registration or
+    accept/override decision look like a fresh rescope on the very next
+    poll, a self-perpetuating duplicate-proposal loop. Not token-gated
+    (read-only).
     """
     return get_state("system", "task_tier_watermarks") or {}
 
@@ -688,9 +694,9 @@ def get_tier_watermarks():
 def set_tier_watermarks(watermarks: dict[str, Any]):
     """
     Full overwrite, not merge-by-key -- the caller (detect_tier_candidates())
-    already computed the complete merged {task_id: date_updated} map itself
-    before posting it back. Not token-gated: this only tracks what Nova has
-    already seen, it doesn't change board state or spend anything.
+    already computed the complete merged {task_id: description_hash} map
+    itself before posting it back. Not token-gated: this only tracks what
+    Nova has already seen, it doesn't change board state or spend anything.
     """
     try:
         write_state("system", "task_tier_watermarks", watermarks)
