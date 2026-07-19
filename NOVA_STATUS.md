@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-15 05:23 UTC
+Last updated: 2026-07-18 23:38 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,14 +8,22 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- ready -> complete/removed: 86baxbt1x (Security: headless-run instruction-source-boundary policy)
-- ready -> complete/removed: 86baxbrvv (Security: interim .env credential discipline (pre-Vaultwarden))
-- ready -> complete/removed: 86baxbrmj (Security: interim run_exec hardening (cwd/PATH/env restriction))
+- NEW -> ready: 86bb00zcx (Generalize nova_logger/nova_corrector into shared "HealLoop" service)
+- NEW -> ready: 86bb00yhq (Nova chat QoL: word-weight semantic highlighting)
+- NEW -> ready: 86baykvb7 (Observability + stuck-run notification for autonomous dispatch (86bawpvzz #6))
+- NEW -> ready: 86baykvan (Review-bandwidth backpressure for autonomous dispatch (86bawpvzz #2))
+- ready -> complete/removed: 86baxftxd (Vivarium extension: swarm/determinism sandbox (Game of Life + LLM-judgment cells))
+- ready -> complete/removed: 86baxauzc (Discover/Stories as disposable media-prototyping ground (images + low-cost video))
+- ready -> complete/removed: 86bax7zt8 (Content pipeline: automated packaging + suggestion-only creative diffs (3-tier))
+- ready -> complete/removed: 86bax7zna (Explore: Hookpad Aria, MIDI Agent, LIA (music) + Promethean AI (game design))
+- ready -> complete/removed: 86bax0exx (Nova orchestration layer: task-queue → headless run → review loop)
+- ready -> complete/removed: 86bawpc5f (R&D spike: world-model / latent game-state representation)
+- ready -> complete/removed: 86baux7bb (Evaluate Chonkie for ingest.py chunking)
+- in_progress -> complete/removed: 86bawbbrx (Resolve MCP credentials (ClickUp/Google/Slack scopes))
+- in_progress -> complete/removed: 86bat0ue1 (Run Tailscale DERP relay reachability test from a genuine remote network)
 
-## In progress (6)
+## In progress (4)
 
-- 86bawbbrx  Resolve MCP credentials (ClickUp/Google/Slack scopes)
-- 86bat0ue1  Run Tailscale DERP relay reachability test from a genuine remote network
 - 86bara3tj  Spec + Build: Chunk visualization tool — RAG retrieval audit
 - 86bagek35  Test Phi-4 Mini 128K routing strategy — context fill vs latency + dual VRAM validation
 - 86baf4eah  Hosted inference fallback (Groq / Together.ai / Fireworks)
@@ -36,8 +44,12 @@ falls back to querying ClickUp directly if it looks stale.
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 - 86baf72n5  MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)
 
-## Ready (93)
+## Ready (91)
 
+- 86bb00zcx  Generalize nova_logger/nova_corrector into shared "HealLoop" service
+- 86bb00yhq  Nova chat QoL: word-weight semantic highlighting
+- 86baykvb7  Observability + stuck-run notification for autonomous dispatch (86bawpvzz #6)
+- 86baykvan  Review-bandwidth backpressure for autonomous dispatch (86bawpvzz #2)
 - 86baxzadt  RF/SDR sensor layer for Nova: ambient data feed (Tier 1) + RF security (Tier 2)
 - 86baxw8jw  [Initiative — not scoped] Migrate off ClickUp to local-first PM tool (NocoDB likely)
 - 86baxv3yp  Board hygiene retrofit: custom fields, tag cleanup, link reclassification
@@ -46,27 +58,21 @@ falls back to querying ClickUp directly if it looks stale.
 - 86baxty6d  Omen capacity audit (gate — do before further self-hosting work)
 - 86baxtb4m  Migrate Nova design docs: Google Drive → self-hosted Obsidian vault
 - 86baxkrzq  Spatializing networks: the internet as an explorable place (long-horizon exploration)
-- 86baxftxd  Vivarium extension: swarm/determinism sandbox (Game of Life + LLM-judgment cells)
 - 86baxc3xy  Harness pruning review (periodic — cut what no longer earns its place)
 - 86baxc3xh  Modular/swappable harness architecture (charter vs. task-specific control logic)
 - 86baxbt82  Security: Nova Controller auth layer (bearer token/passphrase)
 - 86baxbmh3  Nova security posture — consolidated review (standing task, revisit on infra changes)
 - 86baxbeuc  Tactical practice-mode LLM opponent (PokéChamp-style, turn-based grid tactics)
 - 86baxb10x  Visual sequence capture: lightweight frame/video recording for agent + game sessions
-- 86baxauzc  Discover/Stories as disposable media-prototyping ground (images + low-cost video)
 - 86baxahn7  Nova Controller UX: feed/cards/react-gestures (PWA, Tailscale-served)
 - 86bax8bb5  Capability–understanding differential scorer (Nova vs. Marvin)
-- 86bax7zt8  Content pipeline: automated packaging + suggestion-only creative diffs (3-tier)
-- 86bax7zna  Explore: Hookpad Aria, MIDI Agent, LIA (music) + Promethean AI (game design)
 - 86bax697m  Adopt Langfuse as Nova's observability + auto-training-data backbone
 - 86bax4akx  Training-data accumulation oversight: live counts + verification status + coverage view
 - 86bax0wkj  Nova Controller v1: escalation answer UI (tap or expand-to-text)
-- 86bax0exx  Nova orchestration layer: task-queue → headless run → review loop
 - 86bawx7vj  Headless Nova coding: usage-aware autonomous runner + branch-based diff confirmation
 - 86bawpvzz  [Initiative — not scoped] Autonomous coding sessions — Nova writes its own code to build local-model training data
 - 86bawpc67  Vivarium experiment: bidirectional visual control panel for Nova
 - 86bawpc5v  Set up watchdog-based hot-restart pattern for Nova services
-- 86bawpc5f  R&D spike: world-model / latent game-state representation
 - 86bawp01b  Build session-continuity layer for unified Nova presence
 - 86bawntpm  Draft Nova audit process (tool-call log review)
 - 86bawntpb  Build tool-call logging schema for Nova subagents
@@ -99,7 +105,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86baux89f  Evaluate vLLM for the rented 24GB-tier model serving
 - 86baux7zm  Evaluate DSPy for prompt/skill optimization against real outcomes
 - 86baux7nd  Evaluate Qdrant as a Chroma alternative (situational only)
-- 86baux7bb  Evaluate Chonkie for ingest.py chunking
 - 86baux6zb  Evaluate Marker for PDF-to-Markdown corpus ingestion
 - 86baux6me  Evaluate Crawl4AI for Browser Hands adapter extraction layer
 - 86baux696  Evaluate Instructor for structured LLM output validation
@@ -128,6 +133,7 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bafvrax  Add document-level embeddings to ingest.py for A* heuristic
 - 86bafv3b4  Add weighted wikilinks to Obsidian notes for stronger graph edges
 - 86bafunj2  Research & Plan: Classical Algorithm Integration into Nova's Decision Layer
+- 86baf72n5  MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)
 - 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
 - 86baf4e29  Dockerize Nova services
 - 86baeyfua  Link-aware ingestion upgrade (Option B)

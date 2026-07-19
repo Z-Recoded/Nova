@@ -1,6 +1,22 @@
 {
   "ready": [
     {
+      "id": "86bb00zcx",
+      "name": "Generalize nova_logger/nova_corrector into shared \"HealLoop\" service"
+    },
+    {
+      "id": "86bb00yhq",
+      "name": "Nova chat QoL: word-weight semantic highlighting"
+    },
+    {
+      "id": "86baykvb7",
+      "name": "Observability + stuck-run notification for autonomous dispatch (86bawpvzz #6)"
+    },
+    {
+      "id": "86baykvan",
+      "name": "Review-bandwidth backpressure for autonomous dispatch (86bawpvzz #2)"
+    },
+    {
       "id": "86baxzadt",
       "name": "RF/SDR sensor layer for Nova: ambient data feed (Tier 1) + RF security (Tier 2)"
     },
@@ -33,10 +49,6 @@
       "name": "Spatializing networks: the internet as an explorable place (long-horizon exploration)"
     },
     {
-      "id": "86baxftxd",
-      "name": "Vivarium extension: swarm/determinism sandbox (Game of Life + LLM-judgment cells)"
-    },
-    {
       "id": "86baxc3xy",
       "name": "Harness pruning review (periodic \u2014 cut what no longer earns its place)"
     },
@@ -61,24 +73,12 @@
       "name": "Visual sequence capture: lightweight frame/video recording for agent + game sessions"
     },
     {
-      "id": "86baxauzc",
-      "name": "Discover/Stories as disposable media-prototyping ground (images + low-cost video)"
-    },
-    {
       "id": "86baxahn7",
       "name": "Nova Controller UX: feed/cards/react-gestures (PWA, Tailscale-served)"
     },
     {
       "id": "86bax8bb5",
       "name": "Capability\u2013understanding differential scorer (Nova vs. Marvin)"
-    },
-    {
-      "id": "86bax7zt8",
-      "name": "Content pipeline: automated packaging + suggestion-only creative diffs (3-tier)"
-    },
-    {
-      "id": "86bax7zna",
-      "name": "Explore: Hookpad Aria, MIDI Agent, LIA (music) + Promethean AI (game design)"
     },
     {
       "id": "86bax697m",
@@ -91,10 +91,6 @@
     {
       "id": "86bax0wkj",
       "name": "Nova Controller v1: escalation answer UI (tap or expand-to-text)"
-    },
-    {
-      "id": "86bax0exx",
-      "name": "Nova orchestration layer: task-queue \u2192 headless run \u2192 review loop"
     },
     {
       "id": "86bawx7vj",
@@ -111,10 +107,6 @@
     {
       "id": "86bawpc5v",
       "name": "Set up watchdog-based hot-restart pattern for Nova services"
-    },
-    {
-      "id": "86bawpc5f",
-      "name": "R&D spike: world-model / latent game-state representation"
     },
     {
       "id": "86bawp01b",
@@ -245,10 +237,6 @@
       "name": "Evaluate Qdrant as a Chroma alternative (situational only)"
     },
     {
-      "id": "86baux7bb",
-      "name": "Evaluate Chonkie for ingest.py chunking"
-    },
-    {
       "id": "86baux6zb",
       "name": "Evaluate Marker for PDF-to-Markdown corpus ingestion"
     },
@@ -361,6 +349,10 @@
       "name": "Research & Plan: Classical Algorithm Integration into Nova's Decision Layer"
     },
     {
+      "id": "86baf72n5",
+      "name": "MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)"
+    },
+    {
       "id": "86baf4e70",
       "name": "RunPod/Vast.ai \u2014 cloud GPU for fine-tune runs"
     },
@@ -374,14 +366,6 @@
     }
   ],
   "in_progress": [
-    {
-      "id": "86bawbbrx",
-      "name": "Resolve MCP credentials (ClickUp/Google/Slack scopes)"
-    },
-    {
-      "id": "86bat0ue1",
-      "name": "Run Tailscale DERP relay reachability test from a genuine remote network"
-    },
     {
       "id": "86bara3tj",
       "name": "Spec + Build: Chunk visualization tool \u2014 RAG retrieval audit"
