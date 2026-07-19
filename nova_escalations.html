@@ -112,6 +112,8 @@
   .badge.resuming { background: #1a3a4a; color: #60b0e0; }
   .badge.resolved { background: #2a3a2a; color: #80c080; }
   .badge.error { background: #4a1a1a; color: #e06060; }
+  .badge.accepted { background: #2a3a2a; color: #80c080; }
+  .badge.overridden { background: #3a2a1a; color: #d08050; }
 
   .question { font-size: 0.95rem; margin-bottom: 0.5rem; }
   .malformed-note { color: #e0b060; font-size: 0.8rem; margin-bottom: 0.5rem; }
@@ -178,6 +180,96 @@
     white-space: pre-wrap;
   }
   .submit-status { font-size: 0.8rem; color: #999; margin-top: 0.4rem; }
+
+  .section-heading {
+    font-size: 1.1rem;
+    color: #ccc;
+    margin: 2rem 0 0.75rem 0;
+  }
+  .section-heading:first-of-type { margin-top: 0; }
+
+  .tier-badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .tier-badge.autonomous { background: #1a3a24; color: #3ddc84; }
+  .tier-badge.needs-review { background: #4a3a1a; color: #e0b060; }
+  .tier-badge.manual-only { background: #4a1a1a; color: #e06060; }
+
+  .confidence-note { color: #999; font-size: 0.8rem; margin-bottom: 0.5rem; }
+
+  .decision-row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+  .accept-btn {
+    background: #1a3a24;
+    color: #3ddc84;
+    border: 1px solid #2a5a3a;
+    border-radius: 6px;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .accept-btn:hover { background: #234a2e; }
+  .override-toggle {
+    background: #2a2e38;
+    color: #e6e6e6;
+    border: 1px solid #3a3e48;
+    border-radius: 6px;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .override-toggle:hover { background: #343945; }
+  .override-form {
+    display: none;
+    margin-top: 0.6rem;
+    padding: 0.6rem;
+    background: #111318;
+    border: 1px solid #2a2e38;
+    border-radius: 6px;
+  }
+  .override-form.open { display: block; }
+  .override-form label { display: block; font-size: 0.75rem; color: #999; margin-bottom: 0.3rem; }
+  .override-form select {
+    background: #1b1e26;
+    color: #e6e6e6;
+    border: 1px solid #2a2e38;
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+    margin-bottom: 0.6rem;
+    width: 100%;
+  }
+  .override-form textarea {
+    background: #1b1e26;
+    color: #e6e6e6;
+    border: 1px solid #2a2e38;
+    border-radius: 4px;
+    padding: 0.5rem;
+    font-size: 0.85rem;
+    width: 100%;
+    min-height: 4rem;
+    resize: vertical;
+    box-sizing: border-box;
+    margin-bottom: 0.6rem;
+  }
+  .override-submit {
+    background: #4a1a1a;
+    color: #e06060;
+    border: 1px solid #5a2a2a;
+    border-radius: 6px;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .override-submit:hover { background: #5a2323; }
+  .decision-summary {
+    font-size: 0.8rem;
+    color: #999;
+    margin-top: 0.5rem;
+  }
 </style>
 </head>
 <body>
@@ -197,6 +289,10 @@
     <button id="token-save">Save</button>
   </div>
 
+  <h2 class="section-heading">Tier Proposals</h2>
+  <div id="tier-cards"></div>
+
+  <h2 class="section-heading">Escalations</h2>
   <div id="cards"></div>
 
   <script>
@@ -286,6 +382,187 @@
       if (status === 'resuming') return 'resuming';
       if (status === 'error') return 'error';
       return 'resolved';
+    }
+
+    // ── Tier Proposals (86bb01wur) — Nova proposes an autonomy tier at
+    // task creation/rescope time; Marvin accepts (cheap) or overrides
+    // (reasoning required). Same propose->register->answer shape as the
+    // escalation cards below, applied to a different trigger. ──────────
+
+    function tierBadgeClass(tier) {
+      return (tier || '').replace(/\s+/g, '-');
+    }
+
+    async function decideTierProposal(proposalId, body, statusEl) {
+      const token = getToken();
+      statusEl.textContent = 'Submitting…';
+      try {
+        const res = await fetch(`/tier-proposals/${proposalId}/decide`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Nova-Escalation-Token': token,
+          },
+          body: JSON.stringify(body),
+        });
+        if (res.status === 401) {
+          localStorage.removeItem(TOKEN_KEY);
+          showTokenPrompt();
+          statusEl.textContent = 'Token rejected — enter it again above and retry.';
+          return;
+        }
+        if (!res.ok) {
+          const detail = await res.json().catch(() => ({}));
+          statusEl.textContent = 'Submit failed: ' + (detail.detail || res.status);
+          return;
+        }
+        statusEl.textContent = 'Decision recorded.';
+        loadTierProposals();
+      } catch (err) {
+        statusEl.textContent = 'Submit failed: ' + err.message;
+      }
+    }
+
+    function renderTierCard(entry) {
+      const status = entry.status || 'pending';
+      const div = document.createElement('div');
+      div.className = 'card ' + (status === 'pending' ? 'pending' : 'resolved');
+
+      const header = document.createElement('div');
+      header.className = 'card-header';
+      header.innerHTML =
+        `<span class="task-name">${escapeHtml(entry.task_name)}</span>` +
+        `<span class="badge ${status}">${escapeHtml(status)}</span>`;
+      div.appendChild(header);
+
+      const tierLine = document.createElement('div');
+      tierLine.className = 'question';
+      tierLine.innerHTML =
+        `Proposed tier: <span class="tier-badge ${tierBadgeClass(entry.proposed_tier)}">` +
+        `${escapeHtml(entry.proposed_tier)}</span> (${escapeHtml(entry.trigger)})`;
+      div.appendChild(tierLine);
+
+      const confidenceLine = document.createElement('div');
+      confidenceLine.className = 'confidence-note';
+      confidenceLine.textContent = `Confidence: ${entry.confidence || 'unknown'}`;
+      div.appendChild(confidenceLine);
+
+      const reasoning = document.createElement('div');
+      reasoning.className = 'question';
+      reasoning.textContent = entry.reasoning || '(no reasoning parsed)';
+      div.appendChild(reasoning);
+
+      if (status === 'pending') {
+        const statusEl = document.createElement('div');
+        statusEl.className = 'submit-status';
+
+        const row = document.createElement('div');
+        row.className = 'decision-row';
+
+        const acceptBtn = document.createElement('button');
+        acceptBtn.className = 'accept-btn';
+        acceptBtn.textContent = `Accept: ${entry.proposed_tier}`;
+        acceptBtn.addEventListener('click', () => {
+          acceptBtn.disabled = true;
+          overrideToggle.disabled = true;
+          decideTierProposal(entry.proposal_id, { decision: 'accept' }, statusEl);
+        });
+        row.appendChild(acceptBtn);
+
+        const overrideToggle = document.createElement('button');
+        overrideToggle.className = 'override-toggle';
+        overrideToggle.textContent = 'Override';
+        row.appendChild(overrideToggle);
+
+        div.appendChild(row);
+
+        const form = document.createElement('div');
+        form.className = 'override-form';
+
+        const tierLabel = document.createElement('label');
+        tierLabel.textContent = 'Final tier';
+        const select = document.createElement('select');
+        ['autonomous', 'needs review', 'manual only'].forEach(tier => {
+          const opt = document.createElement('option');
+          opt.value = tier;
+          opt.textContent = tier;
+          if (tier === entry.proposed_tier) opt.selected = true;
+          select.appendChild(opt);
+        });
+
+        const reasoningLabel = document.createElement('label');
+        reasoningLabel.textContent = 'Why override this? (required)';
+        const textarea = document.createElement('textarea');
+        textarea.placeholder = 'e.g. This touches a load-bearing file Nova didn\'t weigh heavily enough...';
+
+        const submitBtn = document.createElement('button');
+        submitBtn.className = 'override-submit';
+        submitBtn.textContent = 'Submit override';
+        submitBtn.addEventListener('click', () => {
+          if (!textarea.value.trim()) {
+            statusEl.textContent = 'Reasoning is required for an override.';
+            return;
+          }
+          acceptBtn.disabled = true;
+          submitBtn.disabled = true;
+          decideTierProposal(
+            entry.proposal_id,
+            { decision: 'override', final_tier: select.value, reasoning: textarea.value.trim() },
+            statusEl
+          );
+        });
+
+        form.appendChild(tierLabel);
+        form.appendChild(select);
+        form.appendChild(reasoningLabel);
+        form.appendChild(textarea);
+        form.appendChild(submitBtn);
+        div.appendChild(form);
+
+        overrideToggle.addEventListener('click', () => form.classList.toggle('open'));
+
+        div.appendChild(statusEl);
+      } else {
+        const summary = document.createElement('div');
+        summary.className = 'decision-summary';
+        if (status === 'overridden') {
+          summary.innerHTML =
+            `Final tier: <span class="tier-badge ${tierBadgeClass(entry.final_tier)}">${escapeHtml(entry.final_tier)}</span><br>` +
+            `Reasoning: ${escapeHtml(entry.override_reasoning)}`;
+        } else {
+          summary.innerHTML =
+            `Final tier: <span class="tier-badge ${tierBadgeClass(entry.final_tier)}">${escapeHtml(entry.final_tier)}</span>`;
+        }
+        div.appendChild(summary);
+      }
+
+      return div;
+    }
+
+    async function loadTierProposals() {
+      try {
+        const res = await fetch('/tier-proposals');
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const data = await res.json();
+        const entries = Object.values(data).filter(v => v && typeof v === 'object' && v.proposal_id);
+
+        entries.sort((a, b) => {
+          const aPending = a.status === 'pending' ? 0 : 1;
+          const bPending = b.status === 'pending' ? 0 : 1;
+          if (aPending !== bPending) return aPending - bPending;
+          return (b.created_at || '').localeCompare(a.created_at || '');
+        });
+
+        const container = document.getElementById('tier-cards');
+        if (!entries.length) {
+          container.innerHTML = '<p class="empty">No tier proposals yet.</p>';
+          return;
+        }
+        container.innerHTML = '';
+        entries.forEach(entry => container.appendChild(renderTierCard(entry)));
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not load tier proposals: ' + err.message;
+      }
     }
 
     async function submitAnswer(escalationId, answerText, statusEl) {
@@ -431,6 +708,9 @@
 
     loadBoardWatch();
     setInterval(loadBoardWatch, 5000);
+
+    loadTierProposals();
+    setInterval(loadTierProposals, 5000);
 
     loadEscalations();
     setInterval(loadEscalations, 5000);

@@ -39,14 +39,25 @@ DB_PATH = "C:/Nova/nova_state.db"
 # merge-by-key shape as claude_usage_history/claude_activity_profile, not
 # dispatch_pause's flat shape — holding real-time questions a headless
 # dispatch raised mid-task, awaiting Marvin's answer via /escalations-ui.
-# None of these fit financial/work/creative/games, but all belong in
-# system alongside nova_health.
+# pending_tier_proposals/task_tier_watermarks (86bb01wur) are the same
+# merge-by-key shape, extending the escalation propose/answer pattern to
+# task-tiering decisions: pending_tier_proposals holds Nova's proposed
+# autonomy tier + confidence + reasoning for a task, keyed by proposal_id,
+# awaiting Marvin's accept/override via the same UI; task_tier_watermarks
+# is a separate {task_id: last_seen date_updated} map so a task doesn't
+# get re-proposed every polling cycle for the same rescope. None of these
+# fit financial/work/creative/games, but all belong in system alongside
+# nova_health.
 KNOWN_ENTITIES = {
     "financial": ["debt_sequence", "budget_pace", "upcoming_obligations", "subscription_audit", "atm_fees"],
     "work": ["active_projects", "next_actions"],
     "creative": ["art_output_rhythm", "active_characters"],
     "games": ["active_builds"],
-    "system": ["nova_health", "pending_alerts", "claude_usage_history", "dispatch_pause", "claude_activity_profile", "pending_escalations"],
+    "system": [
+        "nova_health", "pending_alerts", "claude_usage_history", "dispatch_pause",
+        "claude_activity_profile", "pending_escalations", "pending_tier_proposals",
+        "task_tier_watermarks",
+    ],
 }
 
 

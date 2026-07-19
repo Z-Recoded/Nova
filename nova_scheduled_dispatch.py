@@ -39,7 +39,13 @@ from nova_clickup_client import add_comment, add_tag, get_task, update_status
 from nova_config import get_max_unreviewed_dispatches, is_review_backpressure_enabled
 from nova_escalation import NOVA_API_URL, is_dispatch_paused
 from nova_omen_dispatch import dispatch_headless_task
-from nova_task_queue import get_practice_queue_tasks, resolve_task_description
+from nova_task_queue import (
+    detect_tier_candidates,
+    get_practice_queue_tasks,
+    propose_tier,
+    resolve_task_description,
+    TIER_PENDING_TAG,
+)
 
 LOCK_PATH = Path(__file__).resolve().parent / ".scheduled_dispatch.lock"
 LOG_PATH = Path(__file__).resolve().parent / "logs" / "scheduled_dispatch_log.jsonl"
@@ -349,31 +355,107 @@ def handle_dispatch_outcome(task_id: str, task_name: str, result: dict, phase: s
     return {"status": "dispatched", **outcome}
 
 
+def _register_tier_proposals() -> int:
+    """
+    Task tiering (86bb01wur) — calls nova_task_queue.detect_tier_candidates()
+    (the polling-based new/rescoped-task diff) and, for each candidate,
+    calls propose_tier() and registers the proposal via nova_api.py's
+    POST /tier-proposals, tags the task tier-pending, and comments the
+    proposed tier/confidence/reasoning. All best-effort per candidate —
+    one failed proposal must not block the rest, and must not block this
+    firing's actual dispatch work below.
+
+    Deliberately runs regardless of the dispatch-pause switch, unlike the
+    dispatch flow it precedes: proposing a tier is Nova doing its own
+    triage bookkeeping (a lightweight completion call, no worktree, no
+    SSH dispatch), not starting an autonomous coding run — the same class
+    of distinction already drawn for resuming an escalation.
+
+    Returns the number of proposals successfully registered, for the
+    firing's own summary dict.
+    """
+    registered = 0
+    for candidate in detect_tier_candidates():
+        task = candidate["task"]
+        try:
+            proposal = propose_tier(task)
+        except Exception as e:
+            print(f"Failed to propose a tier for {task['id']}: {e}")
+            continue
+
+        payload = {
+            "task_id": task["id"],
+            "task_name": task["name"],
+            "trigger": candidate["trigger"],
+            "previous_tier": None,
+            "proposed_tier": proposal["tier"],
+            "confidence": proposal["confidence"],
+            "reasoning": proposal["reasoning"],
+        }
+        try:
+            httpx.post(f"{NOVA_API_URL}/tier-proposals", json=payload, timeout=10)
+        except Exception as e:
+            print(f"Failed to register tier proposal for {task['id']}: {e}")
+            continue
+
+        try:
+            add_tag(task["id"], TIER_PENDING_TAG)
+        except Exception as e:
+            print(f"Failed to tag {task['id']} {TIER_PENDING_TAG}: {e}")
+
+        try:
+            add_comment(
+                task["id"],
+                f"**Nova proposes a tier — {task['name']}**\n\n"
+                f"- proposed tier: {proposal['tier']}\n"
+                f"- confidence: {proposal['confidence']}\n"
+                f"- reasoning: {proposal['reasoning']}\n\n"
+                "Accept or override at /escalations-ui.",
+            )
+        except Exception as e:
+            print(f"Failed to post tier-proposal comment on {task['id']}: {e}")
+
+        registered += 1
+    return registered
+
+
 def run_scheduled_dispatch() -> dict:
     """
-    One cron-firing's worth of work: pause check, lock, pick, dispatch,
-    status transition, log. Returns a summary dict for CLI printing.
-    Never raises — every failure path is caught, logged, and returns a
-    dict describing what happened, so a cron-redirected log always has a
-    real line per firing rather than a bare traceback.
+    One cron-firing's worth of work: tier-proposal registration, pause
+    check, lock, pick, dispatch, status transition, log. Returns a summary
+    dict for CLI printing. Never raises — every failure path is caught,
+    logged, and returns a dict describing what happened, so a cron-
+    redirected log always has a real line per firing rather than a bare
+    traceback.
     """
+    tier_proposals_registered = _register_tier_proposals()
+
     pause_state = is_dispatch_paused()
     if pause_state["paused"]:
-        return {"status": "paused", "reason": pause_state.get("reason")}
+        return {"status": "paused", "reason": pause_state.get("reason"), "tier_proposals_registered": tier_proposals_registered}
 
     if is_review_backpressure_enabled():
         max_unreviewed = get_max_unreviewed_dispatches()
         unreviewed = count_unreviewed_dispatches()
         if unreviewed >= max_unreviewed:
-            return {"status": "review_backlog_full", "unreviewed": unreviewed, "max_unreviewed_dispatches": max_unreviewed}
+            return {
+                "status": "review_backlog_full",
+                "unreviewed": unreviewed,
+                "max_unreviewed_dispatches": max_unreviewed,
+                "tier_proposals_registered": tier_proposals_registered,
+            }
 
     if not _acquire_lock():
-        return {"status": "skipped", "reason": "a dispatch is already in progress (lock held by a live process)"}
+        return {
+            "status": "skipped",
+            "reason": "a dispatch is already in progress (lock held by a live process)",
+            "tier_proposals_registered": tier_proposals_registered,
+        }
 
     try:
         candidates = get_practice_queue_tasks()
         if not candidates:
-            return {"status": "no_candidates"}
+            return {"status": "no_candidates", "tier_proposals_registered": tier_proposals_registered}
 
         task = _pick_task(candidates)
         task_id = task["id"]
@@ -383,6 +465,7 @@ def run_scheduled_dispatch() -> dict:
         except Exception as e:
             error_result = {"status": "error", "phase": "resolve", "task_id": task_id, "error": str(e)}
             _post_non_clean_comment(task_id, task["name"], error_result, phase="resolve")
+            error_result["tier_proposals_registered"] = tier_proposals_registered
             return error_result
 
         result = dispatch_headless_task(resolved["prompt"])
@@ -392,7 +475,9 @@ def run_scheduled_dispatch() -> dict:
         # nova_api.py's background task) via handle_dispatch_outcome() —
         # see that function's own docstring for why the ordering there
         # matters (86bax0wkj).
-        return handle_dispatch_outcome(task_id, task["name"], result, phase="dispatch")
+        outcome = handle_dispatch_outcome(task_id, task["name"], result, phase="dispatch")
+        outcome["tier_proposals_registered"] = tier_proposals_registered
+        return outcome
     finally:
         _release_lock()
 

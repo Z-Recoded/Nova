@@ -33,7 +33,7 @@ import os
 import time
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
@@ -46,7 +46,7 @@ from graph_builder import (
     rebuild_node,
 )
 from ingest import ingest_file, run_ingestion
-from nova_clickup_client import remove_tag
+from nova_clickup_client import add_comment, add_tag, remove_tag
 from nova_headroom import get_headroom_report
 from nova_log import (
     compute_health_summary,
@@ -62,6 +62,7 @@ from nova_query import ask
 from nova_scheduled_dispatch import handle_dispatch_outcome
 from nova_sources import SOURCES
 from nova_state import get_state, write_state
+from nova_task_queue import CONFIDENCE_LEVELS, TIER_PENDING_TAG, TIER_TAGS, TIERS
 
 app = FastAPI(title="Nova API", version="0.3")
 
@@ -144,6 +145,23 @@ class EscalationCreateRequest(BaseModel):
 
 class EscalationAnswerRequest(BaseModel):
     answer_text: str
+
+
+class TierProposalCreateRequest(BaseModel):
+    task_id: str
+    task_name: str
+    trigger: str
+    previous_tier: Optional[str] = None
+    proposed_tier: str
+    confidence: str
+    reasoning: str
+
+
+class TierDecisionRequest(BaseModel):
+    decision: str  # "accept" | "override"
+    comment: Optional[str] = None
+    final_tier: Optional[str] = None
+    reasoning: Optional[str] = None
 
 
 # ── Routes ─────────────────────────────────────────────────────
@@ -647,6 +665,157 @@ def answer_escalation(
 @app.get("/escalations-ui")
 def escalations_ui_page():
     return FileResponse(ESCALATIONS_HTML_PATH, media_type="text/html")
+
+
+# ── Task Tiering (86bb01wur) ────────────────────────────────────
+# Reuses the exact propose->register->notify->answer pattern above, applied
+# to a different trigger: deciding a task's autonomy tier at creation/
+# rescope time instead of a headless run pausing mid-task. See CLAUDE.md's
+# Task Tiering subsection for the full design and nova_task_queue.py for
+# propose_tier()/detect_tier_candidates() (the polling-based detection —
+# no ClickUp webhooks exist anywhere in this codebase, confirmed by grep).
+
+@app.get("/tier-watermarks")
+def get_tier_watermarks():
+    """
+    {task_id: last_seen date_updated} -- lets nova_task_queue.detect_tier_candidates()
+    tell "new" (id never seen) from "rescoped" (date_updated changed) from
+    "unchanged" (skip) across polling cycles. Not token-gated (read-only).
+    """
+    return get_state("system", "task_tier_watermarks") or {}
+
+
+@app.post("/tier-watermarks")
+def set_tier_watermarks(watermarks: dict[str, Any]):
+    """
+    Full overwrite, not merge-by-key -- the caller (detect_tier_candidates())
+    already computed the complete merged {task_id: date_updated} map itself
+    before posting it back. Not token-gated: this only tracks what Nova has
+    already seen, it doesn't change board state or spend anything.
+    """
+    try:
+        write_state("system", "task_tier_watermarks", watermarks)
+        return {"status": "ok", "count": len(watermarks)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/tier-proposals")
+def create_tier_proposal(req: TierProposalCreateRequest):
+    """
+    Register a new pending tier proposal -- called by
+    nova_scheduled_dispatch.py's polling loop once
+    nova_task_queue.detect_tier_candidates() finds a new/rescoped task. Not
+    token-gated: this only records that a proposal exists, it doesn't
+    change board state or spend anything. Same read-modify-write idiom as
+    /escalations.
+    """
+    try:
+        proposal_id = str(uuid.uuid4())
+        pending = get_state("system", "pending_tier_proposals") or {}
+        pending.pop("_updated_at", None)
+        pending[proposal_id] = {
+            **req.dict(),
+            "proposal_id": proposal_id,
+            "status": "pending",
+            "created_at": datetime.now().isoformat(timespec="seconds"),
+            "decided_at": None,
+            "final_tier": None,
+            "override_reasoning": None,
+        }
+        write_state("system", "pending_tier_proposals", pending)
+        return pending[proposal_id]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/tier-proposals")
+def get_tier_proposals():
+    """All tier proposals, pending and decided -- not token-gated (read-only)."""
+    return get_state("system", "pending_tier_proposals") or {}
+
+
+@app.post("/tier-proposals/{proposal_id}/decide")
+def decide_tier_proposal(
+    proposal_id: str,
+    req: TierDecisionRequest,
+    x_nova_escalation_token: Optional[str] = Header(None),
+):
+    """
+    Accept or override a pending tier proposal. Token-gated, reusing the
+    same X-Nova-Escalation-Token/NOVA_ESCALATION_TOKEN as the escalation-
+    answer route above -- one Controller-wide auth surface, deliberately
+    not a second secret to manage, ahead of 86bawf2z2's general auth
+    ticket. Unlike answering an escalation, this doesn't fire a background
+    resume (nothing async to do) -- it's a direct ClickUp tag/comment
+    update plus a state write, so it completes synchronously.
+
+    "accept": final_tier = the proposed tier, comment optional. "override":
+    final_tier + reasoning are required (422 if missing) -- the whole
+    point of an override is a real, templated reason, not a silent change.
+    """
+    _check_escalation_token(x_nova_escalation_token)
+
+    pending = get_state("system", "pending_tier_proposals") or {}
+    record = pending.get(proposal_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"No tier proposal '{proposal_id}'")
+    if record["status"] != "pending":
+        raise HTTPException(status_code=409, detail=f"Tier proposal '{proposal_id}' is already '{record['status']}'")
+
+    if req.decision == "accept":
+        final_tier = record["proposed_tier"]
+        override_reasoning = None
+        new_status = "accepted"
+    elif req.decision == "override":
+        if not req.final_tier or req.final_tier not in TIERS:
+            raise HTTPException(status_code=422, detail=f"final_tier must be one of {TIERS}")
+        if not req.reasoning or not req.reasoning.strip():
+            raise HTTPException(status_code=422, detail="reasoning is required for an override")
+        final_tier = req.final_tier
+        override_reasoning = req.reasoning
+        new_status = "overridden"
+    else:
+        raise HTTPException(status_code=422, detail="decision must be 'accept' or 'override'")
+
+    task_id = record["task_id"]
+    for tier_name, tag_name in TIER_TAGS.items():
+        if tier_name != final_tier:
+            try:
+                remove_tag(task_id, tag_name)
+            except Exception as e:
+                print(f"Failed to remove tier tag '{tag_name}' from {task_id}: {e}")
+    try:
+        add_tag(task_id, TIER_TAGS[final_tier])
+    except Exception as e:
+        print(f"Failed to add tier tag '{TIER_TAGS[final_tier]}' to {task_id}: {e}")
+    try:
+        remove_tag(task_id, TIER_PENDING_TAG)
+    except Exception as e:
+        print(f"Failed to remove '{TIER_PENDING_TAG}' from {task_id}: {e}")
+
+    record["status"] = new_status
+    record["decided_at"] = datetime.now().isoformat(timespec="seconds")
+    record["final_tier"] = final_tier
+    record["override_reasoning"] = override_reasoning
+    pending.pop("_updated_at", None)
+    pending[proposal_id] = record
+    write_state("system", "pending_tier_proposals", pending)
+
+    comment_lines = [f"**Tier decided — {record['task_name']}**", "", f"- final tier: {final_tier}"]
+    if req.decision == "accept":
+        comment_lines.append(f"- accepted Nova's suggestion (confidence: {record.get('confidence')})")
+        if req.comment:
+            comment_lines.append(f"- comment: {req.comment}")
+    else:
+        comment_lines.append(f"- overridden from Nova's suggestion ({record.get('proposed_tier')})")
+        comment_lines.append(f"- reasoning: {override_reasoning}")
+    try:
+        add_comment(task_id, "\n".join(comment_lines))
+    except Exception as e:
+        print(f"Failed to post tier-decision comment on {task_id}: {e}")
+
+    return record
 
 
 # ── Nova Log — Health dashboard ────────────────────────────────
