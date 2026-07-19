@@ -660,7 +660,11 @@ NOVA_LOG_UNAVAILABLE_FIELDS = {
     "orchestrator_failures_count": "nova_orchestrator.py exists (coding sub-agent) but doesn't track an aggregate failure count yet.",
 }
 
-NOVA_LOG_HTML_PATH = "C:/Nova/nova_log.html"
+# Resolved relative to this script's own location, not hardcoded — same
+# GRAPH_PATH-class fix as ESCALATIONS_HTML_PATH above (2026-07-19): this
+# route is served from the Omen (Linux) too, where a literal "C:/Nova/..."
+# path never resolved.
+NOVA_LOG_HTML_PATH = os.path.join(os.path.dirname(__file__), "nova_log.html")
 
 
 @app.get("/nova-log/data")
@@ -720,7 +724,9 @@ def nova_log_page():
 
 # ── Embedding-Space Visualization (86bawjg14) ───────────────────
 
-EMBEDDING_VIZ_HTML_PATH = "C:/Nova/nova_embedding_viz.html"
+# Same GRAPH_PATH-class fix as NOVA_LOG_HTML_PATH/ESCALATIONS_HTML_PATH
+# above (2026-07-19) — resolved relative to this script's own location.
+EMBEDDING_VIZ_HTML_PATH = os.path.join(os.path.dirname(__file__), "nova_embedding_viz.html")
 
 
 @app.get("/embedding-viz/data")
