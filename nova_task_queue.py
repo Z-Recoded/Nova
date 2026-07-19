@@ -267,6 +267,20 @@ def detect_tier_candidates() -> dict:
     return {"candidates": candidates, "watermarks": updated_watermarks}
 
 
+def _current_tier_tag(task: dict) -> str | None:
+    """
+    Reverse-maps TIER_TAGS against a task's real current tags to find which
+    tier (if any) it's already been decided into -- read directly off the
+    task's live ClickUp tags rather than a separate state lookup, so it
+    stays correct even if pending_tier_proposals state is ever lost/reset.
+    """
+    current_tags = {t["name"] for t in task.get("tags", [])}
+    for tier_name, tag_name in TIER_TAGS.items():
+        if tag_name in current_tags:
+            return tier_name
+    return None
+
+
 def register_tier_proposal(task: dict, trigger: str) -> bool:
     """
     Full propose->register->tag->comment pipeline for one candidate task --
@@ -290,7 +304,7 @@ def register_tier_proposal(task: dict, trigger: str) -> bool:
         "task_id": task["id"],
         "task_name": task["name"],
         "trigger": trigger,
-        "previous_tier": None,
+        "previous_tier": _current_tier_tag(task),
         "proposed_tier": proposal["tier"],
         "confidence": proposal["confidence"],
         "reasoning": proposal["reasoning"],
