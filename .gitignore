@@ -42,3 +42,6 @@ tooling/
 
 # Downloaded/curated external training data (large, not project source)
 data/
+
+# Downloaded Piper TTS voice models (binary model artifacts, not project source)
+voice_models/
