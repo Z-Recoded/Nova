@@ -1,20 +1,24 @@
 {
   "ready": [
     {
+      "id": "86bb03ap2",
+      "name": "Board hygiene scanner: flag deviations from task/doc conventions"
+    },
+    {
+      "id": "86bb01yn7",
+      "name": "Spec: Runaway-process detection (extend nova_headroom.py)"
+    },
+    {
+      "id": "86bb01kzy",
+      "name": "Explore: bridging embedding-space gaps between lore clusters"
+    },
+    {
       "id": "86bb00zcx",
       "name": "Generalize nova_logger/nova_corrector into shared \"HealLoop\" service"
     },
     {
       "id": "86bb00yhq",
       "name": "Nova chat QoL: word-weight semantic highlighting"
-    },
-    {
-      "id": "86baykvb7",
-      "name": "Observability + stuck-run notification for autonomous dispatch (86bawpvzz #6)"
-    },
-    {
-      "id": "86baykvan",
-      "name": "Review-bandwidth backpressure for autonomous dispatch (86bawpvzz #2)"
     },
     {
       "id": "86baxzadt",
@@ -57,10 +61,6 @@
       "name": "Modular/swappable harness architecture (charter vs. task-specific control logic)"
     },
     {
-      "id": "86baxbt82",
-      "name": "Security: Nova Controller auth layer (bearer token/passphrase)"
-    },
-    {
       "id": "86baxbmh3",
       "name": "Nova security posture \u2014 consolidated review (standing task, revisit on infra changes)"
     },
@@ -73,10 +73,6 @@
       "name": "Visual sequence capture: lightweight frame/video recording for agent + game sessions"
     },
     {
-      "id": "86baxahn7",
-      "name": "Nova Controller UX: feed/cards/react-gestures (PWA, Tailscale-served)"
-    },
-    {
       "id": "86bax8bb5",
       "name": "Capability\u2013understanding differential scorer (Nova vs. Marvin)"
     },
@@ -87,10 +83,6 @@
     {
       "id": "86bax4akx",
       "name": "Training-data accumulation oversight: live counts + verification status + coverage view"
-    },
-    {
-      "id": "86bax0wkj",
-      "name": "Nova Controller v1: escalation answer UI (tap or expand-to-text)"
     },
     {
       "id": "86bawx7vj",

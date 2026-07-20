@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-18 23:38 UTC
+Last updated: 2026-07-19 05:17 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,19 +8,14 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- NEW -> ready: 86bb00zcx (Generalize nova_logger/nova_corrector into shared "HealLoop" service)
-- NEW -> ready: 86bb00yhq (Nova chat QoL: word-weight semantic highlighting)
-- NEW -> ready: 86baykvb7 (Observability + stuck-run notification for autonomous dispatch (86bawpvzz #6))
-- NEW -> ready: 86baykvan (Review-bandwidth backpressure for autonomous dispatch (86bawpvzz #2))
-- ready -> complete/removed: 86baxftxd (Vivarium extension: swarm/determinism sandbox (Game of Life + LLM-judgment cells))
-- ready -> complete/removed: 86baxauzc (Discover/Stories as disposable media-prototyping ground (images + low-cost video))
-- ready -> complete/removed: 86bax7zt8 (Content pipeline: automated packaging + suggestion-only creative diffs (3-tier))
-- ready -> complete/removed: 86bax7zna (Explore: Hookpad Aria, MIDI Agent, LIA (music) + Promethean AI (game design))
-- ready -> complete/removed: 86bax0exx (Nova orchestration layer: task-queue → headless run → review loop)
-- ready -> complete/removed: 86bawpc5f (R&D spike: world-model / latent game-state representation)
-- ready -> complete/removed: 86baux7bb (Evaluate Chonkie for ingest.py chunking)
-- in_progress -> complete/removed: 86bawbbrx (Resolve MCP credentials (ClickUp/Google/Slack scopes))
-- in_progress -> complete/removed: 86bat0ue1 (Run Tailscale DERP relay reachability test from a genuine remote network)
+- NEW -> ready: 86bb03ap2 (Board hygiene scanner: flag deviations from task/doc conventions)
+- NEW -> ready: 86bb01yn7 (Spec: Runaway-process detection (extend nova_headroom.py))
+- NEW -> ready: 86bb01kzy (Explore: bridging embedding-space gaps between lore clusters)
+- ready -> complete/removed: 86baykvb7 (Observability + stuck-run notification for autonomous dispatch (86bawpvzz #6))
+- ready -> complete/removed: 86baykvan (Review-bandwidth backpressure for autonomous dispatch (86bawpvzz #2))
+- ready -> complete/removed: 86baxbt82 (Security: Nova Controller auth layer (bearer token/passphrase))
+- ready -> complete/removed: 86baxahn7 (Nova Controller UX: feed/cards/react-gestures (PWA, Tailscale-served))
+- ready -> complete/removed: 86bax0wkj (Nova Controller v1: escalation answer UI (tap or expand-to-text))
 
 ## In progress (4)
 
@@ -44,12 +39,13 @@ falls back to querying ClickUp directly if it looks stale.
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 - 86baf72n5  MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)
 
-## Ready (91)
+## Ready (89)
 
+- 86bb03ap2  Board hygiene scanner: flag deviations from task/doc conventions
+- 86bb01yn7  Spec: Runaway-process detection (extend nova_headroom.py)
+- 86bb01kzy  Explore: bridging embedding-space gaps between lore clusters
 - 86bb00zcx  Generalize nova_logger/nova_corrector into shared "HealLoop" service
 - 86bb00yhq  Nova chat QoL: word-weight semantic highlighting
-- 86baykvb7  Observability + stuck-run notification for autonomous dispatch (86bawpvzz #6)
-- 86baykvan  Review-bandwidth backpressure for autonomous dispatch (86bawpvzz #2)
 - 86baxzadt  RF/SDR sensor layer for Nova: ambient data feed (Tier 1) + RF security (Tier 2)
 - 86baxw8jw  [Initiative — not scoped] Migrate off ClickUp to local-first PM tool (NocoDB likely)
 - 86baxv3yp  Board hygiene retrofit: custom fields, tag cleanup, link reclassification
@@ -60,15 +56,12 @@ falls back to querying ClickUp directly if it looks stale.
 - 86baxkrzq  Spatializing networks: the internet as an explorable place (long-horizon exploration)
 - 86baxc3xy  Harness pruning review (periodic — cut what no longer earns its place)
 - 86baxc3xh  Modular/swappable harness architecture (charter vs. task-specific control logic)
-- 86baxbt82  Security: Nova Controller auth layer (bearer token/passphrase)
 - 86baxbmh3  Nova security posture — consolidated review (standing task, revisit on infra changes)
 - 86baxbeuc  Tactical practice-mode LLM opponent (PokéChamp-style, turn-based grid tactics)
 - 86baxb10x  Visual sequence capture: lightweight frame/video recording for agent + game sessions
-- 86baxahn7  Nova Controller UX: feed/cards/react-gestures (PWA, Tailscale-served)
 - 86bax8bb5  Capability–understanding differential scorer (Nova vs. Marvin)
 - 86bax697m  Adopt Langfuse as Nova's observability + auto-training-data backbone
 - 86bax4akx  Training-data accumulation oversight: live counts + verification status + coverage view
-- 86bax0wkj  Nova Controller v1: escalation answer UI (tap or expand-to-text)
 - 86bawx7vj  Headless Nova coding: usage-aware autonomous runner + branch-based diff confirmation
 - 86bawpvzz  [Initiative — not scoped] Autonomous coding sessions — Nova writes its own code to build local-model training data
 - 86bawpc67  Vivarium experiment: bidirectional visual control panel for Nova
