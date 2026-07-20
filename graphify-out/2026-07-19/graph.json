@@ -578,7 +578,7 @@
       "label": "_parse_links()",
       "file_type": "code",
       "source_file": "graph_builder.py",
-      "source_location": "L37",
+      "source_location": "L38",
       "_origin": "ast",
       "id": "graph_builder_parse_links",
       "community": 2,
@@ -588,7 +588,7 @@
       "label": "_wikilink_to_filename()",
       "file_type": "code",
       "source_file": "graph_builder.py",
-      "source_location": "L52",
+      "source_location": "L53",
       "_origin": "ast",
       "id": "graph_builder_wikilink_to_filename",
       "community": 2,
@@ -598,7 +598,7 @@
       "label": "_fetch_all_chunks()",
       "file_type": "code",
       "source_file": "graph_builder.py",
-      "source_location": "L66",
+      "source_location": "L67",
       "_origin": "ast",
       "id": "graph_builder_fetch_all_chunks",
       "community": 2,
@@ -608,7 +608,7 @@
       "label": "_build_graph_from_chunks()",
       "file_type": "code",
       "source_file": "graph_builder.py",
-      "source_location": "L77",
+      "source_location": "L78",
       "_origin": "ast",
       "id": "graph_builder_build_graph_from_chunks",
       "community": 2,
@@ -618,7 +618,7 @@
       "label": "_load_graph()",
       "file_type": "code",
       "source_file": "graph_builder.py",
-      "source_location": "L139",
+      "source_location": "L140",
       "_origin": "ast",
       "id": "graph_builder_load_graph",
       "community": 2,
@@ -628,7 +628,7 @@
       "label": "_save_graph()",
       "file_type": "code",
       "source_file": "graph_builder.py",
-      "source_location": "L150",
+      "source_location": "L151",
       "_origin": "ast",
       "id": "graph_builder_save_graph",
       "community": 2,
@@ -638,7 +638,7 @@
       "label": "build_graph()",
       "file_type": "code",
       "source_file": "graph_builder.py",
-      "source_location": "L157",
+      "source_location": "L158",
       "_origin": "ast",
       "id": "graph_builder_build_graph",
       "community": 2,
@@ -648,7 +648,7 @@
       "label": "rebuild_node()",
       "file_type": "code",
       "source_file": "graph_builder.py",
-      "source_location": "L169",
+      "source_location": "L170",
       "_origin": "ast",
       "id": "graph_builder_rebuild_node",
       "community": 2,
@@ -658,7 +658,7 @@
       "label": "get_neighbors()",
       "file_type": "code",
       "source_file": "graph_builder.py",
-      "source_location": "L242",
+      "source_location": "L243",
       "_origin": "ast",
       "id": "graph_builder_get_neighbors",
       "community": 2,
@@ -668,19 +668,19 @@
       "label": "get_context_budget()",
       "file_type": "code",
       "source_file": "graph_builder.py",
-      "source_location": "L266",
+      "source_location": "L267",
       "_origin": "ast",
       "id": "graph_builder_get_context_budget",
-      "community": 2,
+      "community": 71,
       "norm_label": "get_context_budget()"
     },
     {
       "label": "Parse the stringified list that ingest.py stores in metadata.     e.g. \"['My Not",
       "file_type": "rationale",
       "source_file": "graph_builder.py",
-      "source_location": "L38",
+      "source_location": "L39",
       "_origin": "ast",
-      "id": "graph_builder_rationale_38",
+      "id": "graph_builder_rationale_39",
       "community": 2,
       "norm_label": "parse the stringified list that ingest.py stores in metadata.     e.g. \"['my not"
     },
@@ -688,9 +688,9 @@
       "label": "Convert a raw wikilink target to the filename Nova would store.     [[My Note]]",
       "file_type": "rationale",
       "source_file": "graph_builder.py",
-      "source_location": "L53",
+      "source_location": "L54",
       "_origin": "ast",
-      "id": "graph_builder_rationale_53",
+      "id": "graph_builder_rationale_54",
       "community": 2,
       "norm_label": "convert a raw wikilink target to the filename nova would store.     [[my note]]"
     },
@@ -698,9 +698,9 @@
       "label": "Pull every chunk from Chroma.     Returns list of metadata dicts (one per chunk)",
       "file_type": "rationale",
       "source_file": "graph_builder.py",
-      "source_location": "L67",
+      "source_location": "L68",
       "_origin": "ast",
-      "id": "graph_builder_rationale_67",
+      "id": "graph_builder_rationale_68",
       "community": 2,
       "norm_label": "pull every chunk from chroma.     returns list of metadata dicts (one per chunk)"
     },
@@ -708,9 +708,9 @@
       "label": "Given a list of chunk metadata dicts, produce the graph dict:         {",
       "file_type": "rationale",
       "source_file": "graph_builder.py",
-      "source_location": "L78",
+      "source_location": "L79",
       "_origin": "ast",
-      "id": "graph_builder_rationale_78",
+      "id": "graph_builder_rationale_79",
       "community": 2,
       "norm_label": "given a list of chunk metadata dicts, produce the graph dict:         {"
     },
@@ -718,9 +718,9 @@
       "label": "Load nova_graph.json from disk; return empty graph if missing.",
       "file_type": "rationale",
       "source_file": "graph_builder.py",
-      "source_location": "L140",
+      "source_location": "L141",
       "_origin": "ast",
-      "id": "graph_builder_rationale_140",
+      "id": "graph_builder_rationale_141",
       "community": 2,
       "norm_label": "load nova_graph.json from disk; return empty graph if missing."
     },
@@ -728,9 +728,9 @@
       "label": "Full rebuild: pull all Chroma chunks, derive nodes + edges, write to disk.     R",
       "file_type": "rationale",
       "source_file": "graph_builder.py",
-      "source_location": "L158",
+      "source_location": "L159",
       "_origin": "ast",
-      "id": "graph_builder_rationale_158",
+      "id": "graph_builder_rationale_159",
       "community": 2,
       "norm_label": "full rebuild: pull all chroma chunks, derive nodes + edges, write to disk.     r"
     },
@@ -738,9 +738,9 @@
       "label": "Incremental update for a single file.      - Removes the file's existing node +",
       "file_type": "rationale",
       "source_file": "graph_builder.py",
-      "source_location": "L170",
+      "source_location": "L171",
       "_origin": "ast",
-      "id": "graph_builder_rationale_170",
+      "id": "graph_builder_rationale_171",
       "community": 2,
       "norm_label": "incremental update for a single file.      - removes the file's existing node +"
     },
@@ -748,9 +748,9 @@
       "label": "Return outgoing and incoming edges for `filename`.      {       \"file\": filename",
       "file_type": "rationale",
       "source_file": "graph_builder.py",
-      "source_location": "L243",
+      "source_location": "L244",
       "_origin": "ast",
-      "id": "graph_builder_rationale_243",
+      "id": "graph_builder_rationale_244",
       "community": 2,
       "norm_label": "return outgoing and incoming edges for `filename`.      {       \"file\": filename"
     },
@@ -758,10 +758,10 @@
       "label": "Return a ranked list of filenames relevant to `query`.      Strategy:       1. Q",
       "file_type": "rationale",
       "source_file": "graph_builder.py",
-      "source_location": "L272",
+      "source_location": "L273",
       "_origin": "ast",
-      "id": "graph_builder_rationale_272",
-      "community": 2,
+      "id": "graph_builder_rationale_273",
+      "community": 71,
       "norm_label": "return a ranked list of filenames relevant to `query`.      strategy:       1. q"
     },
     {
@@ -778,7 +778,7 @@
       "label": "get_tokenizer()",
       "file_type": "code",
       "source_file": "ingest.py",
-      "source_location": "L56",
+      "source_location": "L57",
       "_origin": "ast",
       "id": "ingest_get_tokenizer",
       "community": 2,
@@ -788,7 +788,7 @@
       "label": "load_manifest()",
       "file_type": "code",
       "source_file": "ingest.py",
-      "source_location": "L64",
+      "source_location": "L65",
       "_origin": "ast",
       "id": "ingest_load_manifest",
       "community": 2,
@@ -798,7 +798,7 @@
       "label": "save_manifest()",
       "file_type": "code",
       "source_file": "ingest.py",
-      "source_location": "L73",
+      "source_location": "L74",
       "_origin": "ast",
       "id": "ingest_save_manifest",
       "community": 2,
@@ -808,7 +808,7 @@
       "label": "file_changed()",
       "file_type": "code",
       "source_file": "ingest.py",
-      "source_location": "L77",
+      "source_location": "L78",
       "_origin": "ast",
       "id": "ingest_file_changed",
       "community": 2,
@@ -818,7 +818,7 @@
       "label": "should_ignore()",
       "file_type": "code",
       "source_file": "ingest.py",
-      "source_location": "L86",
+      "source_location": "L87",
       "_origin": "ast",
       "id": "ingest_should_ignore",
       "community": 2,
@@ -828,7 +828,7 @@
       "label": "extract_links()",
       "file_type": "code",
       "source_file": "ingest.py",
-      "source_location": "L92",
+      "source_location": "L93",
       "_origin": "ast",
       "id": "ingest_extract_links",
       "community": 2,
@@ -838,7 +838,7 @@
       "label": "content_token_budget()",
       "file_type": "code",
       "source_file": "ingest.py",
-      "source_location": "L96",
+      "source_location": "L97",
       "_origin": "ast",
       "id": "ingest_content_token_budget",
       "community": 2,
@@ -848,7 +848,7 @@
       "label": "chunk_text()",
       "file_type": "code",
       "source_file": "ingest.py",
-      "source_location": "L108",
+      "source_location": "L109",
       "_origin": "ast",
       "id": "ingest_chunk_text",
       "community": 2,
@@ -858,7 +858,7 @@
       "label": "ingest_file()",
       "file_type": "code",
       "source_file": "ingest.py",
-      "source_location": "L134",
+      "source_location": "L135",
       "_origin": "ast",
       "id": "ingest_ingest_file",
       "community": 2,
@@ -868,7 +868,7 @@
       "label": "run_ingestion()",
       "file_type": "code",
       "source_file": "ingest.py",
-      "source_location": "L170",
+      "source_location": "L171",
       "_origin": "ast",
       "id": "ingest_run_ingestion",
       "community": 2,
@@ -878,9 +878,9 @@
       "label": "Load the embedder's tokenizer on first use and cache it for reuse.",
       "file_type": "rationale",
       "source_file": "ingest.py",
-      "source_location": "L57",
+      "source_location": "L58",
       "_origin": "ast",
-      "id": "ingest_rationale_57",
+      "id": "ingest_rationale_58",
       "community": 2,
       "norm_label": "load the embedder's tokenizer on first use and cache it for reuse."
     },
@@ -888,9 +888,9 @@
       "label": "Return True if file is new or has been modified since last ingest.",
       "file_type": "rationale",
       "source_file": "ingest.py",
-      "source_location": "L78",
+      "source_location": "L79",
       "_origin": "ast",
-      "id": "ingest_rationale_78",
+      "id": "ingest_rationale_79",
       "community": 2,
       "norm_label": "return true if file is new or has been modified since last ingest."
     },
@@ -898,9 +898,9 @@
       "label": "Extract Obsidian [[wikilinks]] from content.",
       "file_type": "rationale",
       "source_file": "ingest.py",
-      "source_location": "L93",
+      "source_location": "L94",
       "_origin": "ast",
-      "id": "ingest_rationale_93",
+      "id": "ingest_rationale_94",
       "community": 2,
       "norm_label": "extract obsidian [[wikilinks]] from content."
     },
@@ -908,9 +908,9 @@
       "label": "Tokens available for a chunk's own text after reserving room for the     \"[filen",
       "file_type": "rationale",
       "source_file": "ingest.py",
-      "source_location": "L97",
+      "source_location": "L98",
       "_origin": "ast",
-      "id": "ingest_rationale_97",
+      "id": "ingest_rationale_98",
       "community": 2,
       "norm_label": "tokens available for a chunk's own text after reserving room for the     \"[filen"
     },
@@ -918,9 +918,9 @@
       "label": "Split text into overlapping chunks sized by real embedding tokens, not     word",
       "file_type": "rationale",
       "source_file": "ingest.py",
-      "source_location": "L109",
+      "source_location": "L110",
       "_origin": "ast",
-      "id": "ingest_rationale_109",
+      "id": "ingest_rationale_110",
       "community": 2,
       "norm_label": "split text into overlapping chunks sized by real embedding tokens, not     word"
     },
@@ -928,9 +928,9 @@
       "label": "Ingest a single file into Nova's memory.",
       "file_type": "rationale",
       "source_file": "ingest.py",
-      "source_location": "L135",
+      "source_location": "L136",
       "_origin": "ast",
-      "id": "ingest_rationale_135",
+      "id": "ingest_rationale_136",
       "community": 2,
       "norm_label": "ingest a single file into nova's memory."
     },
@@ -1155,6 +1155,306 @@
       "norm_label": "merge the aero's local agent_log.jsonl with the omen's fetched-over-ssh     copy"
     },
     {
+      "label": "nova_agentic_dataset_curator.py",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator",
+      "community": 47,
+      "norm_label": "nova_agentic_dataset_curator.py"
+    },
+    {
+      "label": "_dataset_raw_dir()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L80",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_dataset_raw_dir",
+      "community": 47,
+      "norm_label": "_dataset_raw_dir()"
+    },
+    {
+      "label": "download_agentinstruct()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L86",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_download_agentinstruct",
+      "community": 47,
+      "norm_label": "download_agentinstruct()"
+    },
+    {
+      "label": "download_toolbench()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L104",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_download_toolbench",
+      "community": 47,
+      "norm_label": "download_toolbench()"
+    },
+    {
+      "label": "download_apibench()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L120",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_download_apibench",
+      "community": 47,
+      "norm_label": "download_apibench()"
+    },
+    {
+      "label": "download_finqa()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L131",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_download_finqa",
+      "community": 47,
+      "norm_label": "download_finqa()"
+    },
+    {
+      "label": "download_tatqa()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L150",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_download_tatqa",
+      "community": 47,
+      "norm_label": "download_tatqa()"
+    },
+    {
+      "label": "download_all()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L161",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_download_all",
+      "community": 47,
+      "norm_label": "download_all()"
+    },
+    {
+      "label": "_messages_row()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L200",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_messages_row",
+      "community": 47,
+      "norm_label": "_messages_row()"
+    },
+    {
+      "label": "_format_table()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L205",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_format_table",
+      "community": 47,
+      "norm_label": "_format_table()"
+    },
+    {
+      "label": "_convert_agentinstruct()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L210",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_convert_agentinstruct",
+      "community": 47,
+      "norm_label": "_convert_agentinstruct()"
+    },
+    {
+      "label": "_convert_toolbench()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L231",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_convert_toolbench",
+      "community": 47,
+      "norm_label": "_convert_toolbench()"
+    },
+    {
+      "label": "_convert_apibench()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L253",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_convert_apibench",
+      "community": 47,
+      "norm_label": "_convert_apibench()"
+    },
+    {
+      "label": "_convert_finqa()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L279",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_convert_finqa",
+      "community": 47,
+      "norm_label": "_convert_finqa()"
+    },
+    {
+      "label": "_convert_tatqa()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L307",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_convert_tatqa",
+      "community": 47,
+      "norm_label": "_convert_tatqa()"
+    },
+    {
+      "label": "convert_all()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L339",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_convert_all",
+      "community": 47,
+      "norm_label": "convert_all()"
+    },
+    {
+      "label": "_load_converted()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L381",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_load_converted",
+      "community": 47,
+      "norm_label": "_load_converted()"
+    },
+    {
+      "label": "blend()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L387",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_blend",
+      "community": 47,
+      "norm_label": "blend()"
+    },
+    {
+      "label": "report()",
+      "file_type": "code",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L414",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_report",
+      "community": 47,
+      "norm_label": "report()"
+    },
+    {
+      "label": "Pull all 6 per-task parquet splits (AlfWorld/DB/KG/Mind2Web/OS/WebShop).",
+      "file_type": "rationale",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L87",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_rationale_87",
+      "community": 47,
+      "norm_label": "pull all 6 per-task parquet splits (alfworld/db/kg/mind2web/os/webshop)."
+    },
+    {
+      "label": "Pull the training split's parquet shards (skip benchmark/ -- eval-only).",
+      "file_type": "rationale",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L105",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_rationale_105",
+      "community": 47,
+      "norm_label": "pull the training split's parquet shards (skip benchmark/ -- eval-only)."
+    },
+    {
+      "label": "Pull the three per-source training files (HF/TensorFlow/TorchHub).",
+      "file_type": "rationale",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L121",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_rationale_121",
+      "community": 47,
+      "norm_label": "pull the three per-source training files (hf/tensorflow/torchhub)."
+    },
+    {
+      "label": "Download the FinQA source zip directly from GitHub (the same archive     dreamer",
+      "file_type": "rationale",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L132",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_rationale_132",
+      "community": 47,
+      "norm_label": "download the finqa source zip directly from github (the same archive     dreamer"
+    },
+    {
+      "label": "Pull the train split (dev/test held out -- only train is needed for SFT data).",
+      "file_type": "rationale",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L151",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_rationale_151",
+      "community": 47,
+      "norm_label": "pull the train split (dev/test held out -- only train is needed for sft data)."
+    },
+    {
+      "label": "Run every downloader, isolating failures so one bad dataset doesn't block the re",
+      "file_type": "rationale",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L162",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_rationale_162",
+      "community": 47,
+      "norm_label": "run every downloader, isolating failures so one bad dataset doesn't block the re"
+    },
+    {
+      "label": "Build one curated row in Nova's standard chat-message shape.",
+      "file_type": "rationale",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L201",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_rationale_201",
+      "community": 47,
+      "norm_label": "build one curated row in nova's standard chat-message shape."
+    },
+    {
+      "label": "Render a 2D table (list of row-lists) as simple pipe-separated text.",
+      "file_type": "rationale",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L206",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_rationale_206",
+      "community": 47,
+      "norm_label": "render a 2d table (list of row-lists) as simple pipe-separated text."
+    },
+    {
+      "label": "Run every converter, writing each dataset's normalized rows to its own     inter",
+      "file_type": "rationale",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L340",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_rationale_340",
+      "community": 47,
+      "norm_label": "run every converter, writing each dataset's normalized rows to its own     inter"
+    },
+    {
+      "label": "Sample each converted dataset down to its target size (Phase 3's named     const",
+      "file_type": "rationale",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L388",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_rationale_388",
+      "community": 47,
+      "norm_label": "sample each converted dataset down to its target size (phase 3's named     const"
+    },
+    {
+      "label": "Print final counts per source/license and a few random sample rows for a manual",
+      "file_type": "rationale",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L415",
+      "_origin": "ast",
+      "id": "nova_agentic_dataset_curator_rationale_415",
+      "community": 47,
+      "norm_label": "print final counts per source/license and a few random sample rows for a manual"
+    },
+    {
       "label": "nova_api.py",
       "file_type": "code",
       "source_file": "nova_api.py",
@@ -1171,7 +1471,7 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "nova_api_load_graph_json",
-      "community": 48,
+      "community": 73,
       "norm_label": "_load_graph_json()"
     },
     {
@@ -1211,7 +1511,7 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "nova_api_ingestrequest",
-      "community": 17,
+      "community": 15,
       "norm_label": "ingestrequest"
     },
     {
@@ -1241,7 +1541,7 @@
       "source_location": "L121",
       "_origin": "ast",
       "id": "nova_api_usagehistorypushrequest",
-      "community": 17,
+      "community": 5,
       "norm_label": "usagehistorypushrequest"
     },
     {
@@ -1251,7 +1551,7 @@
       "source_location": "L126",
       "_origin": "ast",
       "id": "nova_api_activityprofilepushrequest",
-      "community": 47,
+      "community": 17,
       "norm_label": "activityprofilepushrequest"
     },
     {
@@ -1271,7 +1571,7 @@
       "source_location": "L136",
       "_origin": "ast",
       "id": "nova_api_escalationcreaterequest",
-      "community": 60,
+      "community": 17,
       "norm_label": "escalationcreaterequest"
     },
     {
@@ -1331,7 +1631,7 @@
       "source_location": "L209",
       "_origin": "ast",
       "id": "nova_api_get_graph",
-      "community": 48,
+      "community": 73,
       "norm_label": "get_graph()"
     },
     {
@@ -1341,7 +1641,7 @@
       "source_location": "L221",
       "_origin": "ast",
       "id": "nova_api_neighbors",
-      "community": 48,
+      "community": 73,
       "norm_label": "neighbors()"
     },
     {
@@ -1351,7 +1651,7 @@
       "source_location": "L236",
       "_origin": "ast",
       "id": "nova_api_context_budget",
-      "community": 2,
+      "community": 71,
       "norm_label": "context_budget()"
     },
     {
@@ -1361,7 +1661,7 @@
       "source_location": "L251",
       "_origin": "ast",
       "id": "nova_api_trigger_ingest",
-      "community": 17,
+      "community": 15,
       "norm_label": "trigger_ingest()"
     },
     {
@@ -1471,7 +1771,7 @@
       "source_location": "L440",
       "_origin": "ast",
       "id": "nova_api_push_usage_history",
-      "community": 17,
+      "community": 5,
       "norm_label": "push_usage_history()"
     },
     {
@@ -1481,7 +1781,7 @@
       "source_location": "L460",
       "_origin": "ast",
       "id": "nova_api_get_usage_history",
-      "community": 15,
+      "community": 77,
       "norm_label": "get_usage_history()"
     },
     {
@@ -1491,7 +1791,7 @@
       "source_location": "L466",
       "_origin": "ast",
       "id": "nova_api_push_activity_profile",
-      "community": 47,
+      "community": 17,
       "norm_label": "push_activity_profile()"
     },
     {
@@ -1501,7 +1801,7 @@
       "source_location": "L493",
       "_origin": "ast",
       "id": "nova_api_get_activity_profile",
-      "community": 5,
+      "community": 75,
       "norm_label": "get_activity_profile()"
     },
     {
@@ -1521,7 +1821,7 @@
       "source_location": "L527",
       "_origin": "ast",
       "id": "nova_api_get_dispatch_pause_route",
-      "community": 5,
+      "community": 76,
       "norm_label": "get_dispatch_pause_route()"
     },
     {
@@ -1541,7 +1841,7 @@
       "source_location": "L556",
       "_origin": "ast",
       "id": "nova_api_create_escalation",
-      "community": 60,
+      "community": 17,
       "norm_label": "create_escalation()"
     },
     {
@@ -1841,7 +2141,7 @@
       "source_location": "L210",
       "_origin": "ast",
       "id": "nova_api_rationale_210",
-      "community": 48,
+      "community": 73,
       "norm_label": "return the full node/edge map from nova_graph.json."
     },
     {
@@ -1851,7 +2151,7 @@
       "source_location": "L222",
       "_origin": "ast",
       "id": "nova_api_rationale_222",
-      "community": 48,
+      "community": 73,
       "norm_label": "return all outgoing and incoming edges for a given file."
     },
     {
@@ -1861,7 +2161,7 @@
       "source_location": "L242",
       "_origin": "ast",
       "id": "nova_api_rationale_242",
-      "community": 2,
+      "community": 71,
       "norm_label": "return a ranked list of filenames most relevant to `query`,     combining seman"
     },
     {
@@ -1871,7 +2171,7 @@
       "source_location": "L252",
       "_origin": "ast",
       "id": "nova_api_rationale_252",
-      "community": 17,
+      "community": 15,
       "norm_label": "trigger incremental (default) or full re-ingest."
     },
     {
@@ -1971,7 +2271,7 @@
       "source_location": "L441",
       "_origin": "ast",
       "id": "nova_api_rationale_441",
-      "community": 17,
+      "community": 5,
       "norm_label": "merge one machine's locally-computed daily claude code usage history into     n"
     },
     {
@@ -1981,7 +2281,7 @@
       "source_location": "L461",
       "_origin": "ast",
       "id": "nova_api_rationale_461",
-      "community": 15,
+      "community": 77,
       "norm_label": "return the merged claude code usage history across every machine that has pushed"
     },
     {
@@ -1991,7 +2291,7 @@
       "source_location": "L467",
       "_origin": "ast",
       "id": "nova_api_rationale_467",
-      "community": 47,
+      "community": 17,
       "norm_label": "merge one machine's locally-computed claude code activity profile (an     hour-"
     },
     {
@@ -2001,7 +2301,7 @@
       "source_location": "L494",
       "_origin": "ast",
       "id": "nova_api_rationale_494",
-      "community": 5,
+      "community": 75,
       "norm_label": "return the merged claude code activity profile across every machine that has pus"
     },
     {
@@ -2021,7 +2321,7 @@
       "source_location": "L528",
       "_origin": "ast",
       "id": "nova_api_rationale_528",
-      "community": 5,
+      "community": 76,
       "norm_label": "return the current headless-dispatch pause state, or the honest 'never set' defa"
     },
     {
@@ -2041,7 +2341,7 @@
       "source_location": "L557",
       "_origin": "ast",
       "id": "nova_api_rationale_557",
-      "community": 60,
+      "community": 17,
       "norm_label": "register a new pending escalation \u2014 called by     nova_scheduled_dispatch.py's"
     },
     {
@@ -2241,7 +2541,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_benchmark",
-      "community": 13,
+      "community": 64,
       "norm_label": "nova_benchmark.py"
     },
     {
@@ -2251,7 +2551,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "nova_benchmark_test_context_size",
-      "community": 13,
+      "community": 64,
       "norm_label": "test_context_size()"
     },
     {
@@ -2261,7 +2561,7 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "nova_benchmark_run_benchmark",
-      "community": 13,
+      "community": 64,
       "norm_label": "run_benchmark()"
     },
     {
@@ -2271,7 +2571,7 @@
       "source_location": "L122",
       "_origin": "ast",
       "id": "nova_benchmark_run_single_golden_query",
-      "community": 13,
+      "community": 64,
       "norm_label": "_run_single_golden_query()"
     },
     {
@@ -2281,7 +2581,7 @@
       "source_location": "L153",
       "_origin": "ast",
       "id": "nova_benchmark_aggregate_golden_results",
-      "community": 13,
+      "community": 64,
       "norm_label": "_aggregate_golden_results()"
     },
     {
@@ -2291,7 +2591,7 @@
       "source_location": "L190",
       "_origin": "ast",
       "id": "nova_benchmark_log_golden_benchmark",
-      "community": 13,
+      "community": 64,
       "norm_label": "_log_golden_benchmark()"
     },
     {
@@ -2301,7 +2601,7 @@
       "source_location": "L210",
       "_origin": "ast",
       "id": "nova_benchmark_run_golden_benchmark",
-      "community": 13,
+      "community": 64,
       "norm_label": "run_golden_benchmark()"
     },
     {
@@ -2311,7 +2611,7 @@
       "source_location": "L269",
       "_origin": "ast",
       "id": "nova_benchmark_get_latest_baseline_entry",
-      "community": 13,
+      "community": 64,
       "norm_label": "_get_latest_baseline_entry()"
     },
     {
@@ -2321,7 +2621,7 @@
       "source_location": "L287",
       "_origin": "ast",
       "id": "nova_benchmark_evaluate_candidate",
-      "community": 13,
+      "community": 64,
       "norm_label": "evaluate_candidate()"
     },
     {
@@ -2331,7 +2631,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "nova_benchmark_rationale_60",
-      "community": 13,
+      "community": 64,
       "norm_label": "run a single inference at the given context size and measure it."
     },
     {
@@ -2341,7 +2641,7 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "nova_benchmark_rationale_123",
-      "community": 13,
+      "community": 64,
       "norm_label": "run one golden query through the full rag pipeline (nova_query.ask),     timing"
     },
     {
@@ -2351,7 +2651,7 @@
       "source_location": "L154",
       "_origin": "ast",
       "id": "nova_benchmark_rationale_154",
-      "community": 13,
+      "community": 64,
       "norm_label": "roll up per-query golden benchmark results into the summary stats     written t"
     },
     {
@@ -2361,7 +2661,7 @@
       "source_location": "L191",
       "_origin": "ast",
       "id": "nova_benchmark_rationale_191",
-      "community": 13,
+      "community": 64,
       "norm_label": "append one json entry to benchmark_log.jsonl. mirrors nova_log.py's     append"
     },
     {
@@ -2371,7 +2671,7 @@
       "source_location": "L211",
       "_origin": "ast",
       "id": "nova_benchmark_rationale_211",
-      "community": 13,
+      "community": 64,
       "norm_label": "run every golden_queries entry through the real rag pipeline     (nova_query.as"
     },
     {
@@ -2381,7 +2681,7 @@
       "source_location": "L270",
       "_origin": "ast",
       "id": "nova_benchmark_rationale_270",
-      "community": 13,
+      "community": 64,
       "norm_label": "read benchmark_log.jsonl and return the most recent entry whose \"model\"     fie"
     },
     {
@@ -2391,7 +2691,7 @@
       "source_location": "L288",
       "_origin": "ast",
       "id": "nova_benchmark_rationale_288",
-      "community": 13,
+      "community": 64,
       "norm_label": "one-command model-swap check: pull the candidate, run the golden     benchmark"
     },
     {
@@ -2521,7 +2821,7 @@
       "source_location": "L208",
       "_origin": "ast",
       "id": "nova_board_cmd_block",
-      "community": 1,
+      "community": 62,
       "norm_label": "cmd_block()"
     },
     {
@@ -2531,7 +2831,7 @@
       "source_location": "L233",
       "_origin": "ast",
       "id": "nova_board_cmd_link",
-      "community": 1,
+      "community": 62,
       "norm_label": "cmd_link()"
     },
     {
@@ -2541,7 +2841,7 @@
       "source_location": "L242",
       "_origin": "ast",
       "id": "nova_board_cmd_unlink",
-      "community": 1,
+      "community": 62,
       "norm_label": "cmd_unlink()"
     },
     {
@@ -2551,7 +2851,7 @@
       "source_location": "L251",
       "_origin": "ast",
       "id": "nova_board_cmd_split",
-      "community": 1,
+      "community": 62,
       "norm_label": "cmd_split()"
     },
     {
@@ -2581,7 +2881,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_chat",
-      "community": 13,
+      "community": 66,
       "norm_label": "nova_chat.py"
     },
     {
@@ -2591,7 +2891,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "nova_chat_main",
-      "community": 13,
+      "community": 66,
       "norm_label": "main()"
     },
     {
@@ -2791,7 +3091,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_clickup_client",
-      "community": 1,
+      "community": 62,
       "norm_label": "nova_clickup_client.py"
     },
     {
@@ -2801,7 +3101,7 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "nova_clickup_client_api_key",
-      "community": 1,
+      "community": 62,
       "norm_label": "_api_key()"
     },
     {
@@ -2811,7 +3111,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "nova_clickup_client_headers",
-      "community": 1,
+      "community": 62,
       "norm_label": "_headers()"
     },
     {
@@ -2821,7 +3121,7 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "nova_clickup_client_request",
-      "community": 1,
+      "community": 62,
       "norm_label": "_request()"
     },
     {
@@ -2851,7 +3151,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "nova_clickup_client_update_task",
-      "community": 1,
+      "community": 62,
       "norm_label": "update_task()"
     },
     {
@@ -2861,7 +3161,7 @@
       "source_location": "L114",
       "_origin": "ast",
       "id": "nova_clickup_client_update_status",
-      "community": 1,
+      "community": 62,
       "norm_label": "update_status()"
     },
     {
@@ -2871,7 +3171,7 @@
       "source_location": "L121",
       "_origin": "ast",
       "id": "nova_clickup_client_add_dependency",
-      "community": 1,
+      "community": 62,
       "norm_label": "add_dependency()"
     },
     {
@@ -2881,7 +3181,7 @@
       "source_location": "L126",
       "_origin": "ast",
       "id": "nova_clickup_client_remove_dependency",
-      "community": 1,
+      "community": 62,
       "norm_label": "remove_dependency()"
     },
     {
@@ -2891,7 +3191,7 @@
       "source_location": "L131",
       "_origin": "ast",
       "id": "nova_clickup_client_create_task",
-      "community": 1,
+      "community": 62,
       "norm_label": "create_task()"
     },
     {
@@ -2901,7 +3201,7 @@
       "source_location": "L140",
       "_origin": "ast",
       "id": "nova_clickup_client_add_comment",
-      "community": 22,
+      "community": 63,
       "norm_label": "add_comment()"
     },
     {
@@ -2911,7 +3211,7 @@
       "source_location": "L145",
       "_origin": "ast",
       "id": "nova_clickup_client_add_tag",
-      "community": 22,
+      "community": 63,
       "norm_label": "add_tag()"
     },
     {
@@ -2921,7 +3221,7 @@
       "source_location": "L150",
       "_origin": "ast",
       "id": "nova_clickup_client_remove_tag",
-      "community": 1,
+      "community": 62,
       "norm_label": "remove_tag()"
     },
     {
@@ -2931,7 +3231,7 @@
       "source_location": "L157",
       "_origin": "ast",
       "id": "nova_clickup_client_own_blockers",
-      "community": 1,
+      "community": 69,
       "norm_label": "_own_blockers()"
     },
     {
@@ -2951,7 +3251,7 @@
       "source_location": "L185",
       "_origin": "ast",
       "id": "nova_clickup_client_get_dependency_chain",
-      "community": 1,
+      "community": 69,
       "norm_label": "get_dependency_chain()"
     },
     {
@@ -2981,7 +3281,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_47",
-      "community": 1,
+      "community": 62,
       "norm_label": "reads clickup_api_key from the environment, same pattern as     anthropic_api_ke"
     },
     {
@@ -2991,7 +3291,7 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_63",
-      "community": 1,
+      "community": 62,
       "norm_label": "clickup personal api tokens go in the authorization header raw, no 'bearer' pref"
     },
     {
@@ -3001,7 +3301,7 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_68",
-      "community": 1,
+      "community": 62,
       "norm_label": "thin wrapper around httpx for every clickup api call. turns a failed     request"
     },
     {
@@ -3031,7 +3331,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_110",
-      "community": 1,
+      "community": 62,
       "norm_label": "generic task field update (name, status, priority, ...) \u2014 put /task/{id} with wh"
     },
     {
@@ -3041,7 +3341,7 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_115",
-      "community": 1,
+      "community": 62,
       "norm_label": "set a task's status. validates against valid_statuses first so a typo fails loud"
     },
     {
@@ -3051,7 +3351,7 @@
       "source_location": "L122",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_122",
-      "community": 1,
+      "community": 62,
       "norm_label": "record that task_id depends on (is blocked by) depends_on."
     },
     {
@@ -3061,7 +3361,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_127",
-      "community": 1,
+      "community": 62,
       "norm_label": "remove a previously-recorded depends_on link between two tasks."
     },
     {
@@ -3071,7 +3371,7 @@
       "source_location": "L132",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_132",
-      "community": 1,
+      "community": 62,
       "norm_label": "create a new task in the nova board list \u2014 used for human-blocker placeholder ta"
     },
     {
@@ -3081,7 +3381,7 @@
       "source_location": "L141",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_141",
-      "community": 22,
+      "community": 63,
       "norm_label": "post a comment on a task \u2014 used for automated status/outcome notifications (e.g."
     },
     {
@@ -3091,7 +3391,7 @@
       "source_location": "L146",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_146",
-      "community": 22,
+      "community": 63,
       "norm_label": "attach a tag to a task \u2014 used to mark a headless dispatch paused awaiting marvin"
     },
     {
@@ -3101,7 +3401,7 @@
       "source_location": "L151",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_151",
-      "community": 1,
+      "community": 62,
       "norm_label": "remove a previously-attached tag \u2014 used once an escalation is answered and the s"
     },
     {
@@ -3111,7 +3411,7 @@
       "source_location": "L158",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_158",
-      "community": 1,
+      "community": 69,
       "norm_label": "filters a task's raw `dependencies` field down to entries where this     task is"
     },
     {
@@ -3131,7 +3431,7 @@
       "source_location": "L186",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_186",
-      "community": 1,
+      "community": 69,
       "norm_label": "walks this task's own blockers recursively, stopping at a blocker that's     com"
     },
     {
@@ -3201,7 +3501,7 @@
       "source_location": "L103",
       "_origin": "ast",
       "id": "nova_config_is_framework_integration_enabled",
-      "community": 16,
+      "community": 18,
       "norm_label": "is_framework_integration_enabled()"
     },
     {
@@ -3241,7 +3541,7 @@
       "source_location": "L139",
       "_origin": "ast",
       "id": "nova_config_get_routed_model",
-      "community": 18,
+      "community": 13,
       "norm_label": "get_routed_model()"
     },
     {
@@ -3291,7 +3591,7 @@
       "source_location": "L104",
       "_origin": "ast",
       "id": "nova_config_rationale_104",
-      "community": 16,
+      "community": 18,
       "norm_label": "true if the named framework integration flag is on. these are     independent fr"
     },
     {
@@ -3331,7 +3631,7 @@
       "source_location": "L140",
       "_origin": "ast",
       "id": "nova_config_rationale_140",
-      "community": 18,
+      "community": 13,
       "norm_label": "look up which ollama model to use for a given nova_router.py category.     retur"
     },
     {
@@ -3351,7 +3651,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_corrector",
-      "community": 13,
+      "community": 65,
       "norm_label": "nova_corrector.py"
     },
     {
@@ -3361,7 +3661,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "nova_corrector_find_character_file",
-      "community": 13,
+      "community": 65,
       "norm_label": "find_character_file()"
     },
     {
@@ -3371,7 +3671,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "nova_corrector_load_lore",
-      "community": 13,
+      "community": 65,
       "norm_label": "load_lore()"
     },
     {
@@ -3381,7 +3681,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "nova_corrector_request_correction",
-      "community": 13,
+      "community": 65,
       "norm_label": "request_correction()"
     },
     {
@@ -3391,7 +3691,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "anthropic",
-      "community": 13,
+      "community": 65,
       "norm_label": "anthropic"
     },
     {
@@ -3401,7 +3701,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "nova_corrector_load_entries",
-      "community": 13,
+      "community": 65,
       "norm_label": "load_entries()"
     },
     {
@@ -3411,7 +3711,7 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "nova_corrector_save_entries",
-      "community": 13,
+      "community": 65,
       "norm_label": "save_entries()"
     },
     {
@@ -3421,7 +3721,7 @@
       "source_location": "L107",
       "_origin": "ast",
       "id": "nova_corrector_run",
-      "community": 13,
+      "community": 65,
       "norm_label": "run()"
     },
     {
@@ -3431,7 +3731,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "nova_corrector_rationale_26",
-      "community": 13,
+      "community": 65,
       "norm_label": "search the second brain for a file matching filename."
     },
     {
@@ -3441,7 +3741,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "nova_corrector_rationale_33",
-      "community": 13,
+      "community": 65,
       "norm_label": "load and concatenate lore content for each source file."
     },
     {
@@ -3451,7 +3751,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "nova_corrector_rationale_49",
-      "community": 13,
+      "community": 65,
       "norm_label": "ask claude to write an accurate response grounded only in the lore provided."
     },
     {
@@ -3510,7 +3810,7 @@
       "source_file": "nova_embedding_viz.py",
       "source_location": "L67",
       "_origin": "ast",
-      "id": "ndarray",
+      "id": "nova_embedding_viz_py_ndarray",
       "community": 3,
       "norm_label": "ndarray"
     },
@@ -4301,7 +4601,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_memory_store",
-      "community": 13,
+      "community": 66,
       "norm_label": "nova_memory_store.py"
     },
     {
@@ -4311,7 +4611,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "nova_memory_store_load_history",
-      "community": 13,
+      "community": 66,
       "norm_label": "load_history()"
     },
     {
@@ -4321,7 +4621,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "nova_memory_store_save_history",
-      "community": 13,
+      "community": 60,
       "norm_label": "save_history()"
     },
     {
@@ -4331,7 +4631,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "nova_memory_store_clear_history",
-      "community": 13,
+      "community": 66,
       "norm_label": "clear_history()"
     },
     {
@@ -4341,7 +4641,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "nova_memory_store_rationale_13",
-      "community": 13,
+      "community": 66,
       "norm_label": "load conversation history from disk. returns empty list if none exists."
     },
     {
@@ -4351,7 +4651,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "nova_memory_store_rationale_24",
-      "community": 13,
+      "community": 60,
       "norm_label": "save conversation history to disk, keeping only the last max_exchanges exchanges"
     },
     {
@@ -4361,7 +4661,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "nova_memory_store_rationale_36",
-      "community": 13,
+      "community": 66,
       "norm_label": "delete the history file."
     },
     {
@@ -4711,7 +5011,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_orchestrator",
-      "community": 19,
+      "community": 48,
       "norm_label": "nova_orchestrator.py"
     },
     {
@@ -4721,7 +5021,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "nova_orchestrator_slugify",
-      "community": 19,
+      "community": 48,
       "norm_label": "_slugify()"
     },
     {
@@ -4731,7 +5031,7 @@
       "source_location": "L132",
       "_origin": "ast",
       "id": "nova_orchestrator_create_worktree",
-      "community": 19,
+      "community": 48,
       "norm_label": "_create_worktree()"
     },
     {
@@ -4741,7 +5041,7 @@
       "source_location": "L132",
       "_origin": "ast",
       "id": "nova_orchestrator_py_path",
-      "community": 19,
+      "community": 48,
       "norm_label": "path"
     },
     {
@@ -4751,7 +5051,7 @@
       "source_location": "L152",
       "_origin": "ast",
       "id": "nova_orchestrator_summarize_task",
-      "community": 19,
+      "community": 48,
       "norm_label": "_summarize_task()"
     },
     {
@@ -4761,7 +5061,7 @@
       "source_location": "L163",
       "_origin": "ast",
       "id": "nova_orchestrator_commit_worktree_changes",
-      "community": 19,
+      "community": 48,
       "norm_label": "_commit_worktree_changes()"
     },
     {
@@ -4771,7 +5071,7 @@
       "source_location": "L193",
       "_origin": "ast",
       "id": "nova_orchestrator_git_diff_against_master",
-      "community": 19,
+      "community": 48,
       "norm_label": "_git_diff_against_master()"
     },
     {
@@ -4781,7 +5081,7 @@
       "source_location": "L208",
       "_origin": "ast",
       "id": "nova_orchestrator_build_system_prompt",
-      "community": 19,
+      "community": 48,
       "norm_label": "_build_system_prompt()"
     },
     {
@@ -4801,7 +5101,7 @@
       "source_location": "L286",
       "_origin": "ast",
       "id": "nova_orchestrator_log_agent_turn",
-      "community": 19,
+      "community": 48,
       "norm_label": "_log_agent_turn()"
     },
     {
@@ -4811,7 +5111,7 @@
       "source_location": "L316",
       "_origin": "ast",
       "id": "nova_orchestrator_run_coding_task",
-      "community": 19,
+      "community": 48,
       "norm_label": "run_coding_task()"
     },
     {
@@ -4821,7 +5121,7 @@
       "source_location": "L468",
       "_origin": "ast",
       "id": "nova_orchestrator_record_task_outcome",
-      "community": 19,
+      "community": 48,
       "norm_label": "record_task_outcome()"
     },
     {
@@ -4831,7 +5131,7 @@
       "source_location": "L126",
       "_origin": "ast",
       "id": "nova_orchestrator_rationale_126",
-      "community": 19,
+      "community": 48,
       "norm_label": "turn a task description into a short, unique, filesystem-safe slug."
     },
     {
@@ -4841,7 +5141,7 @@
       "source_location": "L133",
       "_origin": "ast",
       "id": "nova_orchestrator_rationale_133",
-      "community": 19,
+      "community": 48,
       "norm_label": "create a disposable git worktree + branch for one coding task, based on     the"
     },
     {
@@ -4851,7 +5151,7 @@
       "source_location": "L153",
       "_origin": "ast",
       "id": "nova_orchestrator_rationale_153",
-      "community": 19,
+      "community": 48,
       "norm_label": "shorten a task description to a git-subject-line length, cutting at the     last"
     },
     {
@@ -4861,7 +5161,7 @@
       "source_location": "L164",
       "_origin": "ast",
       "id": "nova_orchestrator_rationale_164",
-      "community": 19,
+      "community": 48,
       "norm_label": "stage and commit whatever the agent changed in its worktree, so the     branch a"
     },
     {
@@ -4871,7 +5171,7 @@
       "source_location": "L194",
       "_origin": "ast",
       "id": "nova_orchestrator_rationale_194",
-      "community": 19,
+      "community": 48,
       "norm_label": "return the full diff of this worktree's branch against master."
     },
     {
@@ -4881,7 +5181,7 @@
       "source_location": "L209",
       "_origin": "ast",
       "id": "nova_orchestrator_rationale_209",
-      "community": 19,
+      "community": 48,
       "norm_label": "system prompt: the project's own coding standards, plus tool-use guidance."
     },
     {
@@ -4901,7 +5201,7 @@
       "source_location": "L289",
       "_origin": "ast",
       "id": "nova_orchestrator_rationale_289",
-      "community": 19,
+      "community": 48,
       "norm_label": "append one turn of an agent task to agent_log.jsonl (jsonl, mirrors nova_log.py)"
     },
     {
@@ -4911,7 +5211,7 @@
       "source_location": "L317",
       "_origin": "ast",
       "id": "nova_orchestrator_rationale_317",
-      "community": 19,
+      "community": 48,
       "norm_label": "run one coding task end-to-end: spin up a disposable worktree, drive a     claud"
     },
     {
@@ -4921,7 +5221,7 @@
       "source_location": "L469",
       "_origin": "ast",
       "id": "nova_orchestrator_rationale_469",
-      "community": 19,
+      "community": 48,
       "norm_label": "record whether a coding-agent branch was merged, discarded, or stopped     itsel"
     },
     {
@@ -5098,7 +5398,7 @@
       "label": "load_profile()",
       "file_type": "code",
       "source_file": "nova_query.py",
-      "source_location": "L83",
+      "source_location": "L88",
       "_origin": "ast",
       "id": "nova_query_load_profile",
       "community": 13,
@@ -5108,7 +5408,7 @@
       "label": "build_system_prompt()",
       "file_type": "code",
       "source_file": "nova_query.py",
-      "source_location": "L92",
+      "source_location": "L97",
       "_origin": "ast",
       "id": "nova_query_build_system_prompt",
       "community": 13,
@@ -5118,27 +5418,27 @@
       "label": "retrieve()",
       "file_type": "code",
       "source_file": "nova_query.py",
-      "source_location": "L110",
+      "source_location": "L115",
       "_origin": "ast",
       "id": "nova_query_retrieve",
-      "community": 3,
+      "community": 71,
       "norm_label": "retrieve()"
     },
     {
       "label": "retrieve_with_graph()",
       "file_type": "code",
       "source_file": "nova_query.py",
-      "source_location": "L126",
+      "source_location": "L131",
       "_origin": "ast",
       "id": "nova_query_retrieve_with_graph",
-      "community": 3,
+      "community": 71,
       "norm_label": "retrieve_with_graph()"
     },
     {
       "label": "build_retrieval_query()",
       "file_type": "code",
       "source_file": "nova_query.py",
-      "source_location": "L158",
+      "source_location": "L163",
       "_origin": "ast",
       "id": "nova_query_build_retrieval_query",
       "community": 13,
@@ -5148,7 +5448,7 @@
       "label": "format_context()",
       "file_type": "code",
       "source_file": "nova_query.py",
-      "source_location": "L165",
+      "source_location": "L170",
       "_origin": "ast",
       "id": "nova_query_format_context",
       "community": 13,
@@ -5158,37 +5458,37 @@
       "label": "_extract_changed_files()",
       "file_type": "code",
       "source_file": "nova_query.py",
-      "source_location": "L175",
+      "source_location": "L180",
       "_origin": "ast",
       "id": "nova_query_extract_changed_files",
-      "community": 13,
+      "community": 67,
       "norm_label": "_extract_changed_files()"
     },
     {
       "label": "format_coding_task_summary()",
       "file_type": "code",
       "source_file": "nova_query.py",
-      "source_location": "L190",
+      "source_location": "L195",
       "_origin": "ast",
       "id": "nova_query_format_coding_task_summary",
-      "community": 13,
+      "community": 67,
       "norm_label": "format_coding_task_summary()"
     },
     {
       "label": "handle_coding_task()",
       "file_type": "code",
       "source_file": "nova_query.py",
-      "source_location": "L215",
+      "source_location": "L220",
       "_origin": "ast",
       "id": "nova_query_handle_coding_task",
-      "community": 13,
+      "community": 67,
       "norm_label": "handle_coding_task()"
     },
     {
       "label": "ask()",
       "file_type": "code",
       "source_file": "nova_query.py",
-      "source_location": "L235",
+      "source_location": "L240",
       "_origin": "ast",
       "id": "nova_query_ask",
       "community": 13,
@@ -5198,9 +5498,9 @@
       "label": "Always load marvin_profile.md as pinned context.",
       "file_type": "rationale",
       "source_file": "nova_query.py",
-      "source_location": "L84",
+      "source_location": "L89",
       "_origin": "ast",
-      "id": "nova_query_rationale_84",
+      "id": "nova_query_rationale_89",
       "community": 13,
       "norm_label": "always load marvin_profile.md as pinned context."
     },
@@ -5208,29 +5508,29 @@
       "label": "Query Chroma and return top matching chunks with metadata.",
       "file_type": "rationale",
       "source_file": "nova_query.py",
-      "source_location": "L111",
+      "source_location": "L116",
       "_origin": "ast",
-      "id": "nova_query_rationale_111",
-      "community": 3,
+      "id": "nova_query_rationale_116",
+      "community": 71,
       "norm_label": "query chroma and return top matching chunks with metadata."
     },
     {
       "label": "Graph-scoped retrieval.      1. Call get_context_budget() to get a ranked list",
       "file_type": "rationale",
       "source_file": "nova_query.py",
-      "source_location": "L127",
+      "source_location": "L132",
       "_origin": "ast",
-      "id": "nova_query_rationale_127",
-      "community": 3,
+      "id": "nova_query_rationale_132",
+      "community": 71,
       "norm_label": "graph-scoped retrieval.      1. call get_context_budget() to get a ranked list"
     },
     {
       "label": "Expand query with recent user turns for better follow-up retrieval.",
       "file_type": "rationale",
       "source_file": "nova_query.py",
-      "source_location": "L159",
+      "source_location": "L164",
       "_origin": "ast",
-      "id": "nova_query_rationale_159",
+      "id": "nova_query_rationale_164",
       "community": 13,
       "norm_label": "expand query with recent user turns for better follow-up retrieval."
     },
@@ -5238,39 +5538,39 @@
       "label": "Pull the list of changed filenames out of a unified git diff, instead of     sc",
       "file_type": "rationale",
       "source_file": "nova_query.py",
-      "source_location": "L176",
+      "source_location": "L181",
       "_origin": "ast",
-      "id": "nova_query_rationale_176",
-      "community": 13,
+      "id": "nova_query_rationale_181",
+      "community": 67,
       "norm_label": "pull the list of changed filenames out of a unified git diff, instead of     sc"
     },
     {
       "label": "Build a plain-text summary of a nova_orchestrator.run_coding_task() result",
       "file_type": "rationale",
       "source_file": "nova_query.py",
-      "source_location": "L191",
+      "source_location": "L196",
       "_origin": "ast",
-      "id": "nova_query_rationale_191",
-      "community": 13,
+      "id": "nova_query_rationale_196",
+      "community": 67,
       "norm_label": "build a plain-text summary of a nova_orchestrator.run_coding_task() result"
     },
     {
       "label": "Strip the CODING_AGENT_PREFIX off the original (case-preserved) query,     hand",
       "file_type": "rationale",
       "source_file": "nova_query.py",
-      "source_location": "L216",
+      "source_location": "L221",
       "_origin": "ast",
-      "id": "nova_query_rationale_216",
-      "community": 13,
+      "id": "nova_query_rationale_221",
+      "community": 67,
       "norm_label": "strip the coding_agent_prefix off the original (case-preserved) query,     hand"
     },
     {
       "label": "Full RAG pipeline: route \u2192 retrieve \u2192 generate.     Returns dict with 'answer',",
       "file_type": "rationale",
       "source_file": "nova_query.py",
-      "source_location": "L236",
+      "source_location": "L241",
       "_origin": "ast",
-      "id": "nova_query_rationale_236",
+      "id": "nova_query_rationale_241",
       "community": 13,
       "norm_label": "full rag pipeline: route \u2192 retrieve \u2192 generate.     returns dict with 'answer',"
     },
@@ -5511,7 +5811,7 @@
       "source_location": "L259",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_handle_escalation",
-      "community": 22,
+      "community": 63,
       "norm_label": "_handle_escalation()"
     },
     {
@@ -5641,7 +5941,7 @@
       "source_location": "L260",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_rationale_260",
-      "community": 22,
+      "community": 63,
       "norm_label": "register a paused-for-escalation dispatch outcome (86bax0wkj) \u2014     registers it"
     },
     {
@@ -5681,7 +5981,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_skills",
-      "community": 19,
+      "community": 48,
       "norm_label": "nova_skills.py"
     },
     {
@@ -5691,7 +5991,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "nova_skills_load_skill",
-      "community": 19,
+      "community": 48,
       "norm_label": "load_skill()"
     },
     {
@@ -5701,7 +6001,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "nova_skills_get_skill_version",
-      "community": 19,
+      "community": 48,
       "norm_label": "get_skill_version()"
     },
     {
@@ -5711,7 +6011,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "nova_skills_rationale_23",
-      "community": 19,
+      "community": 48,
       "norm_label": "read skills/{category}.md, or \"\" if no such skill file exists \u2014     graceful fal"
     },
     {
@@ -5721,7 +6021,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "nova_skills_rationale_35",
-      "community": 19,
+      "community": 48,
       "norm_label": "extract the 'version: x.x' line from a skill file, for pinning in     agent_log."
     },
     {
@@ -5861,7 +6161,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_state_system",
-      "community": 5,
+      "community": 9,
       "norm_label": "nova_state_system.py"
     },
     {
@@ -5871,7 +6171,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "nova_state_system_refresh_system_state",
-      "community": 5,
+      "community": 9,
       "norm_label": "refresh_system_state()"
     },
     {
@@ -5881,7 +6181,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "nova_state_system_rationale_19",
-      "community": 5,
+      "community": 9,
       "norm_label": "snapshot the current headroom report into nova_state.db's system     domain. no"
     },
     {
@@ -5971,7 +6271,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_task_queue",
-      "community": 22,
+      "community": 63,
       "norm_label": "nova_task_queue.py"
     },
     {
@@ -5981,7 +6281,7 @@
       "source_location": "L70",
       "_origin": "ast",
       "id": "nova_task_queue_get_ready_tasks",
-      "community": 7,
+      "community": 72,
       "norm_label": "get_ready_tasks()"
     },
     {
@@ -6001,7 +6301,7 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "nova_task_queue_is_tierable",
-      "community": 22,
+      "community": 63,
       "norm_label": "_is_tierable()"
     },
     {
@@ -6011,7 +6311,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "nova_task_queue_propose_tier",
-      "community": 22,
+      "community": 63,
       "norm_label": "propose_tier()"
     },
     {
@@ -6021,7 +6321,7 @@
       "source_location": "L195",
       "_origin": "ast",
       "id": "nova_task_queue_description_hash",
-      "community": 22,
+      "community": 63,
       "norm_label": "_description_hash()"
     },
     {
@@ -6031,7 +6331,7 @@
       "source_location": "L213",
       "_origin": "ast",
       "id": "nova_task_queue_fetch_tier_watermarks",
-      "community": 22,
+      "community": 63,
       "norm_label": "_fetch_tier_watermarks()"
     },
     {
@@ -6051,7 +6351,7 @@
       "source_location": "L244",
       "_origin": "ast",
       "id": "nova_task_queue_detect_tier_candidates",
-      "community": 22,
+      "community": 63,
       "norm_label": "detect_tier_candidates()"
     },
     {
@@ -6061,7 +6361,7 @@
       "source_location": "L298",
       "_origin": "ast",
       "id": "nova_task_queue_current_tier_tag",
-      "community": 22,
+      "community": 63,
       "norm_label": "_current_tier_tag()"
     },
     {
@@ -6071,7 +6371,7 @@
       "source_location": "L312",
       "_origin": "ast",
       "id": "nova_task_queue_register_tier_proposal",
-      "community": 22,
+      "community": 63,
       "norm_label": "register_tier_proposal()"
     },
     {
@@ -6081,7 +6381,7 @@
       "source_location": "L366",
       "_origin": "ast",
       "id": "nova_task_queue_sweep_existing_tasks",
-      "community": 22,
+      "community": 63,
       "norm_label": "sweep_existing_tasks()"
     },
     {
@@ -6091,7 +6391,7 @@
       "source_location": "L381",
       "_origin": "ast",
       "id": "nova_task_queue_resolve_task_description",
-      "community": 22,
+      "community": 72,
       "norm_label": "resolve_task_description()"
     },
     {
@@ -6101,7 +6401,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "nova_task_queue_rationale_71",
-      "community": 7,
+      "community": 72,
       "norm_label": "readiness detection (86bax0exx step 1). a task is ready when its     status is '"
     },
     {
@@ -6121,7 +6421,7 @@
       "source_location": "L114",
       "_origin": "ast",
       "id": "nova_task_queue_rationale_114",
-      "community": 22,
+      "community": 63,
       "norm_label": "only plausibly-dispatchable tasks get a tier proposal at all (86bb01wur,     con"
     },
     {
@@ -6131,7 +6431,7 @@
       "source_location": "L126",
       "_origin": "ast",
       "id": "nova_task_queue_rationale_126",
-      "community": 22,
+      "community": 63,
       "norm_label": "ask claude a single, non-agentic question: given this task's name and     descri"
     },
     {
@@ -6141,7 +6441,7 @@
       "source_location": "L196",
       "_origin": "ast",
       "id": "nova_task_queue_rationale_196",
-      "community": 22,
+      "community": 63,
       "norm_label": "a content hash of a task's description, used as the watermark value     instead"
     },
     {
@@ -6151,7 +6451,7 @@
       "source_location": "L214",
       "_origin": "ast",
       "id": "nova_task_queue_rationale_214",
-      "community": 22,
+      "community": 63,
       "norm_label": "pure read of the stored {task_id: description_hash} map. empty dict on any fetch"
     },
     {
@@ -6171,7 +6471,7 @@
       "source_location": "L245",
       "_origin": "ast",
       "id": "nova_task_queue_rationale_245",
-      "community": 22,
+      "community": 63,
       "norm_label": "pure read/diff, no side effects -- safe to call repeatedly for     inspection wi"
     },
     {
@@ -6181,7 +6481,7 @@
       "source_location": "L299",
       "_origin": "ast",
       "id": "nova_task_queue_rationale_299",
-      "community": 22,
+      "community": 63,
       "norm_label": "reverse-maps tier_tags against a task's real current tags to find which     tier"
     },
     {
@@ -6191,7 +6491,7 @@
       "source_location": "L313",
       "_origin": "ast",
       "id": "nova_task_queue_rationale_313",
-      "community": 22,
+      "community": 63,
       "norm_label": "full propose->register->tag->comment pipeline for one candidate task --     shar"
     },
     {
@@ -6201,7 +6501,7 @@
       "source_location": "L367",
       "_origin": "ast",
       "id": "nova_task_queue_rationale_367",
-      "community": 22,
+      "community": 63,
       "norm_label": "one-time retroactive backfill (86bb01wur, confirmed with marvin: do a     full s"
     },
     {
@@ -6211,7 +6511,7 @@
       "source_location": "L382",
       "_origin": "ast",
       "id": "nova_task_queue_rationale_382",
-      "community": 22,
+      "community": 72,
       "norm_label": "task resolution (86bax0exx step 2). pulls the task's own clickup     description"
     },
     {
@@ -6965,6 +7265,166 @@
       "norm_label": "return the top_n (weekday_name, hour, count) cells with the lowest     message c"
     },
     {
+      "label": "nova_voice.py",
+      "file_type": "code",
+      "source_file": "nova_voice.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "nova_voice",
+      "community": 60,
+      "norm_label": "nova_voice.py"
+    },
+    {
+      "label": "_ensure_models_downloaded()",
+      "file_type": "code",
+      "source_file": "nova_voice.py",
+      "source_location": "L72",
+      "_origin": "ast",
+      "id": "nova_voice_ensure_models_downloaded",
+      "community": 60,
+      "norm_label": "_ensure_models_downloaded()"
+    },
+    {
+      "label": "_load_stt_pipeline()",
+      "file_type": "code",
+      "source_file": "nova_voice.py",
+      "source_location": "L86",
+      "_origin": "ast",
+      "id": "nova_voice_load_stt_pipeline",
+      "community": 60,
+      "norm_label": "_load_stt_pipeline()"
+    },
+    {
+      "label": "_rms()",
+      "file_type": "code",
+      "source_file": "nova_voice.py",
+      "source_location": "L99",
+      "_origin": "ast",
+      "id": "nova_voice_rms",
+      "community": 60,
+      "norm_label": "_rms()"
+    },
+    {
+      "label": "ndarray",
+      "file_type": "code",
+      "source_file": "nova_voice.py",
+      "source_location": "L99",
+      "_origin": "ast",
+      "id": "nova_voice_py_ndarray",
+      "community": 60,
+      "norm_label": "ndarray"
+    },
+    {
+      "label": "_record_until_silence()",
+      "file_type": "code",
+      "source_file": "nova_voice.py",
+      "source_location": "L104",
+      "_origin": "ast",
+      "id": "nova_voice_record_until_silence",
+      "community": 60,
+      "norm_label": "_record_until_silence()"
+    },
+    {
+      "label": "InputStream",
+      "file_type": "code",
+      "source_file": "nova_voice.py",
+      "source_location": "L104",
+      "_origin": "ast",
+      "id": "inputstream",
+      "community": 60,
+      "norm_label": "inputstream"
+    },
+    {
+      "label": "transcribe()",
+      "file_type": "code",
+      "source_file": "nova_voice.py",
+      "source_location": "L147",
+      "_origin": "ast",
+      "id": "nova_voice_transcribe",
+      "community": 60,
+      "norm_label": "transcribe()"
+    },
+    {
+      "label": "speak()",
+      "file_type": "code",
+      "source_file": "nova_voice.py",
+      "source_location": "L156",
+      "_origin": "ast",
+      "id": "nova_voice_speak",
+      "community": 60,
+      "norm_label": "speak()"
+    },
+    {
+      "label": "PiperVoice",
+      "file_type": "code",
+      "source_file": "nova_voice.py",
+      "source_location": "L156",
+      "_origin": "ast",
+      "id": "pipervoice",
+      "community": 60,
+      "norm_label": "pipervoice"
+    },
+    {
+      "label": "run_voice_loop()",
+      "file_type": "code",
+      "source_file": "nova_voice.py",
+      "source_location": "L173",
+      "_origin": "ast",
+      "id": "nova_voice_run_voice_loop",
+      "community": 60,
+      "norm_label": "run_voice_loop()"
+    },
+    {
+      "label": "Download the wake-word and TTS voice models on first run, if missing.",
+      "file_type": "rationale",
+      "source_file": "nova_voice.py",
+      "source_location": "L73",
+      "_origin": "ast",
+      "id": "nova_voice_rationale_73",
+      "community": 60,
+      "norm_label": "download the wake-word and tts voice models on first run, if missing."
+    },
+    {
+      "label": "Root-mean-square amplitude of an int16 audio chunk -- simple speech/silence sign",
+      "file_type": "rationale",
+      "source_file": "nova_voice.py",
+      "source_location": "L100",
+      "_origin": "ast",
+      "id": "nova_voice_rationale_100",
+      "community": 60,
+      "norm_label": "root-mean-square amplitude of an int16 audio chunk -- simple speech/silence sign"
+    },
+    {
+      "label": "Accumulate audio chunks from an already-open stream until the speaker     goes q",
+      "file_type": "rationale",
+      "source_file": "nova_voice.py",
+      "source_location": "L105",
+      "_origin": "ast",
+      "id": "nova_voice_rationale_105",
+      "community": 60,
+      "norm_label": "accumulate audio chunks from an already-open stream until the speaker     goes q"
+    },
+    {
+      "label": "Run the STT pipeline on a raw int16 audio array, bypassing ffmpeg entirely     (",
+      "file_type": "rationale",
+      "source_file": "nova_voice.py",
+      "source_location": "L148",
+      "_origin": "ast",
+      "id": "nova_voice_rationale_148",
+      "community": 60,
+      "norm_label": "run the stt pipeline on a raw int16 audio array, bypassing ffmpeg entirely     ("
+    },
+    {
+      "label": "Synthesize text to audio and play it back through the default output device.",
+      "file_type": "rationale",
+      "source_file": "nova_voice.py",
+      "source_location": "L157",
+      "_origin": "ast",
+      "id": "nova_voice_rationale_157",
+      "community": 60,
+      "norm_label": "synthesize text to audio and play it back through the default output device."
+    },
+    {
       "label": "nova_watcher.py",
       "file_type": "code",
       "source_file": "nova_watcher.py",
@@ -7268,7 +7728,7 @@
       "label": "HP Omen Headless Server (ClickUp `86baeyfm1`) \u2014 \u2713 COMPLETE (2026-07-12)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L480",
+      "source_location": "L485",
       "_origin": "ast",
       "id": "claude_hp_omen_headless_server_clickup_86baeyfm1_complete_2026_07_12",
       "community": 28,
@@ -7278,7 +7738,7 @@
       "label": "Important gap in the \"COMPLETE\" verification above, found and fixed same day (`86bawfn19`)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L525",
+      "source_location": "L530",
       "_origin": "ast",
       "id": "claude_important_gap_in_the_complete_verification_above_found_and_fixed_same_day_86bawfn19",
       "community": 28,
@@ -7288,7 +7748,7 @@
       "label": "Working Directly on the Omen via SSH (away from the Aero)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L569",
+      "source_location": "L574",
       "_origin": "ast",
       "id": "claude_working_directly_on_the_omen_via_ssh_away_from_the_aero",
       "community": 28,
@@ -7298,17 +7758,17 @@
       "label": "Nova Coding Sub-Agent (nova_orchestrator.py)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L598",
+      "source_location": "L603",
       "_origin": "ast",
       "id": "claude_nova_coding_sub_agent_nova_orchestrator_py",
-      "community": 28,
+      "community": 68,
       "norm_label": "nova coding sub-agent (nova_orchestrator.py)"
     },
     {
       "label": "Escalation Protocol \u2014 Headless Dispatch (86bax0wkj, 2026-07-18)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L623",
+      "source_location": "L628",
       "_origin": "ast",
       "id": "claude_escalation_protocol_headless_dispatch_86bax0wkj_2026_07_18",
       "community": 28,
@@ -7318,7 +7778,7 @@
       "label": "Task Tiering (86bb01wur, 2026-07-19)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L691",
+      "source_location": "L696",
       "_origin": "ast",
       "id": "claude_task_tiering_86bb01wur_2026_07_19",
       "community": 28,
@@ -7328,7 +7788,7 @@
       "label": "Nova Controller UX (86baxahn7, 2026-07-19)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L734",
+      "source_location": "L739",
       "_origin": "ast",
       "id": "claude_nova_controller_ux_86baxahn7_2026_07_19",
       "community": 28,
@@ -7338,7 +7798,7 @@
       "label": "Nova Skills Library (2026-07-07, ClickUp `86barguac`)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L805",
+      "source_location": "L810",
       "_origin": "ast",
       "id": "claude_nova_skills_library_2026_07_07_clickup_86barguac",
       "community": 28,
@@ -7348,7 +7808,7 @@
       "label": "Domain State Layer (2026-07-07, ClickUp `86bara3qe`) \u2014 scoped v1",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L824",
+      "source_location": "L829",
       "_origin": "ast",
       "id": "claude_domain_state_layer_2026_07_07_clickup_86bara3qe_scoped_v1",
       "community": 28,
@@ -7358,7 +7818,7 @@
       "label": "nova_graph.json Structure",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L874",
+      "source_location": "L879",
       "_origin": "ast",
       "id": "claude_nova_graph_json_structure",
       "community": 28,
@@ -7368,7 +7828,7 @@
       "label": "3. Coding Philosophy \u2014 Legibility First",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L886",
+      "source_location": "L891",
       "_origin": "ast",
       "id": "claude_3_coding_philosophy_legibility_first",
       "community": 58,
@@ -7378,7 +7838,7 @@
       "label": "Core Rules",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L894",
+      "source_location": "L899",
       "_origin": "ast",
       "id": "claude_core_rules",
       "community": 58,
@@ -7388,7 +7848,7 @@
       "label": "Comment Style",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L905",
+      "source_location": "L910",
       "_origin": "ast",
       "id": "claude_comment_style",
       "community": 58,
@@ -7398,7 +7858,7 @@
       "label": "4. Python Style Guide",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L919",
+      "source_location": "L924",
       "_origin": "ast",
       "id": "claude_4_python_style_guide",
       "community": 4,
@@ -7408,7 +7868,7 @@
       "label": "File Structure Order",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L929",
+      "source_location": "L934",
       "_origin": "ast",
       "id": "claude_file_structure_order",
       "community": 4,
@@ -7418,7 +7878,7 @@
       "label": "5. Known Issues & Active Bugs",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L942",
+      "source_location": "L947",
       "_origin": "ast",
       "id": "claude_5_known_issues_active_bugs",
       "community": 4,
@@ -7428,7 +7888,7 @@
       "label": "/context-budget \u2014 FIXED (2026-06-17)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L944",
+      "source_location": "L949",
       "_origin": "ast",
       "id": "claude_context_budget_fixed_2026_06_17",
       "community": 4,
@@ -7438,7 +7898,7 @@
       "label": "6. RAG Architecture \u2014 Critical Details",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L961",
+      "source_location": "L966",
       "_origin": "ast",
       "id": "claude_6_rag_architecture_critical_details",
       "community": 56,
@@ -7448,7 +7908,7 @@
       "label": "Character Query Handling",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L963",
+      "source_location": "L968",
       "_origin": "ast",
       "id": "claude_character_query_handling",
       "community": 56,
@@ -7458,7 +7918,7 @@
       "label": "Character Blending Fixes (already applied \u2014 do not revert)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L968",
+      "source_location": "L973",
       "_origin": "ast",
       "id": "claude_character_blending_fixes_already_applied_do_not_revert",
       "community": 56,
@@ -7468,7 +7928,7 @@
       "label": "Graph-Guided Retrieval Flow (retrieve_with_graph)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L976",
+      "source_location": "L981",
       "_origin": "ast",
       "id": "claude_graph_guided_retrieval_flow_retrieve_with_graph",
       "community": 56,
@@ -7478,7 +7938,7 @@
       "label": "Known At-Risk Character Pairs (embedding-distance analysis, re-run 2026-07-16)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L983",
+      "source_location": "L988",
       "_origin": "ast",
       "id": "claude_known_at_risk_character_pairs_embedding_distance_analysis_re_run_2026_07_16",
       "community": 56,
@@ -7488,7 +7948,7 @@
       "label": "7. Nova API Routes",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L1013",
+      "source_location": "L1018",
       "_origin": "ast",
       "id": "claude_7_nova_api_routes",
       "community": 4,
@@ -7498,7 +7958,7 @@
       "label": "8. What Claude Should Always Do",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L1060",
+      "source_location": "L1065",
       "_origin": "ast",
       "id": "claude_8_what_claude_should_always_do",
       "community": 4,
@@ -7508,7 +7968,7 @@
       "label": "9. What Claude Should Never Do",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L1104",
+      "source_location": "L1109",
       "_origin": "ast",
       "id": "claude_9_what_claude_should_never_do",
       "community": 4,
@@ -7518,7 +7978,7 @@
       "label": "10. Change Log",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L1117",
+      "source_location": "L1122",
       "_origin": "ast",
       "id": "claude_10_change_log",
       "community": 4,
@@ -7528,7 +7988,7 @@
       "label": "11. Session Startup Checklist",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L1172",
+      "source_location": "L1180",
       "_origin": "ast",
       "id": "claude_11_session_startup_checklist",
       "community": 4,
@@ -7538,7 +7998,7 @@
       "label": "graphify",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L1188",
+      "source_location": "L1196",
       "_origin": "ast",
       "id": "claude_graphify",
       "community": 4,
@@ -7851,7 +8311,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "skills_coding",
-      "community": 28,
+      "community": 70,
       "norm_label": "coding.md"
     },
     {
@@ -7861,7 +8321,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "skills_coding_nova_skill_coding",
-      "community": 28,
+      "community": 70,
       "norm_label": "nova skill: coding"
     },
     {
@@ -7871,7 +8331,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "skills_coding_purpose",
-      "community": 28,
+      "community": 70,
       "norm_label": "purpose"
     },
     {
@@ -7881,7 +8341,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "skills_coding_conventions",
-      "community": 28,
+      "community": 70,
       "norm_label": "conventions"
     },
     {
@@ -7891,7 +8351,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "skills_coding_constraints",
-      "community": 28,
+      "community": 70,
       "norm_label": "constraints"
     },
     {
@@ -7901,7 +8361,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "skills_coding_output_format",
-      "community": 28,
+      "community": 70,
       "norm_label": "output format"
     },
     {
@@ -7911,7 +8371,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "skills_coding_examples",
-      "community": 28,
+      "community": 70,
       "norm_label": "examples"
     },
     {
@@ -8131,7 +8591,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "skills_orchestration",
-      "community": 28,
+      "community": 68,
       "norm_label": "orchestration.md"
     },
     {
@@ -8141,7 +8601,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "skills_orchestration_nova_skill_orchestration",
-      "community": 28,
+      "community": 68,
       "norm_label": "nova skill: orchestration"
     },
     {
@@ -8151,7 +8611,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "skills_orchestration_purpose",
-      "community": 28,
+      "community": 68,
       "norm_label": "purpose"
     },
     {
@@ -8161,7 +8621,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "skills_orchestration_conventions",
-      "community": 28,
+      "community": 68,
       "norm_label": "conventions"
     },
     {
@@ -8171,7 +8631,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "skills_orchestration_constraints",
-      "community": 28,
+      "community": 68,
       "norm_label": "constraints"
     },
     {
@@ -8181,7 +8641,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "skills_orchestration_output_format",
-      "community": 28,
+      "community": 68,
       "norm_label": "output format"
     },
     {
@@ -8191,7 +8651,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "skills_orchestration_examples",
-      "community": 28,
+      "community": 68,
       "norm_label": "examples"
     },
     {
@@ -8494,7 +8954,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 13,
+      "community": 64,
       "norm_label": "ollama_model constant",
       "id": "nova_query_ollama_model"
     },
@@ -8507,7 +8967,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 13,
+      "community": 64,
       "norm_label": "benchmark_log.jsonl (golden benchmark run log)",
       "id": "nova_benchmark_benchmark_log_data"
     },
@@ -8624,7 +9084,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 13,
+      "community": 67,
       "norm_label": "coding_agent_prefix constant ('/code ')",
       "id": "nova_router_coding_agent_prefix"
     },
@@ -8767,7 +9227,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 19,
+      "community": 48,
       "norm_label": "clickup 86barguac \u2014 nova skills library",
       "id": "concept_clickup_86barguac"
     },
@@ -8845,7 +9305,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 5,
+      "community": 9,
       "norm_label": "domain state layer \u2014 scoped v1",
       "id": "claude_domain_state_layer"
     },
@@ -8936,7 +9396,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 7,
+      "community": 72,
       "norm_label": "nova_task_queue.py scope decisions (drive doc vs. description; manual-trigger only)",
       "id": "claude_task_queue_scope_decisions"
     },
@@ -9014,7 +9474,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 28,
+      "community": 68,
       "norm_label": "langgraph==1.2.9 (dependency)",
       "id": "requirements_langgraph"
     },
@@ -9027,7 +9487,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 4,
+      "community": 74,
       "norm_label": "playwright==1.61.0 (dependency)",
       "id": "requirements_playwright"
     },
@@ -9131,7 +9591,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 4,
+      "community": 74,
       "norm_label": "browser_hands/config/sites.yaml \u2014 per-adapter config template",
       "id": "config_sites_template"
     },
@@ -9144,7 +9604,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 28,
+      "community": 70,
       "norm_label": "atomic per-change commit convention ([module] short imperative)",
       "id": "skills_coding_atomic_commit_convention"
     },
@@ -9157,7 +9617,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 28,
+      "community": 70,
       "norm_label": "never delete/rewrite whole file when a patch would do (86barhqpp)",
       "id": "skills_coding_patch_style_edits_rule"
     },
@@ -9196,7 +9656,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 51,
+      "community": 50,
       "norm_label": "fiction/lore retrieval capped at 3 chunks",
       "id": "skills_lore_fiction_chunk_cap"
     },
@@ -9235,7 +9695,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 28,
+      "community": 68,
       "norm_label": "principle 1 \u2014 parallelism contract (no concurrent writes to same file/row)",
       "id": "skills_orchestration_parallelism_contract"
     },
@@ -9248,7 +9708,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 28,
+      "community": 68,
       "norm_label": "every spawned task passes the token budget gate before starting",
       "id": "skills_orchestration_token_budget_gate"
     },
@@ -9261,7 +9721,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 51,
+      "community": 50,
       "norm_label": "chunk limits \u2014 general 6, fiction/lore 3",
       "id": "skills_retrieval_chunk_limits"
     },
@@ -9287,7 +9747,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 7,
+      "community": 72,
       "norm_label": "clickup 86bax0exx \u2014 nova orchestration layer: task-queue -> headless run -> review loop",
       "id": "clickup_86bax0exx"
     },
@@ -9352,7 +9812,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 28,
+      "community": 70,
       "norm_label": "clickup 86barhqt9 \u2014 token budget governor v1",
       "id": "clickup_86barhqt9"
     },
@@ -10069,10 +10529,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "graph_builder.py",
-      "source_location": "L38",
+      "source_location": "L39",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "graph_builder_rationale_38",
+      "source": "graph_builder_rationale_39",
       "target": "graph_builder_parse_links"
     },
     {
@@ -10101,10 +10561,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "graph_builder.py",
-      "source_location": "L53",
+      "source_location": "L54",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "graph_builder_rationale_53",
+      "source": "graph_builder_rationale_54",
       "target": "graph_builder_wikilink_to_filename"
     },
     {
@@ -10143,10 +10603,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "graph_builder.py",
-      "source_location": "L67",
+      "source_location": "L68",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "graph_builder_rationale_67",
+      "source": "graph_builder_rationale_68",
       "target": "graph_builder_fetch_all_chunks"
     },
     {
@@ -10164,10 +10624,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "graph_builder.py",
-      "source_location": "L78",
+      "source_location": "L79",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "graph_builder_rationale_78",
+      "source": "graph_builder_rationale_79",
       "target": "graph_builder_build_graph_from_chunks"
     },
     {
@@ -10206,10 +10666,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "graph_builder.py",
-      "source_location": "L140",
+      "source_location": "L141",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "graph_builder_rationale_140",
+      "source": "graph_builder_rationale_141",
       "target": "graph_builder_load_graph"
     },
     {
@@ -10259,10 +10719,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "graph_builder.py",
-      "source_location": "L158",
+      "source_location": "L159",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "graph_builder_rationale_158",
+      "source": "graph_builder_rationale_159",
       "target": "graph_builder_build_graph"
     },
     {
@@ -10291,10 +10751,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "graph_builder.py",
-      "source_location": "L170",
+      "source_location": "L171",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "graph_builder_rationale_170",
+      "source": "graph_builder_rationale_171",
       "target": "graph_builder_rebuild_node"
     },
     {
@@ -10345,10 +10805,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "graph_builder.py",
-      "source_location": "L243",
+      "source_location": "L244",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "graph_builder_rationale_243",
+      "source": "graph_builder_rationale_244",
       "target": "graph_builder_get_neighbors"
     },
     {
@@ -10377,10 +10837,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "graph_builder.py",
-      "source_location": "L272",
+      "source_location": "L273",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "graph_builder_rationale_272",
+      "source": "graph_builder_rationale_273",
       "target": "graph_builder_get_context_budget"
     },
     {
@@ -10586,10 +11046,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "ingest.py",
-      "source_location": "L57",
+      "source_location": "L58",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "ingest_rationale_57",
+      "source": "ingest_rationale_58",
       "target": "ingest_get_tokenizer"
     },
     {
@@ -10638,10 +11098,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "ingest.py",
-      "source_location": "L78",
+      "source_location": "L79",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "ingest_rationale_78",
+      "source": "ingest_rationale_79",
       "target": "ingest_file_changed"
     },
     {
@@ -10681,10 +11141,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "ingest.py",
-      "source_location": "L93",
+      "source_location": "L94",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "ingest_rationale_93",
+      "source": "ingest_rationale_94",
       "target": "ingest_extract_links"
     },
     {
@@ -10702,10 +11162,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "ingest.py",
-      "source_location": "L97",
+      "source_location": "L98",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "ingest_rationale_97",
+      "source": "ingest_rationale_98",
       "target": "ingest_content_token_budget"
     },
     {
@@ -10723,20 +11183,20 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "ingest.py",
-      "source_location": "L109",
+      "source_location": "L110",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "ingest_rationale_109",
+      "source": "ingest_rationale_110",
       "target": "ingest_chunk_text"
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "ingest.py",
-      "source_location": "L135",
+      "source_location": "L136",
       "weight": 1.0,
       "confidence_score": 1.0,
-      "source": "ingest_rationale_135",
+      "source": "ingest_rationale_136",
       "target": "ingest_ingest_file"
     },
     {
@@ -11059,6 +11519,450 @@
       "confidence_score": 1.0,
       "source": "nova_agent_log_status_rationale_124",
       "target": "nova_agent_log_status_get_combined_status"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L387",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_blend"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L210",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_convert_agentinstruct"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L339",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_convert_all"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L253",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_convert_apibench"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L279",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_convert_finqa"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L307",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_convert_tatqa"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L231",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_convert_toolbench"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L80",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_dataset_raw_dir"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L86",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_download_agentinstruct"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L161",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_download_all"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L120",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_download_apibench"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L131",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_download_finqa"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L150",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_download_tatqa"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L104",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_download_toolbench"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L205",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_format_table"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L381",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_load_converted"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L200",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_messages_row"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L414",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator",
+      "target": "nova_agentic_dataset_curator_report"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L346",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_convert_all",
+      "target": "nova_agentic_dataset_curator_dataset_raw_dir"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L88",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_download_agentinstruct",
+      "target": "nova_agentic_dataset_curator_dataset_raw_dir"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L122",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_download_apibench",
+      "target": "nova_agentic_dataset_curator_dataset_raw_dir"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L137",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_download_finqa",
+      "target": "nova_agentic_dataset_curator_dataset_raw_dir"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L152",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_download_tatqa",
+      "target": "nova_agentic_dataset_curator_dataset_raw_dir"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L106",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_download_toolbench",
+      "target": "nova_agentic_dataset_curator_dataset_raw_dir"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L87",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_rationale_87",
+      "target": "nova_agentic_dataset_curator_download_agentinstruct"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L105",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_rationale_105",
+      "target": "nova_agentic_dataset_curator_download_toolbench"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L121",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_rationale_121",
+      "target": "nova_agentic_dataset_curator_download_apibench"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L132",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_rationale_132",
+      "target": "nova_agentic_dataset_curator_download_finqa"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L151",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_rationale_151",
+      "target": "nova_agentic_dataset_curator_download_tatqa"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L162",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_rationale_162",
+      "target": "nova_agentic_dataset_curator_download_all"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L228",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_convert_agentinstruct",
+      "target": "nova_agentic_dataset_curator_messages_row"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L276",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_convert_apibench",
+      "target": "nova_agentic_dataset_curator_messages_row"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L304",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_convert_finqa",
+      "target": "nova_agentic_dataset_curator_messages_row"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L327",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_convert_tatqa",
+      "target": "nova_agentic_dataset_curator_messages_row"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L250",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_convert_toolbench",
+      "target": "nova_agentic_dataset_curator_messages_row"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L201",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_rationale_201",
+      "target": "nova_agentic_dataset_curator_messages_row"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L291",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_convert_finqa",
+      "target": "nova_agentic_dataset_curator_format_table"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L312",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_convert_tatqa",
+      "target": "nova_agentic_dataset_curator_format_table"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L206",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_rationale_206",
+      "target": "nova_agentic_dataset_curator_format_table"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L340",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_rationale_340",
+      "target": "nova_agentic_dataset_curator_convert_all"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L397",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_blend",
+      "target": "nova_agentic_dataset_curator_load_converted"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L388",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_rationale_388",
+      "target": "nova_agentic_dataset_curator_blend"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_agentic_dataset_curator.py",
+      "source_location": "L415",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_agentic_dataset_curator_rationale_415",
+      "target": "nova_agentic_dataset_curator_report"
     },
     {
       "relation": "contains",
@@ -12846,9 +13750,9 @@
       "source_file": "nova_api.py",
       "source_location": "L695",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_api_rationale_695",
-      "target": "nova_api_set_tier_watermarks",
-      "confidence_score": 1.0
+      "target": "nova_api_set_tier_watermarks"
     },
     {
       "relation": "references",
@@ -12900,9 +13804,9 @@
       "source_file": "nova_api.py",
       "source_location": "L710",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_api_rationale_710",
-      "target": "nova_api_create_tier_proposal",
-      "confidence_score": 1.0
+      "target": "nova_api_create_tier_proposal"
     },
     {
       "relation": "calls",
@@ -12921,9 +13825,9 @@
       "source_file": "nova_api.py",
       "source_location": "L739",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_api_rationale_739",
-      "target": "nova_api_get_tier_proposals",
-      "confidence_score": 1.0
+      "target": "nova_api_get_tier_proposals"
     },
     {
       "relation": "calls",
@@ -12986,9 +13890,9 @@
       "source_file": "nova_api.py",
       "source_location": "L749",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_api_rationale_749",
-      "target": "nova_api_decide_tier_proposal",
-      "confidence_score": 1.0
+      "target": "nova_api_decide_tier_proposal"
     },
     {
       "relation": "calls",
@@ -13029,9 +13933,9 @@
       "source_file": "nova_api.py",
       "source_location": "L849",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_api_rationale_849",
-      "target": "nova_api_read_jsonl_file",
-      "confidence_score": 1.0
+      "target": "nova_api_read_jsonl_file"
     },
     {
       "relation": "rationale_for",
@@ -13039,9 +13943,9 @@
       "source_file": "nova_api.py",
       "source_location": "L872",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_api_rationale_872",
-      "target": "nova_api_escalations_ui_redirect",
-      "confidence_score": 1.0
+      "target": "nova_api_escalations_ui_redirect"
     },
     {
       "relation": "rationale_for",
@@ -13049,9 +13953,9 @@
       "source_file": "nova_api.py",
       "source_location": "L903",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_api_rationale_903",
-      "target": "nova_api_get_dispatch_log",
-      "confidence_score": 1.0
+      "target": "nova_api_get_dispatch_log"
     },
     {
       "relation": "rationale_for",
@@ -13059,9 +13963,9 @@
       "source_file": "nova_api.py",
       "source_location": "L921",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_api_rationale_921",
-      "target": "nova_api_get_label_queue",
-      "confidence_score": 1.0
+      "target": "nova_api_get_label_queue"
     },
     {
       "relation": "references",
@@ -13080,9 +13984,9 @@
       "source_file": "nova_api.py",
       "source_location": "L962",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_api_rationale_962",
-      "target": "nova_api_decide_label_queue_entry",
-      "confidence_score": 1.0
+      "target": "nova_api_decide_label_queue_entry"
     },
     {
       "relation": "calls",
@@ -13112,9 +14016,9 @@
       "source_file": "nova_api.py",
       "source_location": "L1037",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_api_rationale_1037",
-      "target": "nova_api_nova_log_data",
-      "confidence_score": 1.0
+      "target": "nova_api_nova_log_data"
     },
     {
       "relation": "calls",
@@ -13133,9 +14037,9 @@
       "source_file": "nova_api.py",
       "source_location": "L1052",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_api_rationale_1052",
-      "target": "nova_api_nova_log_queries",
-      "confidence_score": 1.0
+      "target": "nova_api_nova_log_queries"
     },
     {
       "relation": "calls",
@@ -13154,9 +14058,9 @@
       "source_file": "nova_api.py",
       "source_location": "L1073",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_api_rationale_1073",
-      "target": "nova_api_nova_log_benchmarks",
-      "confidence_score": 1.0
+      "target": "nova_api_nova_log_benchmarks"
     },
     {
       "relation": "rationale_for",
@@ -13164,9 +14068,9 @@
       "source_file": "nova_api.py",
       "source_location": "L1086",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_api_rationale_1086",
-      "target": "nova_api_nova_log_page",
-      "confidence_score": 1.0
+      "target": "nova_api_nova_log_page"
     },
     {
       "relation": "calls",
@@ -13185,9 +14089,9 @@
       "source_file": "nova_api.py",
       "source_location": "L1102",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_api_rationale_1102",
-      "target": "nova_api_embedding_viz_data",
-      "confidence_score": 1.0
+      "target": "nova_api_embedding_viz_data"
     },
     {
       "relation": "rationale_for",
@@ -13195,9 +14099,9 @@
       "source_file": "nova_api.py",
       "source_location": "L1111",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_api_rationale_1111",
-      "target": "nova_api_embedding_viz_page",
-      "confidence_score": 1.0
+      "target": "nova_api_embedding_viz_page"
     },
     {
       "relation": "contains",
@@ -15608,9 +16512,9 @@
       "source_file": "nova_config.py",
       "source_location": "L61",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_config_rationale_61",
-      "target": "nova_config_load_config",
-      "confidence_score": 1.0
+      "target": "nova_config_load_config"
     },
     {
       "relation": "imports",
@@ -15640,9 +16544,9 @@
       "source_file": "nova_config.py",
       "source_location": "L80",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_config_rationale_80",
-      "target": "nova_config_is_augment_enabled",
-      "confidence_score": 1.0
+      "target": "nova_config_is_augment_enabled"
     },
     {
       "relation": "rationale_for",
@@ -15650,9 +16554,9 @@
       "source_file": "nova_config.py",
       "source_location": "L91",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_config_rationale_91",
-      "target": "nova_config_is_memory_decay_tier_enabled",
-      "confidence_score": 1.0
+      "target": "nova_config_is_memory_decay_tier_enabled"
     },
     {
       "relation": "rationale_for",
@@ -15660,9 +16564,9 @@
       "source_file": "nova_config.py",
       "source_location": "L104",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_config_rationale_104",
-      "target": "nova_config_is_framework_integration_enabled",
-      "confidence_score": 1.0
+      "target": "nova_config_is_framework_integration_enabled"
     },
     {
       "relation": "imports",
@@ -15693,9 +16597,9 @@
       "source_file": "nova_query.py",
       "source_location": "L17",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_query",
-      "target": "nova_config_is_framework_integration_enabled",
-      "confidence_score": 1.0
+      "target": "nova_config_is_framework_integration_enabled"
     },
     {
       "relation": "calls",
@@ -15704,9 +16608,9 @@
       "source_file": "nova_query.py",
       "source_location": "L315",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_query_ask",
-      "target": "nova_config_is_framework_integration_enabled",
-      "confidence_score": 1.0
+      "target": "nova_config_is_framework_integration_enabled"
     },
     {
       "relation": "imports",
@@ -15758,9 +16662,9 @@
       "source_file": "nova_config.py",
       "source_location": "L115",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_config_rationale_115",
-      "target": "nova_config_is_model_routing_enabled",
-      "confidence_score": 1.0
+      "target": "nova_config_is_model_routing_enabled"
     },
     {
       "relation": "rationale_for",
@@ -15768,9 +16672,9 @@
       "source_file": "nova_config.py",
       "source_location": "L120",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_config_rationale_120",
-      "target": "nova_config_is_review_backpressure_enabled",
-      "confidence_score": 1.0
+      "target": "nova_config_is_review_backpressure_enabled"
     },
     {
       "relation": "imports",
@@ -15800,9 +16704,9 @@
       "source_file": "nova_config.py",
       "source_location": "L129",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_config_rationale_129",
-      "target": "nova_config_get_max_unreviewed_dispatches",
-      "confidence_score": 1.0
+      "target": "nova_config_get_max_unreviewed_dispatches"
     },
     {
       "relation": "imports",
@@ -15832,9 +16736,9 @@
       "source_file": "nova_config.py",
       "source_location": "L140",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_config_rationale_140",
-      "target": "nova_config_get_routed_model",
-      "confidence_score": 1.0
+      "target": "nova_config_get_routed_model"
     },
     {
       "relation": "imports",
@@ -15864,9 +16768,9 @@
       "source_file": "nova_config.py",
       "source_location": "L158",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_config_rationale_158",
-      "target": "nova_config_config_snapshot",
-      "confidence_score": 1.0
+      "target": "nova_config_config_snapshot"
     },
     {
       "relation": "imports",
@@ -16314,7 +17218,7 @@
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "nova_embedding_viz_project_to_2d",
-      "target": "ndarray"
+      "target": "nova_embedding_viz_py_ndarray"
     },
     {
       "relation": "rationale_for",
@@ -17671,6 +18575,17 @@
       "target": "nova_memory_store"
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L47",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice",
+      "target": "nova_memory_store"
+    },
+    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_memory_store.py",
@@ -17689,6 +18604,28 @@
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "nova_query",
+      "target": "nova_memory_store_load_history"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L47",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice",
+      "target": "nova_memory_store_load_history"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L168",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_run_voice_loop",
       "target": "nova_memory_store_load_history"
     },
     {
@@ -17721,6 +18658,28 @@
       "weight": 1.0,
       "confidence_score": 1.0,
       "source": "nova_query_ask",
+      "target": "nova_memory_store_save_history"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L47",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice",
+      "target": "nova_memory_store_save_history"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L206",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_run_voice_loop",
       "target": "nova_memory_store_save_history"
     },
     {
@@ -19429,9 +20388,9 @@
       "source_file": "nova_query.py",
       "source_location": "L21",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_query",
-      "target": "nova_remote_inference",
-      "confidence_score": 1.0
+      "target": "nova_remote_inference"
     },
     {
       "relation": "imports_from",
@@ -19456,6 +20415,17 @@
       "target": "nova_router_route"
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice",
+      "target": "nova_query"
+    },
+    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
@@ -19470,11 +20440,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_query.py",
-      "source_location": "L84",
+      "source_location": "L89",
       "weight": 1.0,
-      "source": "nova_query_rationale_84",
-      "target": "nova_query_load_profile",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "nova_query_rationale_89",
+      "target": "nova_query_load_profile"
     },
     {
       "relation": "calls",
@@ -19502,11 +20472,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_query.py",
-      "source_location": "L111",
+      "source_location": "L116",
       "weight": 1.0,
-      "source": "nova_query_rationale_111",
-      "target": "nova_query_retrieve",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "nova_query_rationale_116",
+      "target": "nova_query_retrieve"
     },
     {
       "relation": "calls",
@@ -19534,11 +20504,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_query.py",
-      "source_location": "L127",
+      "source_location": "L132",
       "weight": 1.0,
-      "source": "nova_query_rationale_127",
-      "target": "nova_query_retrieve_with_graph",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "nova_query_rationale_132",
+      "target": "nova_query_retrieve_with_graph"
     },
     {
       "relation": "calls",
@@ -19555,11 +20525,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_query.py",
-      "source_location": "L159",
+      "source_location": "L164",
       "weight": 1.0,
-      "source": "nova_query_rationale_159",
-      "target": "nova_query_build_retrieval_query",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "nova_query_rationale_164",
+      "target": "nova_query_build_retrieval_query"
     },
     {
       "relation": "calls",
@@ -19587,11 +20557,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_query.py",
-      "source_location": "L176",
+      "source_location": "L181",
       "weight": 1.0,
-      "source": "nova_query_rationale_176",
-      "target": "nova_query_extract_changed_files",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "nova_query_rationale_181",
+      "target": "nova_query_extract_changed_files"
     },
     {
       "relation": "calls",
@@ -19608,11 +20578,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_query.py",
-      "source_location": "L191",
+      "source_location": "L196",
       "weight": 1.0,
-      "source": "nova_query_rationale_191",
-      "target": "nova_query_format_coding_task_summary",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "nova_query_rationale_196",
+      "target": "nova_query_format_coding_task_summary"
     },
     {
       "relation": "calls",
@@ -19639,11 +20609,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_query.py",
-      "source_location": "L216",
+      "source_location": "L221",
       "weight": 1.0,
-      "source": "nova_query_rationale_216",
-      "target": "nova_query_handle_coding_task",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "nova_query_rationale_221",
+      "target": "nova_query_handle_coding_task"
     },
     {
       "relation": "calls",
@@ -19660,11 +20630,33 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_query.py",
-      "source_location": "L236",
+      "source_location": "L241",
       "weight": 1.0,
-      "source": "nova_query_rationale_236",
-      "target": "nova_query_ask",
-      "confidence_score": 1.0
+      "confidence_score": 1.0,
+      "source": "nova_query_rationale_241",
+      "target": "nova_query_ask"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice",
+      "target": "nova_query_ask"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L194",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_run_voice_loop",
+      "target": "nova_query_ask"
     },
     {
       "relation": "contains",
@@ -19672,9 +20664,9 @@
       "source_file": "nova_remote_inference.py",
       "source_location": "L105",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_remote_inference",
-      "target": "nova_remote_inference_chat",
-      "confidence_score": 1.0
+      "target": "nova_remote_inference_chat"
     },
     {
       "relation": "contains",
@@ -19682,9 +20674,9 @@
       "source_file": "nova_remote_inference.py",
       "source_location": "L74",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_remote_inference",
-      "target": "nova_remote_inference_extract_answer",
-      "confidence_score": 1.0
+      "target": "nova_remote_inference_extract_answer"
     },
     {
       "relation": "contains",
@@ -19692,9 +20684,9 @@
       "source_file": "nova_remote_inference.py",
       "source_location": "L159",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_remote_inference",
-      "target": "nova_remote_inference_poll_until_terminal",
-      "confidence_score": 1.0
+      "target": "nova_remote_inference_poll_until_terminal"
     },
     {
       "relation": "calls",
@@ -19703,9 +20695,9 @@
       "source_file": "nova_remote_inference.py",
       "source_location": "L150",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_remote_inference_chat",
-      "target": "nova_remote_inference_extract_answer",
-      "confidence_score": 1.0
+      "target": "nova_remote_inference_extract_answer"
     },
     {
       "relation": "calls",
@@ -19714,9 +20706,9 @@
       "source_file": "nova_remote_inference.py",
       "source_location": "L185",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_remote_inference_poll_until_terminal",
-      "target": "nova_remote_inference_extract_answer",
-      "confidence_score": 1.0
+      "target": "nova_remote_inference_extract_answer"
     },
     {
       "relation": "rationale_for",
@@ -19724,9 +20716,9 @@
       "source_file": "nova_remote_inference.py",
       "source_location": "L75",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_remote_inference_rationale_75",
-      "target": "nova_remote_inference_extract_answer",
-      "confidence_score": 1.0
+      "target": "nova_remote_inference_extract_answer"
     },
     {
       "relation": "calls",
@@ -19735,9 +20727,9 @@
       "source_file": "nova_remote_inference.py",
       "source_location": "L153",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_remote_inference_chat",
-      "target": "nova_remote_inference_poll_until_terminal",
-      "confidence_score": 1.0
+      "target": "nova_remote_inference_poll_until_terminal"
     },
     {
       "relation": "rationale_for",
@@ -19745,9 +20737,9 @@
       "source_file": "nova_remote_inference.py",
       "source_location": "L106",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_remote_inference_rationale_106",
-      "target": "nova_remote_inference_chat",
-      "confidence_score": 1.0
+      "target": "nova_remote_inference_chat"
     },
     {
       "relation": "rationale_for",
@@ -19755,9 +20747,9 @@
       "source_file": "nova_remote_inference.py",
       "source_location": "L160",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_remote_inference_rationale_160",
-      "target": "nova_remote_inference_poll_until_terminal",
-      "confidence_score": 1.0
+      "target": "nova_remote_inference_poll_until_terminal"
     },
     {
       "relation": "contains",
@@ -20816,9 +21808,9 @@
       "source_file": "nova_task_queue.py",
       "source_location": "L195",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_task_queue",
-      "target": "nova_task_queue_description_hash",
-      "confidence_score": 1.0
+      "target": "nova_task_queue_description_hash"
     },
     {
       "relation": "contains",
@@ -20967,9 +21959,9 @@
       "source_file": "nova_task_queue.py",
       "source_location": "L71",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_task_queue_rationale_71",
-      "target": "nova_task_queue_get_ready_tasks",
-      "confidence_score": 1.0
+      "target": "nova_task_queue_get_ready_tasks"
     },
     {
       "relation": "shares_data_with",
@@ -20987,9 +21979,9 @@
       "source_file": "nova_task_queue.py",
       "source_location": "L100",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_task_queue_rationale_100",
-      "target": "nova_task_queue_get_practice_queue_tasks",
-      "confidence_score": 1.0
+      "target": "nova_task_queue_get_practice_queue_tasks"
     },
     {
       "relation": "calls",
@@ -21008,9 +22000,9 @@
       "source_file": "nova_task_queue.py",
       "source_location": "L114",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_task_queue_rationale_114",
-      "target": "nova_task_queue_is_tierable",
-      "confidence_score": 1.0
+      "target": "nova_task_queue_is_tierable"
     },
     {
       "relation": "rationale_for",
@@ -21018,9 +22010,9 @@
       "source_file": "nova_task_queue.py",
       "source_location": "L126",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_task_queue_rationale_126",
-      "target": "nova_task_queue_propose_tier",
-      "confidence_score": 1.0
+      "target": "nova_task_queue_propose_tier"
     },
     {
       "relation": "calls",
@@ -21040,9 +22032,9 @@
       "source_file": "nova_task_queue.py",
       "source_location": "L281",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_task_queue_detect_tier_candidates",
-      "target": "nova_task_queue_description_hash",
-      "confidence_score": 1.0
+      "target": "nova_task_queue_description_hash"
     },
     {
       "relation": "rationale_for",
@@ -21050,9 +22042,9 @@
       "source_file": "nova_task_queue.py",
       "source_location": "L196",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_task_queue_rationale_196",
-      "target": "nova_task_queue_description_hash",
-      "confidence_score": 1.0
+      "target": "nova_task_queue_description_hash"
     },
     {
       "relation": "calls",
@@ -21071,9 +22063,9 @@
       "source_file": "nova_task_queue.py",
       "source_location": "L214",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_task_queue_rationale_214",
-      "target": "nova_task_queue_fetch_tier_watermarks",
-      "confidence_score": 1.0
+      "target": "nova_task_queue_fetch_tier_watermarks"
     },
     {
       "relation": "rationale_for",
@@ -21081,9 +22073,9 @@
       "source_file": "nova_task_queue.py",
       "source_location": "L225",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_task_queue_rationale_225",
-      "target": "nova_task_queue_persist_tier_watermarks",
-      "confidence_score": 1.0
+      "target": "nova_task_queue_persist_tier_watermarks"
     },
     {
       "relation": "rationale_for",
@@ -21091,9 +22083,9 @@
       "source_file": "nova_task_queue.py",
       "source_location": "L245",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_task_queue_rationale_245",
-      "target": "nova_task_queue_detect_tier_candidates",
-      "confidence_score": 1.0
+      "target": "nova_task_queue_detect_tier_candidates"
     },
     {
       "relation": "calls",
@@ -21112,9 +22104,9 @@
       "source_file": "nova_task_queue.py",
       "source_location": "L299",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_task_queue_rationale_299",
-      "target": "nova_task_queue_current_tier_tag",
-      "confidence_score": 1.0
+      "target": "nova_task_queue_current_tier_tag"
     },
     {
       "relation": "calls",
@@ -21133,9 +22125,9 @@
       "source_file": "nova_task_queue.py",
       "source_location": "L313",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_task_queue_rationale_313",
-      "target": "nova_task_queue_register_tier_proposal",
-      "confidence_score": 1.0
+      "target": "nova_task_queue_register_tier_proposal"
     },
     {
       "relation": "rationale_for",
@@ -21143,9 +22135,9 @@
       "source_file": "nova_task_queue.py",
       "source_location": "L367",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_task_queue_rationale_367",
-      "target": "nova_task_queue_sweep_existing_tasks",
-      "confidence_score": 1.0
+      "target": "nova_task_queue_sweep_existing_tasks"
     },
     {
       "relation": "rationale_for",
@@ -21153,9 +22145,9 @@
       "source_file": "nova_task_queue.py",
       "source_location": "L382",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_task_queue_rationale_382",
-      "target": "nova_task_queue_resolve_task_description",
-      "confidence_score": 1.0
+      "target": "nova_task_queue_resolve_task_description"
     },
     {
       "relation": "implements",
@@ -22439,6 +23431,258 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L72",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice",
+      "target": "nova_voice_ensure_models_downloaded"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L86",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice",
+      "target": "nova_voice_load_stt_pipeline"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L104",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice",
+      "target": "nova_voice_record_until_silence"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L99",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice",
+      "target": "nova_voice_rms"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L161",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice",
+      "target": "nova_voice_run_voice_loop"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L144",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice",
+      "target": "nova_voice_speak"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L135",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice",
+      "target": "nova_voice_transcribe"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L73",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_rationale_73",
+      "target": "nova_voice_ensure_models_downloaded"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L162",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_run_voice_loop",
+      "target": "nova_voice_ensure_models_downloaded"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L165",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_run_voice_loop",
+      "target": "nova_voice_load_stt_pipeline"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L100",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_rationale_100",
+      "target": "nova_voice_rms"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L123",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_record_until_silence",
+      "target": "nova_voice_rms"
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L99",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_rms",
+      "target": "nova_voice_py_ndarray"
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L104",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_record_until_silence",
+      "target": "nova_voice_py_ndarray"
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L135",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_transcribe",
+      "target": "nova_voice_py_ndarray"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L105",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_rationale_105",
+      "target": "nova_voice_record_until_silence"
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L104",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_record_until_silence",
+      "target": "inputstream"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L185",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_run_voice_loop",
+      "target": "nova_voice_record_until_silence"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L174",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_run_voice_loop",
+      "target": "inputstream"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L148",
+      "weight": 1.0,
+      "source": "nova_voice_rationale_148",
+      "target": "nova_voice_transcribe",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L188",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_run_voice_loop",
+      "target": "nova_voice_transcribe"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L157",
+      "weight": 1.0,
+      "source": "nova_voice_rationale_157",
+      "target": "nova_voice_speak",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L201",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_run_voice_loop",
+      "target": "nova_voice_speak"
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_voice.py",
+      "source_location": "L144",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "nova_voice_speak",
+      "target": "pipervoice"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "nova_watcher.py",
       "source_location": "L80",
       "weight": 1.0,
@@ -22737,9 +23981,9 @@
       "source_file": "sw.js",
       "source_location": "L22",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "sw",
-      "target": "sw_static_cache_urls",
-      "confidence_score": 1.0
+      "target": "sw_static_cache_urls"
     },
     {
       "relation": "contains",
@@ -23367,9 +24611,9 @@
       "source_file": "NOVA_STATUS.md",
       "source_location": "L42",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "nova_status_nova_board_status_digest",
-      "target": "nova_status_ready_89",
-      "confidence_score": 1.0
+      "target": "nova_status_ready_89"
     },
     {
       "relation": "contains",
@@ -24542,5 +25786,5 @@
       "source_file": "CLAUDE.md"
     }
   ],
-  "built_at_commit": "170ecca1e0dc33c6663f58341991785ed27cd7a9"
+  "built_at_commit": "16d739efc0f77f8ea9fa0556f440682f6157d966"
 }
