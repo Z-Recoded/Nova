@@ -5,8 +5,8 @@
     "semantic_hash": "5291b3352e7ecfb4f215a833306d7e40"
   },
   ".nova_status_snapshot.json": {
-    "mtime": 1784417884.171427,
-    "ast_hash": "465eb97079400e6957abece5f46cdd48",
+    "mtime": 1784438273.4589715,
+    "ast_hash": "1e3c35797d9ff26ba6888cca57404336",
     "semantic_hash": ""
   },
   "archive/test_nova.py": {
@@ -85,8 +85,8 @@
     "semantic_hash": "42c965a395a454ca539755703ed0a522"
   },
   "nova_api.py": {
-    "mtime": 1784423929.455906,
-    "ast_hash": "1bd2ae35bea5cbf8c597f903b0ceaf80",
+    "mtime": 1784442366.5958533,
+    "ast_hash": "700940851d5af096bd2e2c8f72c92fd6",
     "semantic_hash": ""
   },
   "nova_benchmark.py": {
@@ -120,13 +120,13 @@
     "semantic_hash": ""
   },
   "nova_config.json": {
-    "mtime": 1784249292.621305,
-    "ast_hash": "45019cd3481566ebb6b4ce1dd071fc28",
+    "mtime": 1784504136.1333048,
+    "ast_hash": "91e3cb75d7b72edfcc8dac2308425bc7",
     "semantic_hash": ""
   },
   "nova_config.py": {
-    "mtime": 1784249166.1521883,
-    "ast_hash": "f6e7001c07a0118e5a0223058b3dfb3c",
+    "mtime": 1784501944.8834293,
+    "ast_hash": "c85cb82b355a9a25b980ee4bab50a3fa",
     "semantic_hash": ""
   },
   "nova_corrector.py": {
@@ -195,8 +195,8 @@
     "semantic_hash": "918258155a1478eff1170dc7b7470f21"
   },
   "nova_query.py": {
-    "mtime": 1784177051.4713707,
-    "ast_hash": "bef75769594c83613646eede53c47a8f",
+    "mtime": 1784504114.4233322,
+    "ast_hash": "5bcfd65eeb484f30f44c9f38712b98dd",
     "semantic_hash": ""
   },
   "nova_router.py": {
@@ -215,8 +215,8 @@
     "semantic_hash": ""
   },
   "nova_state.py": {
-    "mtime": 1784421939.3553934,
-    "ast_hash": "09f14c669c484f4160c99a4f8e57458d",
+    "mtime": 1784434193.5633447,
+    "ast_hash": "7b9b39c09922192dc3022f92759c9172",
     "semantic_hash": ""
   },
   "nova_state_system.py": {
@@ -230,8 +230,8 @@
     "semantic_hash": "3203b72277b693f3f5c666aacfed546d"
   },
   "nova_task_queue.py": {
-    "mtime": 1784422280.828927,
-    "ast_hash": "581da318580ba9e55b70ece31acc1658",
+    "mtime": 1784442350.000351,
+    "ast_hash": "958f6e8bcd24a569e97d35d488605d42",
     "semantic_hash": ""
   },
   "nova_token_budget.py": {
@@ -265,13 +265,13 @@
     "semantic_hash": "969b2a89980f6f877f6316ca7c89f51e"
   },
   "CLAUDE.md": {
-    "mtime": 1784422405.0860727,
-    "ast_hash": "2f0e48cd785d22772a272e8c34bece3c",
+    "mtime": 1784438080.4089303,
+    "ast_hash": "0a4bd501cfd808279558b73d7981b14e",
     "semantic_hash": ""
   },
   "NOVA_STATUS.md": {
-    "mtime": 1784417884.170421,
-    "ast_hash": "4bcb28bdf04a1929da7c221feb851e75",
+    "mtime": 1784438273.4589715,
+    "ast_hash": "d646fc830b6c7f9a5d9e051983deb615",
     "semantic_hash": ""
   },
   "browser_hands/config/sites.yaml": {
@@ -335,8 +335,8 @@
     "semantic_hash": ""
   },
   "nova_scheduled_dispatch.py": {
-    "mtime": 1784422205.0798376,
-    "ast_hash": "9ca631c9f9c877b508c5ec062ef4a244",
+    "mtime": 1784434892.35386,
+    "ast_hash": "991ecc6f8291a0ca0675a30ffb8f59af",
     "semantic_hash": ""
   },
   "docs/chonkie_evaluation.md": {
@@ -344,9 +344,34 @@
     "ast_hash": "12791389f2932136e45d53c3e65e557e",
     "semantic_hash": ""
   },
-  "nova_escalations.html": {
-    "mtime": 1784424613.603333,
-    "ast_hash": "9e0c5e4c7580c0622104be4a16960da1",
+  "manifest.json": {
+    "mtime": 1784437550.6177926,
+    "ast_hash": "35994c7dbd34507b103a37d65d02959c",
+    "semantic_hash": ""
+  },
+  "sw.js": {
+    "mtime": 1784441347.8679063,
+    "ast_hash": "35e78047c1ba4fe7b1ff85bf657d2dd7",
+    "semantic_hash": ""
+  },
+  "nova_controller.html": {
+    "mtime": 1784441902.6175804,
+    "ast_hash": "ffddbdc54c001a0db74062e5f19b033b",
+    "semantic_hash": ""
+  },
+  "icon-192.png": {
+    "mtime": 1784437528.4028127,
+    "ast_hash": "ac05dcc1a4450e256ababf476dbf541c",
+    "semantic_hash": ""
+  },
+  "icon-512.png": {
+    "mtime": 1784437528.4520085,
+    "ast_hash": "b84a628290c55dc65fc619464c2317ef",
+    "semantic_hash": ""
+  },
+  "nova_remote_inference.py": {
+    "mtime": 1784504103.2262843,
+    "ast_hash": "8934ac99003dc46a8985282dd3042726",
     "semantic_hash": ""
   }
 }

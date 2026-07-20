@@ -5,8 +5,8 @@
     "semantic_hash": "5291b3352e7ecfb4f215a833306d7e40"
   },
   ".nova_status_snapshot.json": {
-    "mtime": 1784417884.171427,
-    "ast_hash": "465eb97079400e6957abece5f46cdd48",
+    "mtime": 1784438273.4589715,
+    "ast_hash": "1e3c35797d9ff26ba6888cca57404336",
     "semantic_hash": ""
   },
   "archive/test_nova.py": {
@@ -85,8 +85,8 @@
     "semantic_hash": "42c965a395a454ca539755703ed0a522"
   },
   "nova_api.py": {
-    "mtime": 1784437970.1347435,
-    "ast_hash": "6a4b380b90dbf5ced7146833248c82d9",
+    "mtime": 1784442366.5958533,
+    "ast_hash": "700940851d5af096bd2e2c8f72c92fd6",
     "semantic_hash": ""
   },
   "nova_benchmark.py": {
@@ -120,13 +120,13 @@
     "semantic_hash": ""
   },
   "nova_config.json": {
-    "mtime": 1784249292.621305,
-    "ast_hash": "45019cd3481566ebb6b4ce1dd071fc28",
+    "mtime": 1784504136.1333048,
+    "ast_hash": "91e3cb75d7b72edfcc8dac2308425bc7",
     "semantic_hash": ""
   },
   "nova_config.py": {
-    "mtime": 1784249166.1521883,
-    "ast_hash": "f6e7001c07a0118e5a0223058b3dfb3c",
+    "mtime": 1784501944.8834293,
+    "ast_hash": "c85cb82b355a9a25b980ee4bab50a3fa",
     "semantic_hash": ""
   },
   "nova_corrector.py": {
@@ -195,8 +195,8 @@
     "semantic_hash": "918258155a1478eff1170dc7b7470f21"
   },
   "nova_query.py": {
-    "mtime": 1784177051.4713707,
-    "ast_hash": "bef75769594c83613646eede53c47a8f",
+    "mtime": 1784504114.4233322,
+    "ast_hash": "5bcfd65eeb484f30f44c9f38712b98dd",
     "semantic_hash": ""
   },
   "nova_router.py": {
@@ -230,8 +230,8 @@
     "semantic_hash": "3203b72277b693f3f5c666aacfed546d"
   },
   "nova_task_queue.py": {
-    "mtime": 1784435604.4558601,
-    "ast_hash": "4da63013cd09efaa4c0d237179ca0598",
+    "mtime": 1784442350.000351,
+    "ast_hash": "958f6e8bcd24a569e97d35d488605d42",
     "semantic_hash": ""
   },
   "nova_token_budget.py": {
@@ -270,8 +270,8 @@
     "semantic_hash": ""
   },
   "NOVA_STATUS.md": {
-    "mtime": 1784417884.170421,
-    "ast_hash": "4bcb28bdf04a1929da7c221feb851e75",
+    "mtime": 1784438273.4589715,
+    "ast_hash": "d646fc830b6c7f9a5d9e051983deb615",
     "semantic_hash": ""
   },
   "browser_hands/config/sites.yaml": {
@@ -295,8 +295,8 @@
     "semantic_hash": "55f43e4e34a128716ea0f8539aeed02a"
   },
   "requirements.txt": {
-    "mtime": 1784166731.0511568,
-    "ast_hash": "704bfb0d1c4a7cdb00ad54c899f9e5d3",
+    "mtime": 1784505644.1486936,
+    "ast_hash": "374b575319fbf03efe129d4ae4dcd453",
     "semantic_hash": ""
   },
   "skills/coding.md": {
@@ -350,13 +350,13 @@
     "semantic_hash": ""
   },
   "sw.js": {
-    "mtime": 1784437558.0180402,
-    "ast_hash": "3f302419a55d43f212ee0a45244f9b5a",
+    "mtime": 1784441347.8679063,
+    "ast_hash": "35e78047c1ba4fe7b1ff85bf657d2dd7",
     "semantic_hash": ""
   },
   "nova_controller.html": {
-    "mtime": 1784437816.7243543,
-    "ast_hash": "c85adfd4c96b676ba0f719f25829961a",
+    "mtime": 1784441902.6175804,
+    "ast_hash": "ffddbdc54c001a0db74062e5f19b033b",
     "semantic_hash": ""
   },
   "icon-192.png": {
@@ -367,6 +367,16 @@
   "icon-512.png": {
     "mtime": 1784437528.4520085,
     "ast_hash": "b84a628290c55dc65fc619464c2317ef",
+    "semantic_hash": ""
+  },
+  "nova_remote_inference.py": {
+    "mtime": 1784504103.2262843,
+    "ast_hash": "8934ac99003dc46a8985282dd3042726",
+    "semantic_hash": ""
+  },
+  "nova_agentic_dataset_curator.py": {
+    "mtime": 1784505605.5982764,
+    "ast_hash": "c87eaac1316720ad039546f8395d16dd",
     "semantic_hash": ""
   }
 }
