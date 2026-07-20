@@ -14,10 +14,11 @@ import ollama
 from nova_router import route, CODING_AGENT_PREFIX
 from nova_logger import detect_blending, log_blend
 from nova_log import log_query
-from nova_config import config_snapshot, get_routed_model
+from nova_config import config_snapshot, get_routed_model, is_framework_integration_enabled
 from nova_memory_store import load_history, save_history
 from graph_builder import get_context_budget
 from nova_orchestrator import run_coding_task
+import nova_remote_inference
 
 # ── Config ─────────────────────────────────────────────────────
 OLLAMA_MODEL = "llama3.2"
@@ -305,12 +306,32 @@ def ask(query: str, history: list[dict] = None, persist: bool = True, model_over
         "content": f"Here is relevant context from your memory:\n\n{pinned}{context}\n\n---\n\nQuestion: {query}"
     })
 
+    # Tracks whichever model actually generated the response, for accurate
+    # telemetry below -- distinct from `model` (the locally-routed choice),
+    # since a successful remote call means Ollama's `model` was never used.
+    model_used = model
+
     inference_start = time.perf_counter()
-    response = ollama_client.chat(
-        model=model,
-        messages=messages,
-        options={"num_ctx": NUM_CTX}
-    )
+    if is_framework_integration_enabled("remote_gpu_inference"):
+        response = nova_remote_inference.chat(messages, NUM_CTX)
+        if response is None:
+            # Remote call failed (network, auth, timeout, or unexpected response
+            # shape) -- fall back to local Ollama rather than erroring the whole
+            # query. Matches this project's existing graceful-degradation
+            # convention (nova_headroom.py, nova_config.py's DEFAULT_CONFIG).
+            response = ollama_client.chat(
+                model=model,
+                messages=messages,
+                options={"num_ctx": NUM_CTX}
+            )
+        else:
+            model_used = nova_remote_inference.MODEL_NAME
+    else:
+        response = ollama_client.chat(
+            model=model,
+            messages=messages,
+            options={"num_ctx": NUM_CTX}
+        )
     inference_ms = int((time.perf_counter() - inference_start) * 1000)
 
     answer = response["message"]["content"]
@@ -336,7 +357,7 @@ def ask(query: str, history: list[dict] = None, persist: bool = True, model_over
         total_ms=total_ms,
         prompt_tokens=response.get("prompt_eval_count"),
         response_tokens=response.get("eval_count"),
-        model=model,
+        model=model_used,
         num_ctx=NUM_CTX,
         config_snapshot=config_snapshot(),
     )

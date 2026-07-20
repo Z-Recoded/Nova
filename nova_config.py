@@ -41,6 +41,7 @@ DEFAULT_CONFIG = {
         "visual_retrieval": False,
         "token_budget_governor": False,
         "skill_injection": False,
+        "remote_gpu_inference": False,
     },
     "model_routing": {
         "enabled": False,
@@ -179,6 +180,7 @@ def config_snapshot() -> dict:
         "visual_retrieval": bool(integrations.get("visual_retrieval")),
         "token_budget_governor": bool(integrations.get("token_budget_governor")),
         "skill_injection": bool(integrations.get("skill_injection")),
+        "remote_gpu_inference": bool(integrations.get("remote_gpu_inference")),
         "model_routing_enabled": bool(model_routing.get("enabled")),
     }
 

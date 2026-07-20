@@ -15,7 +15,8 @@
     "openhands_coding_agent": false,
     "visual_retrieval": false,
     "token_budget_governor": false,
-    "skill_injection": false
+    "skill_injection": false,
+    "remote_gpu_inference": false
   },
   "token_budget": {
     "session_ceiling": 100000,
