@@ -24,7 +24,12 @@ import nova_remote_inference
 OLLAMA_MODEL = "llama3.2"
 NUM_CTX = 8192  # set based on nova_benchmark.py results
 PROFILE_PATH = "C:/Users/marvi/OneDrive/Documents/Second Brain/marvin_profile.md"
-CHROMA_HOST = "192.168.1.250"  # Chroma now runs as a standalone server on the Omen
+CHROMA_HOST = "100.114.197.117"  # Chroma's Tailscale IP -- reachable regardless of which
+# network the calling machine is actually on (unlike the Omen's LAN IP, 192.168.1.250,
+# which only works from the home subnet). Real, reproducible failure hit 2026-07-19: any
+# script importing this module failed at import time whenever the Aero wasn't on the home
+# LAN, even though the Omen itself was up and reachable the whole time over Tailscale.
+# Confirmed live both ways before switching -- Tailscale IP works from home AND away.
 CHROMA_PORT = 8000
 
 # Unset (None) on the Aero itself -- ollama.Client(host=None) is the same local

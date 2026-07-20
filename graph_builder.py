@@ -20,7 +20,8 @@ import chromadb
 from chromadb.utils import embedding_functions
 
 GRAPH_PATH = "C:/Nova/nova_graph.json"
-CHROMA_HOST = "192.168.1.250"  # Chroma now runs as a standalone server on the Omen
+CHROMA_HOST = "100.114.197.117"  # Chroma's Tailscale IP -- see nova_query.py's CHROMA_HOST
+# comment for why (2026-07-19: the LAN IP broke whenever the Aero wasn't on the home network)
 CHROMA_PORT = 8000
 
 # ── Chroma setup ───────────────────────────────────────────────
