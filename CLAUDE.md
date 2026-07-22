@@ -600,6 +600,54 @@ instead of by the dispatcher. Once the Nova Controller (`86bax0wkj`/`86baxahn7`)
 manual SSH workflow is expected to mostly be replaced by triggering `nova_omen_dispatch.py`
 from the Controller UI instead, which already self-syncs from `origin` on every run.
 
+### Omen Capacity Audit (86baxty6d, self-hosting gate) — 2026-07-21
+This task exists because every self-hosting decision so far (Chroma, Ollama callback,
+Dockerized services, headless dispatch, the still-unscoped Langfuse/Vaultwarden/self-hosted-git/
+Obsidian-CouchDB-sync ideas) was scoped individually, assuming "the Omen can host this," with
+nobody ever checking the sum — flagged 2026-07-13 as a gate: no further self-hosting tasks
+(`86baxtb4m` Obsidian migration, `86bau47mb`, `86baf4e29`, `86bax697m`) proceed until this audit
+happens, revisited periodically as new services get proposed, not just once.
+
+Built `nova_omen_capacity.py` — SSHes from the Aero (same Tailscale-IP connection details as
+`nova_agent_log_status.py`) and pulls a real CPU/RAM/disk/GPU snapshot plus what's actually
+running, rather than trusting an assumption. Appends one line per run to
+`logs/omen_capacity_log.jsonl` — this is the task's own "own growth-rate tracking, not just a
+one-time snapshot" requirement, satisfied by making the check cheap enough to re-run instead of
+building a live monitoring stack for services that don't exist yet.
+
+**Real findings, run live 2026-07-21:**
+- **Compute headroom is large:** 8 CPU cores at near-zero load (0.04 avg), 6.42GB of 7.64GB RAM
+  available (84% free), 75.4GB of 97.9GB disk available (77% free), swap barely touched.
+- **Because almost nothing is actually deployed yet** — the only two persistent (always-on)
+  services are `nova-api.service` and `nova-chroma.service`, both lightweight. Every other
+  self-hosting idea (Langfuse's ClickHouse+Postgres+Redis stack, Vaultwarden, self-hosted git,
+  Obsidian CouchDB sync) is still `[Initiative — not scoped]` on the board — there is currently
+  nothing to model resource competition against for the task's "split always-on vs. bursty
+  services" scope item beyond these two. Docker itself is installed and running
+  (`docker.service` active) but completely empty — 0 containers, 0 images — a clean, ready
+  starting point for whenever `86baf4e29` (Dockerize) actually happens, but nothing to
+  "consolidate to one source of truth" (the task's 4th scope item) yet since there's nothing
+  ad-hoc to consolidate.
+- **Disk breakdown:** Chroma's real data directory is only 0.02GB (mirrors the Second Brain's
+  actual size, not explosive), the git repo is negligible, and the one real disk consumer is the
+  Python venv itself (5.53GB, fixed-size — doesn't grow the way a database's trace/vector store
+  would). No component with a genuine unbounded growth trajectory exists on the Omen today.
+- **GPU confirmed present but unusable, not just underpowered:** `lspci` confirms a real GTX 1050
+  Ti Mobile (GP107M) — but zero NVIDIA driver is installed (`dpkg -l | grep nvidia` returns
+  nothing), so it's not a factor in capacity planning at all right now, consistent with (and a
+  stronger version of) the existing "service-host-only, not inference-capable" framing.
+
+**Verdict: gate open for today's actual headroom, not a blanket clearance for everything
+queued.** Real capacity is not remotely a constraint right now, precisely because most of the
+self-hosting backlog hasn't been built yet — this audit answers "is there room for the next
+reasonable increment," not "will Langfuse's full stack fit," since Langfuse has no real resource
+spec to check against until it's actually scoped. **Recommendation, not yet acted on:** re-run
+`nova_omen_capacity.py` before and after each individual self-hosting task actually gets
+deployed (starting with whichever of `86baxtb4m`/`86bau47mb`/`86baf4e29`/`86bax697m` gets picked
+up next), watching RAM specifically — it's the smallest absolute pool of the three (7.64GB
+total) and the one a multi-service database stack (Langfuse's Postgres+ClickHouse+Redis) would
+plausibly pressure first, well before CPU or disk become a concern.
+
 ### Nova Coding Sub-Agent (nova_orchestrator.py)
 Nova can now write to its own codebase — the one sanctioned exception to a human
 surfacing every change before it's applied (Section 8). Safety comes from **git worktree
@@ -1177,6 +1225,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-21 | Shipped `nova_finetune_phi4.py` — Phi-4 Mini QLoRA DPO training script (`86bagf51n`, re-scope fine-tune pipeline task); reinstalled `nova-env`'s `torch`/`torchaudio`/`torchvision` as CUDA builds (`cu128`) and added the full Unsloth training stack (`unsloth`, `peft`, `trl`, `bitsandbytes`, `accelerate`, `datasets`, plus transitive deps) to `requirements.txt`; added `finetune_output/` to `.gitignore` | Confirmed with Marvin: trains locally on the Aero's RTX 5070, not a RunPod/Vast rental — the re-scope doc's own VRAM math (4-6GB) fits the 8GB card, correcting `86baeyg1h`'s older RunPod-rental task text written before Phi-4 Mini was locked in as the target. Real blocker found first: `nova-env`'s `torch` was CPU-only, the same gap flagged during the voice-pipeline session but a hard blocker here since Unsloth/`bitsandbytes` need CUDA. Real trial-and-error getting the CUDA build right: `cu130` silently reported no CUDA (driver only supports up to 12.9), `cu128` worked; then Unsloth's own resolver downgraded `torch` back to a CPU build on install (its real `torch<2.11.0` ceiling only surfaced via pip's dependency-conflict warning, not `pip show`), needing a second pinned reinstall. Re-verified live afterward that `nova_voice.py`'s STT pipeline still loads under the resulting `transformers` downgrade (`5.10.2`→`5.5.0`) — and now runs on the GPU instead of CPU, fixing the voice pipeline's previously-flagged slowness as a side effect. Verified live end-to-end: a real `--dry-run` loaded the actual 4-bit Phi-4 Mini checkpoint, attached a real LoRA adapter, and ran 3 real DPO steps on the 11 existing corrected pairs — loss dropped 0.693→0.414, confirmed working mechanically on this hardware. `run()` hard-refuses a real (non-dry-run) invocation below 100 corrected pairs — still only 11 exist, so `86baeyg1h`'s actual production run stays blocked on accumulation, not on anything in scope here |
 | 2026-07-21 | Closed out `86bagek35`'s remaining checklist — added `test_context_fill()`/`run_context_fill_benchmark()` (`--context-fill MODEL`) and `test_cold_start()` (`--cold-start MODEL`) to `nova_benchmark.py` | Real numbers against `phi4-mini` on the Aero: context-fill latency 8K→7.4s, 32K→15.8s, 65K→58.2s, 128K→171.2s (scales with size, zero failures); cold start (unload + first response) 4.3s. "VRAM headroom with Chroma running" is now moot rather than measured — Chroma moved off the Aero to the Omen after this task was scoped, so it no longer competes for local VRAM. Found and fixed a real bug while building this: both new functions initially used bare `ollama.chat()` (matching the pre-existing `test_context_size()`'s own pattern) and failed outright under this shell's `OLLAMA_HOST=0.0.0.0` — the exact bind-all gotcha `nova_query.py` already guards against via its own `ollama_client`; fixed by reusing that client instead (the older function's identical latent bug left untouched, out of scope) |
 | 2026-07-21 | Ran the full base-model evaluation protocol for real — added a `think` parameter through `nova_query.ask()`/`nova_benchmark.py` (new `--no-think` flag) and re-tested every candidate fresh in one session | Verdict: stay on Llama 3.2 3B — every real candidate (llama3.1:8b, phi4-mini, qwen3:8b with `think=False`, gemma3:4b) fails Nova's own swap criteria, none beating the 3135ms fresh baseline. Caught a second hardware-doc error: "Llama 3.3 8B" doesn't exist (Meta only released 70B) — dropped, replaced with `gemma3:4b` in the comparison. Fixing Qwen3's thinking-mode bug for real (vs. just flagging it) cut its latency more than half (15728ms→7133ms) but it's still the slowest candidate. Blend rate tied at 0% across every model this round, underscoring that single-run blend comparisons across different days aren't reliable |
+| 2026-07-21 | Shipped `nova_omen_capacity.py` — real CPU/RAM/disk/GPU audit of the Omen (`86baxty6d`, self-hosting gate), logs each run to `logs/omen_capacity_log.jsonl` for growth-rate tracking | Real findings: massive headroom today (84% RAM free, 77% disk free, CPU near-idle) — but only because almost nothing is deployed yet (just `nova-api`/`nova-chroma`; Docker installed but 0 containers; Langfuse/Vaultwarden/self-hosted-git/Obsidian-sync all still unscoped). GPU confirmed physically present (GTX 1050 Ti) but zero driver installed — unusable, not just underpowered. Verdict: gate open for today's headroom, not a blanket clearance — recommended re-running this before/after each individual self-hosting task actually deploys, watching RAM specifically as the smallest of the three resource pools |
 
 ---
 
