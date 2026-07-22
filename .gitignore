@@ -45,3 +45,9 @@ data/
 
 # Downloaded Piper TTS voice models (binary model artifacts, not project source)
 voice_models/
+
+# Fine-tune adapter checkpoints + GGUF exports (large binary artifacts, not project source)
+finetune_output/
+
+# Unsloth's runtime kernel-compilation cache (regenerated on first import, not project source)
+unsloth_compiled_cache/
