@@ -37,8 +37,14 @@ TEST_SIZES = [2048, 4096, 8192, 16384, 32768]
 TEST_PROMPT = "Summarize what a knowledge base assistant does in two sentences."
 
 # ── Config: golden-query RAG benchmark ─────────────────────────
-LOGS_DIR = "C:/Nova/logs"
-BENCHMARK_LOG_PATH = "C:/Nova/logs/benchmark_log.jsonl"
+# Resolved relative to this file's own location, not hardcoded to the Aero's
+# Windows path -- same bug class already fixed in nova_logger.py/
+# nova_corrector.py/nova_log.py (2026-07-21, 86bb1pkpb). nova_log.py's
+# get_benchmark_runs() imports BENCHMARK_LOG_PATH from here, so leaving this
+# broken would have left the Nova Log Benchmark view broken on the Omen too
+# even after fixing nova_log.py's own LOGS_DIR.
+LOGS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+BENCHMARK_LOG_PATH = os.path.join(LOGS_DIR, "benchmark_log.jsonl")
 
 # One query per nova_router.py category. Used to establish and re-check the
 # Llama 3.2 3B baseline that future base-model candidates (e.g. Phi-4 Mini

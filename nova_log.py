@@ -9,7 +9,12 @@ import os
 from datetime import datetime, timedelta
 
 # ── Config ─────────────────────────────────────────────────────
-LOGS_DIR = "C:/Nova/logs"
+# Resolved relative to this file's own location, not hardcoded to the Aero's
+# Windows path -- same bug class already fixed in nova_logger.py/
+# nova_corrector.py (2026-07-21, 86bb1pkpb). A hardcoded "C:/Nova/logs"
+# silently resolves to a bogus relative path on the Omen (Linux), so the
+# Nova Log Health dashboard has likely always shown zero data there.
+LOGS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
 QUERY_LOG_PATH = f"{LOGS_DIR}/query_log.jsonl"
 
 BLEND_RATE_WINDOW = 100     # most-recent entries used to compute blend rate
