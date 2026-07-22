@@ -6,7 +6,12 @@ import json
 import os
 from datetime import datetime
 
-LOGS_DIR   = "C:/Nova/logs"
+# Resolved relative to this file's own location, not hardcoded to the Aero's
+# Windows path -- same bug class already fixed in nova_api.py's GRAPH_PATH,
+# nova_config.py's CONFIG_PATH, etc. A hardcoded "C:/Nova/logs" silently
+# resolves to a bogus relative path on the Omen (Linux), so log_blend() has
+# never actually written a real training_flags.jsonl there.
+LOGS_DIR   = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
 JSONL_PATH = f"{LOGS_DIR}/training_flags.jsonl"
 MD_PATH    = f"{LOGS_DIR}/training_review.md"
 

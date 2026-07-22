@@ -913,6 +913,29 @@ async judge-pass doesn't exist either, so this followed the same *conceptual* sh
 already-working Controller swipe-card mechanism instead of a nonexistent reference
 implementation.
 
+**Real incident, same day:** Marvin loaded `/controller` on the Omen via Tailscale and saw the
+new widget show 0/100, not the real 11/100. Root cause: `nova_logger.py`'s `LOGS_DIR` and
+`nova_corrector.py`'s `JSONL_PATH`/dotenv path were **both still hardcoded to
+`"C:/Nova/..."`** — the same bug class as `GRAPH_PATH`/`CONFIG_PATH`/`CHROMA_HOST` above, just
+never caught here before because nothing had exercised these two files' Omen-side behavior
+until this feature made it visible. Confirmed via SSH: the Omen has **no `training_flags.jsonl`
+file at all**, not even a misplaced one (checked for the same accidental-nested-folder pattern
+`nova_state.db`'s bug left behind — found nothing, meaning `log_blend()` has likely just never
+fired for real on the Omen yet, not that it's been silently corrupting data). Fixed both to
+resolve relative to their own file location, verified live on the Aero (both now resolve to
+the real, existing `training_flags.jsonl`). `nova_corrector.py`'s `SECOND_BRAIN` path is
+deliberately left hardcoded — Marvin's OneDrive vault is genuinely Aero-only, not a portability
+bug.
+
+**Broader pattern check, same incident:** grepped the whole codebase for `C:/Nova` — found 17
+more real instances beyond the ~8 already fixed across this project's history, including one
+with likely real user-facing impact (`nova_log.py`'s `LOGS_DIR`, meaning the Nova Log Health
+dashboard probably has this identical bug on the Omen right now). Filed as a dedicated task,
+**`86bb1pkpb`**, rather than fixed ad hoc — two of the seventeen (`nova_state.py`'s `DB_PATH`,
+`nova_tools.py`'s venv Scripts path) need a different fix shape than a relative-path swap
+(architectural routing and OS-conditional logic respectively), so this needs real per-file
+review, not a blind sweep.
+
 ### Nova Skills Library (2026-07-07, ClickUp `86barguac`)
 Structured per-category instruction files (`skills/coding.md`, `retrieval.md`,
 `financial.md`, `orchestration.md`, `lore.md`, `memory.md`) that
@@ -1286,6 +1309,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-21 | Ran the full base-model evaluation protocol for real — added a `think` parameter through `nova_query.ask()`/`nova_benchmark.py` (new `--no-think` flag) and re-tested every candidate fresh in one session | Verdict: stay on Llama 3.2 3B — every real candidate (llama3.1:8b, phi4-mini, qwen3:8b with `think=False`, gemma3:4b) fails Nova's own swap criteria, none beating the 3135ms fresh baseline. Caught a second hardware-doc error: "Llama 3.3 8B" doesn't exist (Meta only released 70B) — dropped, replaced with `gemma3:4b` in the comparison. Fixing Qwen3's thinking-mode bug for real (vs. just flagging it) cut its latency more than half (15728ms→7133ms) but it's still the slowest candidate. Blend rate tied at 0% across every model this round, underscoring that single-run blend comparisons across different days aren't reliable |
 | 2026-07-21 | Shipped `nova_omen_capacity.py` — real CPU/RAM/disk/GPU audit of the Omen (`86baxty6d`, self-hosting gate), logs each run to `logs/omen_capacity_log.jsonl` for growth-rate tracking | Real findings: massive headroom today (84% RAM free, 77% disk free, CPU near-idle) — but only because almost nothing is deployed yet (just `nova-api`/`nova-chroma`; Docker installed but 0 containers; Langfuse/Vaultwarden/self-hosted-git/Obsidian-sync all still unscoped). GPU confirmed physically present (GTX 1050 Ti) but zero driver installed — unusable, not just underpowered. Verdict: gate open for today's headroom, not a blanket clearance — recommended re-running this before/after each individual self-hosting task actually deploys, watching RAM specifically as the smallest of the three resource pools |
 | 2026-07-21 | Shipped training-data accumulation oversight (`86bax4akx`) — new `GET /training-data-status` in `nova_api.py`, new `dpo_verify` kind on `/label-queue`, a status widget in `nova_controller.html` | Real spec-check first: tutor/coding domain coverage skipped (no data source, both unbuilt/blocked) rather than stubbed. Found and fixed a real, pre-existing bug during live verification: `/label-queue` at its real default `limit=50` returned **zero** `blend_flag`/`dpo_verify` entries — numerous, recent `tool_call` entries silently starved out every training-data card via a single merge-then-truncate. Fixed by capping each kind independently before merging. Verified live: `/training-data-status` matched a manual count exactly (11/100, all `fiction`, all unverified); all 11 real corrected pairs confirmed reachable as `dpo_verify` entries; decide route confirmed 401 without a token |
+| 2026-07-21 | Fixed hardcoded `C:/Nova` paths in `nova_logger.py` (`LOGS_DIR`) and `nova_corrector.py` (`JSONL_PATH`, dotenv path) — the real cause of the training-data widget showing 0/100 on the Omen; filed `86bb1pkpb` for the 15 other remaining instances found by the same grep sweep | Same bug class already fixed 8 times before (`GRAPH_PATH`, `CONFIG_PATH`, `CHROMA_HOST`, etc.), just never caught in these two files until this feature made the Omen-side breakage visible. Confirmed via SSH the Omen has no `training_flags.jsonl` at all — `log_blend()` has likely never fired for real there, not silently corrupted data. `nova_log.py`'s identical `LOGS_DIR` bug (found in the same sweep, not yet fixed) likely means the Nova Log Health dashboard has this same "0 data on the Omen" symptom right now — flagged as the first thing to check in the new task |
 
 ---
 

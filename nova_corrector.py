@@ -15,9 +15,16 @@ import sys
 import anthropic
 from dotenv import load_dotenv
 
-load_dotenv(dotenv_path="C:/Nova/.env")
+# Resolved relative to this file's own location -- same bug class already
+# fixed in nova_orchestrator.py's dotenv path. A hardcoded "C:/Nova/.env"
+# silently returns False (not a raised error) on the Omen (Linux) instead of
+# loading real secrets, and "C:/Nova/logs/training_flags.jsonl" isn't a real
+# path there either -- this script has never actually run correctly off the
+# Aero.
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(dotenv_path=os.path.join(_SCRIPT_DIR, ".env"))
 
-JSONL_PATH      = "C:/Nova/logs/training_flags.jsonl"
+JSONL_PATH      = os.path.join(_SCRIPT_DIR, "logs", "training_flags.jsonl")
 SECOND_BRAIN    = r"C:\Users\marvi\OneDrive\Documents\Second Brain"
 CLAUDE_MODEL    = "claude-sonnet-4-6"
 
