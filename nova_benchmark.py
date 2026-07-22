@@ -119,7 +119,7 @@ def run_benchmark():
 
 
 # ── Golden-query RAG benchmark ──────────────────────────────────
-def _run_single_golden_query(entry: dict, model: str) -> dict:
+def _run_single_golden_query(entry: dict, model: str, think: bool = None) -> dict:
     """
     Run one golden query through the full RAG pipeline (nova_query.ask),
     timing it and checking routing/blending. Returns the per-query result
@@ -129,12 +129,17 @@ def _run_single_golden_query(entry: dict, model: str) -> dict:
     actually runs on this model — previously this function only ever ran
     the query on nova_query.py's own hardcoded OLLAMA_MODEL regardless of
     what model_label the caller intended to benchmark.
+
+    `think`, when not None, is forwarded to nova_query.ask()'s own `think`
+    kwarg -- pass think=False when benchmarking a thinking-capable model
+    (e.g. Qwen3) so its default chain-of-thought preamble doesn't inflate
+    the latency number being measured.
     """
     query = entry["query"]
     expected_category = entry["expected_category"]
 
     start = time.perf_counter()
-    result = nova_query.ask(query, persist=False, model_override=model)
+    result = nova_query.ask(query, persist=False, model_override=model, think=think)
     latency_ms = int((time.perf_counter() - start) * 1000)
 
     actual_category = result["category"]
@@ -187,16 +192,20 @@ def _aggregate_golden_results(per_query_results: list[dict]) -> dict:
     }
 
 
-def _log_golden_benchmark(model_label: str, summary: dict, per_query_results: list[dict]) -> None:
+def _log_golden_benchmark(model_label: str, summary: dict, per_query_results: list[dict],
+                           think: bool = None) -> None:
     """
     Append one JSON entry to benchmark_log.jsonl. Mirrors nova_log.py's
     append convention: os.makedirs(..., exist_ok=True), then open in mode
-    "a", utf-8.
+    "a", utf-8. `think` is recorded so a later reader can tell a
+    think=False Qwen3 run apart from an earlier default-thinking-mode one
+    without needing to re-derive it from per_query_results latency alone.
     """
     os.makedirs(LOGS_DIR, exist_ok=True)
     entry = {
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "model": model_label,
+        "think": think,
         "avg_latency_ms": summary["avg_latency_ms"],
         "avg_latency_ms_by_category": summary["avg_latency_ms_by_category"],
         "blend_rate": summary["blend_rate"],
@@ -207,7 +216,7 @@ def _log_golden_benchmark(model_label: str, summary: dict, per_query_results: li
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
-def run_golden_benchmark(model_label: str = MODEL) -> dict:
+def run_golden_benchmark(model_label: str = MODEL, think: bool = None) -> dict:
     """
     Run every GOLDEN_QUERIES entry through the real RAG pipeline
     (nova_query.ask), aggregate latency/routing/blend stats, append one
@@ -219,22 +228,25 @@ def run_golden_benchmark(model_label: str = MODEL) -> dict:
 
     `model_label` now genuinely controls which model generates every answer
     (via nova_query.ask()'s model_override), not just the label recorded in
-    benchmark_log.jsonl — see _run_single_golden_query.
+    benchmark_log.jsonl — see _run_single_golden_query. `think` is forwarded
+    the same way; pass think=False for thinking-capable models like Qwen3.
     """
     print(f"\nNova Golden Query Benchmark")
     print(f"Model: {model_label}")
+    if think is not None:
+        print(f"think={think}")
     print(f"Running {len(GOLDEN_QUERIES)} golden queries...\n")
 
     per_query_results = []
     for entry in GOLDEN_QUERIES:
         print(f"  Querying: \"{entry['query']}\"...", end=" ", flush=True)
-        result = _run_single_golden_query(entry, model=model_label)
+        result = _run_single_golden_query(entry, model=model_label, think=think)
         per_query_results.append(result)
         status = "✓" if result["category_match"] else "✗ MISMATCH"
         print(f"{status} ({result['actual_category']}, {result['latency_ms']}ms)")
 
     summary = _aggregate_golden_results(per_query_results)
-    _log_golden_benchmark(model_label, summary, per_query_results)
+    _log_golden_benchmark(model_label, summary, per_query_results, think=think)
 
     print("\n── Summary ──────────────────────────────────────")
     print(f"Model: {model_label}")
@@ -284,7 +296,7 @@ def _get_latest_baseline_entry(baseline_model: str) -> dict | None:
     return latest
 
 
-def evaluate_candidate(candidate_model: str) -> dict:
+def evaluate_candidate(candidate_model: str, think: bool = None) -> dict:
     """
     One-command model-swap check: pull the candidate, run the golden
     benchmark on it for real, and compare against the most recent logged
@@ -296,6 +308,11 @@ def evaluate_candidate(candidate_model: str) -> dict:
     every metric (avg_latency_ms, blend_rate, category_mismatches) AND
     strictly better on at least one. Every metric's raw delta is always
     printed alongside the verdict, so the call is never a black box.
+
+    `think`, when not None, is forwarded to run_golden_benchmark() — pass
+    think=False for thinking-capable candidates (e.g. Qwen3) so their
+    default chain-of-thought preamble doesn't inflate the latency being
+    measured against the baseline.
     """
     baseline_model = nova_query.OLLAMA_MODEL
 
@@ -313,7 +330,7 @@ def evaluate_candidate(candidate_model: str) -> dict:
         print(f"✗ Failed to pull {candidate_model}: {pull_result.stderr}")
         return {"candidate_model": candidate_model, "pulled": False, "error": pull_result.stderr}
 
-    candidate_summary = run_golden_benchmark(model_label=candidate_model)
+    candidate_summary = run_golden_benchmark(model_label=candidate_model, think=think)
     baseline_entry = _get_latest_baseline_entry(baseline_model)
 
     if baseline_entry is None:
@@ -498,15 +515,23 @@ if __name__ == "__main__":
         metavar="MODEL",
         help="Unload MODEL then time a cold-start request"
     )
+    parser.add_argument(
+        "--no-think",
+        action="store_true",
+        help="With --evaluate/--golden: pass think=False (for thinking-capable models like Qwen3, "
+             "whose default chain-of-thought preamble otherwise inflates the latency being measured)"
+    )
     args = parser.parse_args()
 
+    think = False if args.no_think else None
+
     if args.evaluate:
-        evaluate_candidate(args.evaluate)
+        evaluate_candidate(args.evaluate, think=think)
     elif args.context_fill:
         run_context_fill_benchmark(args.context_fill)
     elif args.cold_start:
         test_cold_start(args.cold_start)
     elif args.golden:
-        run_golden_benchmark()
+        run_golden_benchmark(think=think)
     else:
         run_benchmark()

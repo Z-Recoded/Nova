@@ -237,7 +237,8 @@ def handle_coding_task(query: str) -> dict:
     }
 
 # ── Generation ─────────────────────────────────────────────────
-def ask(query: str, history: list[dict] = None, persist: bool = True, model_override: str = None) -> dict:
+def ask(query: str, history: list[dict] = None, persist: bool = True, model_override: str = None,
+        think: bool = None) -> dict:
     """
     Full RAG pipeline: route → retrieve → generate.
     Returns dict with 'answer', 'sources', 'chunks', 'category'.
@@ -248,6 +249,12 @@ def ask(query: str, history: list[dict] = None, persist: bool = True, model_over
         skipping per-category routing entirely — used by nova_benchmark.py's
         model-swap evaluator to run every golden query on one specific
         candidate model regardless of the routing table.
+    think: forwarded to ollama.Client.chat()'s own `think` kwarg only when
+        not None. Left unset for every normal call (production behavior is
+        unchanged); nova_benchmark.py's evaluator passes think=False when
+        benchmarking a thinking-capable model (e.g. Qwen3), whose default
+        chain-of-thought preamble otherwise inflates latency numbers that
+        have nothing to do with Nova's own retrieval/generation workload.
 
     Queries prefixed with CODING_AGENT_PREFIX (e.g. "/code ...") are handed
     off to the coding sub-agent instead — see handle_coding_task().
@@ -316,6 +323,11 @@ def ask(query: str, history: list[dict] = None, persist: bool = True, model_over
     # since a successful remote call means Ollama's `model` was never used.
     model_used = model
 
+    # Only forwarded when explicitly set -- omitting the kwarg entirely (rather
+    # than passing think=None) keeps every non-benchmark call identical to
+    # before this parameter existed.
+    think_kwargs = {} if think is None else {"think": think}
+
     inference_start = time.perf_counter()
     if is_framework_integration_enabled("remote_gpu_inference"):
         response = nova_remote_inference.chat(messages, NUM_CTX)
@@ -327,7 +339,8 @@ def ask(query: str, history: list[dict] = None, persist: bool = True, model_over
             response = ollama_client.chat(
                 model=model,
                 messages=messages,
-                options={"num_ctx": NUM_CTX}
+                options={"num_ctx": NUM_CTX},
+                **think_kwargs,
             )
         else:
             model_used = nova_remote_inference.MODEL_NAME
@@ -335,7 +348,8 @@ def ask(query: str, history: list[dict] = None, persist: bool = True, model_over
         response = ollama_client.chat(
             model=model,
             messages=messages,
-            options={"num_ctx": NUM_CTX}
+            options={"num_ctx": NUM_CTX},
+            **think_kwargs,
         )
     inference_ms = int((time.perf_counter() - inference_start) * 1000)
 
