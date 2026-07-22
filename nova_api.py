@@ -24,8 +24,9 @@
 #   GET  /escalations-ui            → redirects to /controller (86baxahn7)
 #   GET  /controller                → Nova Controller Feed page (HTML, PWA-installable)
 #   GET  /dispatch-log              → merged dispatch/outcome history (JSON)
-#   GET  /label-queue               → unlabeled tool-call/blend-flag entries (JSON)
+#   GET  /label-queue               → unlabeled tool-call/blend-flag/dpo-verify entries (JSON)
 #   POST /label-queue/{kind}/{id}/decide → patch a label decision (token-gated)
+#   GET  /training-data-status      → live DPO pair count, coverage, threshold status
 #
 # Run:
 #   cd C:/Nova
@@ -930,6 +931,15 @@ def get_label_queue(limit: int = DEFAULT_LABEL_QUEUE_LIMIT):
     "line:<index>:<timestamp>" token, checked again at decide-time so a
     stale index (the file changed underneath) fails loudly (409) rather
     than silently patching the wrong entry.
+
+    `limit` is applied per kind, not to the merged total -- found live
+    while building the dpo_verify kind (86bax4akx): tool_call entries are
+    so much more numerous (1700+) and recent than blend_flag/dpo_verify
+    that a single merge-then-truncate silently starved out every
+    blend_flag and dpo_verify card at the real default limit (50) --
+    exactly the rarer, higher-value human judgments this queue exists
+    for. Each kind now gets its own `limit`-sized slice before merging,
+    so a busy tool-call day can no longer hide every training-data card.
     """
     tool_calls = [
         {"kind": "tool_call", "id": e["tool_call_id"], **e}
@@ -941,15 +951,29 @@ def get_label_queue(limit: int = DEFAULT_LABEL_QUEUE_LIMIT):
         for i, e in enumerate(_read_jsonl_file(TRAINING_FLAGS_PATH))
         if e.get("correction") == ""
     ]
-    merged = tool_calls + blend_flags
+    # dpo_verify: already-corrected pairs awaiting the "is this correction
+    # actually good" judge-pass (86bax4akx's verification-status scope item)
+    # -- distinct from blend_flags above, which are pairs that don't have a
+    # correction written yet at all. Same synthetic id scheme as blend_flag.
+    dpo_verify = [
+        {"kind": "dpo_verify", "id": f"line:{i}:{e.get('timestamp')}", **e}
+        for i, e in enumerate(_read_jsonl_file(TRAINING_FLAGS_PATH))
+        if e.get("correction") and not e.get("verification_status")
+    ]
+
+    def _newest(entries: list[dict]) -> list[dict]:
+        return sorted(entries, key=lambda e: e.get("timestamp") or "", reverse=True)[:limit]
+
+    merged = _newest(tool_calls) + _newest(blend_flags) + _newest(dpo_verify)
     merged.sort(key=lambda e: e.get("timestamp") or "", reverse=True)
-    return {"entries": merged[:limit]}
+    return {"entries": merged}
 
 
 class LabelDecisionRequest(BaseModel):
-    was_necessary: Optional[bool] = None  # tool_call kind
-    was_used: Optional[bool] = None       # tool_call kind
-    correction: Optional[str] = None      # blend_flag kind
+    was_necessary: Optional[bool] = None       # tool_call kind
+    was_used: Optional[bool] = None            # tool_call kind
+    correction: Optional[str] = None           # blend_flag kind
+    verification_status: Optional[str] = None  # dpo_verify kind: "confirmed_good" | "needs_rework"
 
 
 @app.post("/label-queue/{kind}/{entry_id:path}/decide")
@@ -1010,8 +1034,81 @@ def decide_label_queue_entry(
                 f.write(json.dumps(e, ensure_ascii=False) + "\n")
         return entries[index]
 
+    elif kind == "dpo_verify":
+        try:
+            _, index_str, expected_timestamp = entry_id.split(":", 2)
+            index = int(index_str)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Malformed dpo_verify id '{entry_id}'")
+        entries = _read_jsonl_file(TRAINING_FLAGS_PATH)
+        if index >= len(entries) or entries[index].get("timestamp") != expected_timestamp:
+            raise HTTPException(
+                status_code=409,
+                detail="This entry's position/timestamp no longer matches -- training_flags.jsonl "
+                       "changed since this card was loaded. Reload the queue and try again.",
+            )
+        if req.verification_status not in ("confirmed_good", "needs_rework"):
+            raise HTTPException(
+                status_code=422,
+                detail="verification_status must be 'confirmed_good' or 'needs_rework'",
+            )
+        entries[index]["verification_status"] = req.verification_status
+        with open(TRAINING_FLAGS_PATH, "w", encoding="utf-8") as f:
+            for e in entries:
+                f.write(json.dumps(e, ensure_ascii=False) + "\n")
+        return entries[index]
+
     else:
-        raise HTTPException(status_code=422, detail="kind must be 'tool_call' or 'blend_flag'")
+        raise HTTPException(status_code=422, detail="kind must be 'tool_call', 'blend_flag', or 'dpo_verify'")
+
+
+# ── Training-data accumulation oversight (86bax4akx) ────────────
+
+# Mirrors nova_finetune_phi4.MIN_REAL_PAIRS -- duplicated here rather than
+# imported, so nova_api.py (the always-running production server) never
+# depends on the training stack (datasets/unsloth/torch) being installed.
+# If that constant changes, update this one too.
+MIN_REAL_PAIRS_FOR_FINETUNE = 100
+
+
+@app.get("/training-data-status")
+def get_training_data_status():
+    """
+    Live DPO pair count, category coverage, and verification status --
+    replaces 86baeyg1h's static "currently 11 pairs, keep accumulating"
+    task-description line with a real number computed from
+    training_flags.jsonl on every call (86bax4akx's live-count + coverage +
+    threshold-alerting scope items). Tutor-domain and coding-domain
+    coverage are deliberately not broken out -- neither has a real data
+    source yet (Nova Tutor is unbuilt, coding DPO curation is blocked on
+    86bara7pn) -- so "by_category" reflects nova_router.py's real
+    categories (fiction, technical, etc.), not the task's aspirational
+    lore/tutor/coding split.
+    """
+    entries = _read_jsonl_file(TRAINING_FLAGS_PATH)
+    corrected = [e for e in entries if e.get("correction")]
+    total_corrected = len(corrected)
+
+    by_category = {}
+    for e in corrected:
+        category = e.get("category", "uncategorized")
+        by_category[category] = by_category.get(category, 0) + 1
+
+    verified_good = sum(1 for e in corrected if e.get("verification_status") == "confirmed_good")
+    needs_rework = sum(1 for e in corrected if e.get("verification_status") == "needs_rework")
+
+    return {
+        "total_flagged": len(entries),
+        "total_corrected": total_corrected,
+        "min_pairs_for_finetune": MIN_REAL_PAIRS_FOR_FINETUNE,
+        "pairs_remaining": max(0, MIN_REAL_PAIRS_FOR_FINETUNE - total_corrected),
+        "progress_pct": round(100 * total_corrected / MIN_REAL_PAIRS_FOR_FINETUNE, 1),
+        "threshold_met": total_corrected >= MIN_REAL_PAIRS_FOR_FINETUNE,
+        "by_category": by_category,
+        "verified_good": verified_good,
+        "needs_rework": needs_rework,
+        "unverified": total_corrected - verified_good - needs_rework,
+    }
 
 
 # ── Nova Log — Health dashboard ────────────────────────────────

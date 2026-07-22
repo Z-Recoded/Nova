@@ -113,6 +113,34 @@
   .watch-btn.off:hover { background: #343945; }
   .watch-btn:disabled { cursor: default; opacity: 0.4; }
 
+  .training-status {
+    background: #1b1e26;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .training-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+  .training-status-row span:last-child { font-size: 0.9rem; font-weight: 600; color: #ddd; }
+  .progress-track {
+    background: #2a2e38;
+    border-radius: 999px;
+    height: 6px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    background: #3ddc84;
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.3s ease;
+  }
+  .training-status-sub { font-size: 0.78rem; color: #888; margin-top: 0.5rem; }
+
   /* ── Stories rail ─────────────────────────────────────────── */
   .stories-rail {
     display: flex;
@@ -380,6 +408,8 @@
     <p><b>Label queue</b> cards — real training-data judgments waiting on you.</p>
     <p style="margin-left:1rem"><b>Tool call</b> — was calling this tool a <i>good call</i> (right tool, reasonable), or is it something Nova <i>shouldn't have called</i> at all? Note: this is a simplified single judgment — the underlying data actually distinguishes "was the right tool" from "was the result actually used," but today's swipe combines both into one, so a case like "reasonable call, result ended up unused" can't be captured separately yet.</p>
     <p style="margin-left:1rem"><b>Blend flag</b> — did a fiction answer mix details from two different characters? Swipe right if it's fine as-is; swipe left (or tap red) if it genuinely needs a written correction, which opens a text box instead of committing immediately.</p>
+    <p style="margin-left:1rem"><b>Verify DPO pair</b> — is an already-written correction (from Claude via <code>nova_corrector.py</code>, or written by hand here) actually good? Swipe right to confirm it, swipe left to flag it as needing rework. This is separate from Blend flag above — that's "does this need a correction written," this is "is the correction that got written actually good."</p>
+    <p><b>DPO pairs toward fine-tune</b> — live count of corrected pairs in <code>logs/training_flags.jsonl</code> against the 100-pair floor <code>nova_finetune_phi4.py</code> requires before a real training run. Refreshes every 15 seconds.</p>
     <p>Swipe right or tap the green button for the positive judgment, swipe left or tap the red button otherwise.</p>
     <p><b>Discover</b> — empty for now. Depends on Nova Tutor, which hasn't been built yet.</p>
     <p style="color:#888; font-size:0.8rem; margin-bottom:0">This panel lives in the same file as the UI it explains, so it can't silently go stale as the Feed changes.</p>
@@ -390,6 +420,15 @@
   <div class="board-watch">
     <span class="board-watch-label">Board Watch — headless dispatch loop</span>
     <button id="board-watch-toggle" class="watch-btn off" disabled>Loading…</button>
+  </div>
+
+  <div class="training-status" id="training-status" style="display:none">
+    <div class="training-status-row">
+      <span class="board-watch-label">DPO pairs toward fine-tune</span>
+      <span id="training-status-count"></span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="training-status-bar"></div></div>
+    <div class="training-status-sub" id="training-status-sub"></div>
   </div>
 
   <div class="token-box" id="token-box" style="display:none">
@@ -473,6 +512,35 @@
         clearError();
       } catch (err) {
         document.getElementById('error').textContent = 'Could not load board watch state: ' + err.message;
+      }
+    }
+
+    // ── Training-data status (86bax4akx) ─────────────────────────
+
+    async function loadTrainingDataStatus() {
+      try {
+        const res = await fetch('/training-data-status');
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const s = await res.json();
+        clearError();
+
+        const widget = document.getElementById('training-status');
+        widget.style.display = 'block';
+        document.getElementById('training-status-count').textContent =
+          `${s.total_corrected} / ${s.min_pairs_for_finetune} (${s.progress_pct}%)`;
+        document.getElementById('training-status-bar').style.width =
+          Math.min(100, s.progress_pct) + '%';
+
+        const categories = Object.entries(s.by_category)
+          .map(([cat, n]) => `${cat}: ${n}`).join(', ') || 'none yet';
+        const verifyBits = [];
+        if (s.verified_good) verifyBits.push(`${s.verified_good} confirmed good`);
+        if (s.needs_rework) verifyBits.push(`${s.needs_rework} needs rework`);
+        if (s.unverified) verifyBits.push(`${s.unverified} unverified`);
+        document.getElementById('training-status-sub').textContent =
+          `By category — ${categories}` + (verifyBits.length ? ` · ${verifyBits.join(', ')}` : '');
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not load training-data status: ' + err.message;
       }
     }
 
@@ -801,6 +869,9 @@
       if (entry.kind === 'tool_call') {
         return { was_necessary: positive, was_used: positive };
       }
+      if (entry.kind === 'dpo_verify') {
+        return { verification_status: positive ? 'confirmed_good' : 'needs_rework' };
+      }
       // blend_flag: positive = reviewed, no correction needed. Negative
       // needs a real written correction -- more than a swipe can capture,
       // so it opens the same tap-to-expand-to-text affordance instead of
@@ -814,20 +885,27 @@
 
       const hintLeft = document.createElement('div');
       hintLeft.className = 'swipe-hint left';
-      hintLeft.textContent = entry.kind === 'tool_call' ? 'Shouldn\'t have called this' : 'Needs correction';
+      hintLeft.textContent = entry.kind === 'tool_call' ? 'Shouldn\'t have called this'
+        : entry.kind === 'dpo_verify' ? 'Needs rework'
+        : 'Needs correction';
       const hintRight = document.createElement('div');
       hintRight.className = 'swipe-hint right';
-      hintRight.textContent = entry.kind === 'tool_call' ? 'Good call' : 'No correction needed';
+      hintRight.textContent = entry.kind === 'tool_call' ? 'Good call'
+        : entry.kind === 'dpo_verify' ? 'Confirmed good'
+        : 'No correction needed';
       wrap.appendChild(hintLeft);
       wrap.appendChild(hintRight);
 
       const card = document.createElement('div');
       card.className = 'swipe-card';
 
+      const kindLabel = entry.kind === 'tool_call' ? 'tool call'
+        : entry.kind === 'dpo_verify' ? 'verify DPO pair'
+        : 'blend flag';
       const meta = document.createElement('div');
       meta.className = 'swipe-meta';
       meta.innerHTML =
-        `<span class="badge label">${entry.kind === 'tool_call' ? 'tool call' : 'blend flag'}</span> ` +
+        `<span class="badge label">${kindLabel}</span> ` +
         escapeHtml(entry.timestamp || '');
       card.appendChild(meta);
 
@@ -835,6 +913,8 @@
       body.className = 'swipe-body';
       body.textContent = entry.kind === 'tool_call'
         ? `${entry.tool || 'tool'}: ${JSON.stringify(entry.args || {}).slice(0, 200)}`
+        : entry.kind === 'dpo_verify'
+        ? `[${entry.category || 'uncategorized'}] correction: ${(entry.correction || '').slice(0, 300)}`
         : `[${entry.category || 'uncategorized'}] sources: ${(entry.sources_mixed || []).join(', ')}`;
       card.appendChild(body);
 
@@ -847,7 +927,10 @@
           return;
         }
         const url = `/label-queue/${entry.kind}/${encodeURIComponent(entry.id)}/decide`;
-        tokenPost(url, labelDecisionBody(entry, positive), statusEl, loadFeed);
+        const onSuccess = entry.kind === 'dpo_verify'
+          ? () => { loadFeed(); loadTrainingDataStatus(); }
+          : loadFeed;
+        tokenPost(url, labelDecisionBody(entry, positive), statusEl, onSuccess);
       };
 
       let correctionForm = null;
@@ -1023,6 +1106,9 @@
 
     loadBoardWatch();
     setInterval(loadBoardWatch, 5000);
+
+    loadTrainingDataStatus();
+    setInterval(loadTrainingDataStatus, 15000);
 
     loadFeed();
     setInterval(loadFeed, 8000);

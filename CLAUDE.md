@@ -855,6 +855,64 @@ ClickUp status updates on halt. `conservative`/`critical` modes are
 classified and reported but have no enforced behavioral difference yet —
 their spec'd effects all depend on the missing task-queue/classifier.
 
+### Training-Data Accumulation Oversight (86bax4akx, 2026-07-21)
+Closes the gap named 2026-07-13: existing tasks *build* or *consume* training sets
+(`86bara7pn` curates coding data, `86baeyg1h` consumes DPO pairs) but nothing tracked
+accumulation *as it happens* — `86baeyg1h`'s own task text says "currently 11 pairs, keep
+accumulating" as a static line, not a live count.
+
+**Real spec-vs-repo check before building** (this project's standing discipline): the
+ticket's full scope named 5 items plus an anti-poisoning mechanism. Two of the five don't
+have a real data source to build against — a "tutor-domain `blend_flag` log" (Nova Tutor is
+entirely unbuilt, confirmed by grep, same finding `86baxahn7` already made) and a
+"coding"-domain coverage bucket (`86bara7pn` is still blocked, zero coding DPO pairs exist).
+Built what's real instead of stubbing those two.
+
+**Built:**
+- `GET /training-data-status` (`nova_api.py`) — live count from `logs/training_flags.jsonl`
+  computed fresh on every call: total flagged, total corrected (real DPO pairs), coverage by
+  `nova_router.py`'s real categories (not the ticket's aspirational lore/tutor/coding split),
+  and threshold status against `MIN_REAL_PAIRS_FOR_FINETUNE = 100` — duplicated from, not
+  imported from, `nova_finetune_phi4.MIN_REAL_PAIRS`, so `nova_api.py` (the always-running
+  production server) never depends on the training stack (`datasets`/`unsloth`/`torch`) being
+  installed. A comment cross-references the source of truth so the two can't silently drift
+  without a visible TODO.
+- New `dpo_verify` kind on the existing `/label-queue` + `/label-queue/{kind}/{id}/decide`
+  mechanism (86baxahn7's swipe-card infrastructure, reused rather than a new endpoint) — the
+  real three-state shape the ticket asked for (unverified → confirmed-good / needs-rework),
+  distinct from the pre-existing `blend_flag` kind (which asks "does this need a correction
+  written," not "is the correction that got written actually good"). Same synthetic
+  `line:<index>:<timestamp>` id scheme, same token-gated decide route, same
+  read-all/rewrite-all idiom as `blend_flag` and `tool_call`.
+- `nova_controller.html` — a small persistent "DPO pairs toward fine-tune" status widget
+  (progress bar + category/verification breakdown, refreshes every 15s) alongside the
+  existing Board Watch toggle, plus a `renderLabelCard()` branch for `dpo_verify` cards and a
+  help-panel entry explaining the new card type.
+
+**Real bug found and fixed during live verification, not code review:** testing
+`/label-queue` at its real default `limit=50` (not a large test limit) showed **zero**
+`blend_flag`/`dpo_verify` entries in the response — `tool_call` entries are so much more
+numerous (2400+) and recent that a single merge-then-truncate silently starved out every
+training-data card, meaning the rarer, higher-value human judgments this whole feature exists
+for were **never reaching the real Feed at all**, a pre-existing gap this work made
+concretely visible rather than introduced. Fixed by capping each kind at `limit`
+independently before merging, so a busy tool-call day can no longer hide every blend-flag or
+DPO-verification card. Verified live: `/training-data-status` returned real numbers (57
+flagged, 11 corrected, 89 remaining, 11.0%, all 11 in `fiction`, all unverified) matching a
+manual count exactly; `/label-queue?limit=5000` confirmed all 11 real corrected pairs surface
+as `dpo_verify` entries with real correction text; the decide route confirmed 401 without a
+token (fail-closed, same as every other token-gated route).
+
+**Explicitly deferred, with real reasons, not stubbed:** tutor-domain and coding-domain
+coverage (no data source yet — see above); the anti-poisoning statistical outlier check (the
+ticket's own text ties it to auto-promotion "via the Langfuse dataset-promotion pipeline,
+`86bax697m`," which hasn't been adopted yet even though newly unblocked by `86baxty6d` — and
+a distribution of 11 points is too thin for outlier detection to mean anything yet regardless
+of Langfuse); literal reuse of the tool-call audit pattern (`86bawntpb`/`86bawntpm`) — that
+async judge-pass doesn't exist either, so this followed the same *conceptual* shape via the
+already-working Controller swipe-card mechanism instead of a nonexistent reference
+implementation.
+
 ### Nova Skills Library (2026-07-07, ClickUp `86barguac`)
 Structured per-category instruction files (`skills/coding.md`, `retrieval.md`,
 `financial.md`, `orchestration.md`, `lore.md`, `memory.md`) that
@@ -1102,8 +1160,9 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | /escalations-ui | GET | ✓ Working | Redirects to /controller (86baxahn7) |
 | /controller | GET | ✓ Working | Nova Controller Feed page (HTML, PWA-installable) — nova_controller.html |
 | /dispatch-log | GET | ✓ Working | Merged dispatch/outcome history (scheduled_dispatch_log.jsonl + agent_task_outcomes.jsonl) |
-| /label-queue | GET | ✓ Working | Unlabeled tool-call/blend-flag entries awaiting a judge-pass |
+| /label-queue | GET | ✓ Working | Unlabeled tool-call/blend-flag/dpo-verify entries awaiting a judge-pass — each kind capped at `limit` independently before merging (86bax4akx fix) |
 | /label-queue/{kind}/{id}/decide | POST | ✓ Working | Patch a label decision — token-gated (X-Nova-Escalation-Token) |
+| /training-data-status | GET | ✓ Working | Live DPO pair count, category coverage, verification status vs. the fine-tune floor (86bax4akx) |
 | /tier-proposals | POST/GET | ✓ Working | Register/list pending autonomy-tier proposals (86bb01wur) |
 | /tier-proposals/{id}/decide | POST | ✓ Working | Accept/override a tier proposal — token-gated |
 | /tier-watermarks | GET/POST | ✓ Working | {task_id: last_seen date_updated} for tier-proposal creation/rescope detection |
@@ -1226,6 +1285,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | 2026-07-21 | Closed out `86bagek35`'s remaining checklist — added `test_context_fill()`/`run_context_fill_benchmark()` (`--context-fill MODEL`) and `test_cold_start()` (`--cold-start MODEL`) to `nova_benchmark.py` | Real numbers against `phi4-mini` on the Aero: context-fill latency 8K→7.4s, 32K→15.8s, 65K→58.2s, 128K→171.2s (scales with size, zero failures); cold start (unload + first response) 4.3s. "VRAM headroom with Chroma running" is now moot rather than measured — Chroma moved off the Aero to the Omen after this task was scoped, so it no longer competes for local VRAM. Found and fixed a real bug while building this: both new functions initially used bare `ollama.chat()` (matching the pre-existing `test_context_size()`'s own pattern) and failed outright under this shell's `OLLAMA_HOST=0.0.0.0` — the exact bind-all gotcha `nova_query.py` already guards against via its own `ollama_client`; fixed by reusing that client instead (the older function's identical latent bug left untouched, out of scope) |
 | 2026-07-21 | Ran the full base-model evaluation protocol for real — added a `think` parameter through `nova_query.ask()`/`nova_benchmark.py` (new `--no-think` flag) and re-tested every candidate fresh in one session | Verdict: stay on Llama 3.2 3B — every real candidate (llama3.1:8b, phi4-mini, qwen3:8b with `think=False`, gemma3:4b) fails Nova's own swap criteria, none beating the 3135ms fresh baseline. Caught a second hardware-doc error: "Llama 3.3 8B" doesn't exist (Meta only released 70B) — dropped, replaced with `gemma3:4b` in the comparison. Fixing Qwen3's thinking-mode bug for real (vs. just flagging it) cut its latency more than half (15728ms→7133ms) but it's still the slowest candidate. Blend rate tied at 0% across every model this round, underscoring that single-run blend comparisons across different days aren't reliable |
 | 2026-07-21 | Shipped `nova_omen_capacity.py` — real CPU/RAM/disk/GPU audit of the Omen (`86baxty6d`, self-hosting gate), logs each run to `logs/omen_capacity_log.jsonl` for growth-rate tracking | Real findings: massive headroom today (84% RAM free, 77% disk free, CPU near-idle) — but only because almost nothing is deployed yet (just `nova-api`/`nova-chroma`; Docker installed but 0 containers; Langfuse/Vaultwarden/self-hosted-git/Obsidian-sync all still unscoped). GPU confirmed physically present (GTX 1050 Ti) but zero driver installed — unusable, not just underpowered. Verdict: gate open for today's headroom, not a blanket clearance — recommended re-running this before/after each individual self-hosting task actually deploys, watching RAM specifically as the smallest of the three resource pools |
+| 2026-07-21 | Shipped training-data accumulation oversight (`86bax4akx`) — new `GET /training-data-status` in `nova_api.py`, new `dpo_verify` kind on `/label-queue`, a status widget in `nova_controller.html` | Real spec-check first: tutor/coding domain coverage skipped (no data source, both unbuilt/blocked) rather than stubbed. Found and fixed a real, pre-existing bug during live verification: `/label-queue` at its real default `limit=50` returned **zero** `blend_flag`/`dpo_verify` entries — numerous, recent `tool_call` entries silently starved out every training-data card via a single merge-then-truncate. Fixed by capping each kind independently before merging. Verified live: `/training-data-status` matched a manual count exactly (11/100, all `fiction`, all unverified); all 11 real corrected pairs confirmed reachable as `dpo_verify` entries; decide route confirmed 401 without a token |
 
 ---
 
