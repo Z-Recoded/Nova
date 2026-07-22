@@ -364,6 +364,117 @@ def evaluate_candidate(candidate_model: str) -> dict:
     }
 
 
+# ── Context-fill + cold-start benchmark (Phi-4 Mini 128K validation, 86bagek35) ─
+# Distinct from test_context_size() above: that function only allocates an
+# empty num_ctx buffer and times a short prompt (tests whether the size can be
+# allocated at all). This fills the context with real content up to each
+# target size, so it measures what 86bagek35 actually asks for — "context
+# fill latency" — using Phi-4 Mini's real tokenizer for an exact token count
+# rather than a char-count guess.
+CONTEXT_FILL_SIZES = [8192, 32768, 65536, 131072]
+CONTEXT_FILL_TOKENIZER_ID = "unsloth/Phi-4-mini-instruct-bnb-4bit"
+CONTEXT_FILL_INSTRUCTION = "\n\nSummarize the passage above in exactly one sentence."
+_FILLER_PARAGRAPH = (
+    "The quick brown fox jumps over the lazy dog near the riverbank at dawn, "
+    "while the town slowly wakes to the sound of church bells and distant traffic. "
+)
+
+
+def _build_context_fill_prompt(tokenizer, target_tokens: int) -> str:
+    """
+    Repeat the filler paragraph until the tokenized prompt reaches
+    target_tokens, then append a one-line instruction — the model has to
+    attend across the whole filled context to answer, not just the tail.
+    """
+    instruction_tokens = len(tokenizer.encode(CONTEXT_FILL_INSTRUCTION))
+    budget = target_tokens - instruction_tokens
+    text = ""
+    while len(tokenizer.encode(text)) < budget:
+        text += _FILLER_PARAGRAPH
+    return text + CONTEXT_FILL_INSTRUCTION
+
+
+def test_context_fill(model: str, target_tokens: int, tokenizer) -> dict:
+    """Fill the context to target_tokens (real token count) and time one generation."""
+    prompt = _build_context_fill_prompt(tokenizer, target_tokens)
+    actual_tokens = len(tokenizer.encode(prompt))
+    print(f"  Filling to ~{target_tokens} tokens (actual: {actual_tokens})...", end=" ", flush=True)
+    start = time.time()
+    try:
+        # nova_query.ollama_client, not bare ollama.chat() -- guards against the
+        # OLLAMA_HOST=0.0.0.0 bind-all gotcha (see nova_query.py's own comment),
+        # which the module-level ollama.chat() used by test_context_size() above
+        # doesn't handle.
+        nova_query.ollama_client.chat(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            options={"num_ctx": target_tokens},
+        )
+        elapsed = time.time() - start
+        print(f"✓ {elapsed:.1f}s")
+        return {"target_tokens": target_tokens, "actual_tokens": actual_tokens, "success": True, "time": elapsed}
+    except Exception as e:
+        elapsed = time.time() - start
+        print(f"✗ failed ({e})")
+        return {"target_tokens": target_tokens, "actual_tokens": actual_tokens, "success": False,
+                "time": elapsed, "error": str(e)}
+
+
+def run_context_fill_benchmark(model: str) -> list[dict]:
+    """
+    Run the context-fill latency sweep (8K/32K/64K/128K, 86bagek35's own
+    stated targets) for `model` and print a summary table. Note: token
+    counts use Phi-4 Mini's Hugging Face tokenizer as a real, exact proxy —
+    Ollama's bundled GGUF tokenizer should match, but isn't loaded directly.
+    """
+    from transformers import AutoTokenizer
+
+    print(f"\nLoading tokenizer ({CONTEXT_FILL_TOKENIZER_ID})...")
+    tokenizer = AutoTokenizer.from_pretrained(CONTEXT_FILL_TOKENIZER_ID)
+
+    print(f"\nNova Context-Fill Latency Benchmark")
+    print(f"Model: {model}")
+    print(f"Testing fill sizes: {CONTEXT_FILL_SIZES}\n")
+
+    results = []
+    for size in CONTEXT_FILL_SIZES:
+        result = test_context_fill(model, size, tokenizer)
+        results.append(result)
+        if not result["success"]:
+            print(f"\n  Stopping — {size} failed, larger sizes won't work.")
+            break
+
+    print("\n── Summary ──────────────────────────────────────")
+    for r in results:
+        status = f"✓ {r['time']:.1f}s" if r["success"] else "✗ failed"
+        print(f"  ~{r['target_tokens']:>6} tokens (actual {r['actual_tokens']}) — {status}")
+
+    return results
+
+
+def test_cold_start(model: str) -> dict:
+    """
+    Unload `model` from memory (ollama stop), then time a trivial request —
+    the real load-from-disk-to-first-response cost, distinct from every
+    other timing in this file, which assumes the model is already warm.
+    """
+    print(f"\nUnloading {model}...", end=" ", flush=True)
+    subprocess.run(["ollama", "stop", model], capture_output=True, text=True)
+    print("done.")
+
+    print(f"Timing cold start for {model}...", end=" ", flush=True)
+    start = time.time()
+    try:
+        nova_query.ollama_client.chat(model=model, messages=[{"role": "user", "content": "hi"}])
+        elapsed = time.time() - start
+        print(f"✓ {elapsed:.1f}s")
+        return {"model": model, "success": True, "cold_start_s": elapsed}
+    except Exception as e:
+        elapsed = time.time() - start
+        print(f"✗ failed ({e})")
+        return {"model": model, "success": False, "cold_start_s": elapsed, "error": str(e)}
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Nova benchmarking suite")
     parser.add_argument(
@@ -377,10 +488,24 @@ if __name__ == "__main__":
         help="One-command model-swap check: pull MODEL, run the golden benchmark on it, "
              "and compare against the current logged baseline (e.g. --evaluate llama3.1:8b)"
     )
+    parser.add_argument(
+        "--context-fill",
+        metavar="MODEL",
+        help="Run the context-fill latency sweep (8K/32K/64K/128K, real filled content) for MODEL"
+    )
+    parser.add_argument(
+        "--cold-start",
+        metavar="MODEL",
+        help="Unload MODEL then time a cold-start request"
+    )
     args = parser.parse_args()
 
     if args.evaluate:
         evaluate_candidate(args.evaluate)
+    elif args.context_fill:
+        run_context_fill_benchmark(args.context_fill)
+    elif args.cold_start:
+        test_cold_start(args.cold_start)
     elif args.golden:
         run_golden_benchmark()
     else:
