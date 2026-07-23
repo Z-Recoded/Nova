@@ -15,13 +15,9 @@ SOURCES = [
     {
         "path": r"C:\Users\marvi\OneDrive\Documents\Second Brain",
         "project": "Second Brain",
-        "description": "Obsidian vault — notes, projects, knowledge base"
+        "description": "Obsidian vault — notes, projects, knowledge base",
     },
-    {
-        "path": NOVA_ROOT,
-        "project": "Nova",
-        "description": "Nova project source files and documentation"
-    },
+    {"path": NOVA_ROOT, "project": "Nova", "description": "Nova project source files and documentation"},
 ]
 
 SUPPORTED_EXTENSIONS = {
@@ -44,15 +40,15 @@ IGNORE_PATTERNS = [
     "node_modules",
     ".obsidian",
     "nova-env",
-    "memory",        # skip Chroma's own storage folder
+    "memory",  # skip Chroma's own storage folder
     ".trash",
     ".DS_Store",
     "venv",
     ".venv",
-    "logs",              # training flags, watcher logs — not knowledge
-    "history.json",      # conversation history — changes constantly
+    "logs",  # training flags, watcher logs — not knowledge
+    "history.json",  # conversation history — changes constantly
     "ingest_manifest.json",
-    "nova_graph.json",   # structured graph data — not prose
-    "graphify-out",      # graphify's own derived graph/wiki output — machine-generated, not knowledge
-    ".claude",           # Claude Code config dirs (settings.json etc.) — tooling config, not knowledge
+    "nova_graph.json",  # structured graph data — not prose
+    "graphify-out",  # graphify's own derived graph/wiki output — machine-generated, not knowledge
+    ".claude",  # Claude Code config dirs (settings.json etc.) — tooling config, not knowledge
 ]

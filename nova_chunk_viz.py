@@ -13,7 +13,8 @@ import argparse
 import re
 import sys
 
-from colorama import Fore, Style, init as colorama_init
+from colorama import Fore, Style
+from colorama import init as colorama_init
 
 from nova_query import CHARACTER_FILES, retrieve, retrieve_with_graph
 
@@ -107,9 +108,7 @@ def _format_chunk_block(rank: int, chunk: dict, expected_character: str | None) 
 
 
 # ── Retrieval ──────────────────────────────────────────────────
-def resolve_chunks(
-    query: str, n_results: int, character: str | None, use_graph: bool
-) -> tuple[list[dict], str]:
+def resolve_chunks(query: str, n_results: int, character: str | None, use_graph: bool) -> tuple[list[dict], str]:
     """
     Run retrieval using the same decision tree nova_query.ask() uses in
     production, so this debug tool reflects real retrieval behavior instead
@@ -141,9 +140,7 @@ def resolve_chunks(
     return chunks, "graph-scoped (retrieve_with_graph)"
 
 
-def run_chunk_visualization(
-    query: str, n_results: int, character: str | None, use_graph: bool
-) -> int:
+def run_chunk_visualization(query: str, n_results: int, character: str | None, use_graph: bool) -> int:
     """Resolve chunks, print the header and one block per chunk, and return
     an exit code (1 on zero results, matching nova_chroma_omen_check.py's
     PASS/FAIL convention -- a real failure signal worth scripting against)."""
@@ -169,15 +166,21 @@ if __name__ == "__main__":
     )
     parser.add_argument("query", help="The query to retrieve chunks for (quote multi-word queries)")
     parser.add_argument(
-        "-n", "--top-n", type=int, default=DEFAULT_N_RESULTS,
+        "-n",
+        "--top-n",
+        type=int,
+        default=DEFAULT_N_RESULTS,
         help=f"Number of chunks to retrieve (default: {DEFAULT_N_RESULTS})",
     )
     parser.add_argument(
-        "--character", choices=sorted(CHARACTER_FILES), default=None,
+        "--character",
+        choices=sorted(CHARACTER_FILES),
+        default=None,
         help="Force character-file filtering instead of auto-detecting a name in the query",
     )
     parser.add_argument(
-        "--no-graph", action="store_true",
+        "--no-graph",
+        action="store_true",
         help="Bypass graph-scoped retrieval and character filtering; raw nearest-neighbor search only",
     )
     args = parser.parse_args()

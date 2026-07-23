@@ -67,11 +67,7 @@ def test_context_size(num_ctx: int) -> dict:
     print(f"  Testing num_ctx={num_ctx}...", end=" ", flush=True)
     start = time.time()
     try:
-        response = ollama.chat(
-            model=MODEL,
-            messages=[{"role": "user", "content": TEST_PROMPT}],
-            options={"num_ctx": num_ctx}
-        )
+        ollama.chat(model=MODEL, messages=[{"role": "user", "content": TEST_PROMPT}], options={"num_ctx": num_ctx})
         elapsed = time.time() - start
         print(f"✓ {elapsed:.1f}s")
         return {"num_ctx": num_ctx, "success": True, "time": elapsed}
@@ -80,8 +76,9 @@ def test_context_size(num_ctx: int) -> dict:
         print(f"✗ failed ({e})")
         return {"num_ctx": num_ctx, "success": False, "time": elapsed, "error": str(e)}
 
+
 def run_benchmark():
-    print(f"\nNova Context Window Benchmark")
+    print("\nNova Context Window Benchmark")
     print(f"Model: {MODEL}")
     print(f"Testing context sizes: {TEST_SIZES}\n")
     print("Results:")
@@ -173,18 +170,12 @@ def _aggregate_golden_results(per_query_results: list[dict]) -> dict:
     avg_latency_ms_by_category = {}
     categories = {r["actual_category"] for r in per_query_results}
     for category in categories:
-        category_latencies = [
-            r["latency_ms"] for r in per_query_results if r["actual_category"] == category
-        ]
-        avg_latency_ms_by_category[category] = round(
-            sum(category_latencies) / len(category_latencies)
-        )
+        category_latencies = [r["latency_ms"] for r in per_query_results if r["actual_category"] == category]
+        avg_latency_ms_by_category[category] = round(sum(category_latencies) / len(category_latencies))
 
     fiction_results = [r for r in per_query_results if r["expected_category"] == "fiction"]
     if fiction_results:
-        blend_rate = round(
-            sum(1 for r in fiction_results if r["blend_detected"]) / len(fiction_results), 3
-        )
+        blend_rate = round(sum(1 for r in fiction_results if r["blend_detected"]) / len(fiction_results), 3)
     else:
         blend_rate = None
 
@@ -198,8 +189,7 @@ def _aggregate_golden_results(per_query_results: list[dict]) -> dict:
     }
 
 
-def _log_golden_benchmark(model_label: str, summary: dict, per_query_results: list[dict],
-                           think: bool = None) -> None:
+def _log_golden_benchmark(model_label: str, summary: dict, per_query_results: list[dict], think: bool = None) -> None:
     """
     Append one JSON entry to benchmark_log.jsonl. Mirrors nova_log.py's
     append convention: os.makedirs(..., exist_ok=True), then open in mode
@@ -237,7 +227,7 @@ def run_golden_benchmark(model_label: str = MODEL, think: bool = None) -> dict:
     benchmark_log.jsonl — see _run_single_golden_query. `think` is forwarded
     the same way; pass think=False for thinking-capable models like Qwen3.
     """
-    print(f"\nNova Golden Query Benchmark")
+    print("\nNova Golden Query Benchmark")
     print(f"Model: {model_label}")
     if think is not None:
         print(f"think={think}")
@@ -245,7 +235,7 @@ def run_golden_benchmark(model_label: str = MODEL, think: bool = None) -> dict:
 
     per_query_results = []
     for entry in GOLDEN_QUERIES:
-        print(f"  Querying: \"{entry['query']}\"...", end=" ", flush=True)
+        print(f'  Querying: "{entry["query"]}"...', end=" ", flush=True)
         result = _run_single_golden_query(entry, model=model_label, think=think)
         per_query_results.append(result)
         status = "✓" if result["category_match"] else "✗ MISMATCH"
@@ -270,7 +260,7 @@ def run_golden_benchmark(model_label: str = MODEL, think: bool = None) -> dict:
         print(f"\n⚠ {summary['category_mismatches']} routing mismatch(es) — flagged as a regression:")
         for r in per_query_results:
             if not r["category_match"]:
-                print(f"  \"{r['query']}\" — expected {r['expected_category']}, got {r['actual_category']}")
+                print(f'  "{r["query"]}" — expected {r["expected_category"]}, got {r["actual_category"]}')
     else:
         print("\nNo routing mismatches.")
 
@@ -329,8 +319,11 @@ def evaluate_candidate(candidate_model: str, think: bool = None) -> dict:
     # file (see the sys.stdout.reconfigure call above) and in nova_orchestrator.py's
     # git subprocess calls.
     pull_result = subprocess.run(
-        ["ollama", "pull", candidate_model], capture_output=True, text=True,
-        encoding="utf-8", errors="replace",
+        ["ollama", "pull", candidate_model],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     if pull_result.returncode != 0:
         print(f"✗ Failed to pull {candidate_model}: {pull_result.stderr}")
@@ -345,8 +338,12 @@ def evaluate_candidate(candidate_model: str, think: bool = None) -> dict:
             f"`nova_benchmark.py --golden` against it first to establish one. "
             f"Skipping comparison."
         )
-        return {"candidate_model": candidate_model, "pulled": True, "baseline_found": False,
-                 "candidate_summary": candidate_summary}
+        return {
+            "candidate_model": candidate_model,
+            "pulled": True,
+            "baseline_found": False,
+            "candidate_summary": candidate_summary,
+        }
 
     # All three metrics are "lower is better" (latency, blend rate, mismatches).
     metric_names = ["avg_latency_ms", "blend_rate", "category_mismatches"]
@@ -372,7 +369,9 @@ def evaluate_candidate(candidate_model: str, think: bool = None) -> dict:
     for metric_name, comparison in comparisons.items():
         delta = comparison["delta"]
         delta_str = "n/a" if delta is None else f"{delta:+g}"
-        print(f"  {metric_name:>22} — candidate {comparison['candidate']}, baseline {comparison['baseline']} (Δ {delta_str})")
+        print(
+            f"  {metric_name:>22} — candidate {comparison['candidate']}, baseline {comparison['baseline']} (Δ {delta_str})"  # noqa: E501
+        )  # noqa: E501
 
     verdict = "PASS — clearly beats baseline" if passed else "FAIL — does not clearly beat baseline"
     print(f"\nVerdict: {verdict}")
@@ -439,8 +438,13 @@ def test_context_fill(model: str, target_tokens: int, tokenizer) -> dict:
     except Exception as e:
         elapsed = time.time() - start
         print(f"✗ failed ({e})")
-        return {"target_tokens": target_tokens, "actual_tokens": actual_tokens, "success": False,
-                "time": elapsed, "error": str(e)}
+        return {
+            "target_tokens": target_tokens,
+            "actual_tokens": actual_tokens,
+            "success": False,
+            "time": elapsed,
+            "error": str(e),
+        }
 
 
 def run_context_fill_benchmark(model: str) -> list[dict]:
@@ -455,7 +459,7 @@ def run_context_fill_benchmark(model: str) -> list[dict]:
     print(f"\nLoading tokenizer ({CONTEXT_FILL_TOKENIZER_ID})...")
     tokenizer = AutoTokenizer.from_pretrained(CONTEXT_FILL_TOKENIZER_ID)
 
-    print(f"\nNova Context-Fill Latency Benchmark")
+    print("\nNova Context-Fill Latency Benchmark")
     print(f"Model: {model}")
     print(f"Testing fill sizes: {CONTEXT_FILL_SIZES}\n")
 
@@ -503,29 +507,25 @@ if __name__ == "__main__":
     parser.add_argument(
         "--golden",
         action="store_true",
-        help="Run the golden-query RAG benchmark instead of the context-window benchmark"
+        help="Run the golden-query RAG benchmark instead of the context-window benchmark",
     )
     parser.add_argument(
         "--evaluate",
         metavar="MODEL",
         help="One-command model-swap check: pull MODEL, run the golden benchmark on it, "
-             "and compare against the current logged baseline (e.g. --evaluate llama3.1:8b)"
+        "and compare against the current logged baseline (e.g. --evaluate llama3.1:8b)",
     )
     parser.add_argument(
         "--context-fill",
         metavar="MODEL",
-        help="Run the context-fill latency sweep (8K/32K/64K/128K, real filled content) for MODEL"
+        help="Run the context-fill latency sweep (8K/32K/64K/128K, real filled content) for MODEL",
     )
-    parser.add_argument(
-        "--cold-start",
-        metavar="MODEL",
-        help="Unload MODEL then time a cold-start request"
-    )
+    parser.add_argument("--cold-start", metavar="MODEL", help="Unload MODEL then time a cold-start request")
     parser.add_argument(
         "--no-think",
         action="store_true",
         help="With --evaluate/--golden: pass think=False (for thinking-capable models like Qwen3, "
-             "whose default chain-of-thought preamble otherwise inflates the latency being measured)"
+        "whose default chain-of-thought preamble otherwise inflates the latency being measured)",
     )
     args = parser.parse_args()
 

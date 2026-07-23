@@ -23,6 +23,7 @@ class RunResult:
     contract exactly. `errors` is a list of short error strings, not full
     tracebacks (nova_state.db stores summaries, not full payloads).
     """
+
     adapter: str
     target: str
     status: str  # "success" | "partial" | "error"
@@ -64,19 +65,25 @@ def record_run(result: RunResult, source_url: str | None = None) -> None:
     later can tell a fresh scrape from a stale one, per the Build Spec's own
     warning against treating an old scrape as current truth.
     """
-    result_summary = "; ".join(result.errors) if result.errors else f"{result.items_saved}/{result.items_processed} saved"
+    result_summary = (
+        "; ".join(result.errors) if result.errors else f"{result.items_saved}/{result.items_processed} saved"
+    )  # noqa: E501
     error_detail = "; ".join(result.errors) if result.errors else None
 
     conn = _get_connection()
     try:
         conn.execute(
             "INSERT INTO browser_tasks "
-            "(adapter, target, status, items_processed, items_saved, result_summary, source_url, captured_at, error_detail) "
+            "(adapter, target, status, items_processed, items_saved, result_summary, source_url, captured_at, error_detail) "  # noqa: E501
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
-                result.adapter, result.target, result.status,
-                result.items_processed, result.items_saved,
-                result_summary, source_url,
+                result.adapter,
+                result.target,
+                result.status,
+                result.items_processed,
+                result.items_saved,
+                result_summary,
+                source_url,
                 datetime.now().isoformat(timespec="seconds"),
                 error_detail,
             ),
@@ -107,4 +114,4 @@ def get_recent_runs(adapter: str | None = None, limit: int = 20) -> list[dict]:
     finally:
         conn.close()
 
-    return [dict(zip(columns, row)) for row in rows]
+    return [dict(zip(columns, row, strict=True)) for row in rows]

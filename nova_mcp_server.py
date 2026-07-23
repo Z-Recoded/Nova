@@ -45,6 +45,7 @@ app = FastMCP("nova", port=MCP_SERVER_PORT)
 
 # ── Helper functions ──
 
+
 def _raise_for_request_failure(route: str, error: Exception) -> None:
     """
     Turns an httpx exception into a clear RuntimeError naming the failed
@@ -55,6 +56,7 @@ def _raise_for_request_failure(route: str, error: Exception) -> None:
 
 
 # ── Core tools ──
+
 
 @app.tool()
 def nova_query(query: str, history: list[dict] | None = None) -> dict:

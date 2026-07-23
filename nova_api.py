@@ -38,10 +38,10 @@ import os
 import time
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Query
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel
 
 from graph_builder import (
@@ -50,24 +50,24 @@ from graph_builder import (
     get_neighbors,
     rebuild_node,
 )
-from ingest import ingest_file, run_ingestion
+from ingest import run_ingestion
 from nova_clickup_client import add_comment, add_tag, remove_tag
+from nova_embedding_viz import build_embedding_viz_data
 from nova_headroom import get_headroom_report
 from nova_log import (
-    compute_health_summary,
     DEFAULT_BENCHMARK_RUNS_LIMIT,
     DEFAULT_RECENT_QUERIES_LIMIT,
+    compute_health_summary,
     get_benchmark_runs,
     get_recent_queries,
 )
-from nova_embedding_viz import build_embedding_viz_data
 from nova_omen_dispatch import resume_headless_task
 from nova_orchestrator import run_coding_task
 from nova_query import ask
 from nova_scheduled_dispatch import handle_dispatch_outcome
 from nova_sources import SOURCES
 from nova_state import get_state, write_state
-from nova_task_queue import CONFIDENCE_LEVELS, TIER_PENDING_TAG, TIER_TAGS, TIERS
+from nova_task_queue import TIER_PENDING_TAG, TIER_TAGS, TIERS
 
 app = FastAPI(title="Nova API", version="0.3")
 
@@ -80,11 +80,12 @@ OPENAI_MODEL_ID = "nova"
 
 # ── Helpers ────────────────────────────────────────────────────
 
+
 def _load_graph_json() -> dict:
     if not os.path.exists(GRAPH_PATH):
         return {"nodes": [], "edges": []}
     try:
-        with open(GRAPH_PATH, "r", encoding="utf-8") as f:
+        with open(GRAPH_PATH, encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return {"nodes": [], "edges": []}
@@ -100,9 +101,10 @@ def _resolve_source(filepath: str) -> tuple[str, str]:
 
 # ── Request / Response models ──────────────────────────────────
 
+
 class AskRequest(BaseModel):
     query: str
-    history: Optional[list[dict]] = None
+    history: list[dict] | None = None
     persist: bool = True
 
 
@@ -131,19 +133,19 @@ class ActivityProfilePushRequest(BaseModel):
 
 class DispatchPauseRequest(BaseModel):
     paused: bool
-    reason: Optional[str] = None
+    reason: str | None = None
 
 
 class EscalationCreateRequest(BaseModel):
     task_id: str
     task_name: str
-    session_id: Optional[str] = None
-    worktree_path: Optional[str] = None
-    worktree_name: Optional[str] = None
-    question: Optional[str] = None
+    session_id: str | None = None
+    worktree_path: str | None = None
+    worktree_name: str | None = None
+    question: str | None = None
     options_considered: list[str] = []
-    context: Optional[str] = None
-    fuel_source: Optional[str] = None
+    context: str | None = None
+    fuel_source: str | None = None
     phase: str
     malformed: bool = False
 
@@ -156,7 +158,7 @@ class TierProposalCreateRequest(BaseModel):
     task_id: str
     task_name: str
     trigger: str
-    previous_tier: Optional[str] = None
+    previous_tier: str | None = None
     proposed_tier: str
     confidence: str
     reasoning: str
@@ -164,12 +166,13 @@ class TierProposalCreateRequest(BaseModel):
 
 class TierDecisionRequest(BaseModel):
     decision: str  # "accept" | "override"
-    comment: Optional[str] = None
-    final_tier: Optional[str] = None
-    reasoning: Optional[str] = None
+    comment: str | None = None
+    final_tier: str | None = None
+    reasoning: str | None = None
 
 
 # ── Routes ─────────────────────────────────────────────────────
+
 
 @app.get("/")
 def root():
@@ -203,7 +206,7 @@ def ask_nova(req: AskRequest):
             ],
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/graph")
@@ -262,10 +265,11 @@ def trigger_ingest(req: IngestRequest):
             "graph_edges": len(graph["edges"]),
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── OpenAI-compatible routes (Open WebUI) ──────────────────────
+
 
 def _split_openai_messages(messages: list[dict]) -> tuple[str, list[dict]]:
     """
@@ -302,11 +306,13 @@ def _build_completion_response(content: str, model: str) -> dict:
         "object": "chat.completion",
         "created": int(time.time()),
         "model": model,
-        "choices": [{
-            "index": 0,
-            "message": {"role": "assistant", "content": content},
-            "finish_reason": "stop",
-        }],
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": content},
+                "finish_reason": "stop",
+            }
+        ],
         "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
     }
 
@@ -322,7 +328,7 @@ def _stream_completion_response(content: str, model: str) -> StreamingResponse:
     completion_id = f"nova-{uuid.uuid4()}"
     created = int(time.time())
 
-    def make_chunk(delta: dict, finish_reason: Optional[str]) -> str:
+    def make_chunk(delta: dict, finish_reason: str | None) -> str:
         chunk = {
             "id": completion_id,
             "object": "chat.completion.chunk",
@@ -345,12 +351,14 @@ def list_models():
     """OpenAI-compatible model list. Open WebUI calls this to fill its model picker."""
     return {
         "object": "list",
-        "data": [{
-            "id": OPENAI_MODEL_ID,
-            "object": "model",
-            "created": int(time.time()),
-            "owned_by": "nova",
-        }],
+        "data": [
+            {
+                "id": OPENAI_MODEL_ID,
+                "object": "model",
+                "created": int(time.time()),
+                "owned_by": "nova",
+            }
+        ],
     }
 
 
@@ -378,7 +386,7 @@ def openai_chat_completions(body: dict):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/agent/task")
@@ -396,7 +404,7 @@ def agent_task(req: AgentTaskRequest):
     try:
         return run_coding_task(req.task, category=req.category)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/rebuild-node")
@@ -416,10 +424,11 @@ def trigger_rebuild_node(req: RebuildNodeRequest):
             "graph_edges": len(graph["edges"]),
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── Resource headroom (Phase 1.5 self-monitoring) ───────────────
+
 
 @app.get("/headroom")
 def headroom():
@@ -432,10 +441,11 @@ def headroom():
     try:
         return get_headroom_report()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ── Claude Code usage history (86bawx7vj usage-history baseline) ────
+
 
 @app.post("/usage-history")
 def push_usage_history(req: UsageHistoryPushRequest):
@@ -454,7 +464,7 @@ def push_usage_history(req: UsageHistoryPushRequest):
         write_state("system", "claude_usage_history", merged)
         return {"status": "ok", "source_machine": req.source_machine, "days": len(req.daily_usage)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/usage-history")
@@ -487,7 +497,7 @@ def push_activity_profile(req: ActivityProfilePushRequest):
             "total_messages": req.activity_profile.get("total_messages"),
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/activity-profile")
@@ -497,6 +507,7 @@ def get_activity_profile():
 
 
 # ── Headless-dispatch pause switch (2026-07-16 cross-machine fix) ──
+
 
 @app.post("/dispatch-pause")
 def set_dispatch_pause_route(req: DispatchPauseRequest):
@@ -521,7 +532,7 @@ def set_dispatch_pause_route(req: DispatchPauseRequest):
         write_state("system", "dispatch_pause", data)
         return data
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/dispatch-pause")
@@ -540,7 +551,7 @@ def get_dispatch_pause_route():
 # redirect).
 
 
-def _check_escalation_token(x_nova_escalation_token: Optional[str]) -> None:
+def _check_escalation_token(x_nova_escalation_token: str | None) -> None:
     """
     Fail-closed token check for the one cost-incurring write route on this
     otherwise-unauthenticated Tailscale-only surface (ahead of 86bawf2z2's
@@ -579,7 +590,7 @@ def create_escalation(req: EscalationCreateRequest):
         write_state("system", "pending_escalations", pending)
         return pending[escalation_id]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/escalations")
@@ -634,7 +645,7 @@ def answer_escalation(
     escalation_id: str,
     req: EscalationAnswerRequest,
     background_tasks: BackgroundTasks,
-    x_nova_escalation_token: Optional[str] = Header(None),
+    x_nova_escalation_token: str | None = Header(None),
 ):
     """
     Accept Marvin's answer immediately (fire-and-forget) and resume the
@@ -675,6 +686,7 @@ def answer_escalation(
 # propose_tier()/detect_tier_candidates() (the polling-based detection —
 # no ClickUp webhooks exist anywhere in this codebase, confirmed by grep).
 
+
 @app.get("/tier-watermarks")
 def get_tier_watermarks():
     """
@@ -703,7 +715,7 @@ def set_tier_watermarks(watermarks: dict[str, Any]):
         write_state("system", "task_tier_watermarks", watermarks)
         return {"status": "ok", "count": len(watermarks)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/tier-proposals")
@@ -732,7 +744,7 @@ def create_tier_proposal(req: TierProposalCreateRequest):
         write_state("system", "pending_tier_proposals", pending)
         return pending[proposal_id]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/tier-proposals")
@@ -745,7 +757,7 @@ def get_tier_proposals():
 def decide_tier_proposal(
     proposal_id: str,
     req: TierDecisionRequest,
-    x_nova_escalation_token: Optional[str] = Header(None),
+    x_nova_escalation_token: str | None = Header(None),
 ):
     """
     Accept or override a pending tier proposal. Token-gated, reusing the
@@ -851,7 +863,7 @@ def _read_jsonl_file(path: str) -> list[dict]:
     if not os.path.exists(path):
         return []
     entries = []
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -970,10 +982,10 @@ def get_label_queue(limit: int = DEFAULT_LABEL_QUEUE_LIMIT):
 
 
 class LabelDecisionRequest(BaseModel):
-    was_necessary: Optional[bool] = None       # tool_call kind
-    was_used: Optional[bool] = None            # tool_call kind
-    correction: Optional[str] = None           # blend_flag kind
-    verification_status: Optional[str] = None  # dpo_verify kind: "confirmed_good" | "needs_rework"
+    was_necessary: bool | None = None  # tool_call kind
+    was_used: bool | None = None  # tool_call kind
+    correction: str | None = None  # blend_flag kind
+    verification_status: str | None = None  # dpo_verify kind: "confirmed_good" | "needs_rework"
 
 
 @app.post("/label-queue/{kind}/{entry_id:path}/decide")
@@ -981,7 +993,7 @@ def decide_label_queue_entry(
     kind: str,
     entry_id: str,
     req: LabelDecisionRequest,
-    x_nova_escalation_token: Optional[str] = Header(None),
+    x_nova_escalation_token: str | None = Header(None),
 ):
     """
     Patch one tool_call_log.jsonl or training_flags.jsonl entry in place —
@@ -1020,13 +1032,13 @@ def decide_label_queue_entry(
             _, index_str, expected_timestamp = entry_id.split(":", 2)
             index = int(index_str)
         except ValueError:
-            raise HTTPException(status_code=422, detail=f"Malformed blend_flag id '{entry_id}'")
+            raise HTTPException(status_code=422, detail=f"Malformed blend_flag id '{entry_id}'") from None
         entries = _read_jsonl_file(TRAINING_FLAGS_PATH)
         if index >= len(entries) or entries[index].get("timestamp") != expected_timestamp:
             raise HTTPException(
                 status_code=409,
                 detail="This entry's position/timestamp no longer matches -- training_flags.jsonl "
-                       "changed since this card was loaded. Reload the queue and try again.",
+                "changed since this card was loaded. Reload the queue and try again.",
             )
         entries[index]["correction"] = req.correction or ""
         with open(TRAINING_FLAGS_PATH, "w", encoding="utf-8") as f:
@@ -1039,13 +1051,13 @@ def decide_label_queue_entry(
             _, index_str, expected_timestamp = entry_id.split(":", 2)
             index = int(index_str)
         except ValueError:
-            raise HTTPException(status_code=422, detail=f"Malformed dpo_verify id '{entry_id}'")
+            raise HTTPException(status_code=422, detail=f"Malformed dpo_verify id '{entry_id}'") from None
         entries = _read_jsonl_file(TRAINING_FLAGS_PATH)
         if index >= len(entries) or entries[index].get("timestamp") != expected_timestamp:
             raise HTTPException(
                 status_code=409,
                 detail="This entry's position/timestamp no longer matches -- training_flags.jsonl "
-                       "changed since this card was loaded. Reload the queue and try again.",
+                "changed since this card was loaded. Reload the queue and try again.",
             )
         if req.verification_status not in ("confirmed_good", "needs_rework"):
             raise HTTPException(
@@ -1119,7 +1131,7 @@ def get_training_data_status():
 NOVA_LOG_UNAVAILABLE_FIELDS = {
     "retrieval_hit_rate": "Not tracked yet — no ground-truth relevance labels to compare against.",
     "active_augments": "No augment/config-flag system exists in current Nova (single model, no toggles).",
-    "orchestrator_failures_count": "nova_orchestrator.py exists (coding sub-agent) but doesn't track an aggregate failure count yet.",
+    "orchestrator_failures_count": "nova_orchestrator.py exists (coding sub-agent) but doesn't track an aggregate failure count yet.",  # noqa: E501
 }
 
 # Resolved relative to this script's own location, not hardcoded — same
@@ -1142,9 +1154,9 @@ def nova_log_data():
 @app.get("/nova-log/queries")
 def nova_log_queries(
     limit: int = Query(DEFAULT_RECENT_QUERIES_LIMIT, ge=1, le=1000),
-    category: Optional[str] = Query(None, description="Filter to an exact category match"),
-    model: Optional[str] = Query(None, description="Filter to an exact model match"),
-    blend_detected: Optional[bool] = Query(None, description="Filter to blend_detected true/false"),
+    category: str | None = Query(None, description="Filter to an exact category match"),
+    model: str | None = Query(None, description="Filter to an exact model match"),
+    blend_detected: bool | None = Query(None, description="Filter to blend_detected true/false"),
 ):
     """
     Nova Log Query view — the last `limit` real queries (most recent first),
@@ -1159,13 +1171,13 @@ def nova_log_queries(
         )
         return {"queries": queries, "count": len(queries)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/nova-log/benchmarks")
 def nova_log_benchmarks(
     limit: int = Query(DEFAULT_BENCHMARK_RUNS_LIMIT, ge=1, le=1000),
-    model: Optional[str] = Query(None, description="Filter to an exact model match"),
+    model: str | None = Query(None, description="Filter to an exact model match"),
 ):
     """
     Nova Log Benchmark view — the last `limit` golden-query benchmark runs
@@ -1175,7 +1187,7 @@ def nova_log_benchmarks(
         runs = get_benchmark_runs(limit=limit, model=model)
         return {"runs": runs, "count": len(runs)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/nova-log")
@@ -1193,14 +1205,14 @@ EMBEDDING_VIZ_HTML_PATH = os.path.join(os.path.dirname(__file__), "nova_embeddin
 
 @app.get("/embedding-viz/data")
 def embedding_viz_data(
-    query: Optional[str] = Query(None, description="Query to highlight retrieval hits for"),
+    query: str | None = Query(None, description="Query to highlight retrieval hits for"),
     refresh: bool = Query(False, description="Force a fresh t-SNE projection instead of the cached one"),
 ):
     """JSON data backing the /embedding-viz page — one point per Chroma chunk."""
     try:
         return build_embedding_viz_data(query=query, refresh=refresh)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/embedding-viz")

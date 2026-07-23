@@ -11,9 +11,10 @@ from datetime import datetime
 # nova_config.py's CONFIG_PATH, etc. A hardcoded "C:/Nova/logs" silently
 # resolves to a bogus relative path on the Omen (Linux), so log_blend() has
 # never actually written a real training_flags.jsonl there.
-LOGS_DIR   = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+LOGS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
 JSONL_PATH = f"{LOGS_DIR}/training_flags.jsonl"
-MD_PATH    = f"{LOGS_DIR}/training_review.md"
+MD_PATH = f"{LOGS_DIR}/training_review.md"
+
 
 # ── Detection ──────────────────────────────────────────────────
 def detect_blending(chunks: list[dict], category: str) -> bool:
@@ -25,6 +26,7 @@ def detect_blending(chunks: list[dict], category: str) -> bool:
         return False
     filenames = {c["metadata"].get("filename", "unknown") for c in chunks}
     return len(filenames) > 1
+
 
 # ── Logging ────────────────────────────────────────────────────
 def log_blend(query: str, answer: str, chunks: list[dict], category: str) -> None:
@@ -41,7 +43,7 @@ def log_blend(query: str, answer: str, chunks: list[dict], category: str) -> Non
         "category": category,
         "sources_mixed": filenames,
         "messages": [
-            {"role": "user",      "content": query},
+            {"role": "user", "content": query},
             {"role": "assistant", "content": answer},
         ],
         # Corrected response left blank — fill in during review
@@ -50,7 +52,7 @@ def log_blend(query: str, answer: str, chunks: list[dict], category: str) -> Non
         "chunk_excerpts": [
             {
                 "filename": c["metadata"].get("filename", "unknown"),
-                "text":     c["text"][:300],
+                "text": c["text"][:300],
             }
             for c in chunks
         ],

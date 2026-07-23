@@ -12,17 +12,15 @@ import os
 import numpy as np
 from sklearn.manifold import TSNE
 
-from nova_query import collection
 from nova_chunk_viz import DEFAULT_N_RESULTS, FILENAME_TO_CHARACTER, resolve_chunks
+from nova_query import collection
 
 # ── Config ─────────────────────────────────────────────────────
 OTHER_LABEL = "Other"
 TEXT_PREVIEW_CHARS = 160
 # Resolved relative to this file's own location -- a second broken consumer
 # of the same file nova_logger.py writes (already fixed there, 86bb1pkpb).
-TRAINING_FLAGS_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "logs", "training_flags.jsonl"
-)
+TRAINING_FLAGS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", "training_flags.jsonl")
 
 # Fixed so the projection is stable across requests -- without a fixed seed
 # the whole map reshuffles every call, and Marvin loses a stable mental map
@@ -92,10 +90,7 @@ def _retrieval_hit_keys(query: str | None) -> set[tuple[str, int]]:
     if not query:
         return set()
     chunks, _mode = resolve_chunks(query, DEFAULT_N_RESULTS, character=None, use_graph=True)
-    return {
-        (chunk["metadata"].get("filename", ""), chunk["metadata"].get("chunk_index", -1))
-        for chunk in chunks
-    }
+    return {(chunk["metadata"].get("filename", ""), chunk["metadata"].get("chunk_index", -1)) for chunk in chunks}
 
 
 def _dpo_corrected_filenames() -> set[str]:
@@ -116,7 +111,7 @@ def _dpo_corrected_filenames() -> set[str]:
         return set()
 
     corrected_filenames: set[str] = set()
-    with open(TRAINING_FLAGS_PATH, "r", encoding="utf-8") as f:
+    with open(TRAINING_FLAGS_PATH, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -147,14 +142,16 @@ def _build_base_points() -> list[dict]:
     for i in range(len(raw["ids"])):
         metadata = raw["metadatas"][i]
         filename = metadata.get("filename", "unknown")
-        points.append({
-            "x": float(coordinates[i][0]),
-            "y": float(coordinates[i][1]),
-            "filename": filename,
-            "chunk_index": metadata.get("chunk_index"),
-            "character": _character_for_filename(filename),
-            "text_preview": _preview_text(raw["documents"][i]),
-        })
+        points.append(
+            {
+                "x": float(coordinates[i][0]),
+                "y": float(coordinates[i][1]),
+                "filename": filename,
+                "chunk_index": metadata.get("chunk_index"),
+                "character": _character_for_filename(filename),
+                "text_preview": _preview_text(raw["documents"][i]),
+            }
+        )
     return points
 
 
@@ -182,11 +179,13 @@ def build_embedding_viz_data(query: str | None = None, refresh: bool = False) ->
     points = []
     for point in _cached_points:
         key = (point["filename"], point["chunk_index"])
-        points.append({
-            **point,
-            "is_retrieval_hit": key in hit_keys,
-            "is_dpo_corrected": point["filename"] in dpo_filenames,
-        })
+        points.append(
+            {
+                **point,
+                "is_retrieval_hit": key in hit_keys,
+                "is_dpo_corrected": point["filename"] in dpo_filenames,
+            }
+        )
 
     return {
         "points": points,

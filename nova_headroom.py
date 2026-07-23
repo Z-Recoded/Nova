@@ -74,6 +74,7 @@ TASK_COST_PROFILES = {
 
 # ── GPU stats (nvidia-smi) ──────────────────────────────────────
 
+
 def get_gpu_stats() -> dict:
     """
     Read current VRAM usage from nvidia-smi via CLI subprocess (not pynvml,
@@ -132,6 +133,7 @@ def _empty_gpu_stats(error: str) -> dict:
 
 # ── System stats (psutil) ───────────────────────────────────────
 
+
 def get_system_stats() -> dict:
     """
     Read current RAM and CPU load via psutil. CPU is sampled over
@@ -150,6 +152,7 @@ def get_system_stats() -> dict:
 
 
 # ── Pipeline / session signals ──────────────────────────────────
+
 
 def get_ingestion_queue_depth() -> int | None:
     """
@@ -179,6 +182,7 @@ def get_active_session_count() -> int | None:
 
 
 # ── Headroom math ────────────────────────────────────────────────
+
 
 def _available_before_threshold(used: float, total: float, threshold_percent: float) -> float:
     """
@@ -231,6 +235,7 @@ def compute_task_headroom(gpu_stats: dict, system_stats: dict) -> dict:
 
 # ── Plain-English summary ───────────────────────────────────────
 
+
 def _describe_pipeline_status(queue_depth: int | None) -> str:
     """Turn ingestion queue depth into a short plain-English phrase."""
     if queue_depth is None:
@@ -278,6 +283,7 @@ def build_headroom_summary(
 
 # ── Main report ──────────────────────────────────────────────────
 
+
 def get_headroom_report() -> dict:
     """
     Build the full headroom report: raw GPU/RAM/CPU stats, ingestion queue
@@ -291,9 +297,7 @@ def get_headroom_report() -> dict:
     active_sessions = get_active_session_count()
     budget_status = get_budget_status()
     headroom_by_profile = compute_task_headroom(gpu_stats, system_stats)
-    summary = build_headroom_summary(
-        gpu_stats, system_stats, headroom_by_profile, queue_depth, budget_status
-    )
+    summary = build_headroom_summary(gpu_stats, system_stats, headroom_by_profile, queue_depth, budget_status)
 
     return {
         "gpu": gpu_stats,
@@ -313,6 +317,7 @@ def get_headroom_report() -> dict:
 
 
 # ── Entry point ────────────────────────────────────────────────
+
 
 def main():
     """Print the headroom report to the console — used for manual sanity checks."""

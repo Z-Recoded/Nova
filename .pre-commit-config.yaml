@@ -1,0 +1,78 @@
+# Nova security & code hygiene tooling (86bawk37h).
+# Design doc: "Nova Reference — Security & Code Hygiene Tooling v1.1"
+#
+# Enforced identically on Aero (Windows) and Omen (Ubuntu) -- config lives
+# here in the repo root, not per-machine. One manual step required on each
+# machine before this works: `pip install pre-commit` (already in
+# requirements.txt) + `pre-commit install`, and gitleaks installed as a
+# standalone binary (deliberately not a pip package -- see the gitleaks
+# hook below).
+
+repos:
+  # ── ruff: lint + format + import sort ──────────────────────────
+  # Replaces flake8 + isort + black with one fast tool, per the design doc.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.2
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # ── mypy: static type checking ──────────────────────────────────
+  # Scope is controlled by pyproject.toml's [tool.mypy] `files` list
+  # (nova_api.py, nova_clickup_client.py, nova_board.py today -- the design
+  # doc's own "priority target," not the whole never-type-checked codebase).
+  # `pass_filenames: false` so mypy always reads that scoped file list
+  # itself, instead of pre-commit handing it whatever subset of files
+  # happened to change in a given commit.
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.19.0
+    hooks:
+      - id: mypy
+        pass_filenames: false
+        additional_dependencies: []
+
+  # ── bandit: Python security linting ─────────────────────────────
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.9.4
+    hooks:
+      - id: bandit
+        args: ["-c", "pyproject.toml"]
+        additional_dependencies: ["bandit[toml]"]
+        exclude: ^graphify-out/
+
+  # ── pip-audit: dependency CVE scanning ───────────────────────────
+  # Audits the live environment (not a from-scratch resolve of
+  # requirements.txt) -- this repo pins CUDA-specific torch/torchvision/
+  # torchaudio builds (+cu128) that only exist on PyTorch's own wheel index,
+  # not PyPI, so a clean-environment `-r requirements.txt` resolve fails
+  # outright on those three packages. Auditing what's actually installed
+  # sidesteps that without needing a second index-url config just for this
+  # check.
+  - repo: https://github.com/pypa/pip-audit
+    rev: v2.10.1
+    hooks:
+      - id: pip-audit
+        args: []
+
+  # ── gitleaks: credential scanning ────────────────────────────────
+  # Deliberately NOT the official gitleaks/gitleaks pre-commit hook -- that
+  # one builds from source via Go (language: golang), which needs a Go
+  # toolchain pre-commit would have to bootstrap on both machines. Defeats
+  # the whole reason gitleaks was chosen over detect-secrets in the first
+  # place (a single static binary, zero entanglement with either machine's
+  # toolchain). This is a `system`-language hook instead: it just shells out
+  # to a `gitleaks` binary that must already be on PATH.
+  #
+  # One-time manual setup per machine (not automated by pre-commit itself):
+  # download the matching binary from
+  # https://github.com/gitleaks/gitleaks/releases (v8.30.1 verified working
+  # during the 2026-07-22 setup) and put it on PATH. Config: .gitleaks.toml
+  # (allowlists graphify-out/, see that file's own comment for why).
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: gitleaks
+        entry: gitleaks protect --staged --config .gitleaks.toml --redact
+        language: system
+        pass_filenames: false

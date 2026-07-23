@@ -29,7 +29,6 @@ import urllib.request
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 # Windows consoles default to cp1252, which can't encode the em-dash in this
 # script's printed summaries — a recurring gotcha in this repo (nova_benchmark.py,
@@ -111,6 +110,7 @@ def parse_local_datetime(timestamp: str) -> datetime:
     """
     return datetime.fromisoformat(timestamp.replace("Z", "+00:00")).astimezone()
 
+
 def normalize_model_id(model: str) -> str:
     """
     Strip a trailing dated-snapshot suffix (e.g. "-20251001") from a model ID
@@ -123,7 +123,7 @@ def normalize_model_id(model: str) -> str:
     return model
 
 
-def resolve_model_rates(model: str, entry_date: str) -> Optional[dict]:
+def resolve_model_rates(model: str, entry_date: str) -> dict | None:
     """
     Look up input/output $-per-million-token rates for a model on a given date,
     accounting for Claude Sonnet 5's introductory pricing window. Returns None
@@ -137,7 +137,7 @@ def resolve_model_rates(model: str, entry_date: str) -> Optional[dict]:
     return {"input": rates["input"], "output": rates["output"]}
 
 
-def compute_entry_cost(model: str, usage: dict, entry_date: str) -> Optional[float]:
+def compute_entry_cost(model: str, usage: dict, entry_date: str) -> float | None:
     """
     Compute the dollar cost of one assistant message's token usage. Splits
     cache-creation tokens by TTL (5-minute vs 1-hour) when the transcript
@@ -186,7 +186,7 @@ def iter_usage_entries(transcript_path: Path):
     build_daily_usage_history() takes the [:10] date prefix directly;
     build_activity_profile() parses it into local hour/weekday).
     """
-    with open(transcript_path, "r", encoding="utf-8") as f:
+    with open(transcript_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -211,19 +211,22 @@ def iter_usage_entries(transcript_path: Path):
 
 # ── Core ──
 
+
 def build_daily_usage_history() -> dict:
     """
     Full re-scan of every local transcript, aggregated into a per-day usage
     and cost summary. Returns a dict keyed by ISO date ("YYYY-MM-DD").
     """
-    daily = defaultdict(lambda: {
-        "input_tokens": 0,
-        "output_tokens": 0,
-        "cache_creation_tokens": 0,
-        "cache_read_tokens": 0,
-        "estimated_cost_usd": 0.0,
-        "unpriced_models": set(),
-    })
+    daily = defaultdict(
+        lambda: {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_creation_tokens": 0,
+            "cache_read_tokens": 0,
+            "estimated_cost_usd": 0.0,
+            "unpriced_models": set(),
+        }
+    )
 
     for transcript_path in find_transcript_files():
         for timestamp, model, usage in iter_usage_entries(transcript_path):
@@ -249,7 +252,7 @@ def build_daily_usage_history() -> dict:
 
 
 def write_daily_usage_history(history: dict) -> None:
-    """Write the aggregated daily usage history to logs/claude_usage_history.json, fully overwriting any prior contents."""
+    """Write the aggregated daily usage history to logs/claude_usage_history.json, fully overwriting any prior contents."""  # noqa: E501
     OUTPUT_PATH.parent.mkdir(exist_ok=True)
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         json.dump(history, f, indent=2)
@@ -270,7 +273,8 @@ def push_daily_usage_history(history: dict) -> bool:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=10) as response:
+        # Fixed internal API URL, never user-controlled -- not the file:/custom-scheme risk this check targets.
+        with urllib.request.urlopen(request, timeout=10) as response:  # nosec B310
             response.read()
         return True
     except (urllib.error.URLError, urllib.error.HTTPError) as e:
@@ -332,7 +336,8 @@ def push_activity_profile(profile: dict) -> bool:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=10) as response:
+        # Fixed internal API URL, never user-controlled -- not the file:/custom-scheme risk this check targets.
+        with urllib.request.urlopen(request, timeout=10) as response:  # nosec B310
             response.read()
         return True
     except (urllib.error.URLError, urllib.error.HTTPError) as e:
@@ -348,9 +353,7 @@ def summarize_quietest_hours(profile: dict, top_n: int = 5) -> list[tuple[str, i
     percentage. Ties broken by weekday/hour order for stable output.
     """
     cells = [
-        (WEEKDAY_NAMES[weekday], hour, profile["counts"][weekday][hour])
-        for weekday in range(7)
-        for hour in range(24)
+        (WEEKDAY_NAMES[weekday], hour, profile["counts"][weekday][hour]) for weekday in range(7) for hour in range(24)
     ]
     cells.sort(key=lambda cell: cell[2])
     return cells[:top_n]

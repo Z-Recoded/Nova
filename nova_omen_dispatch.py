@@ -56,7 +56,6 @@ import urllib.error
 import urllib.request
 import uuid
 from datetime import datetime
-from typing import Optional
 from zoneinfo import ZoneInfo
 
 from nova_escalation import check_escalation, is_dispatch_paused, set_dispatch_pause
@@ -227,7 +226,7 @@ def _ingest_transcript_into_agent_log(session_id: str, task_description: str) ->
     encoded_script = base64.b64encode(_AGENT_LOG_CONVERTER_SCRIPT.encode("utf-8")).decode("ascii")
     encoded_task = base64.b64encode(task_description.encode("utf-8")).decode("ascii")
     remote_command = (
-        f'python3 -c {shlex.quote("import base64; exec(base64.b64decode(" + repr(encoded_script) + ").decode())")} '
+        f"python3 -c {shlex.quote('import base64; exec(base64.b64decode(' + repr(encoded_script) + ').decode())')} "
         f"{shlex.quote(session_id)} {shlex.quote(encoded_task)}"
     )
     try:
@@ -244,7 +243,7 @@ def _ingest_transcript_into_agent_log(session_id: str, task_description: str) ->
         return {"converted": 0, "error": f"{type(e).__name__}: {e}"}
 
 
-def _get_activity_count(now: datetime) -> Optional[int]:
+def _get_activity_count(now: datetime) -> int | None:
     """
     Look up INTERACTIVE_SOURCE_MACHINE's message count for `now`'s local
     weekday/hour from the Omen's merged activity profile (GET
@@ -254,7 +253,10 @@ def _get_activity_count(now: datetime) -> Optional[int]:
     "couldn't tell," since those two cases get treated oppositely.
     """
     try:
-        with urllib.request.urlopen(f"{NOVA_API_URL}/activity-profile", timeout=10) as response:
+        # Fixed internal API URL, never user-controlled -- not the file:/custom-scheme risk this check targets.
+        with urllib.request.urlopen(  # nosec B310
+            f"{NOVA_API_URL}/activity-profile", timeout=10
+        ) as response:
             profile = json.loads(response.read())
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError):
         return None
@@ -273,7 +275,7 @@ def _get_activity_count(now: datetime) -> Optional[int]:
         return None
 
 
-def choose_fuel_source(now: Optional[datetime] = None) -> str:
+def choose_fuel_source(now: datetime | None = None) -> str:
     """
     Decide which credential this dispatch should use: "subscription" (the
     default — free, draws from Marvin's own otherwise-idle Claude Code
@@ -316,8 +318,7 @@ def _build_credential_prefix(fuel_source: str) -> str:
     if fuel_source == "subscription":
         return "env -u ANTHROPIC_API_KEY -u ANTHROPIC_AUTH_TOKEN"
     dotenv_code = (
-        f"from dotenv import dotenv_values; "
-        f"print(dotenv_values('{OMEN_ENV_PATH}').get('ANTHROPIC_API_KEY', ''))"
+        f"from dotenv import dotenv_values; print(dotenv_values('{OMEN_ENV_PATH}').get('ANTHROPIC_API_KEY', ''))"
     )
     return f'ANTHROPIC_API_KEY=$({OMEN_VENV_PYTHON} -c "{dotenv_code}")'
 
@@ -390,16 +391,12 @@ def _snapshot_omen_worktrees() -> set:
         return set()
     if result.returncode != 0:
         return set()
-    return {
-        line[len("worktree "):].strip()
-        for line in result.stdout.splitlines()
-        if line.startswith("worktree ")
-    }
+    return {line[len("worktree ") :].strip() for line in result.stdout.splitlines() if line.startswith("worktree ")}
 
 
 def dispatch_headless_task(
     task_description: str,
-    worktree_name: Optional[str] = None,
+    worktree_name: str | None = None,
     fuel_source: str = "auto",
 ) -> dict:
     """
@@ -432,7 +429,7 @@ def dispatch_headless_task(
             "worktree_name": None,
             "reason": pause_state.get("reason"),
             "error": "Dispatch is paused — call set_dispatch_pause(False) or "
-                     "`python nova_omen_dispatch.py --resume` to clear it.",
+            "`python nova_omen_dispatch.py --resume` to clear it.",
         }
 
     # Always pass an explicit, generated worktree name now — never the bare
@@ -591,8 +588,7 @@ if __name__ == "__main__":
         "--fuel-source",
         choices=["auto", "subscription", "api_key"],
         default="auto",
-        help="Which credential to use ('auto' checks the real activity profile; "
-             "default: auto).",
+        help="Which credential to use ('auto' checks the real activity profile; default: auto).",
     )
     args = parser.parse_args()
 

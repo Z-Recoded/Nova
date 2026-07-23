@@ -19,5 +19,5 @@ def load_sites_config(path: Path = SITES_CONFIG_PATH) -> dict:
     """
     if not path.exists():
         return {}
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f) or {}

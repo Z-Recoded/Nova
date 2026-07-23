@@ -12,6 +12,7 @@
 import json
 import os
 import sys
+
 import anthropic
 from dotenv import load_dotenv
 
@@ -24,9 +25,10 @@ from dotenv import load_dotenv
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(dotenv_path=os.path.join(_SCRIPT_DIR, ".env"))
 
-JSONL_PATH      = os.path.join(_SCRIPT_DIR, "logs", "training_flags.jsonl")
-SECOND_BRAIN    = r"C:\Users\marvi\OneDrive\Documents\Second Brain"
-CLAUDE_MODEL    = "claude-sonnet-4-6"
+JSONL_PATH = os.path.join(_SCRIPT_DIR, "logs", "training_flags.jsonl")
+SECOND_BRAIN = r"C:\Users\marvi\OneDrive\Documents\Second Brain"
+CLAUDE_MODEL = "claude-sonnet-4-6"
+
 
 # ── File lookup ────────────────────────────────────────────────
 def find_character_file(filename: str) -> str | None:
@@ -35,6 +37,7 @@ def find_character_file(filename: str) -> str | None:
         if filename in files:
             return os.path.join(root, filename)
     return None
+
 
 def load_lore(filenames: list[str]) -> str:
     """Load and concatenate lore content for each source file."""
@@ -45,11 +48,12 @@ def load_lore(filenames: list[str]) -> str:
             blocks.append(f"[{fname}]\n(file not found)")
             continue
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 blocks.append(f"[{fname}]\n{f.read()}")
         except Exception as e:
             blocks.append(f"[{fname}]\n(error reading file: {e})")
     return "\n\n---\n\n".join(blocks)
+
 
 # ── Correction via Claude ──────────────────────────────────────
 def request_correction(client: anthropic.Anthropic, query: str, lore: str) -> str:
@@ -93,22 +97,25 @@ def request_correction(client: anthropic.Anthropic, query: str, lore: str) -> st
     )
     return message.content[0].text.strip()
 
+
 # ── JSONL read / write ─────────────────────────────────────────
 def load_entries() -> list[dict]:
     if not os.path.exists(JSONL_PATH):
         return []
     entries = []
-    with open(JSONL_PATH, "r", encoding="utf-8") as f:
+    with open(JSONL_PATH, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
                 entries.append(json.loads(line))
     return entries
 
+
 def save_entries(entries: list[dict]) -> None:
     with open(JSONL_PATH, "w", encoding="utf-8") as f:
         for entry in entries:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
 
 # ── Main ───────────────────────────────────────────────────────
 def run(dry_run: bool = False) -> None:
@@ -125,10 +132,7 @@ def run(dry_run: bool = False) -> None:
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
-        raise EnvironmentError(
-            "ANTHROPIC_API_KEY environment variable is not set. "
-            "Export it before running this script."
-        )
+        raise OSError("ANTHROPIC_API_KEY environment variable is not set. Export it before running this script.")
     client = anthropic.Anthropic(api_key=api_key)
 
     corrected = 0
@@ -136,9 +140,9 @@ def run(dry_run: bool = False) -> None:
         if entry.get("correction"):
             continue
 
-        query    = entry["messages"][0]["content"]
-        sources  = entry.get("sources_mixed", [])
-        lore     = load_lore(sources)
+        query = entry["messages"][0]["content"]
+        sources = entry.get("sources_mixed", [])
+        lore = load_lore(sources)
 
         print(f"\nQuery : {query[:80]}{'...' if len(query) > 80 else ''}")
         print(f"Sources: {', '.join(sources)}")
@@ -158,6 +162,7 @@ def run(dry_run: bool = False) -> None:
         print(f"\n{corrected} correction(s) written to {JSONL_PATH}")
     elif not dry_run:
         print("Nothing to write.")
+
 
 if __name__ == "__main__":
     dry_run = "--dry-run" in sys.argv

@@ -49,10 +49,11 @@ NOT_YET_ENFORCED = [
 
 # ── State persistence ────────────────────────────────────────────
 
+
 def _load_state() -> dict:
     """Read the persisted token-budget state, or a fresh default if missing/corrupt."""
     try:
-        with open(STATE_PATH, "r", encoding="utf-8") as f:
+        with open(STATE_PATH, encoding="utf-8") as f:
             return json.load(f)
     except (OSError, json.JSONDecodeError):
         return dict(DEFAULT_STATE)
@@ -87,6 +88,7 @@ def reset_session() -> None:
 
 # ── Tracking ─────────────────────────────────────────────────────
 
+
 def record_usage(usage) -> dict:
     """
     Record one API call's token usage against the running session/daily
@@ -116,6 +118,7 @@ def record_usage(usage) -> dict:
 
 # ── Mode classification ─────────────────────────────────────────
 
+
 def get_mode(consumed_session: float, consumed_today: float, config: dict) -> str:
     """
     Classify the current mode from the finalized threshold table:
@@ -140,6 +143,7 @@ def get_mode(consumed_session: float, consumed_today: float, config: dict) -> st
 
 
 # ── Reporting ──────────────────────────────────────────────────
+
 
 def get_budget_status() -> dict:
     """

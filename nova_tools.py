@@ -73,9 +73,7 @@ def file_replace(path: str, old_str: str, new_str: str, root: str) -> None:
     content = resolved.read_text(encoding="utf-8")
     occurrences = content.count(old_str)
     if occurrences != 1:
-        raise ValueError(
-            f"old_str appears {occurrences} times in '{path}' — must appear exactly once."
-        )
+        raise ValueError(f"old_str appears {occurrences} times in '{path}' — must appear exactly once.")
     resolved.write_text(content.replace(old_str, new_str, 1), encoding="utf-8")
 
 
@@ -85,11 +83,7 @@ def list_files(path: str, root: str) -> list[str]:
     root_path = Path(root).resolve()
     if resolved.is_file():
         return [str(resolved.relative_to(root_path))]
-    return sorted(
-        str(p.relative_to(root_path))
-        for p in resolved.rglob("*")
-        if p.is_file()
-    )
+    return sorted(str(p.relative_to(root_path)) for p in resolved.rglob("*") if p.is_file())
 
 
 # Explicit Git Bash path, not Python's shell=True default. On Windows that
@@ -155,7 +149,7 @@ def _is_dangerous_command(cmd: str) -> bool:
 # Still not real sandboxing — an allowed binary can still take an absolute-path
 # argument (e.g. `git -C /c/Nova status`). That gap stays deferred to Docker.
 
-_CD_PATTERN = re.compile(r'(?:^|[;&|\n]|&&|\|\|)\s*cd\s+([^\s;&|]+)', re.IGNORECASE)
+_CD_PATTERN = re.compile(r"(?:^|[;&|\n]|&&|\|\|)\s*cd\s+([^\s;&|]+)", re.IGNORECASE)
 
 
 def _resolve_cd_target(target: str, root_path: Path) -> Path | None:
@@ -167,7 +161,7 @@ def _resolve_cd_target(target: str, root_path: Path) -> Path | None:
     """
     if "$" in target or "`" in target:
         return None
-    posix_drive = re.match(r'^/([A-Za-z])(/.*)?$', target)  # Git-Bash /c/... -> C:/...
+    posix_drive = re.match(r"^/([A-Za-z])(/.*)?$", target)  # Git-Bash /c/... -> C:/...
     if posix_drive:
         target = f"{posix_drive.group(1).upper()}:{posix_drive.group(2) or '/'}"
     if target == "~":
@@ -231,10 +225,23 @@ def _build_restricted_path(root_path: Path) -> str:
 # .env — nothing in this codebase reads any of those from inside a run_command
 # child process.
 ENV_ALLOWLIST = [
-    "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "TEMP", "TMP",
-    "USERPROFILE", "APPDATA", "LOCALAPPDATA", "HOMEDRIVE", "HOMEPATH",
-    "NUMBER_OF_PROCESSORS", "OS", "PROCESSOR_ARCHITECTURE",
-    "PROCESSOR_IDENTIFIER", "PROCESSOR_LEVEL", "PROCESSOR_REVISION",
+    "SYSTEMROOT",
+    "WINDIR",
+    "COMSPEC",
+    "PATHEXT",
+    "TEMP",
+    "TMP",
+    "USERPROFILE",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "HOMEDRIVE",
+    "HOMEPATH",
+    "NUMBER_OF_PROCESSORS",
+    "OS",
+    "PROCESSOR_ARCHITECTURE",
+    "PROCESSOR_IDENTIFIER",
+    "PROCESSOR_LEVEL",
+    "PROCESSOR_REVISION",
 ]
 
 

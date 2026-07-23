@@ -34,7 +34,6 @@
 import os
 import subprocess
 import sys
-import time
 
 import numpy as np
 import sounddevice as sd
@@ -94,6 +93,7 @@ STT_MODEL_NAME = "distil-whisper/distil-large-v3"
 
 # ── Setup ──────────────────────────────────────────────────────
 
+
 def _ensure_models_downloaded() -> None:
     """Download the wake-word and TTS voice models on first run, if missing."""
     download_wakeword_models()  # no-op if already cached; openWakeWord's own idempotent fetch
@@ -102,8 +102,7 @@ def _ensure_models_downloaded() -> None:
         print(f"[nova_voice] downloading Piper voice '{VOICE_MODEL_NAME}'...")
         os.makedirs(VOICE_MODEL_DIR, exist_ok=True)
         subprocess.run(
-            [sys.executable, "-m", "piper.download_voices", VOICE_MODEL_NAME,
-             "--download-dir", VOICE_MODEL_DIR],
+            [sys.executable, "-m", "piper.download_voices", VOICE_MODEL_NAME, "--download-dir", VOICE_MODEL_DIR],
             check=True,
         )
 
@@ -120,6 +119,7 @@ def _load_stt_pipeline():
 
 
 # ── Audio helpers ──────────────────────────────────────────────
+
 
 def _rms(chunk: np.ndarray) -> float:
     """Root-mean-square amplitude of an int16 audio chunk -- simple speech/silence signal."""
@@ -194,6 +194,7 @@ def speak(voice: PiperVoice, text: str) -> None:
 
 
 # ── Main loop ──────────────────────────────────────────────────
+
 
 def run_voice_loop() -> None:
     _ensure_models_downloaded()

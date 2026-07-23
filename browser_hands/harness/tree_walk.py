@@ -23,6 +23,7 @@ SCROLL_STEP_PX = 400
 @dataclass
 class TreeWalkResult:
     """One walk's result: every leaf label visited, how many passes it took, and whether scrolling finished."""
+
     opened_labels: set[str]
     passes_run: int
     reached_bottom: bool
@@ -65,7 +66,7 @@ def walk_virtualized_tree(
     reached_bottom = True
     pass_num = 0
 
-    for pass_num in range(1, max_passes + 1):
+    for _pass_num in range(1, max_passes + 1):
         made_progress = False
 
         collapsed = page.locator(collapsed_selector)
@@ -128,9 +129,7 @@ def _get_scrollable_ancestor(page, seed_selector: str):
 
 
 def _is_scrolled_to_bottom(page, handle) -> bool:
-    return page.evaluate(
-        "(el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 5", handle
-    )
+    return page.evaluate("(el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 5", handle)
 
 
 def _scroll_by(page, handle, amount_px: int) -> None:

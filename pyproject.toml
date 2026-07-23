@@ -1,0 +1,72 @@
+[tool.ruff]
+# 120, not ruff's 88 default: this codebase's real convention is dense,
+# explanatory inline comments (see CLAUDE.md Section 3) that regularly run
+# past 88 chars. Measured against the real codebase (11K lines) before
+# picking this number: 99th percentile line is 105 chars; 120 clears
+# everything except ~26 genuine outliers (long URLs, one long system-prompt
+# sentence), each suppressed individually via `# noqa: E501` rather than
+# rewritten, since reflowing them wasn't part of this task.
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+# E/F: pycodestyle + pyflakes (ruff's own baseline). I: import sorting,
+# replacing isort per the security-hygiene-tooling design doc. UP: pyupgrade,
+# modern-syntax suggestions. B: flake8-bugbear, catches real bug patterns
+# (bare except-reraise, mutable default args, etc.) beyond plain style.
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# graphify's own machine-generated output -- not hand-written code, not
+# worth linting.
+"graphify-out/**" = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.13"
+# Scoped to the design doc's own stated priority targets (nova_api.py, the
+# ClickUp/Drive integration layer, and anywhere the Chroma HttpClient
+# boundary is crossed) rather than the whole ~40-file codebase -- this is a
+# never-type-checked-before codebase, and a blanket repo-wide mypy pass on
+# day one would surface an unmanageable backlog unrelated to this task's
+# real scope. Expand this list incrementally as files get real type-checked.
+files = [
+    "nova_api.py",
+    "nova_clickup_client.py",
+    "nova_board.py",
+]
+ignore_missing_imports = true
+# Without this, mypy's default "normal" import-following reports errors
+# found in every module these 3 files transitively import too (nova_query.py,
+# nova_benchmark.py, etc.) -- which silently defeats the "priority target"
+# scoping above, since almost everything imports something. "silent" still
+# uses imported modules to resolve types, it just doesn't report errors
+# inside them -- the standard setting for incrementally adopting mypy into
+# an existing codebase.
+follow_imports = "silent"
+
+[tool.bandit]
+exclude_dirs = ["graphify-out", "nova-env", ".git"]
+# Skipped test IDs -- every one documented, not silently dropped. Without
+# these, the pre-commit hook would fail on every single commit going
+# forward, since these findings are pervasive across the existing codebase
+# (48 findings as of the 2026-07-22 audit).
+skips = [
+    # B404/B603/B607: bandit's standard "audit every subprocess call"
+    # advisory. This codebase's subprocess usage (git, SSH, ollama, piper)
+    # already consistently uses the safe list-argument form, never
+    # shell=True string concatenation -- these three IDs just flag the
+    # presence of subprocess at all, not a real vulnerability pattern here.
+    "B404",
+    "B603",
+    "B607",
+    # B615: Hugging Face downloads (model/dataset) without a pinned
+    # revision -- a REAL supply-chain finding (10 instances across
+    # ingest.py/nova_agentic_dataset_curator.py/nova_benchmark.py), not a
+    # false positive. Skipped from blocking commits only because fixing it
+    # needs real research (choosing and verifying a correct revision hash
+    # per external HF repo, 7 different ones) that wasn't in scope for this
+    # tooling-setup task -- reported to Marvin 2026-07-22, tracked as a
+    # real follow-up, not silently ignored. Remove this skip once that
+    # follow-up lands.
+    "B615",
+]

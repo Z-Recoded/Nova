@@ -17,10 +17,10 @@ from datetime import datetime, timedelta
 LOGS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
 QUERY_LOG_PATH = f"{LOGS_DIR}/query_log.jsonl"
 
-BLEND_RATE_WINDOW = 100     # most-recent entries used to compute blend rate
-LATENCY_WINDOW_HOURS = 24   # window used for average latency
-DEFAULT_RECENT_QUERIES_LIMIT = 50   # default number of rows returned by get_recent_queries
-DEFAULT_BENCHMARK_RUNS_LIMIT = 20   # default number of rows returned by get_benchmark_runs
+BLEND_RATE_WINDOW = 100  # most-recent entries used to compute blend rate
+LATENCY_WINDOW_HOURS = 24  # window used for average latency
+DEFAULT_RECENT_QUERIES_LIMIT = 50  # default number of rows returned by get_recent_queries
+DEFAULT_BENCHMARK_RUNS_LIMIT = 20  # default number of rows returned by get_benchmark_runs
 
 
 # ── Logging ────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ def _read_all_entries() -> list[dict]:
     if not os.path.exists(QUERY_LOG_PATH):
         return []
     entries = []
-    with open(QUERY_LOG_PATH, "r", encoding="utf-8") as f:
+    with open(QUERY_LOG_PATH, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
@@ -100,7 +100,7 @@ def _read_benchmark_entries() -> list[dict]:
     if not os.path.exists(BENCHMARK_LOG_PATH):
         return []
     entries = []
-    with open(BENCHMARK_LOG_PATH, "r", encoding="utf-8") as f:
+    with open(BENCHMARK_LOG_PATH, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
@@ -126,18 +126,11 @@ def compute_health_summary() -> dict:
         }
 
     cutoff = datetime.now() - timedelta(hours=LATENCY_WINDOW_HOURS)
-    recent_latencies = [
-        e["total_ms"] for e in entries
-        if datetime.fromisoformat(e["timestamp"]) >= cutoff
-    ]
-    avg_latency_ms_24h = (
-        round(sum(recent_latencies) / len(recent_latencies)) if recent_latencies else None
-    )
+    recent_latencies = [e["total_ms"] for e in entries if datetime.fromisoformat(e["timestamp"]) >= cutoff]
+    avg_latency_ms_24h = round(sum(recent_latencies) / len(recent_latencies)) if recent_latencies else None
 
     last_n = entries[-BLEND_RATE_WINDOW:]
-    blend_rate_last_100 = round(
-        sum(1 for e in last_n if e["blend_detected"]) / len(last_n), 3
-    )
+    blend_rate_last_100 = round(sum(1 for e in last_n if e["blend_detected"]) / len(last_n), 3)
 
     return {
         "total_queries": len(entries),
@@ -180,10 +173,7 @@ def get_recent_queries(
     """
     entries = _read_all_entries()
 
-    filtered = [
-        e for e in entries
-        if _entry_matches_filters(e, category, model, blend_detected)
-    ]
+    filtered = [e for e in entries if _entry_matches_filters(e, category, model, blend_detected)]
 
     filtered.sort(key=lambda e: e["timestamp"], reverse=True)
 

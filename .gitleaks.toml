@@ -1,0 +1,25 @@
+# Gitleaks config (86bawk37h) — extends gitleaks' own default rule set.
+#
+# One real full-history scan was run before wiring this in (2026-07-22):
+# 119 commits, 5 findings, all the same false positive -- gitleaks'
+# generic-api-key rule matching "clickup_86barhqt9" (a ClickUp task ID
+# reference, not a secret) inside graphify's own machine-generated output
+# (GRAPH_REPORT.md / graph.html / semantic cache JSON). No real credential
+# has ever been committed -- .env is git-ignored and confirmed never
+# committed (86baxbrvv).
+#
+# A per-fingerprint baseline would go stale immediately here: graphify-out/
+# regenerates on every `graphify update .` run with a new commit hash each
+# time, so every future update would mint fingerprints a static baseline
+# file wouldn't cover. A path-based allowlist is the durable fix instead --
+# this whole directory is machine-generated cache/report output, never
+# hand-written code, not a place a real secret would meaningfully hide
+# undetected anyway.
+
+[extend]
+useDefault = true
+
+[allowlist]
+paths = [
+    '''graphify-out/.*''',
+]

@@ -1,8 +1,8 @@
 # nova_chat.py
 # Interactive CLI for talking to Nova
 
+from nova_memory_store import clear_history, load_history
 from nova_query import ask
-from nova_memory_store import load_history, clear_history
 
 BANNER = """
 ╔══════════════════════════════════════╗
@@ -11,6 +11,7 @@ BANNER = """
 ╚══════════════════════════════════════╝
 Commands: 'sources', 'clear', 'quit'
 """
+
 
 def main():
     print(BANNER)
@@ -64,6 +65,7 @@ def main():
 
         last_sources = result["sources"]
         last_category = result["category"]
+
 
 if __name__ == "__main__":
     main()

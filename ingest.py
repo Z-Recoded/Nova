@@ -3,14 +3,16 @@
 # Reads from nova_sources.py paths, embeds content into Chroma
 # Supports --full flag for full re-ingest; default is incremental (changed files only)
 
+import json
 import os
 import re
-import json
 import sys
+
 import chromadb
 from chromadb.utils import embedding_functions
 from transformers import AutoTokenizer
-from nova_sources import SOURCES, SUPPORTED_EXTENSIONS, IGNORE_PATTERNS
+
+from nova_sources import IGNORE_PATTERNS, SOURCES, SUPPORTED_EXTENSIONS
 
 # Windows consoles default to cp1252, which can't encode the checkmark/box
 # characters in this file's progress output — force UTF-8 so a real re-ingest
@@ -40,21 +42,19 @@ EMBEDDING_MAX_TOKENS = 256  # hard input cap of all-MiniLM-L6-v2
 # for long hash-named .json files in the vault), so the per-chunk content
 # budget is computed per file in content_token_budget(), not fixed here.
 CHUNK_OVERLAP_TOKENS = 24  # ~10% overlap, matching the old 50/500 word ratio
-BOUNDARY_SAFETY_TOKENS = 6  # absorb WordPiece merges at the prefix/chunk seam AND any drift between HF's tokenizer (used to size chunks) and Chroma's ONNX embedder tokenizer
+BOUNDARY_SAFETY_TOKENS = 6  # absorb WordPiece merges at the prefix/chunk seam AND any drift between HF's tokenizer (used to size chunks) and Chroma's ONNX embedder tokenizer  # noqa: E501
 
 # ── Setup ──────────────────────────────────────────────────────
 client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
 embedding_fn = embedding_functions.DefaultEmbeddingFunction()
-collection = client.get_or_create_collection(
-    name="nova_memory",
-    embedding_function=embedding_fn
-)
+collection = client.get_or_create_collection(name="nova_memory", embedding_function=embedding_fn)
 # Same tokenizer the embedder uses, so chunk_text() can size chunks in real
 # tokens. Loaded lazily (not at import) so merely importing ingest.py — which
 # nova_api.py does for its /ingest route — doesn't pay the tokenizer load or
 # pull in a startup-time network dependency on the HF Hub; only actual
 # ingestion (chunk_text/content_token_budget) needs it.
 _tokenizer = None
+
 
 def get_tokenizer():
     """Load the embedder's tokenizer on first use and cache it for reuse."""
@@ -63,19 +63,22 @@ def get_tokenizer():
         _tokenizer = AutoTokenizer.from_pretrained(EMBEDDING_MODEL_NAME)
     return _tokenizer
 
+
 # ── Manifest (tracks last-modified times) ─────────────────────
 def load_manifest() -> dict:
     if not os.path.exists(MANIFEST_PATH):
         return {}
     try:
-        with open(MANIFEST_PATH, "r") as f:
+        with open(MANIFEST_PATH) as f:
             return json.load(f)
     except Exception:
         return {}
 
+
 def save_manifest(manifest: dict) -> None:
     with open(MANIFEST_PATH, "w") as f:
         json.dump(manifest, f, indent=2)
+
 
 def file_changed(filepath: str, manifest: dict) -> bool:
     """Return True if file is new or has been modified since last ingest."""
@@ -85,6 +88,7 @@ def file_changed(filepath: str, manifest: dict) -> bool:
     except Exception:
         return True
 
+
 # ── Helpers ────────────────────────────────────────────────────
 def should_ignore(path):
     for pattern in IGNORE_PATTERNS:
@@ -92,9 +96,11 @@ def should_ignore(path):
             return True
     return False
 
+
 def extract_links(content):
     """Extract Obsidian [[wikilinks]] from content."""
-    return re.findall(r'\[\[([^\]]+)\]\]', content)
+    return re.findall(r"\[\[([^\]]+)\]\]", content)
+
 
 def content_token_budget(filename):
     """
@@ -107,6 +113,7 @@ def content_token_budget(filename):
     prefix = f"[{filename}]\n"
     prefix_tokens = len(get_tokenizer().encode(prefix, add_special_tokens=True))
     return EMBEDDING_MAX_TOKENS - prefix_tokens - BOUNDARY_SAFETY_TOKENS
+
 
 def chunk_text(text, max_tokens, overlap=CHUNK_OVERLAP_TOKENS):
     """
@@ -126,7 +133,7 @@ def chunk_text(text, max_tokens, overlap=CHUNK_OVERLAP_TOKENS):
     chunks = []
     step = max(1, max_tokens - overlap)
     for start in range(0, len(offsets), step):
-        window = offsets[start:start + max_tokens]
+        window = offsets[start : start + max_tokens]
         char_start = window[0][0]
         char_end = window[-1][1]
         chunk = text[char_start:char_end].strip()
@@ -134,10 +141,11 @@ def chunk_text(text, max_tokens, overlap=CHUNK_OVERLAP_TOKENS):
             chunks.append(chunk)
     return chunks
 
+
 def ingest_file(filepath, project, description):
     """Ingest a single file into Nova's memory."""
     try:
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(filepath, encoding="utf-8", errors="ignore") as f:
             content = f.read()
 
         if not content.strip():
@@ -153,21 +161,24 @@ def ingest_file(filepath, project, description):
             collection.upsert(
                 documents=[anchored_chunk],
                 ids=[doc_id],
-                metadatas=[{
-                    "source": filepath,
-                    "filename": filename,
-                    "project": project,
-                    "description": description,
-                    "chunk_index": i,
-                    "total_chunks": len(chunks),
-                    "links": str(links),
-                }]
+                metadatas=[
+                    {
+                        "source": filepath,
+                        "filename": filename,
+                        "project": project,
+                        "description": description,
+                        "chunk_index": i,
+                        "total_chunks": len(chunks),
+                        "links": str(links),
+                    }
+                ],
             )
         return len(chunks)
 
     except Exception as e:
         print(f"  Error ingesting {filepath}: {e}")
         return 0
+
 
 # ── Main ingestion loop ────────────────────────────────────────
 def run_ingestion(full: bool = False):
@@ -204,7 +215,8 @@ def run_ingestion(full: bool = False):
                 try:
                     mtime = os.path.getmtime(filepath)
                     updated_manifest[filepath] = mtime
-                except Exception:
+                # Best-effort mtime cache, never worth crashing ingest over.
+                except Exception:  # nosec B110
                     pass
 
                 if not full and not file_changed(filepath, manifest):
@@ -224,7 +236,8 @@ def run_ingestion(full: bool = False):
     if not full:
         print(f"Files unchanged (skipped): {skipped}")
     print(f"Total chunks stored: {total_chunks}")
-    print(f"Nova's memory is ready.\n")
+    print("Nova's memory is ready.\n")
+
 
 if __name__ == "__main__":
     full_mode = "--full" in sys.argv
