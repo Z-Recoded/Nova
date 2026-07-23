@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-19 05:17 UTC
+Last updated: 2026-07-23 01:44 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,24 +8,18 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- NEW -> ready: 86bb03ap2 (Board hygiene scanner: flag deviations from task/doc conventions)
-- NEW -> ready: 86bb01yn7 (Spec: Runaway-process detection (extend nova_headroom.py))
-- NEW -> ready: 86bb01kzy (Explore: bridging embedding-space gaps between lore clusters)
-- ready -> complete/removed: 86baykvb7 (Observability + stuck-run notification for autonomous dispatch (86bawpvzz #6))
-- ready -> complete/removed: 86baykvan (Review-bandwidth backpressure for autonomous dispatch (86bawpvzz #2))
-- ready -> complete/removed: 86baxbt82 (Security: Nova Controller auth layer (bearer token/passphrase))
-- ready -> complete/removed: 86baxahn7 (Nova Controller UX: feed/cards/react-gestures (PWA, Tailscale-served))
-- ready -> complete/removed: 86bax0wkj (Nova Controller v1: escalation answer UI (tap or expand-to-text))
+- ready -> in_progress: 86baf4e70 (RunPod/Vast.ai — cloud GPU for fine-tune runs)
 
 ## In progress (4)
 
 - 86bara3tj  Spec + Build: Chunk visualization tool — RAG retrieval audit
-- 86bagek35  Test Phi-4 Mini 128K routing strategy — context fill vs latency + dual VRAM validation
 - 86baf4eah  Hosted inference fallback (Groq / Together.ai / Fireworks)
+- 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
 - 86baeyg3q  Voice interface (Whisper + Piper)
 
-## Blocked (12)
+## Blocked (13)
 
+- 86bax8bb5  Capability–understanding differential scorer (Nova vs. Marvin)
 - 86bawjyj8  Spec: Subagent escalation ladder + "travel to" central command console
 - 86bauwkvq  Token Budget Governor — remaining scope (Haiku routing, queue concurrency, push notifications, auto ClickUp updates)
 - 86barue80  Games domain node — nova_state_games.py adapter
@@ -41,6 +35,11 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Ready (89)
 
+- 86bb1pq3k  Deploy Open WebUI to the Omen — make it the sole always-on Nova machine
+- 86bb1pkpb  Systematic audit: fix remaining hardcoded C:/Nova paths (OS-agnostic sweep)
+- 86bb1nu7u  Prototype TabFM classifier for Nova blend-detection + routing gates
+- 86bb0wp16  Spec: Fine-Tune CI/CD Pipeline (data-volume-triggered retraining)
+- 86bb0we34  Evaluate Karakeep for tagged/indexed social content archive (content pipeline + Nova ingestion)
 - 86bb03ap2  Board hygiene scanner: flag deviations from task/doc conventions
 - 86bb01yn7  Spec: Runaway-process detection (extend nova_headroom.py)
 - 86bb01kzy  Explore: bridging embedding-space gaps between lore clusters
@@ -51,7 +50,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86baxv3yp  Board hygiene retrofit: custom fields, tag cleanup, link reclassification
 - 86baxuq12  Self-hosted git remote (Gitea/Forgejo) on the Omen
 - 86baxu9u9  Rollback/safety boundary: chain-level revert for multi-step autonomous runs
-- 86baxty6d  Omen capacity audit (gate — do before further self-hosting work)
 - 86baxtb4m  Migrate Nova design docs: Google Drive → self-hosted Obsidian vault
 - 86baxkrzq  Spatializing networks: the internet as an explorable place (long-horizon exploration)
 - 86baxc3xy  Harness pruning review (periodic — cut what no longer earns its place)
@@ -61,14 +59,12 @@ falls back to querying ClickUp directly if it looks stale.
 - 86baxb10x  Visual sequence capture: lightweight frame/video recording for agent + game sessions
 - 86bax8bb5  Capability–understanding differential scorer (Nova vs. Marvin)
 - 86bax697m  Adopt Langfuse as Nova's observability + auto-training-data backbone
-- 86bax4akx  Training-data accumulation oversight: live counts + verification status + coverage view
 - 86bawx7vj  Headless Nova coding: usage-aware autonomous runner + branch-based diff confirmation
 - 86bawpvzz  [Initiative — not scoped] Autonomous coding sessions — Nova writes its own code to build local-model training data
 - 86bawpc67  Vivarium experiment: bidirectional visual control panel for Nova
 - 86bawpc5v  Set up watchdog-based hot-restart pattern for Nova services
 - 86bawp01b  Build session-continuity layer for unified Nova presence
 - 86bawntpm  Draft Nova audit process (tool-call log review)
-- 86bawntpb  Build tool-call logging schema for Nova subagents
 - 86bawnqqv  Research: benchmark suites for Nova's agentic/tool-use eval
 - 86bawnqdp  Monitor at-risk character pairs for blending (embedding-distance analysis)
 - 86bawnkfy  Nova Tutor — Phase 7: DPO pairs + fine-tune (3 categories)
@@ -91,7 +87,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bawbgne  📌 Reference: Task Dependency & Status Discipline v1.0
 - 86bawbfak  Name + approve financial data source (spreadsheet vs. Firefly III)
 - 86baw3016  Purchase dedicated GPU compute machine from third-party vendor
-- 86baw3010  Rent serverless/raw GPU compute for Nova's own model weights (RunPod/Modal/Vast.ai)
 - 86baux91c  Evaluate Outline — check for redundancy with Obsidian first
 - 86baux8y5  Evaluate WebAssembly/WebLLM for a browser-based Nova client
 - 86baux8pq  Evaluate Podman for coding sub-agent container hardening
@@ -115,10 +110,10 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bargucp  Evaluate + integrate n8n for domain adapter refresh and alert routing
 - 86barby7t  Nova Log rotation — archive entries older than 90 days, keep last 1000 active
 - 86barby7m  Build Nova Art Practice Companion module (5 phases)
+- 86bara7pn  Source + curate coding training data for Nova's coding model
 - 86bara3uj  Spec: Proactive memory — surface connections on ingest
 - 86bara3u1  Spec: Temporal awareness layer
 - 86bara3pp  Pixel RAG layer — visual retrieval path (CLIP + ColPali)
-- 86bagf51n  Re-scope fine-tune pipeline for Phi-4 Mini as Nova's base model
 - 86bafvrff  Brute force trail depth test — establish λ and parallel work nominal rates
 - 86bafvrek  Implement two-tier memory decay in nova_memory_store.py
 - 86bafvrd3  Implement priority queue routing in nova_router.py
@@ -127,6 +122,5 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bafv3b4  Add weighted wikilinks to Obsidian notes for stronger graph edges
 - 86bafunj2  Research & Plan: Classical Algorithm Integration into Nova's Decision Layer
 - 86baf72n5  MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)
-- 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
 - 86baf4e29  Dockerize Nova services
 - 86baeyfua  Link-aware ingestion upgrade (Option B)

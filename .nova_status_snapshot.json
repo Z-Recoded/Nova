@@ -1,6 +1,26 @@
 {
   "ready": [
     {
+      "id": "86bb1pq3k",
+      "name": "Deploy Open WebUI to the Omen \u2014 make it the sole always-on Nova machine"
+    },
+    {
+      "id": "86bb1pkpb",
+      "name": "Systematic audit: fix remaining hardcoded C:/Nova paths (OS-agnostic sweep)"
+    },
+    {
+      "id": "86bb1nu7u",
+      "name": "Prototype TabFM classifier for Nova blend-detection + routing gates"
+    },
+    {
+      "id": "86bb0wp16",
+      "name": "Spec: Fine-Tune CI/CD Pipeline (data-volume-triggered retraining)"
+    },
+    {
+      "id": "86bb0we34",
+      "name": "Evaluate Karakeep for tagged/indexed social content archive (content pipeline + Nova ingestion)"
+    },
+    {
       "id": "86bb03ap2",
       "name": "Board hygiene scanner: flag deviations from task/doc conventions"
     },
@@ -41,10 +61,6 @@
       "name": "Rollback/safety boundary: chain-level revert for multi-step autonomous runs"
     },
     {
-      "id": "86baxty6d",
-      "name": "Omen capacity audit (gate \u2014 do before further self-hosting work)"
-    },
-    {
       "id": "86baxtb4m",
       "name": "Migrate Nova design docs: Google Drive \u2192 self-hosted Obsidian vault"
     },
@@ -81,10 +97,6 @@
       "name": "Adopt Langfuse as Nova's observability + auto-training-data backbone"
     },
     {
-      "id": "86bax4akx",
-      "name": "Training-data accumulation oversight: live counts + verification status + coverage view"
-    },
-    {
       "id": "86bawx7vj",
       "name": "Headless Nova coding: usage-aware autonomous runner + branch-based diff confirmation"
     },
@@ -107,10 +119,6 @@
     {
       "id": "86bawntpm",
       "name": "Draft Nova audit process (tool-call log review)"
-    },
-    {
-      "id": "86bawntpb",
-      "name": "Build tool-call logging schema for Nova subagents"
     },
     {
       "id": "86bawnqqv",
@@ -199,10 +207,6 @@
     {
       "id": "86baw3016",
       "name": "Purchase dedicated GPU compute machine from third-party vendor"
-    },
-    {
-      "id": "86baw3010",
-      "name": "Rent serverless/raw GPU compute for Nova's own model weights (RunPod/Modal/Vast.ai)"
     },
     {
       "id": "86baux91c",
@@ -297,6 +301,10 @@
       "name": "Build Nova Art Practice Companion module (5 phases)"
     },
     {
+      "id": "86bara7pn",
+      "name": "Source + curate coding training data for Nova's coding model"
+    },
+    {
       "id": "86bara3uj",
       "name": "Spec: Proactive memory \u2014 surface connections on ingest"
     },
@@ -307,10 +315,6 @@
     {
       "id": "86bara3pp",
       "name": "Pixel RAG layer \u2014 visual retrieval path (CLIP + ColPali)"
-    },
-    {
-      "id": "86bagf51n",
-      "name": "Re-scope fine-tune pipeline for Phi-4 Mini as Nova's base model"
     },
     {
       "id": "86bafvrff",
@@ -345,10 +349,6 @@
       "name": "MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)"
     },
     {
-      "id": "86baf4e70",
-      "name": "RunPod/Vast.ai \u2014 cloud GPU for fine-tune runs"
-    },
-    {
       "id": "86baf4e29",
       "name": "Dockerize Nova services"
     },
@@ -363,12 +363,12 @@
       "name": "Spec + Build: Chunk visualization tool \u2014 RAG retrieval audit"
     },
     {
-      "id": "86bagek35",
-      "name": "Test Phi-4 Mini 128K routing strategy \u2014 context fill vs latency + dual VRAM validation"
-    },
-    {
       "id": "86baf4eah",
       "name": "Hosted inference fallback (Groq / Together.ai / Fireworks)"
+    },
+    {
+      "id": "86baf4e70",
+      "name": "RunPod/Vast.ai \u2014 cloud GPU for fine-tune runs"
     },
     {
       "id": "86baeyg3q",
@@ -376,6 +376,10 @@
     }
   ],
   "blocked": [
+    {
+      "id": "86bax8bb5",
+      "name": "Capability\u2013understanding differential scorer (Nova vs. Marvin)"
+    },
     {
       "id": "86bawjyj8",
       "name": "Spec: Subagent escalation ladder + \"travel to\" central command console"
