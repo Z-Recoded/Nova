@@ -16,6 +16,15 @@ import sys
 import anthropic
 from dotenv import load_dotenv
 
+# Windows' default console codepage (cp1252) can't encode characters Claude's
+# real corrections sometimes contain (em-dashes, emoji) -- the same recurring
+# bug class already fixed in nova_benchmark.py/ingest.py/nova_board.py/
+# browser_hands. Confirmed live 2026-07-22: a real correction run crashed
+# mid-way on '❓' (an emoji in a generated correction), losing every
+# already-paid-for API call made before the crash since save_entries() only
+# ran at the very end (see run()'s own incremental-save fix below).
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 # Resolved relative to this file's own location -- same bug class already
 # fixed in nova_orchestrator.py's dotenv path. A hardcoded "C:/Nova/.env"
 # silently returns False (not a raised error) on the Omen (Linux) instead of
@@ -155,10 +164,17 @@ def run(dry_run: bool = False) -> None:
         entry["correction"] = correction
         corrected += 1
 
+        # Saved after every single correction, not once at the end -- a real
+        # run crashed mid-way on an encoding bug (fixed above) and threw away
+        # every already-paid-for API call made before the crash, since the
+        # old code only wrote once after the whole loop finished. Rewriting
+        # the full ~50-entry file per correction is trivially cheap I/O; a
+        # lost real Claude API call is not.
+        save_entries(entries)
+
         print(f"Correction: {correction[:120]}{'...' if len(correction) > 120 else ''}")
 
     if not dry_run and corrected:
-        save_entries(entries)
         print(f"\n{corrected} correction(s) written to {JSONL_PATH}")
     elif not dry_run:
         print("Nothing to write.")

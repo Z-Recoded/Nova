@@ -12,6 +12,24 @@ class RouteResult:
     note: str = ""  # hint passed to the system prompt for this query type
 
 
+# ── Open WebUI internal meta-requests ───────────────────────────
+# Open WebUI auto-generates chat titles, tags, and follow-up-question
+# suggestions by sending its own internal request through this same
+# /v1/chat/completions pipeline -- not a real user query. Checked first,
+# before even the coding-agent prefix, since a meta-request should never
+# be classified into any real content category. Its fixed template body
+# echoes back the underlying chat's own content, which can legitimately
+# contain fiction-trigger words ("character", "story") if that
+# conversation was about SYS_Symphony.EXE -- without this guard, that
+# misrouted the request to "fiction" and its multi-character retrieval
+# tripped nova_logger.py's blend detector on a request that was never a
+# real character question at all. Found 2026-07-22: 24 of 57 real
+# training_flags.jsonl entries (42% of the flagged backlog) were this
+# exact false positive, across all three of Open WebUI's real meta-request
+# shapes (title, tags, follow-up questions) -- all share this one marker,
+# confirmed against the real logged entries before picking the prefix.
+OPENWEBUI_META_PREFIX = "### task:"
+
 # ── Coding sub-agent trigger ────────────────────────────────────
 # Prefix Marvin types in chat to hand a task directly to nova_orchestrator.py
 # instead of the normal RAG pipeline. Trailing space is intentional — it keeps
@@ -144,6 +162,13 @@ def route(query: str) -> RouteResult:
     Fast keyword-based — no LLM call needed.
     """
     q = query.lower().strip()
+
+    # Open WebUI's own internal request, not a real question -- classify as
+    # "general" (an existing, already-handled fallback category) before any
+    # real-content check gets a chance to misfire on it. See
+    # OPENWEBUI_META_PREFIX's own comment for why this exists.
+    if q.startswith(OPENWEBUI_META_PREFIX):
+        return RouteResult(category="general", n_results=5, note="")
 
     # Coding sub-agent — checked before every other category (including
     # identity) so a task description that happens to contain fiction or
