@@ -351,10 +351,6 @@
   ],
   "in_progress": [
     {
-      "id": "86bawk37h",
-      "name": "Set up security & code hygiene tooling (ruff, mypy, pre-commit, bandit, detect-secrets, pip-audit)"
-    },
-    {
       "id": "86bara3tj",
       "name": "Spec + Build: Chunk visualization tool \u2014 RAG retrieval audit"
     },

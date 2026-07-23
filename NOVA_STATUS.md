@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-23 02:46 UTC
+Last updated: 2026-07-23 03:22 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,11 +8,10 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- ready -> in_progress: 86bawk37h (Set up security & code hygiene tooling (ruff, mypy, pre-commit, bandit, detect-secrets, pip-audit))
+- in_progress -> complete/removed: 86bawk37h (Set up security & code hygiene tooling (ruff, mypy, pre-commit, bandit, detect-secrets, pip-audit))
 
-## In progress (5)
+## In progress (4)
 
-- 86bawk37h  Set up security & code hygiene tooling (ruff, mypy, pre-commit, bandit, detect-secrets, pip-audit)
 - 86bara3tj  Spec + Build: Chunk visualization tool — RAG retrieval audit
 - 86baf4eah  Hosted inference fallback (Groq / Together.ai / Fireworks)
 - 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
