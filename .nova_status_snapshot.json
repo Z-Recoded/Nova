@@ -293,10 +293,6 @@
       "name": "Build Nova Art Practice Companion module (5 phases)"
     },
     {
-      "id": "86bara7pn",
-      "name": "Source + curate coding training data for Nova's coding model"
-    },
-    {
       "id": "86bara3uj",
       "name": "Spec: Proactive memory \u2014 surface connections on ingest"
     },
@@ -351,6 +347,10 @@
   ],
   "in_progress": [
     {
+      "id": "86bara7pn",
+      "name": "Source + curate coding training data for Nova's coding model"
+    },
+    {
       "id": "86bara3tj",
       "name": "Spec + Build: Chunk visualization tool \u2014 RAG retrieval audit"
     },
@@ -395,10 +395,6 @@
     {
       "id": "86bara7zk",
       "name": "Source + curate agentic reasoning training data for Qwen3 8B fine-tune"
-    },
-    {
-      "id": "86bara7pn",
-      "name": "Source + curate coding training data for Nova's coding model"
     },
     {
       "id": "86bara3rm",

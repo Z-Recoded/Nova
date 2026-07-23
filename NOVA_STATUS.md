@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-23 03:22 UTC
+Last updated: 2026-07-23 03:37 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,16 +8,17 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- in_progress -> complete/removed: 86bawk37h (Set up security & code hygiene tooling (ruff, mypy, pre-commit, bandit, detect-secrets, pip-audit))
+- blocked -> in_progress: 86bara7pn (Source + curate coding training data for Nova's coding model)
 
-## In progress (4)
+## In progress (5)
 
+- 86bara7pn  Source + curate coding training data for Nova's coding model
 - 86bara3tj  Spec + Build: Chunk visualization tool — RAG retrieval audit
 - 86baf4eah  Hosted inference fallback (Groq / Together.ai / Fireworks)
 - 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
 - 86baeyg3q  Voice interface (Whisper + Piper)
 
-## Blocked (13)
+## Blocked (12)
 
 - 86bax8bb5  Capability–understanding differential scorer (Nova vs. Marvin)
 - 86bawjyj8  Spec: Subagent escalation ladder + "travel to" central command console
@@ -26,14 +27,13 @@ falls back to querying ClickUp directly if it looks stale.
 - 86barudz2  Work domain node — nova_state_work.py adapter
 - 86barex1u  Integrate OpenHands as Nova's coding lane sub-agent (nova-code-agent container)
 - 86bara7zk  Source + curate agentic reasoning training data for Qwen3 8B fine-tune
-- 86bara7pn  Source + curate coding training data for Nova's coding model
 - 86bara3rm  Financial domain node — nova_state_financial.py adapter
 - 86bara3qu  Alert engine — proactive state monitoring against nova_state.db
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 - 86baf72n5  MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)
 
-## Ready (87)
+## Ready (86)
 
 - 86bb1pq3k  Deploy Open WebUI to the Omen — make it the sole always-on Nova machine
 - 86bb1nu7u  Prototype TabFM classifier for Nova blend-detection + routing gates
@@ -108,7 +108,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bargucp  Evaluate + integrate n8n for domain adapter refresh and alert routing
 - 86barby7t  Nova Log rotation — archive entries older than 90 days, keep last 1000 active
 - 86barby7m  Build Nova Art Practice Companion module (5 phases)
-- 86bara7pn  Source + curate coding training data for Nova's coding model
 - 86bara3uj  Spec: Proactive memory — surface connections on ingest
 - 86bara3u1  Spec: Temporal awareness layer
 - 86bara3pp  Pixel RAG layer — visual retrieval path (CLIP + ColPali)
