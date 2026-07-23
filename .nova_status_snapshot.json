@@ -411,10 +411,6 @@
     {
       "id": "86baf72qq",
       "name": "Docker sub-agent orchestration \u2014 ephemeral task containers"
-    },
-    {
-      "id": "86baf72n5",
-      "name": "MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)"
     }
   ]
 }
