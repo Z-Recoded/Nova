@@ -18,7 +18,9 @@ from nova_sources import SOURCES, SUPPORTED_EXTENSIONS, IGNORE_PATTERNS
 # already applied to nova_benchmark.py).
 sys.stdout.reconfigure(encoding="utf-8")
 
-MANIFEST_PATH = "C:/Nova/ingest_manifest.json"
+# Resolved relative to this file's own location, not hardcoded to the Aero's
+# Windows path -- same bug class already fixed elsewhere in this project (86bb1pkpb).
+MANIFEST_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ingest_manifest.json")
 CHROMA_HOST = "100.114.197.117"  # Chroma's Tailscale IP -- see nova_query.py's CHROMA_HOST
 # comment for why (2026-07-19: the LAN IP broke whenever the Aero wasn't on the home network)
 CHROMA_PORT = 8000

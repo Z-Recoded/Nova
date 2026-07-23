@@ -2,6 +2,14 @@
 # Configuration for Nova's ingestion pipeline
 # Add, remove, or edit sources to control what Nova ingests
 
+import os
+
+# Resolved relative to this file's own location, not hardcoded to the Aero's
+# Windows path -- same bug class already fixed elsewhere in this project
+# (86bb1pkpb). This file lives at the repo root, so its own directory IS the
+# Nova source path.
+NOVA_ROOT = os.path.dirname(os.path.abspath(__file__))
+
 # Configures which directories ingest.py scans when building Nova's memory
 SOURCES = [
     {
@@ -10,7 +18,7 @@ SOURCES = [
         "description": "Obsidian vault — notes, projects, knowledge base"
     },
     {
-        "path": r"C:\Nova",
+        "path": NOVA_ROOT,
         "project": "Nova",
         "description": "Nova project source files and documentation"
     },

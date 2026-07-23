@@ -30,7 +30,9 @@ from graph_builder import rebuild_node
 
 # ── Config ─────────────────────────────────────────────────────
 DEBOUNCE_SECONDS = 2.0
-LOG_DIR = "C:/Nova/logs"
+# Resolved relative to this file's own location, not hardcoded to the Aero's
+# Windows path -- same bug class already fixed elsewhere in this project (86bb1pkpb).
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
 LOG_PATH = os.path.join(LOG_DIR, "watcher.log")
 WATCH_EXTENSIONS = {".md"}
 

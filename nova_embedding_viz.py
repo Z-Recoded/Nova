@@ -18,7 +18,11 @@ from nova_chunk_viz import DEFAULT_N_RESULTS, FILENAME_TO_CHARACTER, resolve_chu
 # ── Config ─────────────────────────────────────────────────────
 OTHER_LABEL = "Other"
 TEXT_PREVIEW_CHARS = 160
-TRAINING_FLAGS_PATH = "C:/Nova/logs/training_flags.jsonl"
+# Resolved relative to this file's own location -- a second broken consumer
+# of the same file nova_logger.py writes (already fixed there, 86bb1pkpb).
+TRAINING_FLAGS_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "logs", "training_flags.jsonl"
+)
 
 # Fixed so the projection is stable across requests -- without a fixed seed
 # the whole map reshuffles every call, and Marvin loses a stable mental map
