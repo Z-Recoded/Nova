@@ -293,7 +293,7 @@ def extract_native_trajectories(merged_branches: set[str]) -> list[dict]:
         entries.sort(key=lambda e: e["turn"])
         task_description = entries[0]["task"]
         tool_use_blocks = []
-        for i, entry in enumerate(entries):  # noqa: B007
+        for entry in entries:
             for call in entry.get("tool_calls") or []:
                 tool_use_blocks.append(
                     {
@@ -324,8 +324,42 @@ def extract_native_trajectories(merged_branches: set[str]) -> list[dict]:
 # ── Core ───────────────────────────────────────────────────────
 
 
+def _scan_curated_output_for_secrets() -> None:
+    """
+    The nova_interactive lane pulls raw tool_result content verbatim from
+    real transcripts -- unlike this repo's own tracked source, which
+    gitleaks already scans on every commit (86bawk37h), nothing has ever
+    scanned a session's real tool OUTPUT for an accidentally-echoed
+    secret (a stray `cat .env`, a debug print of a real key). data/ is
+    git-ignored so this file itself can't leak via a commit, but it's a
+    real local artifact that would leak into model weights if ever used
+    for a real fine-tune, or into an upload if this ever gets pushed
+    somewhere the way the agentic dataset's own RunPod path might. Never
+    raises and never deletes the file on a finding -- gitleaks' own
+    generic-api-key rule has a known false-positive pattern already seen
+    in this repo (a ClickUp task-ID string), so a finding here needs a
+    human look, not an automatic block on real training data.
+    """
+    try:
+        result = subprocess.run(
+            ["gitleaks", "detect", "--no-git", "-s", str(CURATED_DIR), "--exit-code", "0"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        print("[curate] WARNING: gitleaks not found on PATH -- curated output was NOT scanned for secrets.")
+        return
+
+    if "leaks found" in result.stderr:
+        print(f"[curate] WARNING: gitleaks flagged possible secrets in {CURATED_DIR} -- review before using this data.")
+        print(result.stderr)
+    else:
+        print("[curate] gitleaks scan of curated output: clean.")
+
+
 def curate() -> None:
-    """Run both lanes, write one curated .jsonl."""
+    """Run both lanes, write one curated .jsonl, then scan the real output for secrets."""
     merged_pr = _merged_pr_branches()
     merged_native = _merged_native_branches()
     print(f"[curate] {len(merged_pr)} branch(es) with a real merged PR")
@@ -342,6 +376,8 @@ def curate() -> None:
         for row in all_rows:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
     print(f"[curate] wrote {len(all_rows)} row(s) to {CURATED_OUTPUT_PATH}")
+
+    _scan_curated_output_for_secrets()
 
 
 def report() -> None:
