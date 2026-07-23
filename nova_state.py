@@ -54,8 +54,13 @@ KNOWN_ENTITIES = {
     "creative": ["art_output_rhythm", "active_characters"],
     "games": ["active_builds"],
     "system": [
-        "nova_health", "pending_alerts", "claude_usage_history", "dispatch_pause",
-        "claude_activity_profile", "pending_escalations", "pending_tier_proposals",
+        "nova_health",
+        "pending_alerts",
+        "claude_usage_history",
+        "dispatch_pause",
+        "claude_activity_profile",
+        "pending_escalations",
+        "pending_tier_proposals",
         "task_tier_watermarks",
     ],
 }
@@ -82,9 +87,7 @@ def _get_connection() -> sqlite3.Connection:
 def _validate_entity(domain: str, entity: str) -> None:
     """Raise ValueError if domain/entity isn't one of Principle 6's defined pairs."""
     if domain not in KNOWN_ENTITIES or entity not in KNOWN_ENTITIES[domain]:
-        raise ValueError(
-            f"Unknown domain/entity pair: '{domain}/{entity}' — not in Principle 6's schema."
-        )
+        raise ValueError(f"Unknown domain/entity pair: '{domain}/{entity}' — not in Principle 6's schema.")
 
 
 def write_state(domain: str, entity: str, data: dict) -> None:

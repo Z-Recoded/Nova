@@ -105,6 +105,7 @@ def _pick_task(tasks: list[dict]) -> dict:
     board-listing order as a tiebreak (not a strong ordering guarantee,
     just whatever ClickUp's API happened to return that call).
     """
+
     def sort_key(task: dict) -> int:
         priority = task.get("priority")
         return PRIORITY_ORDER.index(priority) if priority in PRIORITY_ORDER else len(PRIORITY_ORDER)
@@ -113,18 +114,18 @@ def _pick_task(tasks: list[dict]) -> dict:
 
 
 def _log_outcome(entry: dict) -> None:
-    """Append one JSONL line — no rotation here, same accepted-and-deferred scope as 86barby7t at this log's much lower volume (<=12 entries/day)."""
+    """Append one JSONL line — no rotation here, same accepted-and-deferred scope as 86barby7t at this log's much lower volume (<=12 entries/day)."""  # noqa: E501
     LOG_PATH.parent.mkdir(exist_ok=True)
     with open(LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
 
 
 def _read_jsonl(path: Path) -> list[dict]:
-    """Read a JSONL file into a list of dicts, silently skipping blank/malformed lines. Empty list if the file doesn't exist yet."""
+    """Read a JSONL file into a list of dicts, silently skipping blank/malformed lines. Empty list if the file doesn't exist yet."""  # noqa: E501
     if not path.exists():
         return []
     entries = []
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -384,8 +385,7 @@ def _register_tier_proposals() -> int:
     """
     result = detect_tier_candidates()
     registered = sum(
-        register_tier_proposal(candidate["task"], candidate["trigger"])
-        for candidate in result["candidates"]
+        register_tier_proposal(candidate["task"], candidate["trigger"]) for candidate in result["candidates"]
     )
     persist_tier_watermarks(result["watermarks"])
     return registered
@@ -404,7 +404,11 @@ def run_scheduled_dispatch() -> dict:
 
     pause_state = is_dispatch_paused()
     if pause_state["paused"]:
-        return {"status": "paused", "reason": pause_state.get("reason"), "tier_proposals_registered": tier_proposals_registered}
+        return {
+            "status": "paused",
+            "reason": pause_state.get("reason"),
+            "tier_proposals_registered": tier_proposals_registered,
+        }  # noqa: E501
 
     if is_review_backpressure_enabled():
         max_unreviewed = get_max_unreviewed_dispatches()
@@ -467,7 +471,9 @@ if __name__ == "__main__":
         help="Record a review decision for a dispatched task, e.g. --review 86bayjdrh merged",
     )
     parser.add_argument("--note", default="", help="Optional note to attach to --review.")
-    parser.add_argument("--unreviewed-count", action="store_true", help="Print the current unreviewed-dispatch count and exit.")
+    parser.add_argument(
+        "--unreviewed-count", action="store_true", help="Print the current unreviewed-dispatch count and exit."
+    )  # noqa: E501
     args = parser.parse_args()
 
     if args.review:

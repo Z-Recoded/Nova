@@ -66,7 +66,7 @@ def _parse_jsonl(raw_text: str) -> list[dict]:
 def read_local_agent_log() -> list[dict]:
     """Read this machine's own logs/agent_log.jsonl. Empty list if it doesn't exist yet."""
     try:
-        with open(LOCAL_AGENT_LOG_PATH, "r", encoding="utf-8") as f:
+        with open(LOCAL_AGENT_LOG_PATH, encoding="utf-8") as f:
             return _parse_jsonl(f.read())
     except FileNotFoundError:
         return []

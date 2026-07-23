@@ -152,11 +152,11 @@ def propose_tier(task: dict) -> dict:
         '"confidence": "low"|"medium"|"high", "reasoning": "<one or two sentences>"}. '
         '"autonomous" means the task is safe to run fully unattended (e.g. a well-scoped '
         'code change with clear acceptance criteria). "needs review" means an unattended '
-        'agent could make real progress but a human should check in (e.g. touches a load-'
-        'bearing file, ambiguous scope, or a design decision embedded in the description). '
+        "agent could make real progress but a human should check in (e.g. touches a load-"
+        "bearing file, ambiguous scope, or a design decision embedded in the description). "
         '"manual only" means this should never be dispatched unattended (e.g. a financial '
-        'decision, a research-only task with no code deliverable, or a task that is itself '
-        'a policy/trust-boundary decision).'
+        "decision, a research-only task with no code deliverable, or a task that is itself "
+        "a policy/trust-boundary decision)."
     )
     message = client.messages.create(
         model="claude-sonnet-4-6",
@@ -442,14 +442,14 @@ if __name__ == "__main__":
         "--sweep-tiers",
         action="store_true",
         help="Retroactive tier-proposal backfill (86bb01wur) -- registers a proposal for every "
-             "tierable board task that has no watermark yet.",
+        "tierable board task that has no watermark yet.",
     )
     parser.add_argument(
         "--limit",
         type=int,
         metavar="N",
         help="With --sweep-tiers: only process the first N candidates, and do NOT persist "
-             "watermarks -- for testing a small subset before running the real full sweep.",
+        "watermarks -- for testing a small subset before running the real full sweep.",
     )
     args = parser.parse_args()
 
@@ -469,7 +469,9 @@ if __name__ == "__main__":
 
         if args.limit:
             candidates = candidates[: args.limit]
-            print(f"--limit {args.limit}: processing only the first {len(candidates)}, watermarks will NOT be persisted.")
+            print(
+                f"--limit {args.limit}: processing only the first {len(candidates)}, watermarks will NOT be persisted."
+            )  # noqa: E501
 
         registered = sum(register_tier_proposal(c["task"], c["trigger"]) for c in candidates)
         print(f"Registered {registered} tier proposal(s).")

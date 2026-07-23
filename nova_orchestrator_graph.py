@@ -20,8 +20,8 @@ from langgraph.graph import END, StateGraph
 
 from nova_token_budget import get_budget_status, record_usage
 
-
 # ── State ──
+
 
 class AgentTurnState(TypedDict):
     """
@@ -32,6 +32,7 @@ class AgentTurnState(TypedDict):
     mutated by a node — carried in state only because LangGraph nodes only
     receive state, not arbitrary closures.
     """
+
     messages: list
     turn: int
     stop_reason: str | None
@@ -51,6 +52,7 @@ class AgentTurnState(TypedDict):
 
 
 # ── Nodes ──
+
 
 def _check_budget(state: AgentTurnState) -> AgentTurnState:
     """
@@ -85,8 +87,13 @@ def _call_model(state: AgentTurnState, log_agent_turn) -> AgentTurnState:
     )
 
     log_agent_turn(
-        state["slug"], state["branch_name"], turn, state["task_description"],
-        response, state["skill_category"], state["skill_version"],
+        state["slug"],
+        state["branch_name"],
+        turn,
+        state["task_description"],
+        response,
+        state["skill_category"],
+        state["skill_version"],
     )
     if state["budget_gate_enabled"]:
         record_usage(response.usage)
@@ -122,12 +129,14 @@ def _execute_tools(state: AgentTurnState, execute_tool) -> AgentTurnState:
         if block.type != "tool_use":
             continue
         result = execute_tool(block.name, block.input, state["root"])
-        tool_results.append({
-            "type": "tool_result",
-            "tool_use_id": block.id,
-            "content": result["content"],
-            "is_error": result.get("is_error", False),
-        })
+        tool_results.append(
+            {
+                "type": "tool_result",
+                "tool_use_id": block.id,
+                "content": result["content"],
+                "is_error": result.get("is_error", False),
+            }
+        )
 
     messages = state["messages"] + [{"role": "user", "content": tool_results}]
     return {**state, "messages": messages}
@@ -135,9 +144,11 @@ def _execute_tools(state: AgentTurnState, execute_tool) -> AgentTurnState:
 
 # ── Graph construction ──
 
+
 def _tool_definitions():
     """Deferred import so this module never needs nova_orchestrator.py at import time for its constant alone."""
     from nova_orchestrator import TOOL_DEFINITIONS
+
     return TOOL_DEFINITIONS
 
 
@@ -174,10 +185,23 @@ def build_graph(log_agent_turn, execute_tool):
 
 # ── Entry point used by nova_orchestrator.py ──
 
+
 def run_via_langgraph(
-    client, system_prompt, messages, root, slug, branch_name, task_description,
-    skill_category, skill_version, budget_gate_enabled, max_turns, model, max_tokens,
-    log_agent_turn, execute_tool,
+    client,
+    system_prompt,
+    messages,
+    root,
+    slug,
+    branch_name,
+    task_description,
+    skill_category,
+    skill_version,
+    budget_gate_enabled,
+    max_turns,
+    model,
+    max_tokens,
+    log_agent_turn,
+    execute_tool,
 ) -> tuple[str, int]:
     """
     Runs the turn loop via the LangGraph graph instead of the inline loop,

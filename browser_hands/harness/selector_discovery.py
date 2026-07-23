@@ -17,6 +17,7 @@ from datetime import datetime
 @dataclass
 class DiscoveryReport:
     """One discover-mode run's result: match counts per selector, and which ones hit zero."""
+
     counts: dict[str, int]
     zero_match: list[str]
     checked_at: str
@@ -40,4 +41,6 @@ def probe_selectors(page, selectors: dict[str, str]) -> DiscoveryReport:
         else:
             print(f"  '{label}' ({selector!r}): {count} match(es)")
 
-    return DiscoveryReport(counts=counts, zero_match=zero_match, checked_at=datetime.now().isoformat(timespec="seconds"))
+    return DiscoveryReport(
+        counts=counts, zero_match=zero_match, checked_at=datetime.now().isoformat(timespec="seconds")
+    )  # noqa: E501

@@ -35,14 +35,14 @@ import subprocess
 import sys
 import time
 
-OMEN_HOST = "100.114.197.117"  # Tailscale IP — same choice as nova_omen_dispatch.py, works whether or not the Aero is on the same LAN
+OMEN_HOST = "100.114.197.117"  # Tailscale IP — same choice as nova_omen_dispatch.py, works whether or not the Aero is on the same LAN  # noqa: E501
 OMEN_USER = "marvinroyal5"
 OMEN_REPO_PATH = "/home/marvinroyal5/nova"
 
 SSH_TIMEOUT_SECONDS = 30
 RESTART_TIMEOUT_SECONDS = 30
 POST_RESTART_SETTLE_SECONDS = 3  # brief pause so the probe doesn't catch the just-stopped old process's socket
-STARTUP_TIMEOUT_SECONDS = 45  # nova-api's import chain loads the embedding model (~6-17s), so poll until up rather than probing once
+STARTUP_TIMEOUT_SECONDS = 45  # nova-api's import chain loads the embedding model (~6-17s), so poll until up rather than probing once  # noqa: E501
 TCP_PROBE_TIMEOUT_SECONDS = 5
 
 NOVA_API_PORT = 8001  # CLAUDE.md Section 2 — 8001 on the Omen specifically, not 8000 (port conflict with Chroma)
@@ -50,7 +50,7 @@ NOVA_CHROMA_PORT = 8000
 
 
 def _run_ssh(remote_command: str, timeout: int) -> subprocess.CompletedProcess:
-    """Run one command on the Omen over SSH and return the completed process. Never raises on a non-zero exit — callers check returncode themselves."""
+    """Run one command on the Omen over SSH and return the completed process. Never raises on a non-zero exit — callers check returncode themselves."""  # noqa: E501
     return subprocess.run(
         ["ssh", f"{OMEN_USER}@{OMEN_HOST}", remote_command],
         capture_output=True,
@@ -134,7 +134,7 @@ def restart_services() -> dict:
 
 
 def _wait_until_listening(host: str, port: int, timeout: int) -> bool:
-    """Poll a port until it accepts a connection or the timeout elapses. Returns True as soon as it's up, so a fast restart isn't penalized and a slow one isn't falsely failed."""
+    """Poll a port until it accepts a connection or the timeout elapses. Returns True as soon as it's up, so a fast restart isn't penalized and a slow one isn't falsely failed."""  # noqa: E501
     deadline = time.time() + timeout
     while time.time() < deadline:
         if _tcp_reachable(host, port):
@@ -196,12 +196,20 @@ def sync_omen(skip_restart: bool = False, force_restart: bool = False) -> dict:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="One-command sync for the Omen's main checkout.")
-    parser.add_argument("--skip-restart", action="store_true", help="Pull only, don't restart services (e.g. for a doc-only commit)")
-    parser.add_argument("--force-restart", action="store_true", help="Restart services even if the pull found nothing new (for verifying the restart path itself)")
+    parser.add_argument(
+        "--skip-restart", action="store_true", help="Pull only, don't restart services (e.g. for a doc-only commit)"
+    )  # noqa: E501
+    parser.add_argument(
+        "--force-restart",
+        action="store_true",
+        help="Restart services even if the pull found nothing new (for verifying the restart path itself)",
+    )  # noqa: E501
     args = parser.parse_args()
 
     outcome = sync_omen(skip_restart=args.skip_restart, force_restart=args.force_restart)
-    print(f"Pull: {outcome.get('pull', outcome).get('before_sha', '?')[:8]} -> {outcome.get('pull', outcome).get('after_sha', '?')[:8]}")
+    print(
+        f"Pull: {outcome.get('pull', outcome).get('before_sha', '?')[:8]} -> {outcome.get('pull', outcome).get('after_sha', '?')[:8]}"  # noqa: E501
+    )  # noqa: E501
 
     if not outcome.get("pull", outcome).get("success", outcome.get("success")):
         print(f"FAILED at pull: {outcome.get('error')}")

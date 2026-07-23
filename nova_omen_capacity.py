@@ -34,7 +34,7 @@ SSH_TIMEOUT_SECONDS = 20
 # One remote script, run over a single SSH connection, that prints simple
 # "KEY value" lines — avoids fragile parsing of human-readable units like
 # "7.6Gi" from `free -h`, and avoids JSON-escaping a payload through SSH quoting.
-_REMOTE_SCRIPT = r'''
+_REMOTE_SCRIPT = r"""
 echo "CPU_CORES $(nproc)"
 echo "LOAD_AVG $(cut -d' ' -f1-3 /proc/loadavg)"
 free -b | awk 'NR==2{print "RAM_TOTAL_BYTES", $2; print "RAM_USED_BYTES", $3; print "RAM_AVAILABLE_BYTES", $7}'
@@ -49,14 +49,16 @@ echo "DOCKER_INSTALLED $(command -v docker >/dev/null && echo yes || echo no)"
 echo "DOCKER_CONTAINER_COUNT $(docker ps -a -q 2>/dev/null | wc -l)"
 echo "DOCKER_IMAGE_COUNT $(docker images -q 2>/dev/null | wc -l)"
 echo "ALWAYS_ON_SERVICES $(systemctl list-units --type=service --state=running --no-legend 2>/dev/null | awk '{print $1}' | grep -E 'nova-|docker|tailscale' | paste -sd, -)"
-'''.replace("__REPO__", OMEN_REPO_PATH)
+""".replace("__REPO__", OMEN_REPO_PATH)  # noqa: E501
 
 
 def _run_remote(script: str) -> str:
     """Run `script` on the Omen over SSH and return its stdout, raising on failure."""
     result = subprocess.run(
         ["ssh", f"{OMEN_USER}@{OMEN_HOST}", script],
-        capture_output=True, text=True, timeout=SSH_TIMEOUT_SECONDS,
+        capture_output=True,
+        text=True,
+        timeout=SSH_TIMEOUT_SECONDS,
     )
     if result.returncode != 0:
         raise RuntimeError(f"ssh exited {result.returncode}: {result.stderr.strip()}")
@@ -79,7 +81,7 @@ def _gb(byte_str: str) -> float | None:
     if not byte_str:
         return None
     try:
-        return round(int(byte_str) / (1024 ** 3), 2)
+        return round(int(byte_str) / (1024**3), 2)
     except ValueError:
         return None
 
@@ -134,15 +136,21 @@ def print_report(report: dict) -> None:
     print(f"\nOmen Capacity Audit — {report['timestamp']}")
     print("── Compute ──────────────────────────────────────")
     print(f"  CPU: {report['cpu_cores']} cores, load avg {report['load_avg']}")
-    print(f"  RAM: {report['ram_used_gb']}GB used / {report['ram_total_gb']}GB total "
-          f"({report['ram_available_gb']}GB available)")
+    print(
+        f"  RAM: {report['ram_used_gb']}GB used / {report['ram_total_gb']}GB total "
+        f"({report['ram_available_gb']}GB available)"
+    )
     print(f"  Swap: {report['swap_used_gb']}GB used / {report['swap_total_gb']}GB total")
-    print(f"  GPU: present={report['gpu_present']}, driver installed={report['gpu_driver_installed']}"
-          + ("" if report["gpu_driver_installed"] else " (unusable for any GPU workload as-is)"))
+    print(
+        f"  GPU: present={report['gpu_present']}, driver installed={report['gpu_driver_installed']}"
+        + ("" if report["gpu_driver_installed"] else " (unusable for any GPU workload as-is)")
+    )
 
     print("\n── Disk ─────────────────────────────────────────")
-    print(f"  Total: {report['disk_used_gb']}GB used / {report['disk_total_gb']}GB total "
-          f"({report['disk_available_gb']}GB available)")
+    print(
+        f"  Total: {report['disk_used_gb']}GB used / {report['disk_total_gb']}GB total "
+        f"({report['disk_available_gb']}GB available)"
+    )
     print(f"  Chroma data: {report['chroma_data_gb']}GB")
     print(f"  Git repo: {report['git_repo_gb']}GB")
     print(f"  Python venv: {report['venv_gb']}GB")
@@ -150,8 +158,10 @@ def print_report(report: dict) -> None:
     print("\n── Running services ─────────────────────────────")
     for service in report["always_on_services"]:
         print(f"  {service}")
-    print(f"  Docker installed: {report['docker_installed']} "
-          f"({report['docker_container_count']} containers, {report['docker_image_count']} images)")
+    print(
+        f"  Docker installed: {report['docker_installed']} "
+        f"({report['docker_container_count']} containers, {report['docker_image_count']} images)"
+    )
 
 
 if __name__ == "__main__":

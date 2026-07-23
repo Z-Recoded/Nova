@@ -62,7 +62,7 @@ def load_dpo_pairs(path: str) -> list[dict]:
         return []
 
     pairs = []
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -94,9 +94,7 @@ def build_dataset(pairs: list[dict], tokenizer) -> Dataset:
             tokenize=False,
             add_generation_prompt=True,
         )
-        formatted.append(
-            {"prompt": prompt_text, "chosen": pair["chosen"], "rejected": pair["rejected"]}
-        )
+        formatted.append({"prompt": prompt_text, "chosen": pair["chosen"], "rejected": pair["rejected"]})
     return Dataset.from_list(formatted)
 
 
@@ -120,8 +118,13 @@ def load_model_and_tokenizer():
         r=LORA_RANK,
         lora_alpha=LORA_ALPHA,
         target_modules=[
-            "q_proj", "k_proj", "v_proj", "o_proj",
-            "gate_proj", "up_proj", "down_proj",
+            "q_proj",
+            "k_proj",
+            "v_proj",
+            "o_proj",
+            "gate_proj",
+            "up_proj",
+            "down_proj",
         ],
         use_gradient_checkpointing="unsloth",
     )

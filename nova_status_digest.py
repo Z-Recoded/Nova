@@ -15,7 +15,7 @@
 # (structure only), one-way (Chat never writes here).
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import nova_clickup_client as client
@@ -88,7 +88,7 @@ def write_digest(session_notes: list[str] | None = None) -> None:
     """
     current = _categorize_board()
     changes = _diff_snapshots(_load_previous_snapshot(), current)
-    now = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     lines = [
         "# Nova Board Status Digest",

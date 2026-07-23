@@ -11,7 +11,9 @@ print(f"Chroma result: {results['documents'][0][0]}")
 
 # Test 2 — Ollama LLM
 print("\nTesting Ollama...")
-response = ollama.chat(model="llama3.1:8b", messages=[{"role": "user", "content": "In one sentence, what is a vector database?"}])
+response = ollama.chat(
+    model="llama3.1:8b", messages=[{"role": "user", "content": "In one sentence, what is a vector database?"}]
+)  # noqa: E501
 print(f"Ollama response: {response['message']['content']}")
 
 print("\nAll systems nominal.")

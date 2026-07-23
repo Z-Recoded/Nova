@@ -71,6 +71,7 @@ TERMINAL_STATUSES = {"COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT"}
 
 # ── Helpers ────────────────────────────────────────────────────
 
+
 def _extract_answer(response_json: dict) -> dict | None:
     """
     Parse a COMPLETED RunPod job's response into the same shape
@@ -95,12 +96,15 @@ def _extract_answer(response_json: dict) -> dict | None:
             "eval_count": usage.get("output"),
         }
     except (KeyError, IndexError, TypeError) as e:
-        print(f"[nova_remote_inference] UNEXPECTED RESPONSE SHAPE -- schema "
-              f"assumption may be wrong: {e} -- raw response: {response_json}")
+        print(
+            f"[nova_remote_inference] UNEXPECTED RESPONSE SHAPE -- schema "
+            f"assumption may be wrong: {e} -- raw response: {response_json}"
+        )
         return None
 
 
 # ── Core ───────────────────────────────────────────────────────
+
 
 def chat(messages: list[dict], num_ctx: int) -> dict | None:
     """
