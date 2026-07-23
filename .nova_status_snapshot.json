@@ -5,10 +5,6 @@
       "name": "Deploy Open WebUI to the Omen \u2014 make it the sole always-on Nova machine"
     },
     {
-      "id": "86bb1pkpb",
-      "name": "Systematic audit: fix remaining hardcoded C:/Nova paths (OS-agnostic sweep)"
-    },
-    {
       "id": "86bb1nu7u",
       "name": "Prototype TabFM classifier for Nova blend-detection + routing gates"
     },

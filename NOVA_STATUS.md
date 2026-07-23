@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-23 01:44 UTC
+Last updated: 2026-07-23 02:07 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,7 +8,7 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- ready -> in_progress: 86baf4e70 (RunPod/Vast.ai — cloud GPU for fine-tune runs)
+- ready -> complete/removed: 86bb1pkpb (Systematic audit: fix remaining hardcoded C:/Nova paths (OS-agnostic sweep))
 
 ## In progress (4)
 
@@ -33,10 +33,9 @@ falls back to querying ClickUp directly if it looks stale.
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 - 86baf72n5  MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)
 
-## Ready (89)
+## Ready (88)
 
 - 86bb1pq3k  Deploy Open WebUI to the Omen — make it the sole always-on Nova machine
-- 86bb1pkpb  Systematic audit: fix remaining hardcoded C:/Nova paths (OS-agnostic sweep)
 - 86bb1nu7u  Prototype TabFM classifier for Nova blend-detection + routing gates
 - 86bb0wp16  Spec: Fine-Tune CI/CD Pipeline (data-volume-triggered retraining)
 - 86bb0we34  Evaluate Karakeep for tagged/indexed social content archive (content pipeline + Nova ingestion)
