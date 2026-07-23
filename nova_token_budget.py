@@ -26,7 +26,9 @@ from datetime import date, datetime
 
 from nova_config import is_framework_integration_enabled, load_config
 
-STATE_PATH = "C:/Nova/logs/token_budget_state.json"
+# Resolved relative to this file's own location, not hardcoded to the Aero's
+# Windows path -- same bug class already fixed elsewhere in this project (86bb1pkpb).
+STATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", "token_budget_state.json")
 
 DEFAULT_STATE = {
     "consumed_session": 0.0,

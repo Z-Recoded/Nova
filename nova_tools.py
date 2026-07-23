@@ -9,6 +9,7 @@
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 from nova_sources import SOURCES
@@ -103,7 +104,17 @@ GIT_BASH_PATH = r"C:\Program Files\Git\usr\bin\bash.exe"
 # there's no local Python interpreter to find. Prepending the live venv's
 # Scripts dir to PATH lets plain `python`/`pip` resolve without the agent
 # needing to `cd` out of its worktree to find them.
-NOVA_ENV_SCRIPTS_PATH = r"C:\Nova\nova-env\Scripts"
+#
+# Resolved relative to this file's own location rather than hardcoded to the
+# Aero's Windows path (86bb1pkpb) -- and OS-conditional, not just a relative
+# path, since Windows venvs use Scripts/ and Linux venvs (the Omen) use bin/.
+# A naive relative-path-only fix would be syntactically portable but still
+# wrong on Linux.
+NOVA_ENV_SCRIPTS_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "nova-env",
+    "Scripts" if sys.platform == "win32" else "bin",
+)
 
 # NOTE ON SANDBOXING: run_command's isolation is NOT equivalent to
 # read_file/write_file/list_files above. Those hard-validate every path

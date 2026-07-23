@@ -1,12 +1,14 @@
 # nova_memory_store.py
 # Persistent conversation history across Nova sessions
-# Saves/loads last N exchanges to C:\Nova\history.json
+# Saves/loads last N exchanges to history.json, next to this file
 
 import json
 import os
 from datetime import datetime
 
-HISTORY_PATH = "C:/Nova/history.json"
+# Resolved relative to this file's own location, not hardcoded to the Aero's
+# Windows path -- same bug class already fixed elsewhere in this project (86bb1pkpb).
+HISTORY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "history.json")
 MAX_EXCHANGES = 20  # each exchange = 1 user + 1 assistant message = 2 entries
 
 def load_history() -> list[dict]:

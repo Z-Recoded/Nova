@@ -1,7 +1,7 @@
 # graph_builder.py
 # Nova graph layer — builds a node/edge map from Chroma wikilink metadata.
 #
-# Graph lives at C:/Nova/nova_graph.json
+# Graph lives next to this file, as nova_graph.json
 # Nodes:  { id, title, project, chunk_count }
 # Edges:  { source, target, link_text }
 #
@@ -19,7 +19,10 @@ from collections import defaultdict, deque
 import chromadb
 from chromadb.utils import embedding_functions
 
-GRAPH_PATH = "C:/Nova/nova_graph.json"
+# Resolved relative to this file's own location, not hardcoded to the Aero's
+# Windows path -- same bug class already fixed in nova_api.py's reader-side
+# GRAPH_PATH (this file's writer side was missed then, 86bb1pkpb).
+GRAPH_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nova_graph.json")
 CHROMA_HOST = "100.114.197.117"  # Chroma's Tailscale IP -- see nova_query.py's CHROMA_HOST
 # comment for why (2026-07-19: the LAN IP broke whenever the Aero wasn't on the home network)
 CHROMA_PORT = 8000

@@ -31,8 +31,13 @@ from nova_tools import file_replace, list_files, read_file, run_command, write_f
 load_dotenv(dotenv_path=Path(__file__).parent / ".env")
 
 # ── Config ─────────────────────────────────────────────────────
-NOVA_REPO_ROOT = "C:/Nova"
-NOVA_AGENT_WORKTREES_ROOT = "C:/nova-agent-worktrees"
+# Resolved relative to this file's own location, not hardcoded to the Aero's
+# Windows path -- same bug class already fixed elsewhere in this project
+# (86bb1pkpb). NOVA_AGENT_WORKTREES_ROOT wasn't in the original grep audit
+# (it doesn't contain the literal "C:/Nova" string) but is the identical bug
+# shape -- a sibling directory hardcoded to a Windows path -- so fixed here too.
+NOVA_REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
+NOVA_AGENT_WORKTREES_ROOT = os.path.join(os.path.dirname(NOVA_REPO_ROOT), "nova-agent-worktrees")
 
 NOVA_AGENT_MODEL = "claude-sonnet-5"
 # Raised from 15: the first two real tasks both hit this cap despite doing
@@ -45,7 +50,7 @@ NOVA_AGENT_MAX_TURNS = 25
 # own for a file the size of nova_api.py.
 NOVA_AGENT_MAX_TOKENS = 8192
 
-LOGS_DIR = "C:/Nova/logs"
+LOGS_DIR = os.path.join(NOVA_REPO_ROOT, "logs")
 AGENT_LOG_PATH = f"{LOGS_DIR}/agent_log.jsonl"
 TASK_OUTCOMES_LOG_PATH = f"{LOGS_DIR}/agent_task_outcomes.jsonl"
 

@@ -14,7 +14,9 @@
 import re
 from pathlib import Path
 
-SKILLS_DIR = Path("C:/Nova/skills")
+# Resolved relative to this file's own location, not hardcoded to the Aero's
+# Windows path -- same bug class already fixed elsewhere in this project (86bb1pkpb).
+SKILLS_DIR = Path(__file__).parent / "skills"
 
 VERSION_PATTERN = re.compile(r"Version:\s*([0-9.]+)")
 
