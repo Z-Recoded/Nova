@@ -341,15 +341,15 @@
       "name": "Dockerize Nova services"
     },
     {
+      "id": "86baeyg1h",
+      "name": "First fine-tune pass (Unsloth + DPO \u2192 GGUF \u2192 Ollama)"
+    },
+    {
       "id": "86baeyfua",
       "name": "Link-aware ingestion upgrade (Option B)"
     }
   ],
   "in_progress": [
-    {
-      "id": "86bara7pn",
-      "name": "Source + curate coding training data for Nova's coding model"
-    },
     {
       "id": "86bara3tj",
       "name": "Spec + Build: Chunk visualization tool \u2014 RAG retrieval audit"

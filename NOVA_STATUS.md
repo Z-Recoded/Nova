@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-23 03:37 UTC
+Last updated: 2026-07-23 03:47 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,11 +8,11 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- blocked -> in_progress: 86bara7pn (Source + curate coding training data for Nova's coding model)
+- NEW -> ready: 86baeyg1h (First fine-tune pass (Unsloth + DPO → GGUF → Ollama))
+- in_progress -> complete/removed: 86bara7pn (Source + curate coding training data for Nova's coding model)
 
-## In progress (5)
+## In progress (4)
 
-- 86bara7pn  Source + curate coding training data for Nova's coding model
 - 86bara3tj  Spec + Build: Chunk visualization tool — RAG retrieval audit
 - 86baf4eah  Hosted inference fallback (Groq / Together.ai / Fireworks)
 - 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
@@ -33,7 +33,7 @@ falls back to querying ClickUp directly if it looks stale.
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 - 86baf72n5  MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)
 
-## Ready (86)
+## Ready (87)
 
 - 86bb1pq3k  Deploy Open WebUI to the Omen — make it the sole always-on Nova machine
 - 86bb1nu7u  Prototype TabFM classifier for Nova blend-detection + routing gates
@@ -120,4 +120,5 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bafunj2  Research & Plan: Classical Algorithm Integration into Nova's Decision Layer
 - 86baf72n5  MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)
 - 86baf4e29  Dockerize Nova services
+- 86baeyg1h  First fine-tune pass (Unsloth + DPO → GGUF → Ollama)
 - 86baeyfua  Link-aware ingestion upgrade (Option B)
