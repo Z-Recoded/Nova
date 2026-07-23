@@ -511,6 +511,205 @@ def dispatch_headless_task(
     return dispatch_result
 
 
+# ── Real sandboxing (86baf72qq/86barex1u groundwork) ────────────────────
+#
+# dispatch_headless_task() above runs `claude -p --worktree` directly over
+# bare SSH on the Omen's real shell -- confirmed live, Claude Code's own
+# native Bash/Read/Write/Edit tools have full, uncontained access to
+# whatever the SSH user can reach (no path validation, no command
+# denylist, nothing). This is the highest-risk execution path in the
+# project -- fully unattended, nobody watching in real time -- and today
+# it's the LEAST contained one (nova_tools.py's run_command() containment
+# is a different code path, only used by nova_orchestrator.py's separate
+# hand-rolled loop, never by headless dispatch). See
+# docker/nova-dispatch-sandbox/Dockerfile for the sandbox image itself.
+#
+# Deliberate v1 scope, confirmed with Marvin before building: real
+# containment for headless dispatch specifically (the highest-risk path),
+# not the full 86baf72qq vision (5 container types mapped to LangGraph
+# nodes, needs MCP tool-calling which doesn't exist) and not OpenHands
+# (86barex1u, needs a trained local coding model which doesn't exist
+# either). This function is new, additive, and opt-in -- callers choose it
+# explicitly; dispatch_headless_task() above is completely unchanged and
+# stays the default.
+
+DOCKER_IMAGE = "nova-dispatch-sandbox:latest"
+
+
+def _create_worktree_on_omen(worktree_name: str) -> dict:
+    """
+    Pre-create a git worktree on the Omen's real filesystem via plain git
+    operations over SSH -- no claude/API involved yet. Needed because the
+    sandboxed path below runs `claude -p` WITHOUT its own --worktree flag:
+    that flag creates the worktree itself, but only on whatever filesystem
+    claude's own process can see -- inside a not-yet-started container,
+    nothing exists yet to create it on. Mirrors nova_orchestrator.py's
+    _create_worktree() (same branch-from-origin/master semantics this
+    module's own docstring already documents for the --worktree flag,
+    replicated here explicitly with `git fetch origin` first since bypassing
+    that flag also means bypassing whatever fetch behavior it does
+    internally).
+
+    Worktree path matches Claude Code's own --worktree convention
+    (.claude/worktrees/<name> relative to the repo root) so sandboxed and
+    non-sandboxed dispatch stay consistent and _snapshot_omen_worktrees()'s
+    existing diff logic needs no changes to support this new path.
+
+    Returns {"success": True, "worktree_path": ...} or
+    {"success": False, "error": ...} -- never raises.
+    """
+    worktree_path = f"{OMEN_REPO_PATH}/.claude/worktrees/{worktree_name}"
+    remote_command = (
+        f"cd {OMEN_REPO_PATH} && git fetch origin && "
+        f"git worktree add {shlex.quote(worktree_path)} -b {shlex.quote(worktree_name)} origin/master"
+    )
+    try:
+        result = subprocess.run(
+            ["ssh", f"{OMEN_USER}@{OMEN_HOST}", remote_command],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except subprocess.TimeoutExpired:
+        return {"success": False, "error": "git worktree add timed out"}
+    if result.returncode != 0:
+        return {"success": False, "error": f"git worktree add failed: {result.stderr.strip()}"}
+    return {"success": True, "worktree_path": worktree_path}
+
+
+def dispatch_headless_task_sandboxed(
+    task_description: str,
+    worktree_name: str | None = None,
+) -> dict:
+    """
+    Real-sandboxed variant of dispatch_headless_task() -- runs `claude -p`
+    INSIDE a Docker container on the Omen instead of directly on its bare
+    shell.
+
+    Mount design (see docker/nova-dispatch-sandbox/Dockerfile for the full
+    reasoning): only {OMEN_REPO_PATH}/.git (rw -- git needs this for any
+    worktree operation, since commits/diffs write to the main repo's shared
+    object store) and this task's own pre-created worktree directory (rw)
+    are mounted, both at their real host-matching absolute paths inside the
+    container -- required, since a worktree's own `.git` FILE contains an
+    absolute `gitdir:` pointer back to the main repo, so the path has to
+    match exactly on both sides or git breaks. Nothing else under
+    OMEN_REPO_PATH is visible inside the container at all: no `.env`, no
+    `nova_state.db`, no other worktrees, no other source files -- verified
+    live with a real negative-containment check (see the commit/PR this
+    shipped in), not just designed and assumed.
+
+    Also mounts the Omen user's real `~/.claude` directory (rw). Real,
+    deliberate trade-off, stated honestly rather than silently done: without
+    this, Claude's own session transcript is written inside the container's
+    ephemeral filesystem and is lost the instant the container exits
+    (`--rm`), silently breaking _ingest_transcript_into_agent_log()'s
+    downstream training-data capture for every sandboxed dispatch. The
+    container can therefore read Claude Code's own config/session-history
+    directory -- a real, narrower category of access than this project's
+    application secrets (.env/nova_state.db), which stay genuinely
+    unreachable -- but it is not full isolation from every file on the Omen.
+
+    Real, deliberate v1 scope boundary: only supports the metered
+    ANTHROPIC_API_KEY credential ("api_key" fuel source), never the
+    "subscription" login -- that needs the Omen user's stored Claude Code
+    OAuth credentials, real broader auth material this sandbox deliberately
+    does not widen access for, rather than silently reaching for it just to
+    preserve today's dual-fuel flexibility before that trade-off has been
+    asked about directly.
+
+    Never raises. Returns the same result shape as dispatch_headless_task()
+    (plus "sandboxed": True) on success; {"success": False, "error": ...}
+    on any failure.
+    """
+    pause_state = is_dispatch_paused()
+    if pause_state["paused"]:
+        return {
+            "success": False,
+            "paused": True,
+            "worktree_path": None,
+            "worktree_name": None,
+            "reason": pause_state.get("reason"),
+            "error": "Dispatch is paused — call set_dispatch_pause(False) or "
+            "`python nova_omen_dispatch.py --resume` to clear it.",
+        }
+
+    resolved_worktree_name = worktree_name or f"nova-dispatch-{uuid.uuid4().hex[:8]}"
+
+    worktree_result = _create_worktree_on_omen(resolved_worktree_name)
+    if not worktree_result["success"]:
+        return {
+            "success": False,
+            "fuel_source": "api_key",
+            "worktree_path": None,
+            "worktree_name": resolved_worktree_name,
+            "error": worktree_result["error"],
+        }
+    worktree_path = worktree_result["worktree_path"]
+
+    # Extract only ANTHROPIC_API_KEY from .env via the Omen's own venv +
+    # python-dotenv -- same narrow-extraction discipline as
+    # _build_credential_prefix()'s "api_key" branch, never a blanket
+    # `source .env` (would leak CLICKUP_API_KEY/RUNPOD_API_KEY into the
+    # container for no reason).
+    dotenv_code = (
+        f"from dotenv import dotenv_values; print(dotenv_values('{OMEN_ENV_PATH}').get('ANTHROPIC_API_KEY', ''))"
+    )
+    quoted_task = shlex.quote(task_description)
+    omen_home = f"/home/{OMEN_USER}"
+    remote_command = (
+        f"API_KEY=$({OMEN_VENV_PYTHON} -c {shlex.quote(dotenv_code)}) && "
+        # --user, resolved live via `id`, not a hardcoded UID -- without this
+        # the container runs as root by default, and any file it writes onto
+        # a mounted host volume (the transcript under ~/.claude/projects/,
+        # confirmed live) comes out root-owned and unreadable to the real
+        # marvinroyal5 account afterward, silently breaking
+        # _ingest_transcript_into_agent_log()'s downstream read. Found via a
+        # real live test, not anticipated in the original design.
+        f"docker run --rm --user $(id -u):$(id -g) "
+        f'-e HOME={shlex.quote(omen_home)} -e ANTHROPIC_API_KEY="$API_KEY" '
+        f"-v {shlex.quote(omen_home)}/.claude:{shlex.quote(omen_home)}/.claude "
+        f"-v {shlex.quote(OMEN_REPO_PATH)}/.git:{shlex.quote(OMEN_REPO_PATH)}/.git "
+        f"-v {shlex.quote(worktree_path)}:{shlex.quote(worktree_path)} "
+        f"-w {shlex.quote(worktree_path)} "
+        f"{DOCKER_IMAGE} "
+        f"claude -p --permission-mode acceptEdits --output-format json {quoted_task}"
+    )
+
+    raw = _run_claude_over_ssh(remote_command)
+
+    if "error" in raw:
+        return {
+            "success": False,
+            "fuel_source": "api_key",
+            "worktree_path": worktree_path,
+            "worktree_name": resolved_worktree_name,
+            **raw,
+        }
+
+    dispatch_result = {
+        "success": not raw.get("is_error", False) and raw.get("stop_reason") == "end_turn",
+        "fuel_source": "api_key",
+        "session_id": raw.get("session_id"),
+        "summary": raw.get("result"),
+        "stop_reason": raw.get("stop_reason"),
+        "cost_usd": raw.get("total_cost_usd"),
+        "num_turns": raw.get("num_turns"),
+        "worktree_path": worktree_path,
+        "worktree_name": resolved_worktree_name,
+        "sandboxed": True,
+    }
+
+    dispatch_result["escalation"] = check_escalation(dispatch_result)
+
+    if dispatch_result["session_id"]:
+        dispatch_result["agent_log_ingest"] = _ingest_transcript_into_agent_log(
+            dispatch_result["session_id"], task_description
+        )
+
+    return dispatch_result
+
+
 def resume_headless_task(
     worktree_path: str,
     session_id: str,
