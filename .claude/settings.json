@@ -12,6 +12,10 @@
           {
             "type": "command",
             "command": "mkdir -p logs && python3 nova_usage_logger.py --push >> logs/usage_logger_hook.log 2>&1"
+          },
+          {
+            "type": "command",
+            "command": "mkdir -p logs && python3 nova_interactive_log_ingest.py >> logs/interactive_log_ingest_hook.log 2>&1"
           }
         ]
       }
