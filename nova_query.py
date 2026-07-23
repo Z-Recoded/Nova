@@ -5,20 +5,20 @@
 import os
 import re
 import time
+from datetime import datetime
 
 import chromadb
-from chromadb.utils import embedding_functions
-from datetime import datetime
 import ollama
+from chromadb.utils import embedding_functions
 
-from nova_router import route, CODING_AGENT_PREFIX
-from nova_logger import detect_blending, log_blend
-from nova_log import log_query
-from nova_config import config_snapshot, get_routed_model, is_framework_integration_enabled
-from nova_memory_store import load_history, save_history
-from graph_builder import get_context_budget
-from nova_orchestrator import run_coding_task
 import nova_remote_inference
+from graph_builder import get_context_budget
+from nova_config import config_snapshot, get_routed_model, is_framework_integration_enabled
+from nova_log import log_query
+from nova_logger import detect_blending, log_blend
+from nova_memory_store import save_history
+from nova_orchestrator import run_coding_task
+from nova_router import CODING_AGENT_PREFIX, route
 
 # ── Config ─────────────────────────────────────────────────────
 OLLAMA_MODEL = "llama3.2"
@@ -48,17 +48,17 @@ CHROMA_PORT = 8000
 # still passes through unchanged.
 LOCAL_OLLAMA_URL = "http://127.0.0.1:11434"  # ollama's own default connect target
 _raw_ollama_host = os.environ.get("OLLAMA_HOST")
-_host_is_bind_all = _raw_ollama_host == "0.0.0.0" or (_raw_ollama_host or "").startswith("0.0.0.0:")
+# This DETECTS a bind-all address in order to avoid using it below -- not a bind call itself.
+_host_is_bind_all = (
+    _raw_ollama_host == "0.0.0.0" or (_raw_ollama_host or "").startswith("0.0.0.0:")  # nosec B104
+)
 OLLAMA_HOST = LOCAL_OLLAMA_URL if (not _raw_ollama_host or _host_is_bind_all) else _raw_ollama_host
 
 # ── Setup ──────────────────────────────────────────────────────
 chroma_client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
 ollama_client = ollama.Client(host=OLLAMA_HOST)
 embedding_fn = embedding_functions.DefaultEmbeddingFunction()
-collection = chroma_client.get_or_create_collection(
-    name="nova_memory",
-    embedding_function=embedding_fn
-)
+collection = chroma_client.get_or_create_collection(name="nova_memory", embedding_function=embedding_fn)
 
 
 # ── Character name → filename map (for per-character retrieval filtering) ──
@@ -84,14 +84,16 @@ CHARACTER_FILES = {
     "sys_symphony": "SYS_Symphony.EXE.md",
 }
 
+
 # ── Profile ────────────────────────────────────────────────────
 def load_profile() -> str:
     """Always load marvin_profile.md as pinned context."""
     try:
-        with open(PROFILE_PATH, 'r', encoding='utf-8') as f:
+        with open(PROFILE_PATH, encoding="utf-8") as f:
             return f.read()
     except Exception:
         return ""
+
 
 # ── System prompt ──────────────────────────────────────────────
 def build_system_prompt(route_note: str = "") -> str:
@@ -109,7 +111,8 @@ Rules:
 - If you genuinely don't know something, say so in one sentence.
 - Never add meta-commentary like "This response draws upon..." or "This refers to context from...".
 - Never ask rhetorical questions back at Marvin unless he asks for reflection.
-- Each memory block is labeled [Source: filename]. Treat each source as a separate document. Never transfer attributes, traits, or facts from one source to another. If two sources describe similar things, keep them distinct and attribute each fact to its source."""
+- Each memory block is labeled [Source: filename]. Treat each source as a separate document. Never transfer attributes, traits, or facts from one source to another. If two sources describe similar things, keep them distinct and attribute each fact to its source."""  # noqa: E501
+
 
 # ── Retrieval ──────────────────────────────────────────────────
 def retrieve(query: str, n_results: int = 5, where: dict = None) -> list[dict]:
@@ -120,11 +123,13 @@ def retrieve(query: str, n_results: int = 5, where: dict = None) -> list[dict]:
     results = collection.query(**kwargs)
     chunks = []
     for i in range(len(results["documents"][0])):
-        chunks.append({
-            "text": results["documents"][0][i],
-            "metadata": results["metadatas"][0][i],
-            "distance": results["distances"][0][i],
-        })
+        chunks.append(
+            {
+                "text": results["documents"][0][i],
+                "metadata": results["metadatas"][0][i],
+                "distance": results["distances"][0][i],
+            }
+        )
     return chunks
 
 
@@ -160,12 +165,14 @@ def retrieve_with_graph(query: str, n_results: int = 5, where: dict = None) -> l
     # Fallback — use caller's original filter (or no filter)
     return retrieve(query, n_results=n_results, where=where)
 
+
 def build_retrieval_query(query: str, history: list[dict]) -> str:
     """Expand query with recent user turns for better follow-up retrieval."""
     if not history or len(history) < 2:
         return query
     recent = [msg["content"] for msg in history[-4:] if msg["role"] == "user"]
     return " ".join(recent[-2:]) + " " + query
+
 
 def format_context(chunks: list[dict]) -> str:
     parts = []
@@ -175,6 +182,7 @@ def format_context(chunks: list[dict]) -> str:
         project = meta.get("project", "")
         parts.append(f"[Source: {source} | Project: {project}]\n{chunk['text']}")
     return "\n\n---\n\n".join(parts)
+
 
 # ── Coding sub-agent handoff ───────────────────────────────────
 def _extract_changed_files(diff: str) -> list[str]:
@@ -226,7 +234,7 @@ def handle_coding_task(query: str) -> dict:
     no Ollama call, no query_log.jsonl/history.json writes. The task's own
     telemetry already lands in logs/agent_log.jsonl via nova_orchestrator.py.
     """
-    task_description = query[len(CODING_AGENT_PREFIX):]
+    task_description = query[len(CODING_AGENT_PREFIX) :]
     result = run_coding_task(task_description)
     answer = format_coding_task_summary(result)
     return {
@@ -236,9 +244,11 @@ def handle_coding_task(query: str) -> dict:
         "category": "coding_agent",
     }
 
+
 # ── Generation ─────────────────────────────────────────────────
-def ask(query: str, history: list[dict] = None, persist: bool = True, model_override: str = None,
-        think: bool = None) -> dict:
+def ask(
+    query: str, history: list[dict] = None, persist: bool = True, model_override: str = None, think: bool = None
+) -> dict:
     """
     Full RAG pipeline: route → retrieve → generate.
     Returns dict with 'answer', 'sources', 'chunks', 'category'.
@@ -313,10 +323,12 @@ def ask(query: str, history: list[dict] = None, persist: bool = True, model_over
     # Build messages
     messages = [{"role": "system", "content": build_system_prompt(route_result.note)}]
     messages.extend(history)
-    messages.append({
-        "role": "user",
-        "content": f"Here is relevant context from your memory:\n\n{pinned}{context}\n\n---\n\nQuestion: {query}"
-    })
+    messages.append(
+        {
+            "role": "user",
+            "content": f"Here is relevant context from your memory:\n\n{pinned}{context}\n\n---\n\nQuestion: {query}",
+        }
+    )
 
     # Tracks whichever model actually generated the response, for accurate
     # telemetry below -- distinct from `model` (the locally-routed choice),
@@ -383,10 +395,7 @@ def ask(query: str, history: list[dict] = None, persist: bool = True, model_over
 
     # Persist updated history
     if persist:
-        updated = history + [
-            {"role": "user", "content": query},
-            {"role": "assistant", "content": answer}
-        ]
+        updated = history + [{"role": "user", "content": query}, {"role": "assistant", "content": answer}]
         save_history(updated)
 
     return {
@@ -395,6 +404,7 @@ def ask(query: str, history: list[dict] = None, persist: bool = True, model_over
         "chunks": chunks,
         "category": route_result.category,
     }
+
 
 # ── Quick test ─────────────────────────────────────────────────
 if __name__ == "__main__":

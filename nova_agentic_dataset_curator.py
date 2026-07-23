@@ -77,6 +77,7 @@ HTTP_TIMEOUT_SECONDS = 120
 
 # ── Phase 1: download ─────────────────────────────────────────
 
+
 def _dataset_raw_dir(name: str) -> str:
     path = os.path.join(RAW_DIR, name)
     os.makedirs(path, exist_ok=True)
@@ -197,6 +198,7 @@ def download_all() -> None:
 #                    derivation,...}]} -- one row per context, needs
 #                    flattening to one row per question
 
+
 def _messages_row(messages: list[dict], source: str) -> dict:
     """Build one curated row in Nova's standard chat-message shape."""
     return {"messages": messages, "source_dataset": source, "license": LICENSES[source]}
@@ -243,8 +245,7 @@ def _convert_toolbench():
             # Parallel arrays, not a list of dicts -- confirmed live, see module notes above.
             froms, values = convo["from"], convo["value"]
             messages = [
-                {"role": role_map.get(role, role), "content": value}
-                for role, value in zip(froms, values)
+                {"role": role_map.get(role, role), "content": value} for role, value in zip(froms, values, strict=True)
             ]
             if messages:
                 yield _messages_row(messages, "toolbench")
@@ -254,7 +255,7 @@ def _convert_apibench():
     files = ["huggingface_train.json", "tensorflow_train.json", "torchhub_train.json"]
     for f in files:
         local_path = hf_hub_download(APIBENCH_REPO, f, repo_type="dataset")
-        with open(local_path, "r", encoding="utf-8") as fh:
+        with open(local_path, encoding="utf-8") as fh:
             for line in fh:
                 line = line.strip()
                 if not line:
@@ -266,7 +267,7 @@ def _convert_apibench():
                 if idx == -1:
                     continue
                 instruction = code[:idx].replace("###Instruction:", "").strip()
-                output = code[idx + len(marker):].strip()
+                output = code[idx + len(marker) :].strip()
                 if not instruction or not output:
                     continue
                 messages = [
@@ -280,7 +281,7 @@ def _convert_finqa():
     # Train split only (6,251 rows) -- plenty for this blend's target size,
     # dev/test held out rather than pulled in unnecessarily.
     path = os.path.join(RAW_DIR, "finqa", "train.json")
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         rows = json.load(fh)
     for row in rows:
         qa = row.get("qa", {})
@@ -288,8 +289,13 @@ def _convert_finqa():
         answer = qa.get("answer")
         if not question or answer is None:
             continue
-        context = "\n".join(row.get("pre_text", [])) + "\n\n" + _format_table(row.get("table", [])) \
-            + "\n\n" + "\n".join(row.get("post_text", []))
+        context = (
+            "\n".join(row.get("pre_text", []))
+            + "\n\n"
+            + _format_table(row.get("table", []))
+            + "\n\n"
+            + "\n".join(row.get("post_text", []))
+        )
         user_content = f"{context.strip()}\n\nQuestion: {question}"
         # Prefer the free-text explanation as the reasoning chain; fall back
         # to the gold evidence sentences flagged as most relevant.
@@ -306,7 +312,7 @@ def _convert_finqa():
 
 def _convert_tatqa():
     local_path = hf_hub_download(TATQA_REPO, "tatqa_dataset_train.json", repo_type="dataset")
-    with open(local_path, "r", encoding="utf-8") as fh:
+    with open(local_path, encoding="utf-8") as fh:
         contexts = json.load(fh)
     for context in contexts:
         table_text = _format_table(context.get("table", {}).get("table", []))
@@ -380,7 +386,7 @@ FINANCIAL_SAMPLE_SIZES = {
 
 def _load_converted(name: str) -> list[dict]:
     path = os.path.join(RAW_DIR, name, "converted.jsonl")
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         return [json.loads(line) for line in fh if line.strip()]
 
 
@@ -390,7 +396,8 @@ def blend() -> None:
     constants above) and write one shuffled, blended .jsonl. Uses a fixed
     seed so reruns are reproducible.
     """
-    rng = random.Random(RANDOM_SEED)
+    # Deterministic dataset shuffling/sampling, not security-sensitive.
+    rng = random.Random(RANDOM_SEED)  # nosec B311
     blended: list[dict] = []
 
     for name, target_size in {**AGENTIC_SAMPLE_SIZES, **FINANCIAL_SAMPLE_SIZES}.items():
@@ -411,13 +418,14 @@ def blend() -> None:
 
 # ── Phase 4: report ────────────────────────────────────────────
 
+
 def report() -> None:
     """Print final counts per source/license and a few random sample rows for a manual sanity check."""
     if not os.path.exists(CURATED_OUTPUT_PATH):
         print(f"No curated file found at {CURATED_OUTPUT_PATH} -- run --blend first.")
         return
 
-    with open(CURATED_OUTPUT_PATH, "r", encoding="utf-8") as fh:
+    with open(CURATED_OUTPUT_PATH, encoding="utf-8") as fh:
         rows = [json.loads(line) for line in fh if line.strip()]
 
     print(f"Total curated rows: {len(rows)}\n")
@@ -437,7 +445,8 @@ def report() -> None:
         print(f"  {license_name:15s} {count:6d}  ({100 * count / len(rows):.1f}%)")
 
     print("\nSample rows:")
-    rng = random.Random(RANDOM_SEED)
+    # Deterministic dataset shuffling/sampling, not security-sensitive.
+    rng = random.Random(RANDOM_SEED)  # nosec B311
     for row in rng.sample(rows, min(3, len(rows))):
         print(f"\n--- source: {row['source_dataset']} ---")
         for msg in row["messages"]:

@@ -27,7 +27,7 @@ import socket
 import sys
 
 OMEN_HOST = "192.168.1.250"
-CHROMA_HTTP_PORT = 8000  # chromadb's own default standalone-server port (`chroma run`) -- override with --port if it ends up elsewhere (e.g. the nova-chroma docker-compose mapping)
+CHROMA_HTTP_PORT = 8000  # chromadb's own default standalone-server port (`chroma run`) -- override with --port if it ends up elsewhere (e.g. the nova-chroma docker-compose mapping)  # noqa: E501
 COLLECTION_NAME = "nova_memory"
 # Same query CLAUDE.md documents as the known-good /context-budget verification
 # query (Section 5) -- reusing it here gives a sanity check against a
@@ -117,7 +117,7 @@ def main(host: str = OMEN_HOST, port: int = CHROMA_HTTP_PORT) -> int:
         return 1
 
     print(f"OK: query returned {len(documents)} real result(s):\n")
-    for i, (doc, meta, dist) in enumerate(zip(documents, metadatas, distances), start=1):
+    for i, (doc, meta, dist) in enumerate(zip(documents, metadatas, distances, strict=True), start=1):
         preview = doc[:200].replace("\n", " ")
         print(f"  [{i}] distance={dist:.4f}  metadata={meta}")
         print(f"      {preview}{'...' if len(doc) > 200 else ''}")

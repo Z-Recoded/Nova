@@ -10,9 +10,10 @@
 
 import argparse
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from colorama import Fore, Style, init as colorama_init
+from colorama import Fore, Style
+from colorama import init as colorama_init
 
 import nova_clickup_client as client
 
@@ -21,8 +22,12 @@ import nova_clickup_client as client
 # never crash on a Windows console stuck on cp1252, the same bug class this
 # project has hit and fixed in nova_benchmark.py and the Browser Hands harness.
 if sys.platform == "win32":
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    # mypy types sys.stdout/stderr as the narrower TextIO protocol, which
+    # doesn't declare .reconfigure() -- it's real on the concrete TextIOWrapper
+    # object at runtime (confirmed: this line executes today), a known,
+    # common false-positive category, not a real type error.
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
 
 colorama_init(autoreset=True)
 
@@ -31,6 +36,7 @@ CONFIRM_THRESHOLD = 5
 
 
 # ── Output helpers ───────────────────────────────────────────────
+
 
 def _color_for_status(status: str) -> str:
     return {
@@ -50,10 +56,11 @@ def _priority_of(task: dict) -> str:
 
 
 def _last_updated(task: dict) -> str:
-    return datetime.fromtimestamp(int(task["date_updated"]) / 1000, tz=timezone.utc).date().isoformat()
+    return datetime.fromtimestamp(int(task["date_updated"]) / 1000, tz=UTC).date().isoformat()
 
 
 # ── Read commands ────────────────────────────────────────────────
+
 
 def cmd_help(args, parser, sub_map) -> int:
     topic = args.topic
@@ -167,6 +174,7 @@ def cmd_find(args) -> int:
 
 # ── Write commands ───────────────────────────────────────────────
 
+
 def cmd_move(args) -> int:
     ids = list(args.ids)
     if args.file:
@@ -279,12 +287,14 @@ def cmd_split(args) -> int:
 
 
 COMMAND_HANDLERS = {
-    "ready": cmd_ready, "ls": cmd_ready,
+    "ready": cmd_ready,
+    "ls": cmd_ready,
     "why": cmd_why,
     "check": cmd_check,
     "audit": cmd_audit,
     "find": cmd_find,
-    "move": cmd_move, "mv": cmd_move,
+    "move": cmd_move,
+    "mv": cmd_move,
     "block": cmd_block,
     "link": cmd_link,
     "unlink": cmd_unlink,
@@ -293,6 +303,7 @@ COMMAND_HANDLERS = {
 
 
 # ── Parser construction ──────────────────────────────────────────
+
 
 def build_parser():
     parser = argparse.ArgumentParser(

@@ -29,7 +29,7 @@ import sys
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+
 
 def _resolve_log_dir() -> Path:
     """
@@ -63,7 +63,7 @@ def log_tool_call(
     args: dict,
     result: str,
     error_detail: str | None,
-    latency_ms: Optional[float] = None,
+    latency_ms: float | None = None,
 ) -> str:
     """
     Append one tool-call entry to tool_call_log.jsonl and return its
@@ -118,5 +118,6 @@ if __name__ == "__main__":
             result=result_status,
             error_detail=json.dumps(tool_response) if result_status == "error" else None,
         )
-    except Exception:
+    # Logging must never crash the caller it's instrumenting.
+    except Exception:  # nosec B110
         pass

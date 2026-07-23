@@ -39,7 +39,8 @@ DEFAULT_CONFIG = {
         "langgraph_orchestration": False,
         "openhands_coding_agent": False,
         "visual_retrieval": False,
-        "token_budget_governor": False,
+        # "token_budget_governor" is a boolean feature flag, not a password.
+        "token_budget_governor": False,  # nosec B105
         "skill_injection": False,
         "remote_gpu_inference": False,
     },
@@ -57,6 +58,7 @@ DEFAULT_CONFIG = {
 
 # ── Loading ────────────────────────────────────────────────────
 
+
 def load_config() -> dict:
     """
     Read nova_config.json fresh from disk every call — no in-memory caching.
@@ -68,13 +70,14 @@ def load_config() -> dict:
     query path.
     """
     try:
-        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+        with open(CONFIG_PATH, encoding="utf-8") as f:
             return json.load(f)
     except (OSError, json.JSONDecodeError):
         return DEFAULT_CONFIG
 
 
 # ── Flag checks ────────────────────────────────────────────────
+
 
 def is_augment_enabled(flag_name: str) -> bool:
     """
@@ -153,6 +156,7 @@ def get_routed_model(category: str, fallback: str) -> str:
 
 
 # ── Reporting ──────────────────────────────────────────────────
+
 
 def config_snapshot() -> dict:
     """

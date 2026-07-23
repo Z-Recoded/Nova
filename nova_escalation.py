@@ -49,12 +49,12 @@ import os
 import re
 import urllib.error
 import urllib.request
-from typing import Optional
 
 NOVA_API_URL = os.environ.get("NOVA_API_URL", "http://100.114.197.117:8001")
 
 
 # ── Pause-at-will ────────────────────────────────────────────────
+
 
 def is_dispatch_paused() -> dict:
     """
@@ -68,7 +68,10 @@ def is_dispatch_paused() -> dict:
     safe case" instinct, applied to a different question).
     """
     try:
-        with urllib.request.urlopen(f"{NOVA_API_URL}/dispatch-pause", timeout=10) as response:
+        # Fixed internal API URL, never user-controlled -- not the file:/custom-scheme risk this check targets.
+        with urllib.request.urlopen(  # nosec B310
+            f"{NOVA_API_URL}/dispatch-pause", timeout=10
+        ) as response:
             state = json.loads(response.read())
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as e:
         return {
@@ -79,7 +82,7 @@ def is_dispatch_paused() -> dict:
     return {"paused": state.get("paused", False), "reason": state.get("reason"), "paused_at": state.get("paused_at")}
 
 
-def set_dispatch_pause(paused: bool, reason: Optional[str] = None) -> dict:
+def set_dispatch_pause(paused: bool, reason: str | None = None) -> dict:
     """
     Flip the pause switch via the Omen's nova-api. Unlike the read path,
     this does not fail silently — if Marvin explicitly asks to pause and
@@ -92,7 +95,8 @@ def set_dispatch_pause(paused: bool, reason: Optional[str] = None) -> dict:
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=10) as response:
+    # Fixed internal API URL, never user-controlled -- not the file:/custom-scheme risk this check targets.
+    with urllib.request.urlopen(request, timeout=10) as response:  # nosec B310
         return json.loads(response.read())
 
 

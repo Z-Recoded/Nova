@@ -38,6 +38,7 @@ collection = chroma_client.get_or_create_collection(
 
 # ── Internal helpers ───────────────────────────────────────────
 
+
 def _parse_links(links_str: str) -> list[str]:
     """
     Parse the stringified list that ingest.py stores in metadata.
@@ -87,7 +88,7 @@ def _build_graph_from_chunks(metadatas: list[dict]) -> dict:
         }
     """
     # Aggregate per file
-    file_data: dict[str, dict] = {}   # filename → {project, chunk_count, links_seen}
+    file_data: dict[str, dict] = {}  # filename → {project, chunk_count, links_seen}
 
     for meta in metadatas:
         filename = meta.get("filename", "")
@@ -98,7 +99,7 @@ def _build_graph_from_chunks(metadatas: list[dict]) -> dict:
             file_data[filename] = {
                 "project": meta.get("project", ""),
                 "chunk_count": 0,
-                "links_seen": set(),     # raw link texts found in any chunk
+                "links_seen": set(),  # raw link texts found in any chunk
             }
 
         file_data[filename]["chunk_count"] += 1
@@ -111,12 +112,14 @@ def _build_graph_from_chunks(metadatas: list[dict]) -> dict:
     nodes = []
     for filename, data in file_data.items():
         title = os.path.splitext(filename)[0]
-        nodes.append({
-            "id": filename,
-            "title": title,
-            "project": data["project"],
-            "chunk_count": data["chunk_count"],
-        })
+        nodes.append(
+            {
+                "id": filename,
+                "title": title,
+                "project": data["project"],
+                "chunk_count": data["chunk_count"],
+            }
+        )
 
     # Build edges
     known_files = {n["id"] for n in nodes}
@@ -131,11 +134,13 @@ def _build_graph_from_chunks(metadatas: list[dict]) -> dict:
                 key = (filename, target)
                 if key not in seen_edges:
                     seen_edges.add(key)
-                    edges.append({
-                        "source": filename,
-                        "target": target,
-                        "link_text": raw_link,
-                    })
+                    edges.append(
+                        {
+                            "source": filename,
+                            "target": target,
+                            "link_text": raw_link,
+                        }
+                    )
 
     return {"nodes": nodes, "edges": edges}
 
@@ -145,7 +150,7 @@ def _load_graph() -> dict:
     if not os.path.exists(GRAPH_PATH):
         return {"nodes": [], "edges": []}
     try:
-        with open(GRAPH_PATH, "r", encoding="utf-8") as f:
+        with open(GRAPH_PATH, encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return {"nodes": [], "edges": []}
@@ -157,6 +162,7 @@ def _save_graph(graph: dict) -> None:
 
 
 # ── Public API ─────────────────────────────────────────────────
+
 
 def build_graph() -> dict:
     """
@@ -215,12 +221,14 @@ def rebuild_node(filepath: str) -> dict:
 
     # Add updated node
     title = os.path.splitext(filename)[0]
-    graph["nodes"].append({
-        "id": filename,
-        "title": title,
-        "project": project,
-        "chunk_count": chunk_count,
-    })
+    graph["nodes"].append(
+        {
+            "id": filename,
+            "title": title,
+            "project": project,
+            "chunk_count": chunk_count,
+        }
+    )
 
     # Add updated outgoing edges (only to known files)
     known_files = {n["id"] for n in graph["nodes"]}
@@ -228,11 +236,13 @@ def rebuild_node(filepath: str) -> dict:
     for raw_link in links_seen:
         target = _wikilink_to_filename(raw_link)
         if target in known_files and target != filename:
-            new_edges.append({
-                "source": filename,
-                "target": target,
-                "link_text": raw_link,
-            })
+            new_edges.append(
+                {
+                    "source": filename,
+                    "target": target,
+                    "link_text": raw_link,
+                }
+            )
 
     graph["edges"].extend(new_edges)
     _save_graph(graph)
@@ -254,16 +264,8 @@ def get_neighbors(filename: str) -> dict:
     }
     """
     graph = _load_graph()
-    outgoing = [
-        {"target": e["target"], "link_text": e["link_text"]}
-        for e in graph["edges"]
-        if e["source"] == filename
-    ]
-    incoming = [
-        {"source": e["source"], "link_text": e["link_text"]}
-        for e in graph["edges"]
-        if e["target"] == filename
-    ]
+    outgoing = [{"target": e["target"], "link_text": e["link_text"]} for e in graph["edges"] if e["source"] == filename]
+    incoming = [{"source": e["source"], "link_text": e["link_text"]} for e in graph["edges"] if e["target"] == filename]
     return {"file": filename, "outgoing": outgoing, "incoming": incoming}
 
 
@@ -299,7 +301,7 @@ def get_context_budget(
 
     # Map filename → best (lowest) distance from semantic search
     seed_scores: dict[str, float] = {}
-    for meta, dist in zip(results["metadatas"][0], results["distances"][0]):
+    for meta, dist in zip(results["metadatas"][0], results["distances"][0], strict=True):
         fn = meta.get("filename", "")
         if fn and (fn not in seed_scores or dist < seed_scores[fn]):
             seed_scores[fn] = dist
@@ -320,7 +322,7 @@ def get_context_budget(
         adjacency[edge["target"]].add(edge["source"])
 
     # BFS from each seed
-    hop_dist: dict[str, int] = {}   # filename → min hop distance from any seed
+    hop_dist: dict[str, int] = {}  # filename → min hop distance from any seed
     queue: deque[tuple[str, int]] = deque()
 
     for seed in seed_scores:
@@ -352,6 +354,7 @@ def get_context_budget(
 # ── CLI ────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import sys
+
     if len(sys.argv) > 1:
         rebuild_node(sys.argv[1])
     else:

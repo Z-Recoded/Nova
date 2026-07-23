@@ -91,7 +91,10 @@ TOOL_DEFINITIONS = [
             "type": "object",
             "properties": {
                 "path": {"type": "string", "description": "File path, relative to the worktree root."},
-                "old_str": {"type": "string", "description": "Exact text to replace — must appear exactly once in the file."},
+                "old_str": {
+                    "type": "string",
+                    "description": "Exact text to replace — must appear exactly once in the file.",
+                },  # noqa: E501
                 "new_str": {"type": "string", "description": "Replacement text."},
             },
             "required": ["path", "old_str", "new_str"],
@@ -126,6 +129,7 @@ TOOL_DEFINITIONS = [
 
 
 # ── Worktree setup ───────────────────────────────────────────────
+
 
 def _slugify(task_description: str) -> str:
     """Turn a task description into a short, unique, filesystem-safe slug."""
@@ -174,13 +178,13 @@ def _commit_worktree_changes(root: str, task_description: str, note: str = "") -
     appended as an extra commit body line (e.g. a budget-halt marker).
     """
     subprocess.run(["git", "add", "-A"], cwd=root, check=True, capture_output=True, text=True)
-    status = subprocess.run(
-        ["git", "status", "--porcelain"], cwd=root, capture_output=True, text=True
-    )
+    status = subprocess.run(["git", "status", "--porcelain"], cwd=root, capture_output=True, text=True)
     if not status.stdout.strip():
         return False
 
-    commit_message = f"{_summarize_task(task_description)}\n\nWritten by nova_orchestrator.py (Nova's coding sub-agent)."
+    commit_message = (
+        f"{_summarize_task(task_description)}\n\nWritten by nova_orchestrator.py (Nova's coding sub-agent)."  # noqa: E501
+    )
     if note:
         commit_message += f"\n\n{note}"
     subprocess.run(
@@ -209,6 +213,7 @@ def _git_diff_against_master(root: str) -> str:
 
 
 # ── Agent loop ───────────────────────────────────────────────────
+
 
 def _build_system_prompt(root: str) -> str:
     """System prompt: the project's own coding standards, plus tool-use guidance."""
@@ -293,11 +298,7 @@ def _log_agent_turn(
 ) -> None:
     """Append one turn of an agent task to agent_log.jsonl (JSONL, mirrors nova_log.py)."""
     os.makedirs(LOGS_DIR, exist_ok=True)
-    tool_calls = [
-        {"name": block.name, "input": block.input}
-        for block in response.content
-        if block.type == "tool_use"
-    ]
+    tool_calls = [{"name": block.name, "input": block.input} for block in response.content if block.type == "tool_use"]
     entry = {
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "task_slug": slug,
@@ -332,10 +333,7 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
     """
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
-        raise EnvironmentError(
-            "ANTHROPIC_API_KEY environment variable is not set. "
-            "Export it before calling run_coding_task()."
-        )
+        raise OSError("ANTHROPIC_API_KEY environment variable is not set. Export it before calling run_coding_task().")
     client = anthropic.Anthropic(api_key=api_key)
     budget_gate_enabled = is_framework_integration_enabled("token_budget_governor")
     skill_injection_enabled = is_framework_integration_enabled("skill_injection")
@@ -369,11 +367,23 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
         # graph itself — same turn-by-turn behavior as the inline loop below,
         # just expressed as LangGraph nodes/edges instead.
         from nova_orchestrator_graph import run_via_langgraph
+
         final_status, turns_used = run_via_langgraph(
-            client, system_prompt, messages, root, slug, branch_name, task_description,
-            skill_category, skill_version, budget_gate_enabled,
-            NOVA_AGENT_MAX_TURNS, NOVA_AGENT_MODEL, NOVA_AGENT_MAX_TOKENS,
-            _log_agent_turn, _execute_tool,
+            client,
+            system_prompt,
+            messages,
+            root,
+            slug,
+            branch_name,
+            task_description,
+            skill_category,
+            skill_version,
+            budget_gate_enabled,
+            NOVA_AGENT_MAX_TURNS,
+            NOVA_AGENT_MODEL,
+            NOVA_AGENT_MAX_TOKENS,
+            _log_agent_turn,
+            _execute_tool,
         )
     else:
         for turn in range(1, NOVA_AGENT_MAX_TURNS + 1):
@@ -423,12 +433,14 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
                 if block.type != "tool_use":
                     continue
                 result = _execute_tool(block.name, block.input, root, session_id=slug)
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": block.id,
-                    "content": result["content"],
-                    "is_error": result.get("is_error", False),
-                })
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": result["content"],
+                        "is_error": result.get("is_error", False),
+                    }
+                )
             messages.append({"role": "user", "content": tool_results})
         else:
             final_status = "max_turns_reached"
@@ -440,8 +452,7 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
     commit_note = ""
     if final_status == "stopped_budget_halt":
         commit_note = (
-            f"[budget-halt] stopped at {budget_status.get('session_pct')}% "
-            f"session budget, task left {final_status}"
+            f"[budget-halt] stopped at {budget_status.get('session_pct')}% session budget, task left {final_status}"
         )
     committed = _commit_worktree_changes(root, task_description, note=commit_note)
 
@@ -466,7 +477,9 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
             f"Review: git diff master...{branch_name} (from C:/Nova). "
             f"Merge when satisfied: git merge {branch_name}. "
             f"Then remove the worktree: git worktree remove {root}"
-        ) if committed else "Nothing was changed — no commit made, nothing to merge.",
+        )
+        if committed
+        else "Nothing was changed — no commit made, nothing to merge.",
     }
 
 

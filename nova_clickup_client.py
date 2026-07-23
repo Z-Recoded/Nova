@@ -8,7 +8,7 @@
 # commands — same logic, second front door, not a rewrite.
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -42,6 +42,7 @@ MAX_PAGES = 20
 
 
 # ── Auth / HTTP plumbing ─────────────────────────────────────────
+
 
 def _api_key() -> str:
     """
@@ -84,6 +85,7 @@ def _request(method: str, path: str, **kwargs) -> dict:
 
 
 # ── Core API calls ──────────────────────────────────────────────
+
 
 def get_task(task_id: str) -> dict:
     """Fetch a single task, including its status, dependencies, and last-updated timestamp."""
@@ -138,12 +140,12 @@ def create_task(name: str, description: str = "") -> dict:
 
 
 def add_comment(task_id: str, comment_text: str) -> dict:
-    """Post a comment on a task — used for automated status/outcome notifications (e.g. nova_scheduled_dispatch.py's non-clean-outcome alerts, 86baykvb7)."""
+    """Post a comment on a task — used for automated status/outcome notifications (e.g. nova_scheduled_dispatch.py's non-clean-outcome alerts, 86baykvb7)."""  # noqa: E501
     return _request("POST", f"/task/{task_id}/comment", json={"comment_text": comment_text})
 
 
 def add_tag(task_id: str, tag_name: str) -> dict:
-    """Attach a tag to a task — used to mark a headless dispatch paused awaiting Marvin's answer (86bax0wkj, tag 'awaiting-answer')."""
+    """Attach a tag to a task — used to mark a headless dispatch paused awaiting Marvin's answer (86bax0wkj, tag 'awaiting-answer')."""  # noqa: E501
     return _request("POST", f"/task/{task_id}/tag/{tag_name}")
 
 
@@ -153,6 +155,7 @@ def remove_tag(task_id: str, tag_name: str) -> dict:
 
 
 # ── House rules (Task Dependency & Status Discipline v1.0) ─────
+
 
 def _own_blockers(task: dict) -> list[dict]:
     """
@@ -176,9 +179,7 @@ def get_unresolved_blockers(task_id: str) -> list[dict]:
     for dep in _own_blockers(task):
         blocker = get_task(dep["depends_on"])
         if blocker["status"]["status"] != "complete":
-            unresolved.append(
-                {"id": blocker["id"], "name": blocker["name"], "status": blocker["status"]["status"]}
-            )
+            unresolved.append({"id": blocker["id"], "name": blocker["name"], "status": blocker["status"]["status"]})
     return unresolved
 
 
@@ -227,8 +228,8 @@ def qualifies_as_in_progress(task_id: str) -> tuple[bool, str]:
         blocker = unresolved[0]
         return False, f"blocked by {blocker['id']} ({blocker['name']})"
 
-    last_updated = datetime.fromtimestamp(int(task["date_updated"]) / 1000, tz=timezone.utc)
-    stale_cutoff = datetime.now(tz=timezone.utc) - timedelta(days=STALE_DAYS_THRESHOLD)
+    last_updated = datetime.fromtimestamp(int(task["date_updated"]) / 1000, tz=UTC)
+    stale_cutoff = datetime.now(tz=UTC) - timedelta(days=STALE_DAYS_THRESHOLD)
     if last_updated < stale_cutoff:
         return False, f"no activity since {last_updated.date().isoformat()}"
 
@@ -259,7 +260,9 @@ if __name__ == "__main__":
     # emoji) this module doesn't control — same guard as nova_board.py so a
     # plain Windows console (cp1252) can't crash on it.
     if sys.platform == "win32":
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        # See nova_board.py's identical guard -- known mypy false-positive,
+        # .reconfigure() is real on the concrete stdout object at runtime.
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
 
     test_task_id = sys.argv[1] if len(sys.argv) > 1 else "86bawbmdz"
     task = get_task(test_task_id)

@@ -14,19 +14,18 @@
 #
 # Stop with Ctrl+C.
 
+import logging
 import os
 import sys
-import time
 import threading
-import logging
-from datetime import datetime
+import time
 
-from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
-from nova_sources import SOURCES
-from ingest import ingest_file
 from graph_builder import rebuild_node
+from ingest import ingest_file
+from nova_sources import SOURCES
 
 # ── Config ─────────────────────────────────────────────────────
 DEBOUNCE_SECONDS = 2.0
@@ -38,11 +37,7 @@ WATCH_EXTENSIONS = {".md"}
 
 # Only watch source paths that contain the Second Brain / user notes.
 # Excludes C:/Nova itself (source code changes shouldn't re-ingest).
-WATCH_PATHS = [
-    src["path"]
-    for src in SOURCES
-    if "Second Brain" in src["path"] or "second brain" in src["path"].lower()
-]
+WATCH_PATHS = [src["path"] for src in SOURCES if "Second Brain" in src["path"] or "second brain" in src["path"].lower()]
 
 # Fallback: if no Second Brain path is configured, watch all source paths
 if not WATCH_PATHS:
@@ -69,6 +64,7 @@ log = logging.getLogger("nova_watcher")
 
 # ── Source resolution ──────────────────────────────────────────
 
+
 def _resolve_source(filepath: str) -> tuple[str, str]:
     """Return (project, description) for a file based on SOURCES config."""
     for prefix, (project, description) in SOURCE_MAP.items():
@@ -78,6 +74,7 @@ def _resolve_source(filepath: str) -> tuple[str, str]:
 
 
 # ── Debouncer ──────────────────────────────────────────────────
+
 
 class Debouncer:
     """
@@ -104,6 +101,7 @@ debouncer = Debouncer()
 
 
 # ── Event handler ──────────────────────────────────────────────
+
 
 def _handle_change(filepath: str) -> None:
     """
@@ -167,6 +165,7 @@ class NovaWatchHandler(FileSystemEventHandler):
 
 
 # ── Main ───────────────────────────────────────────────────────
+
 
 def main():
     if not WATCH_PATHS:
