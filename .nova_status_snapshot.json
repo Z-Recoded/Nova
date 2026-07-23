@@ -177,10 +177,6 @@
       "name": "Spec: Network traversal landscape \u2014 rewind + live ambient views for self/subagents"
     },
     {
-      "id": "86bawk37h",
-      "name": "Set up security & code hygiene tooling (ruff, mypy, pre-commit, bandit, detect-secrets, pip-audit)"
-    },
-    {
       "id": "86bawf2z2",
       "name": "Design and implement token-based auth for nova_api.py"
     },
@@ -354,6 +350,10 @@
     }
   ],
   "in_progress": [
+    {
+      "id": "86bawk37h",
+      "name": "Set up security & code hygiene tooling (ruff, mypy, pre-commit, bandit, detect-secrets, pip-audit)"
+    },
     {
       "id": "86bara3tj",
       "name": "Spec + Build: Chunk visualization tool \u2014 RAG retrieval audit"
