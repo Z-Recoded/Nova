@@ -27,6 +27,20 @@
 # checked from the Omen. Without that fix, this script would have been
 # the first thing to expose it — a pause Marvin sets from the Aero would
 # never have been seen here.
+#
+# Real sandboxing wired in 2026-07-23 (86baf72qq/86barex1u groundwork):
+# gated behind nova_config.json's scheduled_dispatch.sandboxed_dispatch_enabled
+# (default off), run_scheduled_dispatch() below can route through
+# nova_omen_dispatch.dispatch_headless_task_sandboxed() instead — real
+# Docker containment for the exact path this file's own docstring above
+# flags as the highest-stakes one to get right (fully unattended, "proven
+# behavior matters most"). Not the same category of risk the "don't grow a
+# second untested code path" warning above was written against: that
+# warned against a LESS-tested shortcut (skip SSH); this is a MORE-tested,
+# additive replacement (dispatch_headless_task_sandboxed() was verified
+# live twice, including a real negative-containment check, before this
+# wiring existed at all) — default off until it's also been proven under
+# real cron-firing conditions, not just manual invocation.
 
 import json
 import os
@@ -36,9 +50,9 @@ from pathlib import Path
 import httpx
 
 from nova_clickup_client import add_comment, add_tag, get_task, update_status
-from nova_config import get_max_unreviewed_dispatches, is_review_backpressure_enabled
+from nova_config import get_max_unreviewed_dispatches, is_review_backpressure_enabled, is_sandboxed_dispatch_enabled
 from nova_escalation import NOVA_API_URL, is_dispatch_paused
-from nova_omen_dispatch import dispatch_headless_task
+from nova_omen_dispatch import dispatch_headless_task, dispatch_headless_task_sandboxed
 from nova_task_queue import (
     detect_tier_candidates,
     get_practice_queue_tasks,
@@ -444,7 +458,17 @@ def run_scheduled_dispatch() -> dict:
             error_result["tier_proposals_registered"] = tier_proposals_registered
             return error_result
 
-        result = dispatch_headless_task(resolved["prompt"])
+        # Real Docker containment when enabled -- see this module's own
+        # header comment for why this is gated rather than a hard swap.
+        # dispatch_headless_task_sandboxed()'s return shape matches
+        # dispatch_headless_task()'s exactly (same fields
+        # handle_dispatch_outcome()/_handle_escalation()/
+        # _post_non_clean_comment() below all read), confirmed by direct
+        # comparison before wiring this in -- no adapter needed either way.
+        if is_sandboxed_dispatch_enabled():
+            result = dispatch_headless_task_sandboxed(resolved["prompt"])
+        else:
+            result = dispatch_headless_task(resolved["prompt"])
 
         # Status transition, logging, and escalation/non-clean handling are
         # all shared with the resume-completion path (triggered later from
