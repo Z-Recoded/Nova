@@ -52,6 +52,7 @@ DEFAULT_CONFIG = {
     "scheduled_dispatch": {
         "review_backpressure_enabled": False,
         "max_unreviewed_dispatches": 3,
+        "sandboxed_dispatch_enabled": False,
     },
 }
 
@@ -126,6 +127,19 @@ def is_review_backpressure_enabled() -> bool:
     Default off, matching every other augment/integration in this file.
     """
     return bool(load_config().get("scheduled_dispatch", {}).get("review_backpressure_enabled"))
+
+
+def is_sandboxed_dispatch_enabled() -> bool:
+    """
+    True if nova_scheduled_dispatch.py's cron loop should run each dispatch
+    through nova_omen_dispatch.dispatch_headless_task_sandboxed() (real
+    Docker containment) instead of dispatch_headless_task() (bare SSH, no
+    containment) — independent flag, no shared master switch. Default off:
+    the sandboxed path was proven manually first (two real live dispatches,
+    see its own docstring) but was deliberately not trusted in the fully
+    unattended cron path until confirmed here explicitly.
+    """
+    return bool(load_config().get("scheduled_dispatch", {}).get("sandboxed_dispatch_enabled"))
 
 
 def get_max_unreviewed_dispatches(fallback: int = 3) -> int:
