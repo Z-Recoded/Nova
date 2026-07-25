@@ -673,7 +673,21 @@ def dispatch_headless_task_sandboxed(
         f"-v {shlex.quote(worktree_path)}:{shlex.quote(worktree_path)} "
         f"-w {shlex.quote(worktree_path)} "
         f"{DOCKER_IMAGE} "
-        f"claude -p --permission-mode acceptEdits --output-format json {quoted_task}"
+        # bypassPermissions, not acceptEdits -- confirmed live 2026-07-25 that
+        # acceptEdits only auto-approves file-edit tools, never Bash: a real
+        # dispatch against this exact container returned a
+        # permission_denials: [{"tool_name": "Bash", ...}] entry for a plain
+        # `python3 -c "print(2+2)"` call, meaning no sandboxed dispatch has
+        # ever been able to run a shell command, only edit files. Safe to
+        # bypass here specifically because the Docker mount boundary above is
+        # the real containment (verified: .env/nova_state.db unreachable) --
+        # this is exactly the "sandbox with no internet-reachable secrets"
+        # case the flag's own --help text names. Deliberately NOT applied to
+        # dispatch_headless_task()'s bare-SSH command below or
+        # resume_headless_task()'s -- neither runs inside a container, so
+        # bypassing permissions there would mean zero prompts AND zero
+        # containment.
+        f"claude -p --permission-mode bypassPermissions --output-format json {quoted_task}"
     )
 
     raw = _run_claude_over_ssh(remote_command)
