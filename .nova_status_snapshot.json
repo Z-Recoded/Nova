@@ -285,10 +285,6 @@
       "name": "Evaluate + integrate n8n for domain adapter refresh and alert routing"
     },
     {
-      "id": "86barby7t",
-      "name": "Nova Log rotation \u2014 archive entries older than 90 days, keep last 1000 active"
-    },
-    {
       "id": "86barby7m",
       "name": "Build Nova Art Practice Companion module (5 phases)"
     },

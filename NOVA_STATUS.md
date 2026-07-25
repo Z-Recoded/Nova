@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-23 05:13 UTC
+Last updated: 2026-07-25 03:32 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,7 +8,7 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- blocked -> ready: 86baf72n5 (MCP tool-calling integration (ClickUp, Drive, Calendar, Slack))
+- ready -> complete/removed: 86barby7t (Nova Log rotation — archive entries older than 90 days, keep last 1000 active)
 
 ## In progress (4)
 
@@ -31,7 +31,7 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (87)
+## Ready (86)
 
 - 86bb1pq3k  Deploy Open WebUI to the Omen — make it the sole always-on Nova machine
 - 86bb1nu7u  Prototype TabFM classifier for Nova blend-detection + routing gates
@@ -104,7 +104,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86barqztk  Build PiSignage health-check browser adapter (screenshot + drift detection)
 - 86bargufp  Evaluate Hermes 3 vs Qwen3 8B for Nova's agentic reasoning lane
 - 86bargucp  Evaluate + integrate n8n for domain adapter refresh and alert routing
-- 86barby7t  Nova Log rotation — archive entries older than 90 days, keep last 1000 active
 - 86barby7m  Build Nova Art Practice Companion module (5 phases)
 - 86bara3uj  Spec: Proactive memory — surface connections on ingest
 - 86bara3u1  Spec: Temporal awareness layer
