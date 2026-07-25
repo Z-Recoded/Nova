@@ -1,6 +1,6 @@
 {
   "classical_augments": {
-    "enabled": false,
+    "enabled": true,
     "astar_retrieval": false,
     "dp_context_packing": false,
     "priority_queue_routing": false,
@@ -20,11 +20,11 @@
   },
   "token_budget": {
     "session_ceiling": 100000,
-    "conservative_threshold_pct": 0.50,
-    "critical_threshold_pct": 0.70,
+    "conservative_threshold_pct": 0.5,
+    "critical_threshold_pct": 0.7,
     "halt_threshold_pct": 0.85,
     "daily_ceiling": 400000,
-    "daily_warn_pct": 0.80
+    "daily_warn_pct": 0.8
   },
   "model_routing": {
     "enabled": false,
