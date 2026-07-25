@@ -198,37 +198,37 @@ def get_routed_model(category: str, fallback: str) -> str:
 FLAG_REGISTRY: dict[str, FlagMeta] = {
     "sandboxed_dispatch_enabled": {
         "path": ["scheduled_dispatch", "sandboxed_dispatch_enabled"],
-        "label": "Sandboxed headless dispatch (Docker)",
+        "label": "Docker Sandbox for Auto-Dispatch",
         "category": "operational_safety",
         "aero_only": False,
     },
     "review_backpressure_enabled": {
         "path": ["scheduled_dispatch", "review_backpressure_enabled"],
-        "label": "Review-backpressure cap",
+        "label": "Pause on Review Backlog",
         "category": "operational_safety",
         "aero_only": False,
     },
     "token_budget_governor": {
         "path": ["framework_integrations", "token_budget_governor"],
-        "label": "Token budget governor",
+        "label": "Enforce API Spend Limit",
         "category": "spend_governor",
         "aero_only": True,
     },
     "classical_augments_enabled": {
         "path": ["classical_augments", "enabled"],
-        "label": "Classical augments (master switch)",
+        "label": "Experimental Retrieval Algorithms",
         "category": "scaffolding",
         "aero_only": False,
     },
     "langgraph_orchestration": {
         "path": ["framework_integrations", "langgraph_orchestration"],
-        "label": "LangGraph orchestration",
+        "label": "LangGraph Task Runner",
         "category": "scaffolding",
         "aero_only": True,
     },
     "openhands_coding_agent": {
         "path": ["framework_integrations", "openhands_coding_agent"],
-        "label": "OpenHands coding agent",
+        "label": "OpenHands Auto-Coder",
         "category": "scaffolding",
         "aero_only": True,
     },

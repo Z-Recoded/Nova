@@ -575,7 +575,7 @@ def _dispatch_pause_as_flag() -> dict:
     state = get_state("system", "dispatch_pause") or {"paused": False}
     return {
         "value": not state.get("paused", False),
-        "label": "Board Watch — headless dispatch loop",
+        "label": "Auto-Dispatch Loop",
         "category": "operational_safety",
         "aero_only": False,
         "source": "state",
