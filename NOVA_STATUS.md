@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-25 04:01 UTC
+Last updated: 2026-07-25 04:27 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,7 +8,8 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- NEW -> ready: 86bb3cgna (Nova Controller: optimistic UI + serialized write queue for label decisions)
+- NEW -> ready: 86bb3ceya (Nova Controller: live per-task cost/budget readout)
+- ready -> complete/removed: 86bb3cey0 (Nova Controller: live in-flight task status card)
 
 ## In progress (4)
 
@@ -39,9 +40,9 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bb3ceyj  Nova Controller: abort/kill switch for an in-flight dispatch
 - 86bb3ceyf  Nova Controller: diff-preview-and-merge for dispatched tasks
 - 86bb3ceyc  Nova Controller: worktree browser
+- 86bb3ceya  Nova Controller: live per-task cost/budget readout
 - 86bb3cey5  Nova Controller: Feed filtering by card type/task/date
 - 86bb3cey2  Nova Controller: Qwen3 swap-trigger progress widget
-- 86bb3cey0  Nova Controller: live in-flight task status card
 - 86bb1pq3k  Deploy Open WebUI to the Omen — make it the sole always-on Nova machine
 - 86bb1nu7u  Prototype TabFM classifier for Nova blend-detection + routing gates
 - 86bb0wp16  Spec: Fine-Tune CI/CD Pipeline (data-volume-triggered retraining)

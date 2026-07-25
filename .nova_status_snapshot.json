@@ -25,16 +25,16 @@
       "name": "Nova Controller: worktree browser"
     },
     {
+      "id": "86bb3ceya",
+      "name": "Nova Controller: live per-task cost/budget readout"
+    },
+    {
       "id": "86bb3cey5",
       "name": "Nova Controller: Feed filtering by card type/task/date"
     },
     {
       "id": "86bb3cey2",
       "name": "Nova Controller: Qwen3 swap-trigger progress widget"
-    },
-    {
-      "id": "86bb3cey0",
-      "name": "Nova Controller: live in-flight task status card"
     },
     {
       "id": "86bb1pq3k",
