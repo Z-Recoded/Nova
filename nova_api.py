@@ -610,19 +610,31 @@ def _commit_and_push_config_change(flag_key: str, value: bool) -> None:
     leave the git drift undetected, the same class of problem this whole
     panel exists to prevent.
     """
+    repo_root = os.path.dirname(__file__)
     try:
-        subprocess.run(["git", "add", "nova_config.json"], cwd=os.path.dirname(__file__), check=True)
+        subprocess.run(["git", "add", "nova_config.json"], cwd=repo_root, check=True)
         subprocess.run(
             [
                 "git",
+                # The Omen's main checkout has no git user.name/user.email
+                # configured at all (real gotcha found live 2026-07-25, see
+                # CLAUDE.md's "Working Directly on the Omen via SSH" section
+                # and reference_omen_git_gotchas.md) -- every prior commit
+                # there came from a push made elsewhere, then pulled. Scoped
+                # -c flags here, not a global config change, same fix
+                # already used by hand for the 86barby7t merge that night.
+                "-c",
+                "user.name=marvin-royal",
+                "-c",
+                "user.email=marvin.royal.app@outlook.com",
                 "commit",
                 "-m",
                 f"Toggle {flag_key} -> {value} via Nova Controller switches panel",
             ],
-            cwd=os.path.dirname(__file__),
+            cwd=repo_root,
             check=True,
         )
-        subprocess.run(["git", "push", "origin", "master"], cwd=os.path.dirname(__file__), check=True)
+        subprocess.run(["git", "push", "origin", "master"], cwd=repo_root, check=True)
     except subprocess.CalledProcessError as e:
         print(f"[flags] background commit/push for {flag_key} failed: {e}")
 
