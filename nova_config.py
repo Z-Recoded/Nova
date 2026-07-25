@@ -9,6 +9,15 @@
 
 import json
 import os
+from typing import TypedDict
+
+
+class FlagMeta(TypedDict):
+    path: list[str]
+    label: str
+    category: str
+    aero_only: bool
+
 
 # ── Config ─────────────────────────────────────────────────────
 # Resolved relative to this file's own location, not a hardcoded Windows
@@ -167,6 +176,118 @@ def get_routed_model(category: str, fallback: str) -> str:
     routing = load_config().get("model_routing", {})
     default_model = routing.get("default_model", fallback)
     return routing.get("routes", {}).get(category, default_model)
+
+
+# ── Flag registry (Controller switches panel, 86bb3ceyX) ────────
+# Explicit allowlist of the nova_config.json flags exposed for live
+# viewing/toggling from the Nova Controller — same discipline as this
+# codebase's other explicit allowlists (nova_state.py's KNOWN_ENTITIES,
+# nova_log_rotation.py's ROTATABLE_LOGS, nova_tools.py's
+# DANGEROUS_COMMAND_PATTERNS). Never a generic "set any JSON path" route:
+# a flag has to be named here to be toggleable at all. dispatch_pause is
+# deliberately NOT in this registry — it lives in nova_state.db, not this
+# file, with its own already-working GET/POST /dispatch-pause mechanism;
+# nova_api.py's /flags routes handle it as a special case alongside these.
+#
+# "path" is the exact nested-key route into load_config()'s dict. "aero_only"
+# marks flags only ever read by code that runs on the Aero
+# (nova_orchestrator.py's interactive loop) — toggling these from the
+# Omen-served Controller changes the Omen's own file immediately, but the
+# Aero won't see it until that machine's next `git pull`, same accepted gap
+# as the in-flight-status widget's lane scoping (86bb3cey0).
+FLAG_REGISTRY: dict[str, FlagMeta] = {
+    "sandboxed_dispatch_enabled": {
+        "path": ["scheduled_dispatch", "sandboxed_dispatch_enabled"],
+        "label": "Sandboxed headless dispatch (Docker)",
+        "category": "operational_safety",
+        "aero_only": False,
+    },
+    "review_backpressure_enabled": {
+        "path": ["scheduled_dispatch", "review_backpressure_enabled"],
+        "label": "Review-backpressure cap",
+        "category": "operational_safety",
+        "aero_only": False,
+    },
+    "token_budget_governor": {
+        "path": ["framework_integrations", "token_budget_governor"],
+        "label": "Token budget governor",
+        "category": "spend_governor",
+        "aero_only": True,
+    },
+    "classical_augments_enabled": {
+        "path": ["classical_augments", "enabled"],
+        "label": "Classical augments (master switch)",
+        "category": "scaffolding",
+        "aero_only": False,
+    },
+    "langgraph_orchestration": {
+        "path": ["framework_integrations", "langgraph_orchestration"],
+        "label": "LangGraph orchestration",
+        "category": "scaffolding",
+        "aero_only": True,
+    },
+    "openhands_coding_agent": {
+        "path": ["framework_integrations", "openhands_coding_agent"],
+        "label": "OpenHands coding agent",
+        "category": "scaffolding",
+        "aero_only": True,
+    },
+}
+
+
+def _resolve_path(config: dict, path: list[str]):
+    """Walk a nested-key path into a dict, returning None if any segment is missing."""
+    node = config
+    for segment in path:
+        if not isinstance(node, dict) or segment not in node:
+            return None
+        node = node[segment]
+    return node
+
+
+def get_flag_registry_values() -> dict:
+    """
+    Current value of every registered flag, keyed by flag_key — backs
+    GET /flags. Reads via load_config() (already hot/uncached), so this
+    always reflects the file's real current state, never a stale copy.
+    """
+    config = load_config()
+    return {
+        key: {
+            "value": bool(_resolve_path(config, meta["path"])),
+            "label": meta["label"],
+            "category": meta["category"],
+            "aero_only": meta["aero_only"],
+        }
+        for key, meta in FLAG_REGISTRY.items()
+    }
+
+
+def set_flag_value(flag_key: str, value: bool) -> dict:
+    """
+    Write one registered flag's value to nova_config.json and return the
+    updated registry snapshot. Raises KeyError for an unregistered key —
+    callers (nova_api.py's /flags route) turn that into a 404, not a
+    silent no-op. Takes effect immediately for any code on this machine
+    (load_config() re-reads fresh, see its own docstring) — persisting
+    that across machines/restarts is the caller's job (nova_api.py commits
+    and pushes the file in the background after this returns).
+    """
+    if flag_key not in FLAG_REGISTRY:
+        raise KeyError(f"'{flag_key}' is not a registered flag")
+
+    config = load_config()
+    path = FLAG_REGISTRY[flag_key]["path"]
+    node = config
+    for segment in path[:-1]:
+        node = node.setdefault(segment, {})
+    node[path[-1]] = bool(value)
+
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=2)
+        f.write("\n")
+
+    return get_flag_registry_values()
 
 
 # ── Reporting ──────────────────────────────────────────────────

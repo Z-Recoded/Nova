@@ -35,6 +35,7 @@
 import hmac
 import json
 import os
+import subprocess
 import time
 import uuid
 from datetime import datetime
@@ -52,6 +53,7 @@ from graph_builder import (
 )
 from ingest import run_ingestion
 from nova_clickup_client import add_comment, add_tag, remove_tag
+from nova_config import FLAG_REGISTRY, get_flag_registry_values, set_flag_value
 from nova_embedding_viz import build_embedding_viz_data
 from nova_headroom import get_headroom_report
 from nova_log import (
@@ -134,6 +136,10 @@ class ActivityProfilePushRequest(BaseModel):
 class DispatchPauseRequest(BaseModel):
     paused: bool
     reason: str | None = None
+
+
+class FlagToggleRequest(BaseModel):
+    value: bool
 
 
 class EscalationCreateRequest(BaseModel):
@@ -542,6 +548,120 @@ def get_dispatch_pause_route():
     if state is None:
         return {"paused": False}
     return state
+
+
+# ── Flag switches panel (86bb3ceyX) ─────────────────────────────
+# Backs the Controller's unified switches panel — a "quick human
+# verification layer" over Nova's important boolean flags, prompted
+# directly by a real incident: sandboxed_dispatch_enabled sat wrong for
+# hours on 2026-07-25 because nothing surfaced its actual state anywhere.
+# Two storage mechanisms, merged into one shape here: dispatch_pause lives
+# in nova_state.db (system/dispatch_pause, same as the routes above) and
+# is read/written directly rather than through nova_escalation.py's HTTP
+# wrapper — that wrapper exists for OTHER machines to reach this route,
+# calling it from inside itself would be a pointless self-HTTP round trip.
+# The other 6 flags live in nova_config.json (nova_config.FLAG_REGISTRY).
+
+
+def _dispatch_pause_as_flag() -> dict:
+    """
+    dispatch_pause re-shaped to match the other 6 flags' {value, label,
+    category, aero_only, source} shape for the panel. "value" here is
+    deliberately the INVERSE of the raw "paused" field — matches the
+    existing Board Watch convention (ON means "actively watching/
+    dispatching", i.e. paused=False), which this panel absorbs rather
+    than replaces.
+    """
+    state = get_state("system", "dispatch_pause") or {"paused": False}
+    return {
+        "value": not state.get("paused", False),
+        "label": "Board Watch — headless dispatch loop",
+        "category": "operational_safety",
+        "aero_only": False,
+        "source": "state",
+    }
+
+
+@app.get("/flags")
+def get_flags():
+    """
+    Every switch the Controller's panel shows: the 6 nova_config.json
+    flags (source: "config") plus dispatch_pause (source: "state") —
+    "source" tells the frontend which propagation caveat applies (config
+    flags marked aero_only take a `git pull` on the Aero to reach that
+    machine; state flags are already cross-machine-correct).
+    """
+    flags = {key: {**meta, "source": "config"} for key, meta in get_flag_registry_values().items()}
+    flags["dispatch_pause"] = _dispatch_pause_as_flag()
+    return {"flags": flags}
+
+
+def _commit_and_push_config_change(flag_key: str, value: bool) -> None:
+    """
+    Background task: commit + push nova_config.json after a toggle. The
+    local write (set_flag_value()) already took effect immediately —
+    load_config() re-reads the file fresh every call — so this is purely
+    about keeping git history in sync and not blocking the next
+    nova_omen_sync.py pull on an uncommitted local diff. Runs after the
+    response already went out, matching this session's own
+    optimistic-first-then-persist discussion. Logs rather than raises on
+    failure (e.g. a real push conflict) — nothing is watching this
+    background task's return value, so a silently swallowed failure would
+    leave the git drift undetected, the same class of problem this whole
+    panel exists to prevent.
+    """
+    try:
+        subprocess.run(["git", "add", "nova_config.json"], cwd=os.path.dirname(__file__), check=True)
+        subprocess.run(
+            [
+                "git",
+                "commit",
+                "-m",
+                f"Toggle {flag_key} -> {value} via Nova Controller switches panel",
+            ],
+            cwd=os.path.dirname(__file__),
+            check=True,
+        )
+        subprocess.run(["git", "push", "origin", "master"], cwd=os.path.dirname(__file__), check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"[flags] background commit/push for {flag_key} failed: {e}")
+
+
+@app.post("/flags/{flag_key}")
+def set_flag(
+    flag_key: str,
+    req: FlagToggleRequest,
+    background_tasks: BackgroundTasks,
+    x_nova_escalation_token: str | None = Header(None),
+):
+    """
+    Toggle one flag from the switches panel — token-gated like every
+    other mutating route on this surface. dispatch_pause is a special
+    case (writes nova_state.db directly, inverting req.value back to the
+    raw "paused" field); every other key must be in nova_config.FLAG_REGISTRY
+    or this 404s rather than silently no-opping.
+    """
+    _check_escalation_token(x_nova_escalation_token)
+
+    if flag_key == "dispatch_pause":
+        data = {
+            "paused": not req.value,
+            "reason": "Toggled via Nova Controller switches panel",
+            "paused_at": datetime.now().isoformat(timespec="seconds") if not req.value else None,
+        }
+        write_state("system", "dispatch_pause", data)
+        return _dispatch_pause_as_flag()
+
+    if flag_key not in FLAG_REGISTRY:
+        raise HTTPException(status_code=404, detail=f"'{flag_key}' is not a registered flag")
+
+    try:
+        set_flag_value(flag_key, req.value)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+    background_tasks.add_task(_commit_and_push_config_change, flag_key, req.value)
+    return {key: {**meta, "source": "config"} for key, meta in get_flag_registry_values().items()}[flag_key]
 
 
 # ── Escalation Answer UI (86bax0wkj) ───────────────────────────

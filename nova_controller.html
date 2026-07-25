@@ -79,17 +79,36 @@
   }
   .token-box button:hover { background: #343945; }
 
-  .board-watch {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  .board-watch-label { font-size: 0.85rem; color: #999; }
+
+  /* ── Switches panel (86bb3ceyX) ───────────────────────────────
+     Replaces the old standalone Board Watch div -- dispatch_pause is now
+     one row inside this unified panel, not its own separate widget. */
+  .switches-panel {
     background: #1b1e26;
     border: 1px solid #2a2e38;
     border-radius: 8px;
     padding: 0.75rem 1rem;
     margin-bottom: 1.5rem;
   }
-  .board-watch-label { font-size: 0.85rem; color: #999; }
+  .switch-category {
+    font-size: 0.7rem;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0.75rem 0 0.4rem;
+  }
+  .switch-category:first-child { margin-top: 0; }
+  .switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.4rem 0;
+  }
+  .switch-row-text { min-width: 0; }
+  .switch-row-label { font-size: 0.9rem; color: #ddd; }
+  .switch-row-caption { font-size: 0.72rem; color: #888; margin-top: 0.1rem; }
   .watch-btn {
     border: none;
     border-radius: 999px;
@@ -471,9 +490,8 @@
     <span class="in-flight-elapsed" id="in-flight-elapsed"></span>
   </div>
 
-  <div class="board-watch">
-    <span class="board-watch-label">Board Watch — headless dispatch loop</span>
-    <button id="board-watch-toggle" class="watch-btn off" disabled>Loading…</button>
+  <div class="switches-panel" id="switches-panel">
+    <span class="board-watch-label">Loading switches…</span>
   </div>
 
   <div class="training-status" id="training-status" style="display:none">
@@ -547,26 +565,105 @@
       panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
     });
 
-    // ── Board Watch toggle ──────────────────────────────────────
+    // ── Switches panel (86bb3ceyX) ───────────────────────────────
+    // Unified view of Nova's important boolean flags -- a "quick human
+    // verification layer," prompted directly by sandboxed_dispatch_enabled
+    // sitting wrong for hours undetected on 2026-07-25. dispatch_pause
+    // (the old standalone Board Watch widget) is now just one row here.
 
-    function renderBoardWatch(isOn) {
-      const btn = document.getElementById('board-watch-toggle');
-      btn.textContent = isOn ? 'Board Watch: ON' : 'Board Watch: OFF';
-      btn.className = 'watch-btn ' + (isOn ? 'on' : 'off');
-      btn.dataset.on = isOn ? '1' : '0';
-      btn.disabled = false;
+    const SWITCH_CATEGORY_ORDER = ['operational_safety', 'spend_governor', 'scaffolding'];
+    const SWITCH_CATEGORY_LABELS = {
+      operational_safety: 'Operational Safety',
+      spend_governor: 'Spend Governor',
+      scaffolding: 'Scaffolding / Future',
+    };
+
+    let latestFlags = {}; // key -> flag object from the last successful /flags fetch
+
+    function renderSwitchesPanel(flags) {
+      const panel = document.getElementById('switches-panel');
+      panel.innerHTML = '';
+
+      for (const category of SWITCH_CATEGORY_ORDER) {
+        const keys = Object.keys(flags).filter(k => flags[k].category === category);
+        if (keys.length === 0) continue;
+        // dispatch_pause first within its category -- the most operationally
+        // important switch, matches its old standalone-widget prominence.
+        keys.sort((a, b) => (a === 'dispatch_pause' ? -1 : b === 'dispatch_pause' ? 1 : 0));
+
+        const heading = document.createElement('div');
+        heading.className = 'switch-category';
+        heading.textContent = SWITCH_CATEGORY_LABELS[category] || category;
+        panel.appendChild(heading);
+
+        for (const key of keys) {
+          const flag = flags[key];
+          const row = document.createElement('div');
+          row.className = 'switch-row';
+
+          const text = document.createElement('div');
+          text.className = 'switch-row-text';
+          const label = document.createElement('div');
+          label.className = 'switch-row-label';
+          label.textContent = flag.label;
+          text.appendChild(label);
+          if (flag.aero_only) {
+            const caption = document.createElement('div');
+            caption.className = 'switch-row-caption';
+            caption.textContent = 'Takes effect on the Aero after its next git pull';
+            text.appendChild(caption);
+          }
+          row.appendChild(text);
+
+          const btn = document.createElement('button');
+          btn.className = 'watch-btn ' + (flag.value ? 'on' : 'off');
+          btn.textContent = flag.value ? 'ON' : 'OFF';
+          btn.addEventListener('click', () => toggleFlag(key));
+          row.appendChild(btn);
+
+          panel.appendChild(row);
+        }
+      }
     }
 
-    async function loadBoardWatch() {
+    async function loadFlags() {
       try {
-        const res = await fetch('/dispatch-pause');
+        const res = await fetch('/flags');
         if (!res.ok) throw new Error('Request failed: ' + res.status);
-        const state = await res.json();
-        renderBoardWatch(!state.paused);
+        const data = await res.json();
+        latestFlags = data.flags;
+        renderSwitchesPanel(latestFlags);
         clearError();
       } catch (err) {
-        document.getElementById('error').textContent = 'Could not load board watch state: ' + err.message;
+        document.getElementById('error').textContent = 'Could not load switches: ' + err.message;
       }
+    }
+
+    function toggleFlag(key) {
+      const current = latestFlags[key];
+      if (!current) return;
+      const newValue = !current.value;
+
+      // Optimistic: flip the visual state immediately, don't wait on the
+      // round trip -- a single human clicking one switch at a time has no
+      // real race risk (unlike the rapid-swipe label queue, 86bb3cgna),
+      // so no serialized queue is needed here, just immediate feedback.
+      latestFlags[key] = { ...current, value: newValue };
+      renderSwitchesPanel(latestFlags);
+
+      tokenPost(`/flags/${key}`, { value: newValue }, null, () => {
+        // Reconcile with the server's confirmed value on success (usually
+        // identical to the optimistic guess, but this is the safety net).
+        loadFlags();
+      }).then(result => {
+        if (result === null) {
+          // tokenPost already surfaced the failure via #error -- revert
+          // the optimistic flip rather than leave the UI showing a state
+          // that was never actually persisted.
+          latestFlags[key] = current;
+          renderSwitchesPanel(latestFlags);
+        }
+      });
     }
 
     // ── Training-data status (86bax4akx) ─────────────────────────
@@ -650,31 +747,6 @@
         document.getElementById('error').textContent = 'Could not load in-flight status: ' + err.message;
       }
     }
-
-    async function toggleBoardWatch() {
-      const btn = document.getElementById('board-watch-toggle');
-      const currentlyOn = btn.dataset.on === '1';
-      btn.disabled = true;
-      try {
-        const res = await fetch('/dispatch-pause', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            paused: currentlyOn,
-            reason: currentlyOn ? 'Paused via Nova Controller toggle' : 'Resumed via Nova Controller toggle',
-          }),
-        });
-        if (!res.ok) throw new Error('Request failed: ' + res.status);
-        const state = await res.json();
-        renderBoardWatch(!state.paused);
-        clearError();
-      } catch (err) {
-        document.getElementById('error').textContent = 'Could not toggle board watch: ' + err.message;
-        btn.disabled = false;
-      }
-    }
-
-    document.getElementById('board-watch-toggle').addEventListener('click', toggleBoardWatch);
 
     // ── Shared token-gated POST helper ──────────────────────────
 
@@ -1211,8 +1283,8 @@
       });
     }
 
-    loadBoardWatch();
-    setInterval(loadBoardWatch, 5000);
+    loadFlags();
+    setInterval(loadFlags, 5000);
 
     loadInFlightStatus();
     setInterval(loadInFlightStatus, 5000);
