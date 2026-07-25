@@ -611,8 +611,20 @@ def _commit_and_push_config_change(flag_key: str, value: bool) -> None:
     panel exists to prevent.
     """
     repo_root = os.path.dirname(__file__)
+    # A systemd-launched nova-api service (the Omen's real deployment) gets
+    # systemd's own minimal default PATH, not a login shell's -- confirmed
+    # live 2026-07-25: the pre-commit hook's gitleaks step (installed at
+    # ~/.local/bin/gitleaks) failed with "Executable not found" from inside
+    # this exact background task, the same class of gap already documented
+    # for plain non-interactive SSH commands in reference_omen_git_gotchas.md.
+    # Explicit env, not relying on whatever PATH the parent process happens
+    # to have, so this works the same whether nova-api is running under
+    # systemd, a local dev uvicorn, or anything else.
+    git_env = dict(os.environ)
+    local_bin = os.path.expanduser("~/.local/bin")
+    git_env["PATH"] = local_bin + os.pathsep + git_env.get("PATH", "")
     try:
-        subprocess.run(["git", "add", "nova_config.json"], cwd=repo_root, check=True)
+        subprocess.run(["git", "add", "nova_config.json"], cwd=repo_root, env=git_env, check=True)
         subprocess.run(
             [
                 "git",
@@ -632,9 +644,10 @@ def _commit_and_push_config_change(flag_key: str, value: bool) -> None:
                 f"Toggle {flag_key} -> {value} via Nova Controller switches panel",
             ],
             cwd=repo_root,
+            env=git_env,
             check=True,
         )
-        subprocess.run(["git", "push", "origin", "master"], cwd=repo_root, check=True)
+        subprocess.run(["git", "push", "origin", "master"], cwd=repo_root, env=git_env, check=True)
     except subprocess.CalledProcessError as e:
         print(f"[flags] background commit/push for {flag_key} failed: {e}")
 
