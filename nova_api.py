@@ -587,28 +587,38 @@ def get_flags():
     """
     Every switch the Controller's panel shows: the 6 nova_config.json
     flags (source: "config") plus dispatch_pause (source: "state") —
-    "source" tells the frontend which propagation caveat applies (config
-    flags marked aero_only take a `git pull` on the Aero to reach that
-    machine; state flags are already cross-machine-correct).
+    "source" tells the frontend which propagation caveat applies. Config
+    flags marked aero_only are only ever read on the Aero, which needs a
+    manual push (from wherever the toggle happened -- the Omen can't push,
+    see _commit_config_change()'s docstring) and pull to see the change;
+    state flags are already cross-machine-correct via nova_state.db.
     """
     flags = {key: {**meta, "source": "config"} for key, meta in get_flag_registry_values().items()}
     flags["dispatch_pause"] = _dispatch_pause_as_flag()
     return {"flags": flags}
 
 
-def _commit_and_push_config_change(flag_key: str, value: bool) -> None:
+def _commit_config_change(flag_key: str, value: bool) -> None:
     """
-    Background task: commit + push nova_config.json after a toggle. The
-    local write (set_flag_value()) already took effect immediately —
-    load_config() re-reads the file fresh every call — so this is purely
-    about keeping git history in sync and not blocking the next
-    nova_omen_sync.py pull on an uncommitted local diff. Runs after the
-    response already went out, matching this session's own
-    optimistic-first-then-persist discussion. Logs rather than raises on
-    failure (e.g. a real push conflict) — nothing is watching this
-    background task's return value, so a silently swallowed failure would
-    leave the git drift undetected, the same class of problem this whole
-    panel exists to prevent.
+    Background task: commit (but deliberately NOT push) nova_config.json
+    after a toggle. The local write (set_flag_value()) already took effect
+    immediately -- load_config() re-reads the file fresh every call -- so
+    this step is purely about capturing the change in local git history
+    and not blocking the next nova_omen_sync.py pull on an uncommitted
+    local diff, not about publishing it anywhere.
+
+    Real finding, 2026-07-25: this originally also pushed to origin/master,
+    but that can never succeed when this runs on the Omen -- its GitHub
+    deploy key is read-only (confirmed live, same fact already documented
+    in CLAUDE.md's "Working Directly on the Omen via SSH" section). Adding
+    write access there was explicitly declined for that exact reason
+    (blast radius of an always-on, internet-reachable box with repo write
+    access) -- reopened and re-declined for this feature too. Syncing this
+    commit to origin/master and the other machine is therefore a manual
+    step, same as this file's whole edit history before this feature
+    existed: nova_config.json has always been hand-edited-then-pushed by a
+    session, never auto-published. Logs rather than raises on failure --
+    nothing is watching this background task's return value.
     """
     repo_root = os.path.dirname(__file__)
     # A systemd-launched nova-api service (the Omen's real deployment) gets
@@ -647,9 +657,8 @@ def _commit_and_push_config_change(flag_key: str, value: bool) -> None:
             env=git_env,
             check=True,
         )
-        subprocess.run(["git", "push", "origin", "master"], cwd=repo_root, env=git_env, check=True)
     except subprocess.CalledProcessError as e:
-        print(f"[flags] background commit/push for {flag_key} failed: {e}")
+        print(f"[flags] background commit for {flag_key} failed: {e}")
 
 
 @app.post("/flags/{flag_key}")
@@ -685,7 +694,7 @@ def set_flag(
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
-    background_tasks.add_task(_commit_and_push_config_change, flag_key, req.value)
+    background_tasks.add_task(_commit_config_change, flag_key, req.value)
     return {key: {**meta, "source": "config"} for key, meta in get_flag_registry_values().items()}[flag_key]
 
 
