@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-25 03:48 UTC
+Last updated: 2026-07-25 04:01 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,14 +8,7 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- NEW -> ready: 86bb3ceyp (Nova Controller: push notifications (Layer 3))
-- NEW -> ready: 86bb3ceym (Nova Controller: pre-action approval gate (policy-based, not agent-judgment))
-- NEW -> ready: 86bb3ceyj (Nova Controller: abort/kill switch for an in-flight dispatch)
-- NEW -> ready: 86bb3ceyf (Nova Controller: diff-preview-and-merge for dispatched tasks)
-- NEW -> ready: 86bb3ceyc (Nova Controller: worktree browser)
-- NEW -> ready: 86bb3cey5 (Nova Controller: Feed filtering by card type/task/date)
-- NEW -> ready: 86bb3cey2 (Nova Controller: Qwen3 swap-trigger progress widget)
-- NEW -> ready: 86bb3cey0 (Nova Controller: live in-flight task status card)
+- NEW -> ready: 86bb3cgna (Nova Controller: optimistic UI + serialized write queue for label decisions)
 
 ## In progress (4)
 
@@ -38,8 +31,9 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (94)
+## Ready (95)
 
+- 86bb3cgna  Nova Controller: optimistic UI + serialized write queue for label decisions
 - 86bb3ceyp  Nova Controller: push notifications (Layer 3)
 - 86bb3ceym  Nova Controller: pre-action approval gate (policy-based, not agent-judgment)
 - 86bb3ceyj  Nova Controller: abort/kill switch for an in-flight dispatch

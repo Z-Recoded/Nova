@@ -1,6 +1,10 @@
 {
   "ready": [
     {
+      "id": "86bb3cgna",
+      "name": "Nova Controller: optimistic UI + serialized write queue for label decisions"
+    },
+    {
       "id": "86bb3ceyp",
       "name": "Nova Controller: push notifications (Layer 3)"
     },
