@@ -63,6 +63,12 @@ from nova_task_queue import (
 
 LOCK_PATH = Path(__file__).resolve().parent / ".scheduled_dispatch.lock"
 LOG_PATH = Path(__file__).resolve().parent / "logs" / "scheduled_dispatch_log.jsonl"
+# Written the moment a task is picked, cleared alongside the lock -- lets a
+# read-only caller (nova_api.py's /in-flight-status, 86bb3cey0) know WHICH
+# task the lock represents, not just that a dispatch is happening. The lock
+# itself stays the authoritative liveness signal (see is_dispatch_currently_
+# running() below) -- this file only ever supplies descriptive detail.
+CURRENT_DISPATCH_PATH = Path(__file__).resolve().parent / "logs" / "current_dispatch.json"
 # Separate from LOG_PATH (the raw per-firing outcome log, written
 # automatically) — this one is only ever written by a human calling
 # record_dispatch_review() by hand, mirroring nova_orchestrator.py's
@@ -72,6 +78,20 @@ REVIEW_LOG_PATH = Path(__file__).resolve().parent / "logs" / "dispatch_review_lo
 
 # Stable-sort key order — unlisted/None priority sorts last, not first.
 PRIORITY_ORDER = ["urgent", "high", "normal", "low"]
+
+
+def _pid_is_alive(pid: int) -> bool:
+    """
+    True if a process with this PID exists. Shared between _acquire_lock()'s
+    stale-lock detection and is_dispatch_currently_running()'s read-only
+    liveness check below -- one liveness definition, not two that could
+    silently drift apart.
+    """
+    try:
+        os.kill(pid, 0)  # raises if the process is gone; sends no signal
+        return True
+    except (ProcessLookupError, OSError):
+        return False
 
 
 def _acquire_lock() -> bool:
@@ -94,10 +114,10 @@ def _acquire_lock() -> bool:
 
     try:
         held_pid = int(LOCK_PATH.read_text().strip())
-        os.kill(held_pid, 0)  # raises if the process is gone
-        return False  # still alive — a real overlap, don't proceed
-    except (ValueError, ProcessLookupError, OSError):
-        pass  # unreadable, malformed, or dead — treat as stale
+        if _pid_is_alive(held_pid):
+            return False  # still alive — a real overlap, don't proceed
+    except ValueError:
+        pass  # unreadable/malformed — treat as stale
 
     LOCK_PATH.unlink(missing_ok=True)
     try:
@@ -111,6 +131,53 @@ def _acquire_lock() -> bool:
 
 def _release_lock() -> None:
     LOCK_PATH.unlink(missing_ok=True)
+
+
+def is_dispatch_currently_running() -> dict:
+    """
+    Read-only check for a live dispatch, backing GET /in-flight-status
+    (86bb3cey0). The lock file's PID liveness is the authoritative signal —
+    matches _acquire_lock()'s own stale-lock recovery, so a crashed process
+    self-heals here too rather than showing a stuck "running" card forever.
+    CURRENT_DISPATCH_PATH only supplies descriptive detail (task name,
+    started_at) when the lock says a dispatch is genuinely alive; a leftover
+    marker from a crashed run is ignored once the PID check says it's dead,
+    even if the file itself is still sitting on disk.
+
+    Returns {"running": False} or {"running": True, "task_id": ..., "task_name":
+    ..., "started_at": ..., "elapsed_seconds": ..., "sandboxed": ...}.
+    """
+    if not LOCK_PATH.exists():
+        return {"running": False}
+
+    try:
+        held_pid = int(LOCK_PATH.read_text().strip())
+    except ValueError:
+        return {"running": False}
+
+    if not _pid_is_alive(held_pid):
+        return {"running": False}
+
+    if not CURRENT_DISPATCH_PATH.exists():
+        # Lock is genuinely live but the marker is missing (e.g. a firing
+        # that acquired the lock but hasn't reached the task-picked line
+        # yet) -- report running without task detail rather than hiding it.
+        return {"running": True}
+
+    try:
+        marker = json.loads(CURRENT_DISPATCH_PATH.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {"running": True}
+
+    started_at = marker.get("started_at")
+    elapsed_seconds = None
+    if started_at:
+        try:
+            elapsed_seconds = (datetime.now() - datetime.fromisoformat(started_at)).total_seconds()
+        except ValueError:
+            pass
+
+    return {"running": True, **marker, "elapsed_seconds": elapsed_seconds}
 
 
 def _pick_task(tasks: list[dict]) -> dict:
@@ -450,6 +517,20 @@ def run_scheduled_dispatch() -> dict:
         task = _pick_task(candidates)
         task_id = task["id"]
 
+        CURRENT_DISPATCH_PATH.parent.mkdir(exist_ok=True)
+        CURRENT_DISPATCH_PATH.write_text(
+            json.dumps(
+                {
+                    "task_id": task_id,
+                    "task_name": task["name"],
+                    "started_at": datetime.now().isoformat(timespec="seconds"),
+                    "pid": os.getpid(),
+                    "sandboxed": is_sandboxed_dispatch_enabled(),
+                }
+            ),
+            encoding="utf-8",
+        )
+
         try:
             resolved = resolve_task_description(task_id)
         except Exception as e:
@@ -479,6 +560,7 @@ def run_scheduled_dispatch() -> dict:
         outcome["tier_proposals_registered"] = tier_proposals_registered
         return outcome
     finally:
+        CURRENT_DISPATCH_PATH.unlink(missing_ok=True)
         _release_lock()
 
 

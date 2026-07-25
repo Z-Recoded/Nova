@@ -141,6 +141,49 @@
   }
   .training-status-sub { font-size: 0.78rem; color: #888; margin-top: 0.5rem; }
 
+  /* ── Live in-flight dispatch widget (86bb3cey0) ──────────────── */
+  .in-flight-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #1b1e26;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .in-flight-main { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+  .in-flight-dot {
+    flex: 0 0 auto;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #3ddc84;
+    box-shadow: 0 0 8px rgba(61, 220, 132, 0.8);
+    animation: in-flight-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes in-flight-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+  .in-flight-text { min-width: 0; }
+  .in-flight-label { font-size: 0.7rem; color: #999; text-transform: uppercase; letter-spacing: 0.04em; }
+  .in-flight-task {
+    font-size: 0.9rem;
+    color: #ddd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60vw;
+  }
+  .in-flight-elapsed {
+    flex: 0 0 auto;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #3ddc84;
+    font-variant-numeric: tabular-nums;
+  }
+
   /* ── Stories rail ─────────────────────────────────────────── */
   .stories-rail {
     display: flex;
@@ -417,6 +460,17 @@
 
   <div id="error"></div>
 
+  <div class="in-flight-status" id="in-flight-status" style="display:none">
+    <div class="in-flight-main">
+      <span class="in-flight-dot"></span>
+      <div class="in-flight-text">
+        <div class="in-flight-label">Dispatch running</div>
+        <div class="in-flight-task" id="in-flight-task"></div>
+      </div>
+    </div>
+    <span class="in-flight-elapsed" id="in-flight-elapsed"></span>
+  </div>
+
   <div class="board-watch">
     <span class="board-watch-label">Board Watch — headless dispatch loop</span>
     <button id="board-watch-toggle" class="watch-btn off" disabled>Loading…</button>
@@ -541,6 +595,59 @@
           `By category — ${categories}` + (verifyBits.length ? ` · ${verifyBits.join(', ')}` : '');
       } catch (err) {
         document.getElementById('error').textContent = 'Could not load training-data status: ' + err.message;
+      }
+    }
+
+    // ── Live in-flight dispatch widget (86bb3cey0) ──────────────
+    // Headless-dispatch lane only -- see the task's own plan for why the
+    // interactive/native nova_orchestrator.py lane isn't covered (it only
+    // ever runs on the Aero, invisible to the Omen's nova_api.py).
+
+    let inFlightStartedAt = null; // Date or null -- drives the 1s local tick
+
+    function formatElapsed(totalSeconds) {
+      const s = Math.max(0, Math.floor(totalSeconds));
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      if (h > 0) return `${h}h ${m}m`;
+      if (m > 0) return `${m}m ${sec}s`;
+      return `${sec}s`;
+    }
+
+    function tickInFlightElapsed() {
+      if (!inFlightStartedAt) return;
+      const seconds = (Date.now() - inFlightStartedAt.getTime()) / 1000;
+      document.getElementById('in-flight-elapsed').textContent = formatElapsed(seconds);
+    }
+
+    async function loadInFlightStatus() {
+      try {
+        const res = await fetch('/in-flight-status');
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const s = await res.json();
+        clearError();
+
+        const widget = document.getElementById('in-flight-status');
+        if (!s.running) {
+          widget.style.display = 'none';
+          inFlightStartedAt = null;
+          return;
+        }
+
+        widget.style.display = 'flex';
+        document.getElementById('in-flight-task').textContent =
+          s.task_name ? escapeHtml(s.task_name) : 'Task detail unavailable';
+
+        if (s.started_at) {
+          inFlightStartedAt = new Date(s.started_at);
+          tickInFlightElapsed();
+        } else {
+          inFlightStartedAt = null;
+          document.getElementById('in-flight-elapsed').textContent = '';
+        }
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not load in-flight status: ' + err.message;
       }
     }
 
@@ -1106,6 +1213,10 @@
 
     loadBoardWatch();
     setInterval(loadBoardWatch, 5000);
+
+    loadInFlightStatus();
+    setInterval(loadInFlightStatus, 5000);
+    setInterval(tickInFlightElapsed, 1000);
 
     loadTrainingDataStatus();
     setInterval(loadTrainingDataStatus, 15000);

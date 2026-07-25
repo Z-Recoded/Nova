@@ -64,7 +64,7 @@ from nova_log import (
 from nova_omen_dispatch import resume_headless_task
 from nova_orchestrator import run_coding_task
 from nova_query import ask
-from nova_scheduled_dispatch import handle_dispatch_outcome
+from nova_scheduled_dispatch import handle_dispatch_outcome, is_dispatch_currently_running
 from nova_sources import SOURCES
 from nova_state import get_state, write_state
 from nova_task_queue import TIER_PENDING_TAG, TIER_TAGS, TIERS
@@ -927,6 +927,21 @@ def get_dispatch_log(limit: int = 50):
     merged = dispatches + outcomes
     merged.sort(key=lambda e: e.get("timestamp") or "", reverse=True)
     return {"entries": merged[:limit]}
+
+
+@app.get("/in-flight-status")
+def get_in_flight_status():
+    """
+    Is a headless dispatch running right now, and if so which task —
+    backs the Nova Controller's live status widget (86bb3cey0). Thin
+    wrapper: nova_scheduled_dispatch.py owns the actual lock/marker-file
+    logic (same layering as every other dispatch route here). Scoped to
+    the headless dispatch lane only, not the interactive/native
+    nova_orchestrator.py lane — see 86bb3cey0's plan for why (the
+    native lane only ever runs on the Aero, which this route can't see
+    when served from the Omen).
+    """
+    return is_dispatch_currently_running()
 
 
 @app.get("/label-queue")
