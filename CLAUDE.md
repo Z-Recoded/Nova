@@ -587,19 +587,45 @@ main checkout only ever receives, never originates:
 1. `git worktree add ~/nova-work/<task-name> -b <branch> origin/master` — fetches fresh from
    `origin`, ignores whatever state the main checkout happens to be in.
 2. Do the work there.
-3. Commit and push that branch to `origin`.
-4. Merge to `master` from wherever's convenient (GitHub's web UI, or directly on the Omen).
+3. **Commit on the Omen, but push from the Aero — the Omen's GitHub deploy key is read-only
+   by design and cannot push, confirmed live 2026-07-25** (`git push` from the Omen fails
+   with "The key you are authenticating with has been marked as read only"). This is
+   deliberate, not a bug to route around by widening the key: an always-on, internet-reachable
+   headless box having direct write access to the repo is real added blast radius if it's ever
+   compromised, and nothing about the Omen's role requires it. The real flow:
+   - Commit the worktree's changes on the Omen as usual.
+   - From the Aero: `git fetch ssh://<user>@<omen-tailscale-ip>/home/<user>/nova
+     <branch>:<branch>` — pulls the commit directly out of the Omen's local object store, no
+     GitHub round-trip needed for this step.
+   - `git push origin <branch>` from the Aero, which has real write access.
+4. Merge to `master` from wherever's convenient (GitHub's web UI, or `gh pr merge` from the
+   Aero) — never directly on the Omen, for the same read-only-key reason.
 5. If the change touches what `nova-api`/`nova-chroma` actually run, trigger
    `nova_omen_sync.py` (or `git pull` + restart directly, since you're already on the Omen)
    so the live services pick it up.
 6. Back on the Aero next session: `git pull` before starting new work there — same discipline
    as any second machine touching a shared repo.
 
-No new tooling required — this is exactly the `git worktree add` + fetch-fresh-from-`origin`
-pattern `nova_orchestrator.py`'s `_create_worktree()` already uses, just applied by hand
-instead of by the dispatcher. Once the Nova Controller (`86bax0wkj`/`86baxahn7`) exists, this
-manual SSH workflow is expected to mostly be replaced by triggering `nova_omen_dispatch.py`
-from the Controller UI instead, which already self-syncs from `origin` on every run.
+**Two more real gotchas hit doing this live, 2026-07-25, worth knowing before it looks like a
+mystery failure:**
+- **No git identity configured on the Omen's main repo** — every commit that's ever landed
+  there came from a push made elsewhere, then pulled via `nova_omen_sync.py`, so `user.name`/
+  `user.email` were never set locally. A commit made directly on the Omen needs `git -c
+  user.name='...' -c user.email='...' commit ...` (scoped to that one command, not a global
+  config change) until/unless this gets set up permanently.
+- **A plain `ssh host "command"` is non-interactive and doesn't source `.bashrc`**, so PATH is
+  missing `~/.local/bin` — this silently breaks the `gitleaks` pre-commit hook (the binary is
+  genuinely installed there per `86bawk37h`, just invisible to this invocation style). Fix:
+  prepend `PATH=$HOME/.local/bin:$PATH` explicitly in the SSH command.
+
+No new tooling required for the worktree/push mechanics — this is exactly the `git worktree
+add` + fetch-fresh-from-`origin` pattern `nova_orchestrator.py`'s `_create_worktree()` already
+uses, just applied by hand instead of by the dispatcher, with the push step now correctly
+routed through the Aero. Once the Nova Controller (`86bax0wkj`/`86baxahn7`) exists, this manual
+SSH workflow is expected to mostly be replaced by triggering `nova_omen_dispatch.py` from the
+Controller UI instead, which already self-syncs from `origin` on every run and never needed the
+Omen to push in the first place (it dispatches over its own separate SSH-to-self keypair, and
+`nova_omen_sync.py`/`nova_omen_dispatch.py` both only ever pull).
 
 ### Omen Capacity Audit (86baxty6d, self-hosting gate) — 2026-07-21
 This task exists because every self-hosting decision so far (Chroma, Ollama callback,
@@ -1272,7 +1298,7 @@ source of truth. Search Section 1/2 by filename or ClickUp ID for the full story
 | 2026-07-18 | Shipped Nova Controller v1 Escalation Answer UI (`86bax0wkj`) — real `check_escalation()` regex parsing, `resume_headless_task()`, `/escalations` routes, `nova_escalations.html`; fixed a review-backpressure/escalation double-count interaction and 3 hardcoded-path 500s found during live verification |
 | 2026-07-19 | Merged `86baxbt82` into `86bawf2z2` (auth-layer tickets); shipped Task Tiering (`86bb01wur`) — `propose_tier()`, `/tier-proposals`; shipped Nova Controller UX (`86baxahn7`) — `nova_controller.html` Feed/swipe-labeling, `/dispatch-log`, `/label-queue`, PWA shell; shipped `nova_remote_inference.py` RunPod adapter (gated, wired into `ask()`); shipped `nova_agentic_dataset_curator.py` (10K-row curated dataset); shipped `nova_voice.py` Minimal-tier voice (wake word + local STT/TTS), fixed `CHROMA_HOST` to Omen's Tailscale IP (was LAN IP, broke off-network) |
 | 2026-07-21 | Shipped `nova_finetune_phi4.py` Phi-4 Mini QLoRA DPO script (CUDA `torch` reinstall required, verified 3 real DPO steps); closed out `86bagek35` context-fill/cold-start benchmarks; ran full base-model evaluation protocol — **verdict: stay on Llama 3.2 3B**, no candidate beats baseline; shipped `nova_omen_capacity.py` self-hosting-gate audit — verdict: headroom open today; shipped training-data accumulation oversight (`86bax4akx`) — `/training-data-status`, `dpo_verify` label kind, fixed a `/label-queue` truncation bug; fixed hardcoded `C:/Nova` paths in `nova_logger.py`/`nova_corrector.py` (filed `86bb1pkpb` for 15 more instances) and in `nova_log.py`/`nova_benchmark.py` |
-| 2026-07-25 | Shipped `nova_log_rotation.py` (`86barby7t`) — weekly, non-destructive rotation of the Nova Log telemetry files (`query_log.jsonl`/`benchmark_log.jsonl`): archives entries >90 days old and past the most-recent 1000 into month-stamped files under `logs/archive/`, atomic active-file rewrite. Standalone cron CLI (`--dry-run`/`--file`/`--max-age-days`/`--max-active`), not wired into the deferred `nova_watcher.py`. Deliberately scoped to the two real Nova Log files only — the other append-only JSONL logs (`training_flags.jsonl`, `tool_call_log.jsonl`, `agent_log.jsonl`, `scheduled_dispatch_log.jsonl`) feed full-history consumers (DPO corpus count, `/label-queue`, unreviewed-dispatch diff) and need a per-log decision before rotating, so they're a one-line `ROTATABLE_LOGS` opt-in, not swept blindly. Logic hand-verified (age + count split, malformed/undateable-line preservation, idempotency); live execution blocked by this sandboxed dispatch env's Python-exec gate — run once on the Aero to confirm |
+| 2026-07-25 | Shipped `nova_log_rotation.py` (`86barby7t`, merged PR #9) — weekly, non-destructive rotation of the Nova Log telemetry files (`query_log.jsonl`/`benchmark_log.jsonl`): archives entries >90 days old and past the most-recent 1000 into month-stamped files under `logs/archive/`, atomic active-file rewrite. Standalone cron CLI (`--dry-run`/`--file`/`--max-age-days`/`--max-active`), not wired into the deferred `nova_watcher.py`. Deliberately scoped to the two real Nova Log files only — the other append-only JSONL logs (`training_flags.jsonl`, `tool_call_log.jsonl`, `agent_log.jsonl`, `scheduled_dispatch_log.jsonl`) feed full-history consumers and need a per-log decision before rotating. Live `--dry-run` against the real Aero logs confirmed clean before merge (158/12 entries, both unchanged, no errors) — closes the gap this task's own dispatch flagged (see next). **Merged PR #8** — closed the `run_command()` absolute-path-argument gap (`_command_references_outside_root()`), independently re-verified with real test cases before merging, not just trusted from the PR body. **Real end-to-end sandboxed-cron-dispatch test run for real** (first genuine unpaused firing through `run_scheduled_dispatch()`, not just monkeypatched isolation) — surfaced and fixed a serious bug: `--permission-mode acceptEdits` never approves the Bash tool, only file edits, confirmed via a real `permission_denials` entry on a bare `python3 -c "print(2+2)"` call outside Docker entirely. This affected **both** headless dispatch paths since 2026-07-14, unnoticed because no prior real dispatch had needed to execute code. Fixed by switching only the sandboxed path to `--permission-mode bypassPermissions` (safe there specifically because the Docker mount boundary is real, verified containment) — deliberately left the bare-SSH path alone, since bypassing permissions with no container underneath would mean zero prompts and zero containment together. Re-verified live: a second sandboxed dispatch requiring real Bash execution succeeded. Dispatch pause and `sandboxed_dispatch_enabled` both restored to their prior (paused/off) state after testing. **Fixed the "Working Directly on the Omen via SSH" section above** — its documented step 3 ("commit and push from the Omen") doesn't actually work: the Omen's GitHub deploy key is read-only, confirmed live. Corrected to route the push through the Aero instead of widening the key's access, plus documented two more real gotchas hit along the way (no git identity configured on the Omen, non-interactive SSH missing `~/.local/bin` on PATH) |
 
 ---
 
