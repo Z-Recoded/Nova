@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-25 04:27 UTC
+Last updated: 2026-07-25 05:07 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,8 +8,7 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- NEW -> ready: 86bb3ceya (Nova Controller: live per-task cost/budget readout)
-- ready -> complete/removed: 86bb3cey0 (Nova Controller: live in-flight task status card)
+- No category changes since last digest.
 
 ## In progress (4)
 
