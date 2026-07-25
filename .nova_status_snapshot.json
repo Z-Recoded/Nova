@@ -1,6 +1,38 @@
 {
   "ready": [
     {
+      "id": "86bb3ceyp",
+      "name": "Nova Controller: push notifications (Layer 3)"
+    },
+    {
+      "id": "86bb3ceym",
+      "name": "Nova Controller: pre-action approval gate (policy-based, not agent-judgment)"
+    },
+    {
+      "id": "86bb3ceyj",
+      "name": "Nova Controller: abort/kill switch for an in-flight dispatch"
+    },
+    {
+      "id": "86bb3ceyf",
+      "name": "Nova Controller: diff-preview-and-merge for dispatched tasks"
+    },
+    {
+      "id": "86bb3ceyc",
+      "name": "Nova Controller: worktree browser"
+    },
+    {
+      "id": "86bb3cey5",
+      "name": "Nova Controller: Feed filtering by card type/task/date"
+    },
+    {
+      "id": "86bb3cey2",
+      "name": "Nova Controller: Qwen3 swap-trigger progress widget"
+    },
+    {
+      "id": "86bb3cey0",
+      "name": "Nova Controller: live in-flight task status card"
+    },
+    {
       "id": "86bb1pq3k",
       "name": "Deploy Open WebUI to the Omen \u2014 make it the sole always-on Nova machine"
     },
