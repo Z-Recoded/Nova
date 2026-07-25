@@ -115,12 +115,26 @@ NOVA_ENV_SCRIPTS_PATH = os.path.join(
 # against `root`. As of 86baxbrmj's interim hardening, run_command also
 # rejects any `cd` outside `root` and restricts PATH/env to explicit
 # allowlists (see _cd_targets_outside_root/_build_restricted_path/
-# _build_restricted_env below) — but an allowed binary can still take an
-# absolute-path argument (e.g. `git -C /c/Nova status`), so the live
-# C:/Nova tree is still reachable through that vector. This denylist plus
-# the cd/PATH/env restrictions are a best-effort interim stopgap, not real
-# sandboxing. Real containment is deferred to the Phase 3.5 Docker/OpenHands
-# hardening pass — see CLAUDE.md.
+# _build_restricted_env below). As of 2026-07-24, it also rejects any
+# absolute-path ARGUMENT resolving outside root (see
+# _command_references_outside_root below) — this closes the specific,
+# previously-documented gap where an allowed binary could still reach the
+# live tree via an argument (e.g. `git -C /c/Nova status`, `cat
+# /c/Nova/.env`), the two examples this comment used to name directly.
+# Still not a real shell parser (can be fooled by $VAR expansion, command
+# substitution, or a path hidden inside an unrelated quoted string — same
+# accepted-gap philosophy as the cd check and the denylist below) and still
+# not process/filesystem-level containment the way this codebase's Docker
+# sandbox for headless dispatch is (see nova_omen_dispatch.py's
+# dispatch_headless_task_sandboxed(), 2026-07-22/23) — Docker isn't
+# installed on the Aero at all, and this lane runs nova_orchestrator.py's
+# own in-process Python loop, not a `claude -p` CLI invocation, so that
+# same container-wrap approach doesn't directly apply here. This raises the
+# bar for the common, non-adversarial case (this project's stated threat
+# model: Claude driving, not an adversarial actor) rather than closing the
+# gap architecturally. Real containment for this lane specifically remains
+# open — see CLAUDE.md / the semi-autonomous-coding-path notes for the
+# current real state.
 DANGEROUS_COMMAND_PATTERNS = [
     "rm -rf",
     "git push",
@@ -195,6 +209,54 @@ def _cd_targets_outside_root(cmd: str, root_path: Path) -> str | None:
     return None
 
 
+# Closes the specific gap this module's own NOTE ON SANDBOXING has documented
+# since 86baxbrmj: _cd_targets_outside_root() above only checks `cd`
+# arguments, so an ALLOWED binary could still take an absolute-path argument
+# (git -C /c/Nova status, cat /c/Nova/.env) and reach the live tree — the two
+# exact examples CLAUDE.md names by name. Same best-effort philosophy as
+# every other check in this file (whole-string regex scan, not a shell
+# parser): a real shell parser would need to understand quoting, variable
+# expansion, and command substitution to be airtight, which is exactly the
+# gap real containment (Docker) closes properly — this only raises the bar
+# for the common, non-adversarial case, matching this project's stated
+# threat model (Claude driving, not an adversarial actor).
+#
+# Matches Windows drive-letter paths (C:\... or C:/...) and Git-Bash POSIX
+# paths (/c/...), the same two forms _resolve_cd_target() already handles —
+# not bare Unix-style absolute paths (/etc/passwd), since this codebase's
+# own existing POSIX-path handling only ever converts single-letter-drive
+# forms, and inventing broader handling here would be new, unverified
+# behavior rather than reusing what's already established.
+# (?<![A-Za-z0-9_]) anchors each alternative to the START of a token — found
+# live during testing, not anticipated in the design: without it, "https://"
+# matches the drive-letter alternative on its own "s:" (the "s" in "https"
+# immediately followed by ":" then "/"), false-positive-blocking any command
+# with a URL argument. The lookbehind requires the matched letter not be
+# immediately preceded by another word character, so "http**s**:" (preceded
+# by "http", a word character) is correctly excluded while a real standalone
+# "C:\..." or "/c/..." token (preceded by whitespace/quote/start-of-string)
+# still matches.
+_ABSOLUTE_PATH_TOKEN_PATTERN = re.compile(r"(?<![A-Za-z0-9_])(?:[A-Za-z]:[\\/]|/[A-Za-z](?:/|\b))[^\s'\"]*")
+
+
+def _command_references_outside_root(cmd: str, root_path: Path) -> str | None:
+    """
+    Best-effort scan for any absolute-path-looking token anywhere in `cmd`
+    (not just after `cd`) that resolves outside root_path. Deliberately
+    permissive on ambiguity, matching every other check in this file: a
+    token that fails to resolve (e.g. it isn't really a path at all, just
+    something that looked like one) is let through rather than blocked,
+    same accepted-gap trade-off as _resolve_cd_target()'s own $VAR/command-
+    substitution bailout.
+    """
+    for match in _ABSOLUTE_PATH_TOKEN_PATTERN.finditer(cmd):
+        token = match.group(0).strip("'\"")
+        resolved = _resolve_cd_target(token, root_path)
+        if resolved is not None and not resolved.is_relative_to(root_path):
+            return f"argument '{token}' resolves outside the worktree root ({resolved})"
+    return None
+
+
 # .../Git/usr/bin/bash.exe -> .../Git — derived from the already-hardcoded
 # GIT_BASH_PATH rather than a fresh shutil.which() call, which would depend
 # on the very system PATH this restriction is removing.
@@ -262,7 +324,8 @@ def run_command(cmd: str, root: str, timeout: int = NOVA_AGENT_CMD_TIMEOUT_SECON
     stdout, stderr, and the return code. A timeout kills the process and
     reports it as such rather than hanging the agent loop indefinitely.
     Refuses to run commands matching an obvious-destructive-pattern
-    denylist, or any `cd` that resolves outside `root` (see NOTE ON
+    denylist, any `cd` that resolves outside `root`, or any other
+    absolute-path argument that resolves outside `root` (see NOTE ON
     SANDBOXING above — this is best-effort, not a real sandbox boundary).
     PATH and the subprocess environment are both restricted to explicit
     allowlists rather than the full inherited system PATH/environment.
@@ -285,6 +348,15 @@ def run_command(cmd: str, root: str, timeout: int = NOVA_AGENT_CMD_TIMEOUT_SECON
         return {
             "stdout": "",
             "stderr": f"Refused: {cd_violation}. run_command is scoped to this worktree.",
+            "returncode": None,
+            "timed_out": False,
+        }
+
+    path_violation = _command_references_outside_root(cmd, root_path)
+    if path_violation:
+        return {
+            "stdout": "",
+            "stderr": f"Refused: {path_violation}. run_command is scoped to this worktree.",
             "returncode": None,
             "timed_out": False,
         }
