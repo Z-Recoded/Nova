@@ -41,6 +41,6 @@
   "scheduled_dispatch": {
     "review_backpressure_enabled": false,
     "max_unreviewed_dispatches": 3,
-    "sandboxed_dispatch_enabled": true
+    "sandboxed_dispatch_enabled": false
   }
 }
