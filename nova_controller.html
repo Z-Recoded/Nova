@@ -491,6 +491,23 @@
     margin-bottom: 0;
     pointer-events: none;
   }
+  /* Same optimistic-collapse treatment as .swipe-wrap, for cards with no
+     separate wrapper element (tier proposals) -- kept as its own rule
+     rather than refactoring .swipe-wrap for a cosmetic-only consolidation.
+     Taller cap: tier cards carry more content (reasoning paragraph, plus
+     the override form when open) than a label card ever does. */
+  .optimistic-collapsible {
+    overflow: hidden;
+    max-height: 800px;
+    opacity: 1;
+    transition: max-height 0.25s ease, opacity 0.25s ease, margin-bottom 0.25s ease;
+  }
+  .optimistic-collapsible.collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin-bottom: 0;
+    pointer-events: none;
+  }
   .swipe-hint {
     position: absolute;
     inset: 0;
@@ -568,7 +585,7 @@
     <p><b>Stories rail</b> — real counts from the last 24 hours. <i>Dispatches</i> = how many times the loop <i>attempted</i> to run something (successful or not, not "tasks completed"). <i>Merged</i>/<i>discarded</i> = how many of those you've since reviewed and decided on.</p>
     <p><b>Feed filters</b> — the chips/search/date row above the Feed. Chips toggle which card types show (tap "All" to reset to everything); the search box matches against a card's task name/ID; the date dropdown hides anything older than the chosen window. Purely a local display filter — it never changes what data gets fetched or re-ranks anything, and resets if you reload the page.</p>
     <p><b>Escalation</b> cards — a headless run paused mid-task to ask you a real question. Tap an option, or type a free-text answer, to resume that exact session.</p>
-    <p><b>Tier</b> cards — Nova proposes how safe a task is to hand to an unattended run: <i>autonomous</i>, <i>needs review</i>, or <i>manual only</i>, plus a confidence level and its reasoning. The <b>Accept</b> button's label always names Nova's proposed tier for that specific card (e.g. "Accept: needs review" means accepting sets this task to needs review) — it changes per card, it's not a fixed action. <b>Override</b> requires you to write why — that reasoning is the whole point, not a formality.</p>
+    <p><b>Tier</b> cards — Nova proposes how safe a task is to hand to an unattended run: <i>autonomous</i>, <i>needs review</i>, or <i>manual only</i>, plus a confidence level and its reasoning. The <b>Accept</b> button's label always names Nova's proposed tier for that specific card (e.g. "Accept: needs review" means accepting sets this task to needs review) — it changes per card, it's not a fixed action. <b>Override</b> requires you to write why — that reasoning is the whole point, not a formality. Both buttons are optimistic, same as label cards below — the card collapses immediately with a few seconds to undo before the decision actually saves.</p>
     <p><b>Dispatch outcome</b> cards — a record of a past run or review decision. Read-only, tap "show summary" to expand.</p>
     <p><b>Label queue</b> cards — real training-data judgments waiting on you.</p>
     <p style="margin-left:1rem"><b>Tool call</b> — was calling this tool a <i>good call</i> (right tool, reasonable), or is it something Nova <i>shouldn't have called</i> at all? Note: this is a simplified single judgment — the underlying data actually distinguishes "was the right tool" from "was the result actually used," but today's swipe combines both into one, so a case like "reasonable call, result ended up unused" can't be captured separately yet.</p>
@@ -1185,7 +1202,7 @@
     function renderTierCard(entry) {
       const status = entry.status || 'pending';
       const div = document.createElement('div');
-      div.className = 'card ' + (status === 'pending' ? 'pending' : 'resolved');
+      div.className = 'card ' + (status === 'pending' ? 'pending optimistic-collapsible' : 'resolved');
 
       const header = document.createElement('div');
       header.className = 'card-header';
@@ -1223,9 +1240,8 @@
         acceptBtn.className = 'accept-btn';
         acceptBtn.textContent = `Accept: ${entry.proposed_tier}`;
         acceptBtn.addEventListener('click', () => {
-          acceptBtn.disabled = true;
-          overrideToggle.disabled = true;
-          tokenPost(`/tier-proposals/${entry.proposal_id}/decide`, { decision: 'accept' }, statusEl, loadFeed);
+          const url = `/tier-proposals/${entry.proposal_id}/decide`;
+          optimisticallyCommitCard(cardKey(entry), entry, div, url, { decision: 'accept' }, `Accepted: ${entry.proposed_tier}`);
         });
         row.appendChild(acceptBtn);
 
@@ -1263,14 +1279,9 @@
             statusEl.textContent = 'Reasoning is required for an override.';
             return;
           }
-          acceptBtn.disabled = true;
-          submitBtn.disabled = true;
-          tokenPost(
-            `/tier-proposals/${entry.proposal_id}/decide`,
-            { decision: 'override', final_tier: select.value, reasoning: textarea.value.trim() },
-            statusEl,
-            loadFeed
-          );
+          const url = `/tier-proposals/${entry.proposal_id}/decide`;
+          const body = { decision: 'override', final_tier: select.value, reasoning: textarea.value.trim() };
+          optimisticallyCommitCard(cardKey(entry), entry, div, url, body, `Overridden to: ${select.value}`);
         });
 
         form.appendChild(tierLabel);
@@ -1461,22 +1472,24 @@
       }
     }
 
-    // suppressedLabelIds is deliberately NOT cleared on success or failure
+    // suppressedCardIds is deliberately NOT cleared on success or failure
     // -- a successful write means the server no longer returns that entry
     // anyway (matches /label-queue's own was_necessary-is-None-style
-    // filtering), and a failed one should stay hidden with retry available
-    // via the toast rather than silently reappearing as a fresh,
-    // undecided-looking card.
-    function optimisticallyCommitLabel(entry, wrap, url, body, description) {
-      const key = `${entry.kind}:${entry.id}`;
-      suppressedLabelIds.add(key);
+    // filtering, and a resolved tier proposal's own status field), and a
+    // failed one should stay hidden with retry available via the toast
+    // rather than silently reappearing as a fresh, undecided-looking card.
+    // Generalized beyond label cards (86bb3cgna) to any commit-able card --
+    // caller supplies its own cardKey() result rather than this function
+    // assuming a label-shaped entry.
+    function optimisticallyCommitCard(key, entry, wrap, url, body, description) {
+      suppressedCardIds.add(key);
       wrap.classList.add('collapsed');
 
       const undoTimer = setTimeout(() => enqueueWrite({ url, body, entry }), UNDO_WINDOW_MS);
 
       showUndoSnackbar(description, () => {
         clearTimeout(undoTimer);
-        suppressedLabelIds.delete(key);
+        suppressedCardIds.delete(key);
         wrap.classList.remove('collapsed');
       });
     }
@@ -1529,7 +1542,7 @@
           return;
         }
         const url = `/label-queue/${entry.kind}/${encodeURIComponent(entry.id)}/decide`;
-        optimisticallyCommitLabel(entry, wrap, url, labelDecisionBody(entry, positive), describeLabelDecision(entry, positive));
+        optimisticallyCommitCard(cardKey(entry), entry, wrap, url, labelDecisionBody(entry, positive), describeLabelDecision(entry, positive));
       };
 
       let correctionForm = null;
@@ -1549,7 +1562,7 @@
             return;
           }
           const url = `/label-queue/blend_flag/${encodeURIComponent(entry.id)}/decide`;
-          optimisticallyCommitLabel(entry, wrap, url, { correction: textarea.value.trim() }, 'Correction saved');
+          optimisticallyCommitCard(cardKey(entry), entry, wrap, url, { correction: textarea.value.trim() }, 'Correction saved');
         });
         correctionForm.appendChild(label);
         correctionForm.appendChild(textarea);
@@ -1661,11 +1674,18 @@
     let feedFilters = { kinds: new Set(['escalation', 'tier', 'dispatch', 'label']), taskQuery: '', dateRange: 'all' };
     let lastAllEntries = [];
 
-    // Label entries optimistically committed (86bb3cgna) -- kept out of
-    // every render (not just the current DOM) until Undo clears them, so
-    // the Feed's own 8s poll can't silently re-fetch and re-render a card
-    // that's mid-undo-window or already queued for write.
-    let suppressedLabelIds = new Set();
+    // Cards optimistically committed (86bb3cgna, generalized beyond
+    // label-queue kinds to tier proposals too) -- kept out of every render
+    // (not just the current DOM) until Undo clears them, so the Feed's own
+    // 8s poll can't silently re-fetch and re-render a card that's
+    // mid-undo-window or already queued for write.
+    let suppressedCardIds = new Set();
+
+    function cardKey(entry) {
+      if (entry._kind === 'label') return `label:${entry.kind}:${entry.id}`;
+      if (entry._kind === 'tier') return `tier:${entry.proposal_id}`;
+      return `${entry._kind}:${entry.id || entry.proposal_id || ''}`;
+    }
 
     const DATE_RANGE_MS = { today: 24 * 60 * 60 * 1000, week: 7 * 24 * 60 * 60 * 1000, month: 30 * 24 * 60 * 60 * 1000 };
 
@@ -1693,7 +1713,7 @@
         feedFilters.kinds.has(e._kind) &&
         passesTaskFilter(e, feedFilters.taskQuery) &&
         passesDateFilter(e, feedFilters.dateRange) &&
-        !(e._kind === 'label' && suppressedLabelIds.has(`${e.kind}:${e.id}`))
+        !suppressedCardIds.has(cardKey(e))
       );
 
       if (!filtered.length) {
