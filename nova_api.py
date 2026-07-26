@@ -39,6 +39,7 @@ import hmac
 import json
 import os
 import subprocess
+import sys
 import time
 import uuid
 from datetime import datetime
@@ -74,7 +75,8 @@ from nova_scheduled_dispatch import get_dispatch_cost_summary, handle_dispatch_o
 from nova_sources import SOURCES
 from nova_state import get_state, write_state
 from nova_task_queue import TIER_PENDING_TAG, TIER_TAGS, TIERS
-from nova_training_data_status import get_combined_training_status
+from nova_training_data_status import dispatch_remote_patch, get_combined_training_status, get_training_flags_by_origin
+from nova_training_flags_patch import TrainingFlagsPatchError, patch_training_flags_entry
 from nova_worktree_status import get_worktree_status
 
 app = FastAPI(title="Nova API", version="0.3")
@@ -1013,7 +1015,10 @@ ICON_512_PATH = os.path.join(os.path.dirname(__file__), "icon-512.png")
 SCHEDULED_DISPATCH_LOG_PATH = os.path.join(os.path.dirname(__file__), "logs", "scheduled_dispatch_log.jsonl")
 AGENT_TASK_OUTCOMES_PATH = os.path.join(os.path.dirname(__file__), "logs", "agent_task_outcomes.jsonl")
 TOOL_CALL_LOG_PATH = os.path.join(os.path.dirname(__file__), "logs", "tool_call_log.jsonl")
-TRAINING_FLAGS_PATH = os.path.join(os.path.dirname(__file__), "logs", "training_flags.jsonl")
+# training_flags.jsonl is no longer read directly here -- blend_flag/dpo_verify
+# now go through nova_training_data_status.get_training_flags_by_origin() and
+# nova_training_flags_patch.patch_training_flags_entry() instead, since an
+# entry can live on either machine (2026-07-26 write-side fix).
 
 DEFAULT_LABEL_QUEUE_LIMIT = 50  # keep the page light -- there are 1700+ tool-call entries total
 
@@ -1158,9 +1163,16 @@ def get_label_queue(limit: int = DEFAULT_LABEL_QUEUE_LIMIT):
 
     blend_flag entries have no stable id field in the log itself (unlike
     tool_call_id for tool calls) -- "id" here is a synthetic
-    "line:<index>:<timestamp>" token, checked again at decide-time so a
-    stale index (the file changed underneath) fails loudly (409) rather
-    than silently patching the wrong entry.
+    "line:<origin>:<index>:<timestamp>" token (origin: "aero" or "omen",
+    2026-07-26 write-side fix), checked again at decide-time so a stale
+    index (the file changed underneath) fails loudly (409) rather than
+    silently patching the wrong entry, and so a decide on this card knows
+    which machine's own training_flags.jsonl to actually patch. blend_flag/
+    dpo_verify entries themselves are pulled from BOTH machines (whichever
+    one this process ISN'T, fetched over the same Omen<->Aero SSH bridge
+    /training-data-status uses) -- previously this route only ever saw its
+    own machine's copy, meaning the Omen-hosted Controller couldn't
+    display or act on the Aero's real training-data cards at all.
 
     `limit` is applied per kind, not to the merged total -- found live
     while building the dpo_verify kind (86bax4akx): tool_call entries are
@@ -1176,9 +1188,19 @@ def get_label_queue(limit: int = DEFAULT_LABEL_QUEUE_LIMIT):
         for e in _read_jsonl_file(TOOL_CALL_LOG_PATH)
         if e.get("was_necessary") is None
     ]
+    # blend_flag/dpo_verify entries can live on either machine's own
+    # training_flags.jsonl (2026-07-26 write-side fix, 86bax4akx follow-up)
+    # -- get_training_flags_by_origin() fetches whichever machine this
+    # process ISN'T over the same command-restricted SSH bridge
+    # /training-data-status already uses. The synthetic id now carries the
+    # origin ("aero"/"omen") ahead of the index, so decide_label_queue_entry()
+    # below knows which machine's file to actually patch.
+    by_origin = get_training_flags_by_origin()
     blend_flags = [
-        {"kind": "blend_flag", "id": f"line:{i}:{e.get('timestamp')}", **e}
-        for i, e in enumerate(_read_jsonl_file(TRAINING_FLAGS_PATH))
+        {"kind": "blend_flag", "id": f"line:{origin}:{i}:{e.get('timestamp')}", **e}
+        for origin, origin_entries in by_origin.items()
+        if origin in ("aero", "omen")
+        for i, e in enumerate(origin_entries)
         if e.get("correction") == ""
     ]
     # dpo_verify: already-corrected pairs awaiting the "is this correction
@@ -1186,8 +1208,10 @@ def get_label_queue(limit: int = DEFAULT_LABEL_QUEUE_LIMIT):
     # -- distinct from blend_flags above, which are pairs that don't have a
     # correction written yet at all. Same synthetic id scheme as blend_flag.
     dpo_verify = [
-        {"kind": "dpo_verify", "id": f"line:{i}:{e.get('timestamp')}", **e}
-        for i, e in enumerate(_read_jsonl_file(TRAINING_FLAGS_PATH))
+        {"kind": "dpo_verify", "id": f"line:{origin}:{i}:{e.get('timestamp')}", **e}
+        for origin, origin_entries in by_origin.items()
+        if origin in ("aero", "omen")
+        for i, e in enumerate(origin_entries)
         if e.get("correction") and not e.get("verification_status")
     ]
 
@@ -1230,6 +1254,16 @@ def decide_label_queue_entry(
     risk profile. Matched by id, not position, so at worst a lost append
     is dropped once, never silently corrupted or misattributed to the
     wrong entry.
+
+    blend_flag/dpo_verify cross-machine write (2026-07-26): a
+    training_flags.jsonl entry can live on either machine (the Aero's real
+    data, or the Omen's -- currently empty in practice, but not assumed to
+    stay that way). The entry's own id says which; if it's this machine's
+    own file, patch_training_flags_entry() writes it directly; otherwise
+    dispatch_remote_patch() sends the same patch request over the
+    Omen<->Aero SSH bridge and the OTHER machine performs the write, never
+    this process reaching across the network to touch a remote file path
+    directly.
     """
     _check_escalation_token(x_nova_escalation_token)
 
@@ -1245,48 +1279,66 @@ def decide_label_queue_entry(
                 f.write(json.dumps(e, ensure_ascii=False) + "\n")
         return entries[match_index]
 
-    elif kind == "blend_flag":
-        try:
-            _, index_str, expected_timestamp = entry_id.split(":", 2)
-            index = int(index_str)
-        except ValueError:
-            raise HTTPException(status_code=422, detail=f"Malformed blend_flag id '{entry_id}'") from None
-        entries = _read_jsonl_file(TRAINING_FLAGS_PATH)
-        if index >= len(entries) or entries[index].get("timestamp") != expected_timestamp:
+    elif kind in ("blend_flag", "dpo_verify"):
+        # id shape: "line:<origin>:<index>:<timestamp>", origin being
+        # "aero" or "omen" -- which machine's own training_flags.jsonl this
+        # entry actually lives on (2026-07-26 write-side fix). Older ids
+        # without an origin segment (4 parts instead of 5) can't be routed
+        # safely -- treat as stale rather than guessing, since guessing
+        # wrong would silently patch the wrong machine's file.
+        parts = entry_id.split(":", 3)
+        if len(parts) != 4:
             raise HTTPException(
                 status_code=409,
-                detail="This entry's position/timestamp no longer matches -- training_flags.jsonl "
-                "changed since this card was loaded. Reload the queue and try again.",
+                detail="This card is from before the cross-machine fix -- reload the queue and try again.",
             )
-        entries[index]["correction"] = req.correction or ""
-        with open(TRAINING_FLAGS_PATH, "w", encoding="utf-8") as f:
-            for e in entries:
-                f.write(json.dumps(e, ensure_ascii=False) + "\n")
-        return entries[index]
+        _, origin, index_str, expected_timestamp = parts
+        try:
+            index = int(index_str)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Malformed {kind} id '{entry_id}'") from None
 
-    elif kind == "dpo_verify":
-        try:
-            _, index_str, expected_timestamp = entry_id.split(":", 2)
-            index = int(index_str)
-        except ValueError:
-            raise HTTPException(status_code=422, detail=f"Malformed dpo_verify id '{entry_id}'") from None
-        entries = _read_jsonl_file(TRAINING_FLAGS_PATH)
-        if index >= len(entries) or entries[index].get("timestamp") != expected_timestamp:
-            raise HTTPException(
-                status_code=409,
-                detail="This entry's position/timestamp no longer matches -- training_flags.jsonl "
-                "changed since this card was loaded. Reload the queue and try again.",
-            )
-        if req.verification_status not in ("confirmed_good", "needs_rework"):
+        this_machine = "aero" if sys.platform == "win32" else "omen"
+        patch_kwargs = {
+            "kind": kind,
+            "index": index,
+            "expected_timestamp": expected_timestamp,
+            "correction": req.correction,
+            "verification_status": req.verification_status,
+        }
+        if kind == "dpo_verify" and req.verification_status not in ("confirmed_good", "needs_rework"):
             raise HTTPException(
                 status_code=422,
                 detail="verification_status must be 'confirmed_good' or 'needs_rework'",
             )
-        entries[index]["verification_status"] = req.verification_status
-        with open(TRAINING_FLAGS_PATH, "w", encoding="utf-8") as f:
-            for e in entries:
-                f.write(json.dumps(e, ensure_ascii=False) + "\n")
-        return entries[index]
+
+        if origin == this_machine:
+            try:
+                return patch_training_flags_entry(
+                    kind=kind,
+                    index=index,
+                    expected_timestamp=expected_timestamp,
+                    correction=req.correction,
+                    verification_status=req.verification_status,
+                )
+            except TrainingFlagsPatchError as e:
+                raise HTTPException(status_code=e.status_code, detail=e.detail) from e
+
+        if origin not in ("aero", "omen"):
+            raise HTTPException(status_code=422, detail=f"Malformed {kind} id '{entry_id}' -- unknown origin")
+
+        # Entry lives on the OTHER machine -- dispatch the patch over SSH
+        # (Aero->Omen: pre-existing full-trust access; Omen->Aero: the new
+        # dedicated command-restricted write key). A transport failure
+        # (SSH unreachable, timeout) comes back as a 503, distinct from a
+        # 409/422 the remote machine's own validation reports for a real
+        # conflict or bad input.
+        response = dispatch_remote_patch(origin, patch_kwargs)
+        if not response.get("ok"):
+            raise HTTPException(
+                status_code=response.get("status", 502), detail=response.get("detail", "Remote patch failed")
+            )
+        return response["entry"]
 
     else:
         raise HTTPException(status_code=422, detail="kind must be 'tool_call', 'blend_flag', or 'dpo_verify'")

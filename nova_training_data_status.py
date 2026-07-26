@@ -43,6 +43,21 @@ AERO_HOST = "100.122.229.23"  # Tailscale IP
 AERO_USER = "marvi"
 AERO_TRAININGDATA_KEY = os.path.expanduser("~/.ssh/aero_keys/id_ed25519_aero_trainingdata")
 
+# Fourth key, 2026-07-26 write-side follow-up -- the one WRITE-capable key
+# in the whole bridge (every other key here is read-only). Deliberately its
+# own dedicated key rather than reusing AERO_TRAININGDATA_KEY above, same
+# one-key-per-forced-script discipline as the other three. Only resolves to
+# something real when dispatch_remote_patch() runs on the Omen -- see
+# scripts/ssh_patch_training_flags.ps1 for the forced command it invokes,
+# and nova_training_flags_patch.py for what that command is actually
+# allowed to touch (one file, one field, index/timestamp-checked).
+AERO_TRAININGFLAGS_WRITE_KEY = os.path.expanduser("~/.ssh/aero_keys/id_ed25519_aero_trainingflags_write")
+
+# Same convention as OMEN_VENV_PYTHON in nova_omen_dispatch.py -- bare
+# `python3` on the Omen doesn't have this repo's dependencies installed.
+OMEN_VENV_PYTHON = f"{OMEN_REPO_PATH}/nova-env/bin/python"
+PATCH_CLI_SCRIPT = "nova_patch_training_flags_cli.py"
+
 # Resolved relative to this file's own location -- same GRAPH_PATH-class
 # fix already applied everywhere else in this project.
 LOCAL_TRAINING_FLAGS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", "training_flags.jsonl")
@@ -129,6 +144,92 @@ def read_aero_training_flags() -> dict:
         return {"entries": [], "error": "SSH to the Aero timed out"}
 
 
+def get_training_flags_by_origin() -> dict:
+    """
+    Real entries from both machines, tagged by which one they actually
+    live on: {"aero": [...], "omen": [...], "view": "combined"/"omen_only"/"aero_only"}.
+
+    Used by get_combined_training_status() below (which only needs
+    counts) and by nova_api.py's /label-queue route (which needs to know
+    which machine's file a given entry came from, so a later decide can
+    route the write to the right one -- see dispatch_remote_patch()).
+    """
+    local_entries = read_local_training_flags()
+    on_aero = sys.platform == "win32"
+
+    remote_result = read_omen_training_flags() if on_aero else read_aero_training_flags()
+    remote_entries = remote_result["entries"]
+
+    aero_entries = local_entries if on_aero else remote_entries
+    omen_entries = remote_entries if on_aero else local_entries
+
+    view = "combined" if remote_result["error"] is None else ("aero_only" if on_aero else "omen_only")
+
+    return {"aero": aero_entries, "omen": omen_entries, "view": view}
+
+
+def dispatch_remote_patch(target: str, payload: dict) -> dict:
+    """
+    Send a training_flags.jsonl patch request to the machine named by
+    `target` ("aero" or "omen") and return its parsed JSON response --
+    used by nova_api.py's decide_label_queue_entry() when a blend_flag/
+    dpo_verify entry being decided lives on the OTHER machine from
+    whichever one is actually serving the request.
+
+    Never raises: returns {"ok": False, "status": 503, "detail": "..."}
+    if the other machine can't be reached at all right now (SSH failure,
+    timeout, malformed response) -- distinct from a 409/422 the remote
+    script's own validation reports for a real conflict or bad input,
+    which comes back inside the parsed JSON unchanged.
+
+    Aero->Omen uses the Aero's pre-existing, fully-privileged SSH access
+    (same as nova_omen_sync.py/nova_omen_dispatch.py) -- no new key
+    needed, since the Aero already fully operates the Omen. Omen->Aero
+    uses the new dedicated, command-restricted write key -- the client's
+    SSH command argument is ignored either way; the JSON payload travels
+    over stdin instead (see scripts/ssh_patch_training_flags.ps1).
+    """
+    payload_bytes = json.dumps(payload).encode("utf-8")
+    on_aero = sys.platform == "win32"
+
+    if target == "omen":
+        if not on_aero:
+            return {"ok": False, "status": 500, "detail": "dispatch_remote_patch('omen') called from the Omen itself"}
+        remote_cmd = f"cd {OMEN_REPO_PATH} && {OMEN_VENV_PYTHON} {PATCH_CLI_SCRIPT}"
+        cmd = ["ssh", f"{OMEN_USER}@{OMEN_HOST}", remote_cmd]
+    elif target == "aero":
+        if on_aero:
+            return {"ok": False, "status": 500, "detail": "dispatch_remote_patch('aero') called from the Aero itself"}
+        cmd = [
+            "ssh",
+            "-i",
+            AERO_TRAININGFLAGS_WRITE_KEY,
+            "-o",
+            "ConnectTimeout=10",
+            f"{AERO_USER}@{AERO_HOST}",
+            "ignored",
+        ]
+    else:
+        return {"ok": False, "status": 500, "detail": f"Unknown patch target '{target}'"}
+
+    try:
+        result = subprocess.run(cmd, input=payload_bytes, capture_output=True, timeout=SSH_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "status": 503, "detail": f"SSH to the {target} timed out"}
+
+    if result.returncode != 0:
+        return {
+            "ok": False,
+            "status": 503,
+            "detail": f"ssh exited {result.returncode}: {result.stderr.decode(errors='replace').strip()}",
+        }
+
+    try:
+        return json.loads(result.stdout.decode("utf-8"))
+    except json.JSONDecodeError:
+        return {"ok": False, "status": 503, "detail": "Malformed response from the other machine"}
+
+
 def _summarize(entries: list[dict]) -> dict:
     """
     Compute the same stats /training-data-status has always reported --
@@ -174,27 +275,14 @@ def get_combined_training_status() -> dict:
     real training data yet, only the Aero does -- but that's a fact about
     the data, not a reason to hide the view field.
     """
-    local_entries = read_local_training_flags()
-    on_aero = sys.platform == "win32"
-
-    remote_result = read_omen_training_flags() if on_aero else read_aero_training_flags()
-    remote_entries = remote_result["entries"]
-
-    aero_entries = local_entries if on_aero else remote_entries
-    omen_entries = remote_entries if on_aero else local_entries
-
-    if remote_result["error"] is None:
-        view = "combined"
-    else:
-        view = "aero_only" if on_aero else "omen_only"
-
-    combined_entries = aero_entries + omen_entries
+    by_origin = get_training_flags_by_origin()
+    combined_entries = by_origin["aero"] + by_origin["omen"]
     summary = _summarize(combined_entries)
 
     total_corrected = summary["total_corrected"]
     summary.update(
         {
-            "view": view,
+            "view": by_origin["view"],
             "min_pairs_for_finetune": MIN_REAL_PAIRS_FOR_FINETUNE,
             "pairs_remaining": max(0, MIN_REAL_PAIRS_FOR_FINETUNE - total_corrected),
             "progress_pct": round(100 * total_corrected / MIN_REAL_PAIRS_FOR_FINETUNE, 1),
