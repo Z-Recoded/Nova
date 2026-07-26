@@ -21,6 +21,7 @@
 #   POST /escalations               → register a new pending escalation (86bax0wkj)
 #   GET  /escalations                → all escalations, pending and resolved
 #   POST /escalations/{id}/answer   → submit Marvin's answer (token-gated), resumes the session in the background
+#   POST /escalations/{id}/cancel   → withdraw a pending escalation without answering it (token-gated)
 #   GET  /escalations-ui            → redirects to /controller (86baxahn7)
 #   GET  /controller                → Nova Controller Feed page (HTML, PWA-installable)
 #   GET  /dispatch-log              → merged dispatch/outcome history (JSON)
@@ -30,6 +31,7 @@
 #   GET  /dispatch-cost-summary     → real/notional headless-dispatch spend, today + last 7 days
 #   GET  /qwen-swap-status          → Qwen3 8B swap-trigger progress (combined on the Aero, Omen-only elsewhere)
 #   GET  /worktree-status           → open git worktrees, both machines, with age/merged/prunable status
+#   POST /dispatch-abort            → kill the currently-running cron-fired dispatch (token-gated)
 #
 # Run:
 #   cd C:/Nova
@@ -71,7 +73,12 @@ from nova_log import (
 from nova_omen_dispatch import resume_headless_task
 from nova_orchestrator import run_coding_task
 from nova_query import ask
-from nova_scheduled_dispatch import get_dispatch_cost_summary, handle_dispatch_outcome, is_dispatch_currently_running
+from nova_scheduled_dispatch import (
+    abort_current_dispatch,
+    get_dispatch_cost_summary,
+    handle_dispatch_outcome,
+    is_dispatch_currently_running,
+)
 from nova_sources import SOURCES
 from nova_state import get_state, write_state
 from nova_task_queue import TIER_PENDING_TAG, TIER_TAGS, TIERS
@@ -148,6 +155,10 @@ class DispatchPauseRequest(BaseModel):
 
 class FlagToggleRequest(BaseModel):
     value: bool
+
+
+class DispatchAbortRequest(BaseModel):
+    reason: str | None = None
 
 
 class EscalationCreateRequest(BaseModel):
@@ -835,6 +846,35 @@ def answer_escalation(
     return {"status": "resuming", "escalation_id": escalation_id}
 
 
+@app.post("/escalations/{escalation_id}/cancel")
+def cancel_escalation(escalation_id: str, x_nova_escalation_token: str | None = Header(None)):
+    """
+    Withdraw a pending escalation without answering it (86bb3ceyj's
+    abort-switch scoping decision #3) — distinct from the process-kill
+    /dispatch-abort route below: a dispatch paused waiting on an
+    escalation answer has no live process to kill at all (claude -p
+    already exited cleanly the moment it emitted the escalation block),
+    so "abort" here just means marking the escalation cancelled instead
+    of resuming it. Token-gated the same as answer_escalation() above.
+    """
+    _check_escalation_token(x_nova_escalation_token)
+
+    pending = get_state("system", "pending_escalations") or {}
+    record = pending.get(escalation_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"No escalation '{escalation_id}'")
+    if record["status"] != "pending":
+        raise HTTPException(status_code=409, detail=f"Escalation '{escalation_id}' is already '{record['status']}'")
+
+    record["status"] = "cancelled"
+    record["answered_at"] = datetime.now().isoformat(timespec="seconds")
+    pending.pop("_updated_at", None)
+    pending[escalation_id] = record
+    write_state("system", "pending_escalations", pending)
+
+    return {"status": "cancelled", "escalation_id": escalation_id}
+
+
 # /escalations-ui itself now lives below, in the Nova Controller UX
 # section, as a redirect to /controller (86baxahn7) — the Feed page
 # supersedes this as the real entry point.
@@ -1107,6 +1147,29 @@ def get_in_flight_status():
     when served from the Omen).
     """
     return is_dispatch_currently_running()
+
+
+@app.post("/dispatch-abort")
+def abort_dispatch_route(req: DispatchAbortRequest, x_nova_escalation_token: str | None = Header(None)):
+    """
+    Kill the currently-running cron-fired dispatch (86bb3ceyj) — backs the
+    Nova Controller's in-flight-status widget "Abort" button. Thin
+    wrapper: nova_scheduled_dispatch.abort_current_dispatch() owns the
+    real kill mechanics (docker kill for sandboxed dispatch, a direct
+    SIGTERM/SIGKILL against the real captured PID for bare-SSH — never
+    just the wrapper process, which a no-pty SSH connection can't reach
+    through to the actual remote work). Token-gated: irreversible, same
+    as every other destructive write on this surface.
+
+    Scoped to the cron-fired headless-dispatch lane only, matching
+    /in-flight-status (86bb3cey0) — manual `--dispatch` runs aren't
+    tracked by the lock this reads and are out of scope for v1.
+    """
+    _check_escalation_token(x_nova_escalation_token)
+    result = abort_current_dispatch(req.reason or "")
+    if not result.get("success"):
+        raise HTTPException(status_code=409, detail=result.get("error", "Abort failed"))
+    return result
 
 
 @app.get("/dispatch-cost-summary")

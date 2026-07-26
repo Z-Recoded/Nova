@@ -209,6 +209,20 @@
   }
   .in-flight-fuel.subscription { color: #888; }
   .in-flight-fuel.api_key { color: #e0b060; }
+  .in-flight-abort-btn {
+    flex: 0 0 auto;
+    margin-left: 0.8rem;
+    background: transparent;
+    border: 1px solid #5a3535;
+    color: #d88;
+    border-radius: 6px;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+  .in-flight-abort-btn:hover { background: #3a2020; }
+  .in-flight-abort-btn:disabled { cursor: default; opacity: 0.5; }
+  .in-flight-abort-status { font-size: 0.8rem; color: #999; margin-bottom: 1rem; }
 
   /* ── Feed filter bar (86bb3cey5) ─────────────────────────── */
   .feed-filter-bar { margin-bottom: 1rem; }
@@ -362,6 +376,15 @@
   }
   .option-btn:hover { background: #304055; }
   .option-btn:disabled { cursor: default; opacity: 0.5; }
+  .cancel-escalation-btn {
+    display: block;
+    margin-top: 0.5rem;
+    background: transparent;
+    border-color: #5a3535;
+    color: #d88;
+    font-size: 0.75rem;
+  }
+  .cancel-escalation-btn:hover { background: #3a2020; }
 
   .freeform { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
   .freeform input, .freeform textarea {
@@ -613,7 +636,9 @@
       </div>
     </div>
     <span class="in-flight-elapsed" id="in-flight-elapsed"></span>
+    <button class="in-flight-abort-btn" id="in-flight-abort-btn">Abort</button>
   </div>
+  <div class="in-flight-abort-status" id="in-flight-abort-status"></div>
 
   <div class="switches-panel" id="switches-panel">
     <span class="board-watch-label">Loading switches…</span>
@@ -935,6 +960,29 @@
       }
     }
 
+    // Abort button (86bb3ceyj) -- confirms first (irreversible: kills the
+    // real process/container, the worktree is left in place for manual
+    // review). Wired once at page init, not per-poll -- the button is a
+    // static element in the HTML, not re-created each time
+    // loadInFlightStatus() runs, so attaching the listener there would
+    // stack duplicate handlers.
+    async function abortDispatch() {
+      const reason = prompt('Reason for aborting this dispatch (optional):', '') || '';
+      if (!confirm('Really abort the currently-running dispatch? This kills the real process — it cannot be undone, and the worktree will be left in place for you to review.')) return;
+
+      const btn = document.getElementById('in-flight-abort-btn');
+      const statusEl = document.getElementById('in-flight-abort-status');
+      btn.disabled = true;
+      const result = await tokenPost('/dispatch-abort', { reason }, statusEl, () => {
+        loadInFlightStatus();
+        loadFeed();
+      });
+      btn.disabled = false;
+      if (result && result.success) {
+        statusEl.textContent = `Aborted (${result.method}).`;
+      }
+    }
+
     // ── Headless dispatch spend (86bb3ceya) ─────────────────────
     // real_usd = actual metered dollars (api_key-fuel runs only). notional_usd
     // = claude -p's own cost estimate for every run, including subscription
@@ -1193,6 +1241,21 @@
         freeform.appendChild(input);
         freeform.appendChild(button);
         div.appendChild(freeform);
+
+        // Cancel (86bb3ceyj scoping decision #3): the dispatch behind
+        // this escalation has no live process to kill -- claude -p
+        // already exited cleanly the moment it emitted the block. This
+        // just withdraws the escalation instead of answering it, distinct
+        // from /dispatch-abort's real process kill.
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'option-btn cancel-escalation-btn';
+        cancelBtn.textContent = 'Cancel escalation';
+        cancelBtn.addEventListener('click', () => {
+          if (!confirm('Cancel this escalation without answering it? This cannot be undone.')) return;
+          cancelBtn.disabled = true;
+          tokenPost(`/escalations/${entry.escalation_id}/cancel`, {}, statusEl, loadFeed);
+        });
+        div.appendChild(cancelBtn);
         div.appendChild(statusEl);
       } else if (entry.resume_result && entry.resume_result.summary) {
         const summary = document.createElement('div');
@@ -1823,6 +1886,7 @@
     loadInFlightStatus();
     setInterval(loadInFlightStatus, 5000);
     setInterval(tickInFlightElapsed, 1000);
+    document.getElementById('in-flight-abort-btn').addEventListener('click', abortDispatch);
 
     loadTrainingDataStatus();
     setInterval(loadTrainingDataStatus, 15000);
