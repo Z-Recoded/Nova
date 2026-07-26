@@ -158,7 +158,7 @@ Write-Output "   (via Invoke-RestMethod, not a spawned process) to this machine'
 Write-Output "   nova_api.py instance, which does the real git fetch/push/gh-pr-create work"
 Write-Output "   (see nova_worktree_pr.py, 86bb3ceyf). Requires nova_api.py to actually be"
 Write-Output "   running locally on the Aero to do anything useful."
-$worktreePrKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_relay_worktree_pr.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 <PASTE_PUBKEY_HERE> omen-to-aero-worktree-pr'
+$worktreePrKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_relay_worktree_pr.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP+kWsI6D65MZofTjyWaqFQz/smccZoF5+kSvaPSpSeb omen-to-aero-worktree-pr'
 if ($worktreePrKey -match '<PASTE_PUBKEY_HERE>') {
     Write-Output "   SKIPPED -- placeholder pubkey not filled in yet. To enable:"
     Write-Output "     1. On the Omen: ssh-keygen -t ed25519 -N '' -f ~/.ssh/aero_keys/id_ed25519_aero_worktree_pr"
