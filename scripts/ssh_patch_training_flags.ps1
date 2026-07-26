@@ -21,6 +21,16 @@
 # pipeline re-encodes through the console's active codepage, which would
 # corrupt non-ASCII correction text (or the JSON response) silently
 # otherwise.
+#
+# CreateNoWindow, found live during real verification (2026-07-26): sshd
+# runs as a Windows service with no interactive desktop session. Without
+# CreateNoWindow set, starting a console-subsystem process (python.exe)
+# makes .NET try to allocate a console window on the interactive window
+# station -- which the service session has no access to -- and Process.Start
+# fails outright with "Access is denied," not a Python-level error. The
+# three read-only scripts never hit this because none of them spawn a
+# process. RedirectStandardError added at the same time so a real Python
+# exception surfaces in the response instead of silently vanishing.
 
 $stdin = [Console]::OpenStandardInput()
 $inputStream = New-Object System.IO.MemoryStream
@@ -33,7 +43,9 @@ $psi.Arguments = "C:\Nova\nova_patch_training_flags_cli.py"
 $psi.WorkingDirectory = "C:\Nova"
 $psi.RedirectStandardInput = $true
 $psi.RedirectStandardOutput = $true
+$psi.RedirectStandardError = $true
 $psi.UseShellExecute = $false
+$psi.CreateNoWindow = $true
 
 $proc = [System.Diagnostics.Process]::Start($psi)
 $proc.StandardInput.BaseStream.Write($inputBytes, 0, $inputBytes.Length)
@@ -41,8 +53,18 @@ $proc.StandardInput.BaseStream.Close()
 
 $outputStream = New-Object System.IO.MemoryStream
 $proc.StandardOutput.BaseStream.CopyTo($outputStream)
+$stderrText = $proc.StandardError.ReadToEnd()
 $proc.WaitForExit()
 $outputBytes = $outputStream.ToArray()
+
+# If the CLI produced no stdout at all, something crashed before it could
+# write a JSON response (e.g. a Python import error) -- surface stderr as a
+# JSON envelope instead of returning nothing, so the caller sees a real
+# error rather than an empty/malformed response.
+if ($outputBytes.Length -eq 0 -and $stderrText) {
+    $errorJson = (@{ ok = $false; status = 500; detail = "Aero-side CLI crashed: $stderrText" } | ConvertTo-Json -Compress)
+    $outputBytes = [System.Text.Encoding]::UTF8.GetBytes($errorJson)
+}
 
 $stdout = [Console]::OpenStandardOutput()
 $stdout.Write($outputBytes, 0, $outputBytes.Length)
