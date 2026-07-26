@@ -44,6 +44,9 @@
 
 import json
 import os
+import signal
+import subprocess
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -52,7 +55,13 @@ import httpx
 from nova_clickup_client import add_comment, add_tag, get_task, update_status
 from nova_config import get_max_unreviewed_dispatches, is_review_backpressure_enabled, is_sandboxed_dispatch_enabled
 from nova_escalation import NOVA_API_URL, is_dispatch_paused
-from nova_omen_dispatch import choose_fuel_source, dispatch_headless_task, dispatch_headless_task_sandboxed
+from nova_omen_dispatch import (
+    REMOTE_DISPATCH_PID_PATH,
+    SANDBOXED_CONTAINER_NAME,
+    choose_fuel_source,
+    dispatch_headless_task,
+    dispatch_headless_task_sandboxed,
+)
 from nova_task_queue import (
     detect_tier_candidates,
     get_practice_queue_tasks,
@@ -178,6 +187,99 @@ def is_dispatch_currently_running() -> dict:
             pass
 
     return {"running": True, **marker, "elapsed_seconds": elapsed_seconds}
+
+
+SIGTERM_GRACE_SECONDS = 2  # how long to wait before escalating to SIGKILL for the bare-SSH path
+
+
+def abort_current_dispatch(reason: str = "") -> dict:
+    """
+    Kill the actual work behind the currently-running cron-fired dispatch
+    (86bb3ceyj) -- scoped to this lane only, matching /in-flight-status's
+    (86bb3cey0) own precedent; manual `nova_task_queue.py --dispatch` runs
+    bypass the lock entirely and aren't tracked here.
+
+    Deliberately does NOT touch LOCK_PATH/CURRENT_DISPATCH_PATH itself.
+    run_scheduled_dispatch() is still blocked inside _run_claude_over_ssh()'s
+    subprocess.run() call when this runs; killing the real process below
+    makes that call return on its own (a non-zero exit, no result JSON --
+    handle_dispatch_outcome() reports it as a real non-clean outcome,
+    exactly as honest as any other infra failure), and its own `finally:`
+    releases the lock/marker moments later. Releasing them here instead
+    would race a lock a second, near-simultaneous firing could have already
+    re-acquired by the time the original process's own blocked call
+    actually returns.
+
+    Posts an immediate ClickUp comment naming this as a deliberate abort
+    (not the generic non-clean-outcome comment handle_dispatch_outcome()
+    will *also* post moments later once the kill propagates back through
+    the blocked SSH call -- two comments, not a duplicate: one explains
+    the human intent right away, the other carries whatever technical
+    detail the actual process exit produced). Best-effort: a comment
+    failure must not block the actual kill.
+
+    The worktree the aborted task was using is deliberately left alone --
+    same never-auto-merge/delete discipline as everywhere else in this
+    project (nova_orchestrator.py, dispatch_headless_task() itself).
+    Marvin reviews it by hand via the worktree browser (86bb3ceyc).
+
+    Never raises. Returns {"success": False, "error": ...} if nothing is
+    actually running (or the running dispatch has no real target to kill
+    yet -- e.g. the sandboxed container hasn't started, or the bare-SSH
+    remote hasn't written its PID file yet yet), or {"success": True,
+    "method": "docker_kill" | "process_kill", "task_id": ..., "task_name": ...}
+    once the kill signal has actually been sent.
+    """
+    status = is_dispatch_currently_running()
+    if not status.get("running"):
+        return {"success": False, "error": "No dispatch is currently running"}
+
+    task_id = status.get("task_id")
+    task_name = status.get("task_name")
+    sandboxed = status.get("sandboxed", False)
+
+    try:
+        add_comment(
+            task_id,
+            f"**Dispatch manually aborted**\n\nReason: {reason or '(none given)'}\n\n"
+            "Posted by nova_scheduled_dispatch.abort_current_dispatch() (86bb3ceyj). "
+            "The worktree this task was using has been left in place for review.",
+        )
+    except Exception as e:
+        print(f"Failed to post abort comment on {task_id}: {e}")
+
+    if sandboxed:
+        result = subprocess.run(
+            ["docker", "kill", SANDBOXED_CONTAINER_NAME],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if result.returncode != 0:
+            return {"success": False, "error": f"docker kill failed: {result.stderr.strip()}"}
+        return {"success": True, "method": "docker_kill", "task_id": task_id, "task_name": task_name}
+
+    pid_path = Path(REMOTE_DISPATCH_PID_PATH)
+    if not pid_path.exists():
+        return {
+            "success": False,
+            "error": "No remote PID recorded for this dispatch yet -- can't target a kill safely. "
+            "Try again in a moment (the remote command writes its PID immediately on start).",
+        }
+    try:
+        remote_pid = int(pid_path.read_text().strip())
+    except ValueError:
+        return {"success": False, "error": "Remote PID file is malformed"}
+
+    if not _pid_is_alive(remote_pid):
+        return {"success": False, "error": "The recorded remote process is already gone"}
+
+    os.kill(remote_pid, signal.SIGTERM)
+    time.sleep(SIGTERM_GRACE_SECONDS)
+    if _pid_is_alive(remote_pid):
+        os.kill(remote_pid, signal.SIGKILL)
+
+    return {"success": True, "method": "process_kill", "task_id": task_id, "task_name": task_name}
 
 
 def _pick_task(tasks: list[dict]) -> dict:

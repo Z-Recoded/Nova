@@ -70,6 +70,20 @@ OMEN_VENV_PYTHON = f"{OMEN_REPO_PATH}/nova-env/bin/python"
 
 DISPATCH_TIMEOUT_SECONDS = 1800  # 30 min hard ceiling — the real bounding mechanism, see module docstring
 
+# Abort/kill switch targets (86bb3ceyj) -- fixed, not per-task, names/paths.
+# Safe because nova_scheduled_dispatch.py's lock already guarantees at most
+# one cron-fired dispatch runs at a time, so there's never a collision to
+# disambiguate. REMOTE_DISPATCH_PID_PATH is where the bare-SSH path's
+# remote_command writes the REAL claude -p PID the moment it's spawned (see
+# dispatch_headless_task() below) -- necessary because _run_claude_over_ssh()
+# allocates no pty, so killing the wrapper process or its SSH client does
+# NOT reliably kill the remote command; it just orphans it, still running.
+# SANDBOXED_CONTAINER_NAME is the fixed --name given to the sandboxed path's
+# Docker container so it can be `docker kill`ed directly, without needing
+# any PID-file trick.
+REMOTE_DISPATCH_PID_PATH = f"{OMEN_REPO_PATH}/logs/current_dispatch_remote_pid"
+SANDBOXED_CONTAINER_NAME = "nova-dispatch-current"
+
 # Where the merged, cross-machine Claude Code activity profile lives — the
 # Omen's own nova-api, matching nova_usage_logger.py's push target.
 NOVA_API_URL = os.environ.get("NOVA_API_URL", f"http://{OMEN_HOST}:8001")
@@ -439,10 +453,21 @@ def dispatch_headless_task(
     resolved_worktree_name = worktree_name or f"nova-dispatch-{uuid.uuid4().hex[:8]}"
     quoted_task = shlex.quote(task_description)
     credential_prefix = _build_credential_prefix(resolved_fuel_source)
+    # Backgrounded (`&`) so `$!` captures the real claude -p PID immediately,
+    # written to REMOTE_DISPATCH_PID_PATH before `wait $!` blocks for the
+    # actual result -- the abort/kill switch (86bb3ceyj) targets this real
+    # PID directly rather than the wrapper process, which a no-pty SSH
+    # connection can't reliably signal through to the remote command.
+    # `credential_prefix` is either an `env -u ...` invocation or a
+    # `VAR=value` shell-assignment prefix -- neither forks an extra shell,
+    # so `$!` still correctly resolves to the actual claude process, not an
+    # intermediate wrapper. stdout/stderr stay inherited from the backgrounded
+    # job, so `_run_claude_over_ssh()`'s result-JSON scan is unaffected.
     remote_command = (
         f"cd {OMEN_REPO_PATH} && {credential_prefix} "
         f"claude -p --worktree {resolved_worktree_name} --permission-mode acceptEdits "
-        f"--output-format json {quoted_task}"
+        f"--output-format json {quoted_task} & "
+        f"echo $! > {REMOTE_DISPATCH_PID_PATH}; wait $!"
     )
 
     # Safe to diff for exactly one new path because nova_scheduled_dispatch.py's
@@ -659,6 +684,12 @@ def dispatch_headless_task_sandboxed(
     omen_home = f"/home/{OMEN_USER}"
     remote_command = (
         f"API_KEY=$({OMEN_VENV_PYTHON} -c {shlex.quote(dotenv_code)}) && "
+        # Clear any stale leftover with this fixed name first -- a crashed
+        # prior run could otherwise leave `docker run --name` refusing to
+        # start with "name already in use." Mirrors the lock file's own
+        # stale-PID self-healing philosophy. Silenced/best-effort: nothing
+        # to clean up is the normal case, not an error.
+        f"docker rm -f {SANDBOXED_CONTAINER_NAME} >/dev/null 2>&1; "
         # --user, resolved live via `id`, not a hardcoded UID -- without this
         # the container runs as root by default, and any file it writes onto
         # a mounted host volume (the transcript under ~/.claude/projects/,
@@ -666,7 +697,12 @@ def dispatch_headless_task_sandboxed(
         # marvinroyal5 account afterward, silently breaking
         # _ingest_transcript_into_agent_log()'s downstream read. Found via a
         # real live test, not anticipated in the original design.
-        f"docker run --rm --user $(id -u):$(id -g) "
+        #
+        # --name is fixed (SANDBOXED_CONTAINER_NAME), not per-task -- the
+        # abort/kill switch (86bb3ceyj) targets it directly via `docker
+        # kill`, safe because nova_scheduled_dispatch.py's lock already
+        # guarantees at most one sandboxed dispatch runs at a time.
+        f"docker run --rm --name {SANDBOXED_CONTAINER_NAME} --user $(id -u):$(id -g) "
         f'-e HOME={shlex.quote(omen_home)} -e ANTHROPIC_API_KEY="$API_KEY" '
         f"-v {shlex.quote(omen_home)}/.claude:{shlex.quote(omen_home)}/.claude "
         f"-v {shlex.quote(OMEN_REPO_PATH)}/.git:{shlex.quote(OMEN_REPO_PATH)}/.git "
