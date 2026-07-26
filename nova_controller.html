@@ -480,6 +480,7 @@
     <p style="margin-left:1rem"><b>Verify DPO pair</b> — is an already-written correction (from Claude via <code>nova_corrector.py</code>, or written by hand here) actually good? Swipe right to confirm it, swipe left to flag it as needing rework. This is separate from Blend flag above — that's "does this need a correction written," this is "is the correction that got written actually good."</p>
     <p><b>DPO pairs toward fine-tune</b> — live count of corrected pairs in <code>logs/training_flags.jsonl</code> against the 100-pair floor <code>nova_finetune_phi4.py</code> requires before a real training run. Refreshes every 15 seconds.</p>
     <p><b>Headless dispatch spend</b> — <i>real</i> is actual metered dollars charged (only dispatches that ran on the funded API key). <i>notional</i> includes every dispatch, including ones that ran on your own Claude Code subscription — those cost no extra money, so notional will usually read higher than real. There's no live per-second cost during an active run — <code>claude -p</code> only reports its final cost once a dispatch finishes, so this widget shows historical totals (today, last 7 days), not the in-flight run's running cost. The in-flight widget above shows a "· subscription" or "· metered" tag instead, so you can tell at a glance whether the run happening right now is free or billed.</p>
+    <p><b>Qwen3 8B swap-trigger progress</b> — how close the accumulated coding-agent transcripts are to the ~30-50 diverse real tasks Phase 3.5 wants before evaluating a local-model swap (20% of that count held out, never trained on). When this page happens to be served from the Aero, it's a real combined count across both machines. When it's served from the Omen — the normal case for the phone — it can only see the Omen's own headless-dispatch transcripts, not the Aero's interactive ones, and says so directly in the sub-line rather than showing a number that looks complete but isn't.</p>
     <p>Swipe right or tap the green button for the positive judgment, swipe left or tap the red button otherwise.</p>
     <p><b>Discover</b> — empty for now. Depends on Nova Tutor, which hasn't been built yet.</p>
     <p style="color:#888; font-size:0.8rem; margin-bottom:0">This panel lives in the same file as the UI it explains, so it can't silently go stale as the Feed changes.</p>
@@ -518,6 +519,15 @@
     <div class="training-status-sub" id="dispatch-cost-real"></div>
     <div class="training-status-sub" id="dispatch-cost-notional"></div>
     <div class="training-status-sub" id="dispatch-cost-counts"></div>
+  </div>
+
+  <div class="training-status" id="qwen-status" style="display:none">
+    <div class="training-status-row">
+      <span class="board-watch-label">Qwen3 8B swap-trigger progress</span>
+      <span id="qwen-status-count"></span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="qwen-status-bar"></div></div>
+    <div class="training-status-sub" id="qwen-status-sub"></div>
   </div>
 
   <div class="token-box" id="token-box" style="display:none">
@@ -804,6 +814,39 @@
           `${s.today.count} dispatch${s.today.count === 1 ? '' : 'es'} today · ${s.last_7_days.count} last 7 days`;
       } catch (err) {
         document.getElementById('error').textContent = 'Could not load dispatch cost summary: ' + err.message;
+      }
+    }
+
+    // ── Qwen3 8B swap-trigger progress (86bb3cey2) ──────────────
+    // "aero_combined" (real full Aero+Omen number) only happens when this
+    // page's nova_api.py happens to be served from the Aero. The real
+    // production case -- served from the Omen, what the phone Controller
+    // actually hits -- is "omen_only": the Aero's interactive-lane tasks
+    // aren't reachable from there at all (same gap /in-flight-status
+    // already accepted for that lane), so the count is real but partial.
+
+    async function loadQwenSwapStatus() {
+      try {
+        const res = await fetch('/qwen-swap-status');
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const s = await res.json();
+        clearError();
+
+        const widget = document.getElementById('qwen-status');
+        widget.style.display = 'block';
+        const c = s.combined;
+        document.getElementById('qwen-status-count').textContent =
+          `${c.distinct_tasks} / ${c.swap_trigger_range[0]}-${c.swap_trigger_range[1]} tasks (${c.progress_pct_of_min}%)`;
+        document.getElementById('qwen-status-bar').style.width =
+          Math.min(100, c.progress_pct_of_min) + '%';
+
+        let sub = `${c.total_turns} total turns · ~${c.held_out_target} tasks would be held out at this count`;
+        if (s.view === 'omen_only') {
+          sub += ' — Omen-hosted data only, the Aero\'s interactive-lane tasks aren\'t visible from here';
+        }
+        document.getElementById('qwen-status-sub').textContent = sub;
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not load Qwen3 swap-trigger status: ' + err.message;
       }
     }
 
@@ -1354,6 +1397,9 @@
 
     loadDispatchCostSummary();
     setInterval(loadDispatchCostSummary, 15000);
+
+    loadQwenSwapStatus();
+    setInterval(loadQwenSwapStatus, 15000);
 
     loadFeed();
     setInterval(loadFeed, 8000);

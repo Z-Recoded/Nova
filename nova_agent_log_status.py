@@ -28,6 +28,7 @@
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 
@@ -39,7 +40,12 @@ OMEN_HOST = "100.114.197.117"  # Tailscale IP — works whether or not the Aero 
 OMEN_USER = "marvinroyal5"
 OMEN_REPO_PATH = "/home/marvinroyal5/nova"
 
-LOCAL_AGENT_LOG_PATH = "C:/Nova/logs/agent_log.jsonl"
+# Resolved relative to this file's own location, not hardcoded to the Aero's
+# Windows path -- same bug class already fixed elsewhere in this project
+# (86bb1pkpb). Matters more here than most: get_combined_status() below now
+# runs this same "local" read from either machine (86bb3cey2), and a
+# hardcoded "C:/Nova/..." path would silently resolve to nothing on the Omen.
+LOCAL_AGENT_LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs", "agent_log.jsonl")
 SSH_TIMEOUT_SECONDS = 15
 
 # Phase 3.5's own swap-trigger range (CLAUDE.md) — not a hard requirement,
@@ -128,29 +134,53 @@ def get_combined_status() -> dict:
     This is the actual cross-machine gap flagged 2026-07-16 — an accurate
     count needs both files, and nothing combined them before this.
 
-    Caveat, found on first real run: this counts distinct task_slugs, not
-    distinct underlying work. A task that failed/discarded and got retried
-    (e.g. the resource headroom calculator, attempted 3 times before it
-    landed) gets a fresh worktree and a fresh task_slug per attempt, so it
-    counts multiple times here — "diverse" in the swap trigger's own
-    language means distinct real tasks, which this number can overstate.
-    Not fixed here (would need correlating task text/outcome across
-    retries, more machinery than this status check warrants) — flagged in
-    the CLI's printed report instead of silently presented as clean.
+    Platform-aware as of 86bb3cey2, since this function now backs a Nova
+    Controller route (GET /qwen-swap-status) that runs on whichever machine
+    nova_api.py happens to be serving from, not just "Marvin ran this by
+    hand on the Aero" like the original CLI use case. On Windows (the
+    Aero), "local" is genuinely the Aero and fetching the Omen's copy over
+    SSH is the real cross-machine step, exactly as before. On anything else
+    (the Omen — the box nova_api.py actually runs on in production, what
+    the phone Controller hits), read_local_agent_log() already IS the
+    Omen's own data, so there's nothing to SSH-fetch (it would just be
+    self-SSH), and — same real gap /in-flight-status already accepted for
+    the native orchestrator lane (86bb3cey0) — there is no established
+    reverse-SSH path anywhere in this codebase to reach the Aero's
+    interactive-lane data from the Omen. `view` tells a caller which case
+    it got: "aero_combined" (the real, full combined number) or
+    "omen_only" (headless-dispatch-lane data only, Aero data not visible
+    from here) — never silently presented as if it were the same thing.
+
+    Caveat, found on first real run (still applies, either view): this
+    counts distinct task_slugs, not distinct underlying work. A task that
+    failed/discarded and got retried (e.g. the resource headroom
+    calculator, attempted 3 times before it landed) gets a fresh worktree
+    and a fresh task_slug per attempt, so it counts multiple times here —
+    "diverse" in the swap trigger's own language means distinct real
+    tasks, which this number can overstate. Not fixed here (would need
+    correlating task text/outcome across retries, more machinery than this
+    status check warrants) — flagged in the CLI's printed report instead
+    of silently presented as clean.
     """
     local_entries = read_local_agent_log()
-    omen_result = read_omen_agent_log()
-
     local_tasks = summarize_by_task(local_entries)
-    omen_tasks = summarize_by_task(omen_result["entries"])
 
-    distinct_tasks = len(local_tasks) + len(omen_tasks)
-    total_turns = sum(t["turns"] for t in local_tasks.values()) + sum(t["turns"] for t in omen_tasks.values())
+    if sys.platform == "win32":
+        omen_result = read_omen_agent_log()
+        omen_tasks = summarize_by_task(omen_result["entries"])
+        aero_tasks, view = local_tasks, "aero_combined"
+    else:
+        omen_tasks, aero_tasks, view = local_tasks, {}, "omen_only"
+        omen_result = {"error": None}
+
+    distinct_tasks = len(aero_tasks) + len(omen_tasks)
+    total_turns = sum(t["turns"] for t in aero_tasks.values()) + sum(t["turns"] for t in omen_tasks.values())
 
     return {
+        "view": view,
         "aero": {
-            "tasks": len(local_tasks),
-            "turns": sum(t["turns"] for t in local_tasks.values()),
+            "tasks": len(aero_tasks),
+            "turns": sum(t["turns"] for t in aero_tasks.values()),
         },
         "omen": {
             "tasks": len(omen_tasks),
@@ -182,7 +212,10 @@ if __name__ == "__main__":
     if args.json:
         print(json.dumps(status, indent=2))
     else:
-        print(f"Aero (interactive):  {status['aero']['tasks']} tasks, {status['aero']['turns']} turns")
+        if status["view"] == "omen_only":
+            print("Aero (interactive):  not visible from here (on the Omen, no reverse-SSH path to the Aero exists)")
+        else:
+            print(f"Aero (interactive):  {status['aero']['tasks']} tasks, {status['aero']['turns']} turns")
         if status["omen"]["error"]:
             print(f"Omen (headless):     unreachable ({status['omen']['error']})")
         else:

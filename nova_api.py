@@ -28,6 +28,7 @@
 #   POST /label-queue/{kind}/{id}/decide → patch a label decision (token-gated)
 #   GET  /training-data-status      → live DPO pair count, coverage, threshold status
 #   GET  /dispatch-cost-summary     → real/notional headless-dispatch spend, today + last 7 days
+#   GET  /qwen-swap-status          → Qwen3 8B swap-trigger progress (combined on the Aero, Omen-only elsewhere)
 #
 # Run:
 #   cd C:/Nova
@@ -53,6 +54,7 @@ from graph_builder import (
     rebuild_node,
 )
 from ingest import run_ingestion
+from nova_agent_log_status import get_combined_status
 from nova_clickup_client import add_comment, add_tag, remove_tag
 from nova_config import FLAG_REGISTRY, get_flag_registry_values, set_flag_value
 from nova_embedding_viz import build_embedding_viz_data
@@ -1110,6 +1112,22 @@ def get_dispatch_cost_summary_route():
     notional_usd distinction — deliberately not collapsed into one number.
     """
     return get_dispatch_cost_summary()
+
+
+@app.get("/qwen-swap-status")
+def get_qwen_swap_status_route():
+    """
+    Progress toward Phase 3.5's Qwen3 8B swap trigger (86bb3cey2) — backs
+    the Controller's progress-bar widget. Thin wrapper, same layering as
+    every other status route here: nova_agent_log_status.py owns the real
+    log-reading/merging logic. See get_combined_status()'s own docstring
+    for the "view" field — "aero_combined" (real full number, only possible
+    when this route happens to be served from the Aero) vs. "omen_only"
+    (the real production case — this route is normally hit through the
+    Omen's nova_api.py, which can't reach the Aero's interactive-lane data
+    at all, same gap /in-flight-status already accepted for that lane).
+    """
+    return get_combined_status()
 
 
 @app.get("/label-queue")
