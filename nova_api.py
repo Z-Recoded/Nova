@@ -29,6 +29,7 @@
 #   GET  /training-data-status      → live DPO pair count, coverage, threshold status
 #   GET  /dispatch-cost-summary     → real/notional headless-dispatch spend, today + last 7 days
 #   GET  /qwen-swap-status          → Qwen3 8B swap-trigger progress (combined on the Aero, Omen-only elsewhere)
+#   GET  /worktree-status           → open git worktrees, both machines, with age/merged/prunable status
 #
 # Run:
 #   cd C:/Nova
@@ -73,6 +74,7 @@ from nova_scheduled_dispatch import get_dispatch_cost_summary, handle_dispatch_o
 from nova_sources import SOURCES
 from nova_state import get_state, write_state
 from nova_task_queue import TIER_PENDING_TAG, TIER_TAGS, TIERS
+from nova_worktree_status import get_worktree_status
 
 app = FastAPI(title="Nova API", version="0.3")
 
@@ -1128,6 +1130,20 @@ def get_qwen_swap_status_route():
     at all, same gap /in-flight-status already accepted for that lane).
     """
     return get_combined_status()
+
+
+@app.get("/worktree-status")
+def get_worktree_status_route():
+    """
+    Open git worktrees on both machines, with age/merged/prunable status
+    (86bb3ceyc) — backs the Controller's worktree browser. Thin wrapper,
+    same layering as every other status route added today:
+    nova_worktree_status.py owns the real git-command/SSH logic. Same
+    "view" pattern as /qwen-swap-status — "aero_and_omen" (full real view,
+    only possible when served from the Aero) vs. "omen_only" (the real
+    production case, Aero side unreachable and honestly reported as such).
+    """
+    return get_worktree_status()
 
 
 @app.get("/label-queue")
