@@ -54,6 +54,12 @@ $stdin = [Console]::OpenStandardInput()
 $inputStream = New-Object System.IO.MemoryStream
 $stdin.CopyTo($inputStream)
 $requestText = [System.Text.Encoding]::UTF8.GetString($inputStream.ToArray())
+# Defensive: strip a leading BOM (U+FEFF) if a caller's stdin writer happens
+# to emit one -- the real production caller (dispatch_remote_patch()'s
+# json.dumps(...).encode("utf-8")) never does, but ConvertFrom-Json chokes
+# on one silently ("Invalid JSON primitive") if it's ever present, which is
+# a confusing failure mode to hit blind.
+$requestText = $requestText.TrimStart([char]0xFEFF)
 
 try {
     $req = $requestText | ConvertFrom-Json -ErrorAction Stop
