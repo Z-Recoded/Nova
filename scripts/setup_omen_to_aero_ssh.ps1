@@ -122,7 +122,7 @@ Write-Output "   it can PATCH training_flags.jsonl (one field, index/timestamp-c
 Write-Output "   nova_training_flags_patch.py), a real step up from pure read access, so its"
 Write-Output "   keypair generation was deliberately left for Marvin to run explicitly rather"
 Write-Output "   than auto-generated."
-$trainingFlagsWriteKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_patch_training_flags.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 <PASTE_PUBKEY_HERE> omen-to-aero-trainingflags-write'
+$trainingFlagsWriteKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_patch_training_flags.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFlxTYkVkiIIYI2bpb2UlKkM+u84noBOV0Zc9ShIpGKi omen-to-aero-trainingflags-write'
 if ($trainingFlagsWriteKey -match '<PASTE_PUBKEY_HERE>') {
     Write-Output "   SKIPPED -- placeholder pubkey not filled in yet. To enable the write bridge:"
     Write-Output "     1. On the Omen: ssh-keygen -t ed25519 -N '' -f ~/.ssh/aero_keys/id_ed25519_aero_trainingflags_write"
