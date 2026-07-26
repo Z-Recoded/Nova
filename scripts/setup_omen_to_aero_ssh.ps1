@@ -14,12 +14,27 @@
 #      (belt-and-suspenders alongside the firewall rule -- even if the
 #      firewall rule were ever misconfigured, sshd wouldn't be listening
 #      on the LAN-facing NIC at all).
-#   5. Installs two read-only, command-restricted keys into
+#   5. Installs three read-only, command-restricted keys into
 #      administrators_authorized_keys (required for admin-group accounts
 #      like this one -- the per-user .ssh\authorized_keys file is ignored
 #      for accounts in the Administrators group). Each key can run exactly
 #      one whitelisted script (C:\Nova\scripts\ssh_read_*.ps1) and nothing
 #      else -- no port/X11/agent forwarding, no interactive shell.
+#   6. Installs a fourth, WRITE-capable key (trainingflags-write) -- OPT-IN,
+#      requires its pubkey to be pasted into this script first (see step 6's
+#      own output for exact instructions). Restricted to one script
+#      (ssh_patch_training_flags.ps1) that can only patch one file
+#      (training_flags.jsonl), one field at a time, gated by the same
+#      index/timestamp check the local decide route uses.
+#
+# 2026-07-26 update: added the third ("trainingdata", read-only) key --
+# fixes /training-data-status showing 0/100 on the Omen (it has no
+# training_flags.jsonl of its own) instead of the Aero's real count. Also
+# added the fourth ("trainingflags-write") key so the Controller's
+# blend_flag/dpo_verify swipe cards can actually be decided from the
+# Omen-hosted Controller, not just viewed. Run this again after pulling
+# that change; the first four steps are unchanged and will just report
+# "already done."
 
 $ErrorActionPreference = "Stop"
 
@@ -78,17 +93,19 @@ if (-not $tailscaleIp) {
     }
 }
 
-Write-Output "5. Installing the two read-only, command-restricted keys..."
+Write-Output "5. Installing the three read-only, command-restricted keys..."
 $keysDir = "C:\ProgramData\ssh"
 $keysFile = Join-Path $keysDir "administrators_authorized_keys"
 
 $agentLogKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_read_agent_log.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINYwrlkDv4uEgNbLPuQKiNl2Iu84hJIumRucCi/mVLaN omen-to-aero-agentlog-readonly'
 $worktreesKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_read_worktrees.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINk1t+7xbCyLgOa+Y2i7Tp1PSkZUiaKAurysPbG/sa51 omen-to-aero-worktrees-readonly'
+$trainingDataKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_read_training_flags.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINbdhHC/7txt15uh3BTTe5ZkLvd+3IxG/bVB9gudtrkd omen-to-aero-trainingdata-readonly'
 
 $content = @()
 if (Test-Path $keysFile) { $content = Get-Content $keysFile }
 if ($content -notcontains $agentLogKey) { $content += $agentLogKey }
 if ($content -notcontains $worktreesKey) { $content += $worktreesKey }
+if ($content -notcontains $trainingDataKey) { $content += $trainingDataKey }
 Set-Content -Path $keysFile -Value $content -Encoding ascii
 
 # Required by Windows OpenSSH: administrators_authorized_keys must be
@@ -99,7 +116,35 @@ icacls.exe $keysFile /grant "Administrators:F" | Out-Null
 icacls.exe $keysFile /grant "SYSTEM:F" | Out-Null
 Write-Output "   Installed and permissions locked down."
 
-Write-Output "6. Restarting sshd to pick up all changes..."
+Write-Output "6. Installing the fourth key (WRITE-capable -- trainingflags-write)..."
+Write-Output "   This one is opt-in, not auto-installed like the three read-only keys above:"
+Write-Output "   it can PATCH training_flags.jsonl (one field, index/timestamp-checked -- see"
+Write-Output "   nova_training_flags_patch.py), a real step up from pure read access, so its"
+Write-Output "   keypair generation was deliberately left for Marvin to run explicitly rather"
+Write-Output "   than auto-generated."
+$trainingFlagsWriteKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_patch_training_flags.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFlxTYkVkiIIYI2bpb2UlKkM+u84noBOV0Zc9ShIpGKi omen-to-aero-trainingflags-write'
+if ($trainingFlagsWriteKey -match '<PASTE_PUBKEY_HERE>') {
+    Write-Output "   SKIPPED -- placeholder pubkey not filled in yet. To enable the write bridge:"
+    Write-Output "     1. On the Omen: ssh-keygen -t ed25519 -N '' -f ~/.ssh/aero_keys/id_ed25519_aero_trainingflags_write"
+    Write-Output "     2. Copy its public half (cat ~/.ssh/aero_keys/id_ed25519_aero_trainingflags_write.pub)"
+    Write-Output "     3. Paste it into this script in place of <PASTE_PUBKEY_HERE>, then re-run"
+    Write-Output "   Until then, /label-queue/{kind}/{id}/decide falls back to a 503 for any"
+    Write-Output "   blend_flag/dpo_verify card whose entry lives on the other machine."
+} else {
+    $content = Get-Content $keysFile
+    if ($content -notcontains $trainingFlagsWriteKey) {
+        $content += $trainingFlagsWriteKey
+        Set-Content -Path $keysFile -Value $content -Encoding ascii
+        icacls.exe $keysFile /inheritance:r | Out-Null
+        icacls.exe $keysFile /grant "Administrators:F" | Out-Null
+        icacls.exe $keysFile /grant "SYSTEM:F" | Out-Null
+        Write-Output "   Installed."
+    } else {
+        Write-Output "   Already installed."
+    }
+}
+
+Write-Output "7. Restarting sshd to pick up all changes..."
 Restart-Service sshd
 Write-Output "   Done."
 
@@ -107,4 +152,6 @@ Write-Output ""
 Write-Output "Setup complete. Verify from the Omen with:"
 Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_agentlog marvi@100.122.229.23 "ignored"'
 Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_worktrees marvi@100.122.229.23 "ignored"'
-Write-Output "(the command argument is ignored either way -- both keys always run their forced script)"
+Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_trainingdata marvi@100.122.229.23 "ignored"'
+Write-Output '  echo {"kind":"blend_flag","index":0,"expected_timestamp":"...","correction":"test"} | ssh -i ~/.ssh/aero_keys/id_ed25519_aero_trainingflags_write marvi@100.122.229.23 "ignored"'
+Write-Output "(the command argument is ignored either way -- every key always runs its forced script)"
