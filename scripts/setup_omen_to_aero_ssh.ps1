@@ -14,12 +14,18 @@
 #      (belt-and-suspenders alongside the firewall rule -- even if the
 #      firewall rule were ever misconfigured, sshd wouldn't be listening
 #      on the LAN-facing NIC at all).
-#   5. Installs two read-only, command-restricted keys into
+#   5. Installs three read-only, command-restricted keys into
 #      administrators_authorized_keys (required for admin-group accounts
 #      like this one -- the per-user .ssh\authorized_keys file is ignored
 #      for accounts in the Administrators group). Each key can run exactly
 #      one whitelisted script (C:\Nova\scripts\ssh_read_*.ps1) and nothing
 #      else -- no port/X11/agent forwarding, no interactive shell.
+#
+# 2026-07-26 update: added the third ("trainingdata") key -- fixes
+# /training-data-status showing 0/100 on the Omen (it has no
+# training_flags.jsonl of its own) instead of the Aero's real count. Run
+# this again after pulling that change; the first four steps are unchanged
+# and will just report "already done."
 
 $ErrorActionPreference = "Stop"
 
@@ -78,17 +84,19 @@ if (-not $tailscaleIp) {
     }
 }
 
-Write-Output "5. Installing the two read-only, command-restricted keys..."
+Write-Output "5. Installing the three read-only, command-restricted keys..."
 $keysDir = "C:\ProgramData\ssh"
 $keysFile = Join-Path $keysDir "administrators_authorized_keys"
 
 $agentLogKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_read_agent_log.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINYwrlkDv4uEgNbLPuQKiNl2Iu84hJIumRucCi/mVLaN omen-to-aero-agentlog-readonly'
 $worktreesKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_read_worktrees.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINk1t+7xbCyLgOa+Y2i7Tp1PSkZUiaKAurysPbG/sa51 omen-to-aero-worktrees-readonly'
+$trainingDataKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_read_training_flags.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINbdhHC/7txt15uh3BTTe5ZkLvd+3IxG/bVB9gudtrkd omen-to-aero-trainingdata-readonly'
 
 $content = @()
 if (Test-Path $keysFile) { $content = Get-Content $keysFile }
 if ($content -notcontains $agentLogKey) { $content += $agentLogKey }
 if ($content -notcontains $worktreesKey) { $content += $worktreesKey }
+if ($content -notcontains $trainingDataKey) { $content += $trainingDataKey }
 Set-Content -Path $keysFile -Value $content -Encoding ascii
 
 # Required by Windows OpenSSH: administrators_authorized_keys must be
@@ -107,4 +115,5 @@ Write-Output ""
 Write-Output "Setup complete. Verify from the Omen with:"
 Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_agentlog marvi@100.122.229.23 "ignored"'
 Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_worktrees marvi@100.122.229.23 "ignored"'
-Write-Output "(the command argument is ignored either way -- both keys always run their forced script)"
+Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_trainingdata marvi@100.122.229.23 "ignored"'
+Write-Output "(the command argument is ignored either way -- every key always runs its forced script)"

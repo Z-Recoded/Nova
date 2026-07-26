@@ -74,6 +74,7 @@ from nova_scheduled_dispatch import get_dispatch_cost_summary, handle_dispatch_o
 from nova_sources import SOURCES
 from nova_state import get_state, write_state
 from nova_task_queue import TIER_PENDING_TAG, TIER_TAGS, TIERS
+from nova_training_data_status import get_combined_training_status
 from nova_worktree_status import get_worktree_status
 
 app = FastAPI(title="Nova API", version="0.3")
@@ -1293,51 +1294,32 @@ def decide_label_queue_entry(
 
 # ── Training-data accumulation oversight (86bax4akx) ────────────
 
-# Mirrors nova_finetune_phi4.MIN_REAL_PAIRS -- duplicated here rather than
-# imported, so nova_api.py (the always-running production server) never
-# depends on the training stack (datasets/unsloth/torch) being installed.
-# If that constant changes, update this one too.
-MIN_REAL_PAIRS_FOR_FINETUNE = 100
-
 
 @app.get("/training-data-status")
 def get_training_data_status():
     """
     Live DPO pair count, category coverage, and verification status --
     replaces 86baeyg1h's static "currently 11 pairs, keep accumulating"
-    task-description line with a real number computed from
-    training_flags.jsonl on every call (86bax4akx's live-count + coverage +
-    threshold-alerting scope items). Tutor-domain and coding-domain
-    coverage are deliberately not broken out -- neither has a real data
-    source yet (Nova Tutor is unbuilt, coding DPO curation is blocked on
-    86bara7pn) -- so "by_category" reflects nova_router.py's real
+    task-description line with a real number (86bax4akx's live-count +
+    coverage + threshold-alerting scope items). Tutor-domain and
+    coding-domain coverage are deliberately not broken out -- neither has a
+    real data source yet (Nova Tutor is unbuilt, coding DPO curation is
+    blocked on 86bara7pn) -- so "by_category" reflects nova_router.py's real
     categories (fiction, technical, etc.), not the task's aspirational
     lore/tutor/coding split.
+
+    Cross-machine fix, 2026-07-26: this route used to read only its own
+    machine's local training_flags.jsonl -- real on the Aero (33/100 at the
+    time this was found), but always 0/100 when served from the Omen, which
+    has no training_flags.jsonl at all (log_blend() only ever fires from an
+    interactive nova_query.ask() call, which today only happens on the
+    Aero). Same "Omen can't see Aero-only data" bug class already fixed for
+    the Qwen swap-trigger widget and worktree browser -- see
+    nova_training_data_status.get_combined_training_status() for the real
+    fix (platform-aware, fetches the other machine's copy over the
+    command-restricted SSH bridge).
     """
-    entries = _read_jsonl_file(TRAINING_FLAGS_PATH)
-    corrected = [e for e in entries if e.get("correction")]
-    total_corrected = len(corrected)
-
-    by_category = {}
-    for e in corrected:
-        category = e.get("category", "uncategorized")
-        by_category[category] = by_category.get(category, 0) + 1
-
-    verified_good = sum(1 for e in corrected if e.get("verification_status") == "confirmed_good")
-    needs_rework = sum(1 for e in corrected if e.get("verification_status") == "needs_rework")
-
-    return {
-        "total_flagged": len(entries),
-        "total_corrected": total_corrected,
-        "min_pairs_for_finetune": MIN_REAL_PAIRS_FOR_FINETUNE,
-        "pairs_remaining": max(0, MIN_REAL_PAIRS_FOR_FINETUNE - total_corrected),
-        "progress_pct": round(100 * total_corrected / MIN_REAL_PAIRS_FOR_FINETUNE, 1),
-        "threshold_met": total_corrected >= MIN_REAL_PAIRS_FOR_FINETUNE,
-        "by_category": by_category,
-        "verified_good": verified_good,
-        "needs_rework": needs_rework,
-        "unverified": total_corrected - verified_good - needs_rework,
-    }
+    return get_combined_training_status()
 
 
 # ── Nova Log — Health dashboard ────────────────────────────────
