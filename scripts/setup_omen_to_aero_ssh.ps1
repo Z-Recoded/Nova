@@ -1,0 +1,95 @@
+# setup_omen_to_aero_ssh.ps1
+# One-time elevated setup for command-restricted Omen -> Aero SSH access
+# (86bb3cey2 / 86bb3ceyc's "omen_only" gap). Run this in an Administrator
+# PowerShell window on the Aero. Safe to re-run -- every step is idempotent.
+#
+# What this does:
+#   1. Installs the OpenSSH Server Windows feature if not already present.
+#   2. Starts sshd and sets it to auto-start.
+#   3. Adds a Windows Firewall rule that ONLY allows inbound SSH from
+#      Tailscale's own address range (100.64.0.0/10) -- not the LAN, not
+#      the public internet. A device on the same WiFi that isn't on the
+#      tailnet cannot even attempt to connect.
+#   4. Restricts sshd itself to listen ONLY on the Tailscale interface
+#      (belt-and-suspenders alongside the firewall rule -- even if the
+#      firewall rule were ever misconfigured, sshd wouldn't be listening
+#      on the LAN-facing NIC at all).
+#   5. Installs two read-only, command-restricted keys into
+#      administrators_authorized_keys (required for admin-group accounts
+#      like this one -- the per-user .ssh\authorized_keys file is ignored
+#      for accounts in the Administrators group). Each key can run exactly
+#      one whitelisted script (C:\Nova\scripts\ssh_read_*.ps1) and nothing
+#      else -- no port/X11/agent forwarding, no interactive shell.
+
+$ErrorActionPreference = "Stop"
+
+Write-Output "1. Checking OpenSSH Server capability..."
+$cap = Get-WindowsCapability -Online -Name "OpenSSH.Server*"
+if ($cap.State -ne "Installed") {
+    Add-WindowsCapability -Online -Name $cap.Name
+    Write-Output "   Installed."
+} else {
+    Write-Output "   Already installed."
+}
+
+Write-Output "2. Starting sshd and setting it to auto-start..."
+Start-Service sshd
+Set-Service -Name sshd -StartupType Automatic
+Write-Output "   Done."
+
+Write-Output "3. Adding Tailscale-only firewall rule..."
+$ruleName = "Nova SSH (Tailscale, Omen callback)"
+if (-not (Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue)) {
+    New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Protocol TCP -LocalPort 22 `
+        -RemoteAddress "100.64.0.0/10" -Action Allow | Out-Null
+    Write-Output "   Created."
+} else {
+    Write-Output "   Already exists."
+}
+
+Write-Output "4. Restricting sshd to listen only on the Tailscale interface..."
+$tailscaleIp = (Get-NetIPAddress -InterfaceAlias "Tailscale*" -AddressFamily IPv4 -ErrorAction SilentlyContinue).IPAddress
+if (-not $tailscaleIp) {
+    Write-Output "   WARNING: could not auto-detect the Tailscale interface IP -- skipping ListenAddress restriction."
+    Write-Output "   sshd will listen on all interfaces; the firewall rule from step 3 is still in effect."
+} else {
+    $sshdConfigPath = "C:\ProgramData\ssh\sshd_config"
+    $existing = Get-Content $sshdConfigPath -Raw
+    if ($existing -notmatch "ListenAddress $tailscaleIp") {
+        Add-Content -Path $sshdConfigPath -Value "`nListenAddress $tailscaleIp"
+        Write-Output "   Added 'ListenAddress $tailscaleIp' to sshd_config."
+    } else {
+        Write-Output "   Already restricted to $tailscaleIp."
+    }
+}
+
+Write-Output "5. Installing the two read-only, command-restricted keys..."
+$keysDir = "C:\ProgramData\ssh"
+$keysFile = Join-Path $keysDir "administrators_authorized_keys"
+
+$agentLogKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_read_agent_log.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINYwrlkDv4uEgNbLPuQKiNl2Iu84hJIumRucCi/mVLaN omen-to-aero-agentlog-readonly'
+$worktreesKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_read_worktrees.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINk1t+7xbCyLgOa+Y2i7Tp1PSkZUiaKAurysPbG/sa51 omen-to-aero-worktrees-readonly'
+
+$content = @()
+if (Test-Path $keysFile) { $content = Get-Content $keysFile }
+if ($content -notcontains $agentLogKey) { $content += $agentLogKey }
+if ($content -notcontains $worktreesKey) { $content += $worktreesKey }
+Set-Content -Path $keysFile -Value $content -Encoding ascii
+
+# Required by Windows OpenSSH: administrators_authorized_keys must be
+# readable/writable ONLY by SYSTEM and Administrators, or sshd silently
+# ignores every key in it (a well-documented Windows-specific gotcha).
+icacls.exe $keysFile /inheritance:r | Out-Null
+icacls.exe $keysFile /grant "Administrators:F" | Out-Null
+icacls.exe $keysFile /grant "SYSTEM:F" | Out-Null
+Write-Output "   Installed and permissions locked down."
+
+Write-Output "6. Restarting sshd to pick up all changes..."
+Restart-Service sshd
+Write-Output "   Done."
+
+Write-Output ""
+Write-Output "Setup complete. Verify from the Omen with:"
+Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_agentlog marvi@100.122.229.23 "ignored"'
+Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_worktrees marvi@100.122.229.23 "ignored"'
+Write-Output "(the command argument is ignored either way -- both keys always run their forced script)"
