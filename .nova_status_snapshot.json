@@ -1,8 +1,12 @@
 {
   "ready": [
     {
-      "id": "86bb3cgna",
-      "name": "Nova Controller: optimistic UI + serialized write queue for label decisions"
+      "id": "86bb3pgnc",
+      "name": "Marimo Adoption \u2014 Reactive Notebook Tooling"
+    },
+    {
+      "id": "86bb3p8xw",
+      "name": "Automation Handover Package \u2014 Reusable Template"
     },
     {
       "id": "86bb3ceyp",
@@ -11,30 +15,6 @@
     {
       "id": "86bb3ceym",
       "name": "Nova Controller: pre-action approval gate (policy-based, not agent-judgment)"
-    },
-    {
-      "id": "86bb3ceyj",
-      "name": "Nova Controller: abort/kill switch for an in-flight dispatch"
-    },
-    {
-      "id": "86bb3ceyf",
-      "name": "Nova Controller: diff-preview-and-merge for dispatched tasks"
-    },
-    {
-      "id": "86bb3ceyc",
-      "name": "Nova Controller: worktree browser"
-    },
-    {
-      "id": "86bb3ceya",
-      "name": "Nova Controller: live per-task cost/budget readout"
-    },
-    {
-      "id": "86bb3cey5",
-      "name": "Nova Controller: Feed filtering by card type/task/date"
-    },
-    {
-      "id": "86bb3cey2",
-      "name": "Nova Controller: Qwen3 swap-trigger progress widget"
     },
     {
       "id": "86bb1pq3k",
@@ -369,6 +349,10 @@
       "name": "MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)"
     },
     {
+      "id": "86baf4eah",
+      "name": "Hosted inference fallback (Groq / Together.ai / Fireworks)"
+    },
+    {
       "id": "86baf4e29",
       "name": "Dockerize Nova services"
     },
@@ -385,10 +369,6 @@
     {
       "id": "86bara3tj",
       "name": "Spec + Build: Chunk visualization tool \u2014 RAG retrieval audit"
-    },
-    {
-      "id": "86baf4eah",
-      "name": "Hosted inference fallback (Groq / Together.ai / Fireworks)"
     },
     {
       "id": "86baf4e70",

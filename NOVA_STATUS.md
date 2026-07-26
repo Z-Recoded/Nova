@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-25 05:07 UTC
+Last updated: 2026-07-26 22:08 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,12 +8,12 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- No category changes since last digest.
+- ready -> complete/removed: 86bb3ceyj (Nova Controller: abort/kill switch for an in-flight dispatch)
+- ready -> complete/removed: 86bb3ceyf (Nova Controller: diff-preview-and-merge for dispatched tasks)
 
-## In progress (4)
+## In progress (3)
 
 - 86bara3tj  Spec + Build: Chunk visualization tool — RAG retrieval audit
-- 86baf4eah  Hosted inference fallback (Groq / Together.ai / Fireworks)
 - 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
 - 86baeyg3q  Voice interface (Whisper + Piper)
 
@@ -31,17 +31,12 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (95)
+## Ready (91)
 
-- 86bb3cgna  Nova Controller: optimistic UI + serialized write queue for label decisions
+- 86bb3pgnc  Marimo Adoption — Reactive Notebook Tooling
+- 86bb3p8xw  Automation Handover Package — Reusable Template
 - 86bb3ceyp  Nova Controller: push notifications (Layer 3)
 - 86bb3ceym  Nova Controller: pre-action approval gate (policy-based, not agent-judgment)
-- 86bb3ceyj  Nova Controller: abort/kill switch for an in-flight dispatch
-- 86bb3ceyf  Nova Controller: diff-preview-and-merge for dispatched tasks
-- 86bb3ceyc  Nova Controller: worktree browser
-- 86bb3ceya  Nova Controller: live per-task cost/budget readout
-- 86bb3cey5  Nova Controller: Feed filtering by card type/task/date
-- 86bb3cey2  Nova Controller: Qwen3 swap-trigger progress widget
 - 86bb1pq3k  Deploy Open WebUI to the Omen — make it the sole always-on Nova machine
 - 86bb1nu7u  Prototype TabFM classifier for Nova blend-detection + routing gates
 - 86bb0wp16  Spec: Fine-Tune CI/CD Pipeline (data-volume-triggered retraining)
@@ -125,6 +120,7 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bafv3b4  Add weighted wikilinks to Obsidian notes for stronger graph edges
 - 86bafunj2  Research & Plan: Classical Algorithm Integration into Nova's Decision Layer
 - 86baf72n5  MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)
+- 86baf4eah  Hosted inference fallback (Groq / Together.ai / Fireworks)
 - 86baf4e29  Dockerize Nova services
 - 86baeyg1h  First fine-tune pass (Unsloth + DPO → GGUF → Ollama)
 - 86baeyfua  Link-aware ingestion upgrade (Option B)
