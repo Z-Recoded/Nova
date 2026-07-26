@@ -481,6 +481,15 @@
     overflow: hidden;
     border-radius: 8px;
     margin-bottom: 0.9rem;
+    max-height: 500px;
+    opacity: 1;
+    transition: max-height 0.25s ease, opacity 0.25s ease, margin-bottom 0.25s ease;
+  }
+  .swipe-wrap.collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin-bottom: 0;
+    pointer-events: none;
   }
   .swipe-hint {
     position: absolute;
@@ -505,6 +514,43 @@
   .swipe-meta { font-size: 0.75rem; color: #999; margin-bottom: 0.4rem; }
   .swipe-body { font-size: 0.85rem; color: #ccc; white-space: pre-wrap; word-break: break-word; }
   .swipe-actions { display: flex; gap: 0.5rem; margin-top: 0.7rem; }
+
+  /* ── Undo snackbar + failure toast (86bb3cgna) ───────────────── */
+  .undo-snackbar, .fail-toast {
+    position: fixed;
+    left: 1rem;
+    right: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 8px;
+    padding: 0.7rem 1rem;
+    font-size: 0.85rem;
+    z-index: 50;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  }
+  .undo-snackbar {
+    bottom: 4.5rem;
+    background: #263140;
+    border: 1px solid #35455a;
+    color: #e6e6e6;
+  }
+  .undo-snackbar button {
+    background: none;
+    border: none;
+    color: #3ddc84;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0;
+  }
+  .fail-toast {
+    bottom: 1rem;
+    background: #4a1a1a;
+    color: #e06060;
+    cursor: pointer;
+    gap: 0.5rem;
+  }
 </style>
 </head>
 <body>
@@ -615,6 +661,12 @@
     </div>
   </div>
   <div id="feed"></div>
+
+  <div class="undo-snackbar" id="undo-snackbar" style="display:none">
+    <span id="undo-snackbar-text"></span>
+    <button id="undo-snackbar-btn">Undo</button>
+  </div>
+  <div class="fail-toast" id="fail-toast" style="display:none"></div>
 
   <script>
     const TOKEN_KEY = 'nova_escalation_token';
@@ -1306,6 +1358,129 @@
       return { correction: '(reviewed — no correction needed)' };
     }
 
+    // ── Optimistic commit + serialized write queue (86bb3cgna) ──
+    // Real, measured gap: the old path awaited a full round trip to
+    // /label-queue/{kind}/{id}/decide, then called loadFeed() -- refetching
+    // all 4 Feed endpoints and rebuilding every card, on every single
+    // swipe, against a tool_call_log.jsonl already past 2400 entries with a
+    // read-all/rewrite-all decide route. Now: hide the card immediately,
+    // give a ~4s undo window, and only actually send the write (one at a
+    // time, never parallel -- decide_label_queue_entry()'s own docstring
+    // warns racing writes can silently stomp each other on that same
+    // read-all/rewrite-all file) once the window elapses uncancelled. The
+    // Feed's existing 8s poll (loadFeed(), unchanged) is what eventually
+    // reconciles everything else -- no full refetch is triggered here.
+
+    const UNDO_WINDOW_MS = 4000;
+    let writeQueue = [];
+    let queueBusy = false;
+    let failedWrites = [];
+
+    function describeLabelDecision(entry, positive) {
+      if (entry.kind === 'tool_call') return positive ? 'Labeled "good call"' : 'Flagged "shouldn\'t have called"';
+      if (entry.kind === 'dpo_verify') return positive ? 'Confirmed good' : 'Flagged "needs rework"';
+      return 'Marked "no correction needed"'; // blend_flag positive-only path; negative opens the correction form instead
+    }
+
+    function showUndoSnackbar(text, onUndo) {
+      const el = document.getElementById('undo-snackbar');
+      document.getElementById('undo-snackbar-text').textContent = text;
+      el.style.display = 'flex';
+      // Only the most-recently-shown action is undoable via the button --
+      // same as Gmail's own archive-undo when actions happen in quick
+      // succession. An earlier action's own undoTimer keeps ticking down
+      // independently regardless of what the snackbar currently displays.
+      clearTimeout(el._hideTimer);
+      el._hideTimer = setTimeout(() => { el.style.display = 'none'; }, UNDO_WINDOW_MS);
+      document.getElementById('undo-snackbar-btn').onclick = () => {
+        onUndo();
+        el.style.display = 'none';
+        clearTimeout(el._hideTimer);
+      };
+    }
+
+    function updateFailureToast() {
+      const el = document.getElementById('fail-toast');
+      if (!failedWrites.length) { el.style.display = 'none'; return; }
+      el.textContent = `${failedWrites.length} label${failedWrites.length === 1 ? '' : 's'} failed to save — tap to retry`;
+      el.style.display = 'flex';
+    }
+
+    document.getElementById('fail-toast').addEventListener('click', () => {
+      const retry = failedWrites;
+      failedWrites = [];
+      updateFailureToast();
+      retry.forEach(item => enqueueWrite(item));
+    });
+
+    function enqueueWrite(item) {
+      writeQueue.push(item);
+      processQueue();
+    }
+
+    async function processQueue() {
+      if (queueBusy) return;
+      queueBusy = true;
+      while (writeQueue.length) {
+        await sendQueuedWrite(writeQueue.shift());
+      }
+      queueBusy = false;
+    }
+
+    // Trimmed-down sibling of tokenPost() -- same auth header and 401
+    // handling, but no statusEl (replaced by the toast) and deliberately no
+    // onSuccess-triggered refetch (requirement 3: rely on loadFeed()'s
+    // existing 8s poll instead of a full re-fetch per decision).
+    async function sendQueuedWrite(item) {
+      const token = getToken();
+      try {
+        const res = await fetch(item.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Nova-Escalation-Token': token },
+          body: JSON.stringify(item.body),
+        });
+        if (res.status === 401) {
+          localStorage.removeItem(TOKEN_KEY);
+          showTokenPrompt();
+          failedWrites.push(item);
+          updateFailureToast();
+          return;
+        }
+        if (!res.ok) {
+          failedWrites.push(item);
+          updateFailureToast();
+          return;
+        }
+        // dpo_verify's decision affects the DPO-progress widget's own
+        // verified/needs-rework sub-line -- the only kind that still needs
+        // an explicit refresh once its write actually lands for real.
+        if (item.entry.kind === 'dpo_verify') loadTrainingDataStatus();
+      } catch (err) {
+        failedWrites.push(item);
+        updateFailureToast();
+      }
+    }
+
+    // suppressedLabelIds is deliberately NOT cleared on success or failure
+    // -- a successful write means the server no longer returns that entry
+    // anyway (matches /label-queue's own was_necessary-is-None-style
+    // filtering), and a failed one should stay hidden with retry available
+    // via the toast rather than silently reappearing as a fresh,
+    // undecided-looking card.
+    function optimisticallyCommitLabel(entry, wrap, url, body, description) {
+      const key = `${entry.kind}:${entry.id}`;
+      suppressedLabelIds.add(key);
+      wrap.classList.add('collapsed');
+
+      const undoTimer = setTimeout(() => enqueueWrite({ url, body, entry }), UNDO_WINDOW_MS);
+
+      showUndoSnackbar(description, () => {
+        clearTimeout(undoTimer);
+        suppressedLabelIds.delete(key);
+        wrap.classList.remove('collapsed');
+      });
+    }
+
     function renderLabelCard(entry) {
       const wrap = document.createElement('div');
       wrap.className = 'swipe-wrap';
@@ -1354,10 +1529,7 @@
           return;
         }
         const url = `/label-queue/${entry.kind}/${encodeURIComponent(entry.id)}/decide`;
-        const onSuccess = entry.kind === 'dpo_verify'
-          ? () => { loadFeed(); loadTrainingDataStatus(); }
-          : loadFeed;
-        tokenPost(url, labelDecisionBody(entry, positive), statusEl, onSuccess);
+        optimisticallyCommitLabel(entry, wrap, url, labelDecisionBody(entry, positive), describeLabelDecision(entry, positive));
       };
 
       let correctionForm = null;
@@ -1377,7 +1549,7 @@
             return;
           }
           const url = `/label-queue/blend_flag/${encodeURIComponent(entry.id)}/decide`;
-          tokenPost(url, { correction: textarea.value.trim() }, statusEl, loadFeed);
+          optimisticallyCommitLabel(entry, wrap, url, { correction: textarea.value.trim() }, 'Correction saved');
         });
         correctionForm.appendChild(label);
         correctionForm.appendChild(textarea);
@@ -1489,6 +1661,12 @@
     let feedFilters = { kinds: new Set(['escalation', 'tier', 'dispatch', 'label']), taskQuery: '', dateRange: 'all' };
     let lastAllEntries = [];
 
+    // Label entries optimistically committed (86bb3cgna) -- kept out of
+    // every render (not just the current DOM) until Undo clears them, so
+    // the Feed's own 8s poll can't silently re-fetch and re-render a card
+    // that's mid-undo-window or already queued for write.
+    let suppressedLabelIds = new Set();
+
     const DATE_RANGE_MS = { today: 24 * 60 * 60 * 1000, week: 7 * 24 * 60 * 60 * 1000, month: 30 * 24 * 60 * 60 * 1000 };
 
     function passesDateFilter(entry, range) {
@@ -1514,7 +1692,8 @@
       const filtered = lastAllEntries.filter(e =>
         feedFilters.kinds.has(e._kind) &&
         passesTaskFilter(e, feedFilters.taskQuery) &&
-        passesDateFilter(e, feedFilters.dateRange)
+        passesDateFilter(e, feedFilters.dateRange) &&
+        !(e._kind === 'label' && suppressedLabelIds.has(`${e.kind}:${e.id}`))
       );
 
       if (!filtered.length) {
