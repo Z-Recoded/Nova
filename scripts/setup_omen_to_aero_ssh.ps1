@@ -54,12 +54,27 @@ if (-not $tailscaleIp) {
     Write-Output "   sshd will listen on all interfaces; the firewall rule from step 3 is still in effect."
 } else {
     $sshdConfigPath = "C:\ProgramData\ssh\sshd_config"
-    $existing = Get-Content $sshdConfigPath -Raw
-    if ($existing -notmatch "ListenAddress $tailscaleIp") {
-        Add-Content -Path $sshdConfigPath -Value "`nListenAddress $tailscaleIp"
-        Write-Output "   Added 'ListenAddress $tailscaleIp' to sshd_config."
-    } else {
+    $lines = Get-Content $sshdConfigPath
+    $listenLine = "ListenAddress $tailscaleIp"
+    if ($lines -contains $listenLine) {
         Write-Output "   Already restricted to $tailscaleIp."
+    } else {
+        # ListenAddress is a global directive -- it MUST appear before any
+        # "Match" block, or sshd refuses to start (Match blocks only permit
+        # a specific keyword allowlist and ListenAddress isn't in it). A
+        # naive append lands after Windows' default "Match Group
+        # administrators" block and breaks the service -- confirmed live
+        # during real setup, not a hypothetical edge case.
+        $matchLineNumber = ($lines | Select-String -Pattern '^\s*Match\s' | Select-Object -First 1).LineNumber
+        if ($matchLineNumber) {
+            $before = $lines[0..($matchLineNumber - 2)]
+            $after = $lines[($matchLineNumber - 1)..($lines.Count - 1)]
+            $newLines = $before + @($listenLine, "") + $after
+        } else {
+            $newLines = $lines + @($listenLine)
+        }
+        Set-Content -Path $sshdConfigPath -Value $newLines -Encoding ascii
+        Write-Output "   Added 'ListenAddress $tailscaleIp' to sshd_config (before the Match block)."
     }
 }
 

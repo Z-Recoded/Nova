@@ -593,9 +593,9 @@
     <p style="margin-left:1rem"><b>Verify DPO pair</b> — is an already-written correction (from Claude via <code>nova_corrector.py</code>, or written by hand here) actually good? Swipe right to confirm it, swipe left to flag it as needing rework. This is separate from Blend flag above — that's "does this need a correction written," this is "is the correction that got written actually good."</p>
     <p><b>DPO pairs toward fine-tune</b> — live count of corrected pairs in <code>logs/training_flags.jsonl</code> against the 100-pair floor <code>nova_finetune_phi4.py</code> requires before a real training run. Refreshes every 15 seconds.</p>
     <p><b>Headless dispatch spend</b> — <i>real</i> is actual metered dollars charged (only dispatches that ran on the funded API key). <i>notional</i> includes every dispatch, including ones that ran on your own Claude Code subscription — those cost no extra money, so notional will usually read higher than real. There's no live per-second cost during an active run — <code>claude -p</code> only reports its final cost once a dispatch finishes, so this widget shows historical totals (today, last 7 days), not the in-flight run's running cost. The in-flight widget above shows a "· subscription" or "· metered" tag instead, so you can tell at a glance whether the run happening right now is free or billed.</p>
-    <p><b>Qwen3 8B swap-trigger progress</b> — how close the accumulated coding-agent transcripts are to the ~30-50 diverse real tasks Phase 3.5 wants before evaluating a local-model swap (20% of that count held out, never trained on). When this page happens to be served from the Aero, it's a real combined count across both machines. When it's served from the Omen — the normal case for the phone — it can only see the Omen's own headless-dispatch transcripts, not the Aero's interactive ones, and says so directly in the sub-line rather than showing a number that looks complete but isn't.</p>
+    <p><b>Qwen3 8B swap-trigger progress</b> — how close the accumulated coding-agent transcripts are to the ~30-50 diverse real tasks Phase 3.5 wants before evaluating a local-model swap (20% of that count held out, never trained on). Normally a real combined count across both machines, over a command-restricted SSH connection either direction. If the other machine can't be reached right now (most commonly: the Aero is asleep), it says so directly in the sub-line rather than showing a number that looks complete but isn't.</p>
     <p>Swipe right or tap the green button for the positive judgment, swipe left or tap the red button otherwise.</p>
-    <p><b>Worktrees</b> — every open, disposable git worktree on both machines (not the main checkout), oldest first. <i>merged</i> (green) means that branch's work is already in <code>master</code> — likely safe to clean up. <i>prunable</i> (red) means git itself thinks the worktree's directory is gone or broken. <i>locked</i> (gray) means git won't let it be removed without unlocking first. Read-only — this page doesn't delete anything for you. Refreshes every 60 seconds (slower than other widgets since checking the Omen's worktrees costs a real SSH round-trip). Same as the Qwen widget above: served from the Omen (the normal case for the phone), the Aero's worktrees aren't reachable and say so directly instead of just showing nothing.</p>
+    <p><b>Worktrees</b> — every open, disposable git worktree on both machines (not the main checkout), oldest first. <i>merged</i> (green) means that branch's work is already in <code>master</code> — likely safe to clean up. <i>prunable</i> (red) means git itself thinks the worktree's directory is gone or broken. <i>locked</i> (gray) means git won't let it be removed without unlocking first. Read-only — this page doesn't delete anything for you. Refreshes every 60 seconds (slower than other widgets since checking the other machine's worktrees costs a real SSH round-trip). Same as the Qwen widget above: if a machine can't be reached right now (most commonly: the Aero is asleep), that machine's section says so directly instead of just showing nothing.</p>
     <p><b>Discover</b> — empty for now. Depends on Nova Tutor, which hasn't been built yet.</p>
     <p style="color:#888; font-size:0.8rem; margin-bottom:0">This panel lives in the same file as the UI it explains, so it can't silently go stale as the Feed changes.</p>
   </div>
@@ -959,12 +959,11 @@
     }
 
     // ── Qwen3 8B swap-trigger progress (86bb3cey2) ──────────────
-    // "aero_combined" (real full Aero+Omen number) only happens when this
-    // page's nova_api.py happens to be served from the Aero. The real
-    // production case -- served from the Omen, what the phone Controller
-    // actually hits -- is "omen_only": the Aero's interactive-lane tasks
-    // aren't reachable from there at all (same gap /in-flight-status
-    // already accepted for that lane), so the count is real but partial.
+    // "combined" (real full Aero+Omen number) is the normal case now that
+    // command-restricted SSH runs both directions (2026-07-25 follow-up).
+    // "omen_only"/"aero_only" still happen live whenever the other machine
+    // genuinely can't be reached right now (most commonly: the Aero is
+    // asleep) -- a real, occasional partial view, not a permanent wall.
 
     async function loadQwenSwapStatus() {
       try {
@@ -983,7 +982,9 @@
 
         let sub = `${c.total_turns} total turns · ~${c.held_out_target} tasks would be held out at this count`;
         if (s.view === 'omen_only') {
-          sub += ' — Omen-hosted data only, the Aero\'s interactive-lane tasks aren\'t visible from here';
+          sub += ' — Omen-hosted data only, the Aero could not be reached right now';
+        } else if (s.view === 'aero_only') {
+          sub += ' — Aero-hosted data only, the Omen could not be reached right now';
         }
         document.getElementById('qwen-status-sub').textContent = sub;
       } catch (err) {
@@ -992,11 +993,13 @@
     }
 
     // ── Worktree browser (86bb3ceyc) ────────────────────────────
-    // Same "view" pattern as the Qwen widget above -- "omen_only" when
-    // this page is served from the Omen (the real production case), since
-    // there's no reverse-SSH path in this codebase to reach the Aero from
-    // there. Sorted oldest-first (age_days descending) -- the whole point
-    // is surfacing stale worktrees, not a chronological feed.
+    // Reads each machine's own .error directly (no top-level "view" check
+    // needed here, unlike the Qwen widget above) -- a real command-
+    // restricted SSH key now reaches each direction (2026-07-25 follow-up),
+    // so a successful fetch or an honest "SSH to the Aero timed out" (e.g.
+    // it's asleep) both flow through unchanged. Sorted oldest-first
+    // (age_days descending) -- the whole point is surfacing stale
+    // worktrees, not a chronological feed.
 
     function renderWorktreeMachine(container, label, data) {
       const section = document.createElement('div');

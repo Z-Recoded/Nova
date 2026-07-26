@@ -18,10 +18,12 @@
 #
 # Platform-aware for the same reason as nova_agent_log_status.py's
 # get_combined_status(): nova_api.py runs on both the Aero (dev) and the
-# Omen (production, what the phone Controller actually hits), and there is
-# no reverse-SSH path anywhere in this codebase to reach the Aero from the
-# Omen (the Aero also sleeps). See that module's docstring for the full
-# reasoning -- reused here rather than re-derived.
+# Omen (production, what the phone Controller actually hits). As of the
+# 2026-07-25 SSH follow-up, both directions are real and live -- see that
+# module's docstring for the full reasoning, reused here rather than
+# re-derived. The Aero still sleeps sometimes, so a real, live-but-partial
+# view remains possible either direction -- see get_worktree_status()'s
+# own docstring for the "view" field this now reports.
 
 import os
 import subprocess
@@ -37,6 +39,21 @@ OMEN_REPO_PATH = "/home/marvinroyal5/nova"
 
 # This file lives at the repo root, so its own directory IS the local repo root.
 AERO_REPO_PATH = os.path.dirname(os.path.abspath(__file__))
+
+# Reverse direction (86bb3cey2/86bb3ceyc SSH follow-up, 2026-07-25) — real,
+# live, and verified: a dedicated ed25519 key restricted via authorized_keys
+# `command=` to exactly one forced script on the Aero (see
+# scripts/setup_omen_to_aero_ssh.ps1). Private key half lives only on the
+# Omen (~/.ssh/aero_keys/) — only resolves to something real when
+# list_aero_worktrees() runs there. AERO_REPO_PATH_REMOTE is a separate,
+# hardcoded string (not AERO_REPO_PATH's own __file__-relative resolution,
+# which only makes sense for whichever machine this code is actually
+# running on) -- it's what git on the Aero itself reports as its worktree
+# path, confirmed live via a real SSH round-trip.
+AERO_HOST = "100.122.229.23"  # Tailscale IP
+AERO_USER = "marvi"
+AERO_WORKTREES_KEY = os.path.expanduser("~/.ssh/aero_keys/id_ed25519_aero_worktrees")
+AERO_REPO_PATH_REMOTE = "C:/Nova"
 
 SSH_TIMEOUT_SECONDS = 20
 LOCAL_TIMEOUT_SECONDS = 10
@@ -199,26 +216,62 @@ def list_omen_worktrees() -> dict:
     return {"entries": _build_entries(worktrees, OMEN_REPO_PATH, merged_branches, commit_dates), "error": None}
 
 
+def list_aero_worktrees() -> dict:
+    """
+    Fetch the Aero's worktree inventory over SSH, using the dedicated
+    command-restricted key. Unlike list_omen_worktrees(), no `&&`-chained
+    remote command is needed here -- the forced command itself
+    (scripts/ssh_read_worktrees.ps1 on the Aero) already does that
+    chaining server-side and emits the identical "===MERGED==="/"===DATES==="
+    markers, so the same parsing functions apply unchanged. The command
+    string passed to ssh here is irrelevant -- the forced command always
+    runs regardless of what's actually requested.
+    """
+    try:
+        result = subprocess.run(
+            ["ssh", "-i", AERO_WORKTREES_KEY, "-o", "ConnectTimeout=10", f"{AERO_USER}@{AERO_HOST}", "ignored"],
+            capture_output=True,
+            text=True,
+            timeout=SSH_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return {"entries": [], "error": "SSH to the Aero timed out"}
+
+    if result.returncode != 0:
+        return {"entries": [], "error": f"ssh exited {result.returncode}: {result.stderr.strip()}"}
+
+    porcelain_part, _, rest = result.stdout.partition("===MERGED===\n")
+    merged_part, _, dates_part = rest.partition("===DATES===\n")
+
+    worktrees = _parse_worktree_porcelain(porcelain_part)
+    merged_branches = {line.strip() for line in merged_part.splitlines() if line.strip()}
+    commit_dates = _parse_kv_lines(dates_part)
+
+    return {"entries": _build_entries(worktrees, AERO_REPO_PATH_REMOTE, merged_branches, commit_dates), "error": None}
+
+
 def get_worktree_status() -> dict:
     """
-    Platform-aware combined view, backing the Controller's worktree browser
+    Symmetric combined view, backing the Controller's worktree browser
     (GET /worktree-status). Directly modeled on
     nova_agent_log_status.get_combined_status() -- see that module's own
-    docstring for the full reasoning behind why this can't just always SSH
-    both directions. On Windows (the Aero), reports the real combined view
-    of both machines. On anything else (the Omen — the box nova_api.py
-    actually runs on in production), the Aero's worktrees aren't reachable
-    at all (no reverse-SSH path exists anywhere in this codebase, and the
-    Aero sleeps) -- `view` tells a caller which case it got:
-    "aero_and_omen" (full real view) or "omen_only" (Omen's own worktrees
-    only, Aero side honestly reported as unavailable rather than empty).
+    docstring for the full "local + real live SSH to the other machine"
+    reasoning. Whichever machine this runs on, "local" is this machine's
+    own worktrees and the other machine's are fetched over a real,
+    command-restricted SSH key (both directions now exist and are
+    verified live). `view` tells a caller what it actually got: "combined"
+    (both sides real), "omen_only" (served from the Omen, the Aero
+    couldn't be reached right now -- e.g. asleep), or "aero_only" (served
+    from the Aero, the Omen couldn't be reached).
     """
     local = list_local_worktrees()
-    if sys.platform == "win32":
-        aero, omen, view = local, list_omen_worktrees(), "aero_and_omen"
-    else:
-        aero = {"entries": [], "error": "not visible from the Omen (no reverse-SSH path to the Aero exists)"}
-        omen, view = local, "omen_only"
+    on_aero = sys.platform == "win32"
+
+    remote = list_omen_worktrees() if on_aero else list_aero_worktrees()
+    aero = local if on_aero else remote
+    omen = remote if on_aero else local
+
+    view = "combined" if remote["error"] is None else ("aero_only" if on_aero else "omen_only")
     return {"view": view, "aero": aero, "omen": omen}
 
 

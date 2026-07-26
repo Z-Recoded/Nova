@@ -40,6 +40,18 @@ OMEN_HOST = "100.114.197.117"  # Tailscale IP — works whether or not the Aero 
 OMEN_USER = "marvinroyal5"
 OMEN_REPO_PATH = "/home/marvinroyal5/nova"
 
+# Reverse direction (86bb3cey2/86bb3ceyc SSH follow-up, 2026-07-25) — real,
+# live, and verified: two dedicated ed25519 keys, each restricted via
+# authorized_keys `command=` to exactly one forced script on the Aero (see
+# scripts/setup_omen_to_aero_ssh.ps1), so a compromised Omen can only ever
+# run those two specific read-only scripts on the Aero, never a shell.
+# Private key halves live only on the Omen (~/.ssh/aero_keys/) — this
+# constant only resolves to something real when read_aero_agent_log() runs
+# there.
+AERO_HOST = "100.122.229.23"  # Tailscale IP
+AERO_USER = "marvi"
+AERO_AGENTLOG_KEY = os.path.expanduser("~/.ssh/aero_keys/id_ed25519_aero_agentlog")
+
 # Resolved relative to this file's own location, not hardcoded to the Aero's
 # Windows path -- same bug class already fixed elsewhere in this project
 # (86bb1pkpb). Matters more here than most: get_combined_status() below now
@@ -102,6 +114,31 @@ def read_omen_agent_log() -> dict:
         return {"entries": [], "error": "SSH to the Omen timed out"}
 
 
+def read_aero_agent_log() -> dict:
+    """
+    Fetch the Aero's logs/agent_log.jsonl over SSH, using the dedicated
+    command-restricted key (see scripts/setup_omen_to_aero_ssh.ps1) — only
+    ever attempted when running on the Omen itself (see
+    get_combined_status()). The command string passed here is irrelevant:
+    the key's forced command (scripts/ssh_read_agent_log.ps1 on the Aero)
+    always runs regardless of what's actually requested. Same shape as
+    read_omen_agent_log(): never raises, {"entries": [], "error": "..."}
+    if the Aero is unreachable (e.g. asleep) or the key isn't set up yet.
+    """
+    try:
+        result = subprocess.run(
+            ["ssh", "-i", AERO_AGENTLOG_KEY, "-o", "ConnectTimeout=10", f"{AERO_USER}@{AERO_HOST}", "ignored"],
+            capture_output=True,
+            text=True,
+            timeout=SSH_TIMEOUT_SECONDS,
+        )
+        if result.returncode != 0:
+            return {"entries": [], "error": f"ssh exited {result.returncode}: {result.stderr.strip()}"}
+        return {"entries": _parse_jsonl(result.stdout), "error": None}
+    except subprocess.TimeoutExpired:
+        return {"entries": [], "error": "SSH to the Aero timed out"}
+
+
 def summarize_by_task(entries: list[dict]) -> dict:
     """
     Group a list of agent_log.jsonl entries by task_slug, returning
@@ -137,21 +174,19 @@ def get_combined_status() -> dict:
     Platform-aware as of 86bb3cey2, since this function now backs a Nova
     Controller route (GET /qwen-swap-status) that runs on whichever machine
     nova_api.py happens to be serving from, not just "Marvin ran this by
-    hand on the Aero" like the original CLI use case. On Windows (the
-    Aero), "local" is genuinely the Aero and fetching the Omen's copy over
-    SSH is the real cross-machine step, exactly as before. On anything else
-    (the Omen — the box nova_api.py actually runs on in production, what
-    the phone Controller hits), read_local_agent_log() already IS the
-    Omen's own data, so there's nothing to SSH-fetch (it would just be
-    self-SSH), and — same real gap /in-flight-status already accepted for
-    the native orchestrator lane (86bb3cey0) — there is no established
-    reverse-SSH path anywhere in this codebase to reach the Aero's
-    interactive-lane data from the Omen. `view` tells a caller which case
-    it got: "aero_combined" (the real, full combined number) or
-    "omen_only" (headless-dispatch-lane data only, Aero data not visible
-    from here) — never silently presented as if it were the same thing.
+    hand on the Aero" like the original CLI use case. Symmetric as of the
+    2026-07-25 SSH follow-up: whichever machine this runs on, "local" is
+    this machine's own data and the OTHER machine's data is fetched over a
+    real, live, command-restricted SSH key (Aero→Omen already existed;
+    Omen→Aero is new, see scripts/setup_omen_to_aero_ssh.ps1). `view` tells
+    a caller what it actually got: "combined" (both sides real, regardless
+    of which machine served the request), "omen_only" (served from the
+    Omen, the Aero couldn't be reached right now — e.g. asleep), or
+    "aero_only" (served from the Aero, the Omen couldn't be reached — e.g.
+    down for maintenance). Never silently presented as complete when it
+    isn't.
 
-    Caveat, found on first real run (still applies, either view): this
+    Caveat, found on first real run (still applies, every view): this
     counts distinct task_slugs, not distinct underlying work. A task that
     failed/discarded and got retried (e.g. the resource headroom
     calculator, attempted 3 times before it landed) gets a fresh worktree
@@ -164,14 +199,20 @@ def get_combined_status() -> dict:
     """
     local_entries = read_local_agent_log()
     local_tasks = summarize_by_task(local_entries)
+    on_aero = sys.platform == "win32"
 
-    if sys.platform == "win32":
-        omen_result = read_omen_agent_log()
-        omen_tasks = summarize_by_task(omen_result["entries"])
-        aero_tasks, view = local_tasks, "aero_combined"
+    remote_result = read_omen_agent_log() if on_aero else read_aero_agent_log()
+    remote_tasks = summarize_by_task(remote_result["entries"])
+
+    aero_tasks = local_tasks if on_aero else remote_tasks
+    omen_tasks = remote_tasks if on_aero else local_tasks
+    aero_error = None if on_aero else remote_result["error"]
+    omen_error = remote_result["error"] if on_aero else None
+
+    if remote_result["error"] is None:
+        view = "combined"
     else:
-        omen_tasks, aero_tasks, view = local_tasks, {}, "omen_only"
-        omen_result = {"error": None}
+        view = "aero_only" if on_aero else "omen_only"
 
     distinct_tasks = len(aero_tasks) + len(omen_tasks)
     total_turns = sum(t["turns"] for t in aero_tasks.values()) + sum(t["turns"] for t in omen_tasks.values())
@@ -181,11 +222,12 @@ def get_combined_status() -> dict:
         "aero": {
             "tasks": len(aero_tasks),
             "turns": sum(t["turns"] for t in aero_tasks.values()),
+            "error": aero_error,
         },
         "omen": {
             "tasks": len(omen_tasks),
             "turns": sum(t["turns"] for t in omen_tasks.values()),
-            "error": omen_result["error"],
+            "error": omen_error,
         },
         "combined": {
             "distinct_tasks": distinct_tasks,
@@ -212,8 +254,8 @@ if __name__ == "__main__":
     if args.json:
         print(json.dumps(status, indent=2))
     else:
-        if status["view"] == "omen_only":
-            print("Aero (interactive):  not visible from here (on the Omen, no reverse-SSH path to the Aero exists)")
+        if status["aero"]["error"]:
+            print(f"Aero (interactive):  unreachable ({status['aero']['error']})")
         else:
             print(f"Aero (interactive):  {status['aero']['tasks']} tasks, {status['aero']['turns']} turns")
         if status["omen"]["error"]:
