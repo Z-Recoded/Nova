@@ -210,6 +210,35 @@
   .in-flight-fuel.subscription { color: #888; }
   .in-flight-fuel.api_key { color: #e0b060; }
 
+  /* ── Feed filter bar (86bb3cey5) ─────────────────────────── */
+  .feed-filter-bar { margin-bottom: 1rem; }
+  .filter-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.5rem; }
+  .filter-chip {
+    background: #2a2e38;
+    color: #999;
+    border: 1px solid #3a3e48;
+    border-radius: 999px;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
+  .filter-chip:hover { background: #343945; }
+  .filter-chip.active {
+    background: #1a3a24;
+    color: #3ddc84;
+    border-color: #2a5a3a;
+  }
+  .filter-row2 { display: flex; gap: 0.5rem; }
+  #filter-task-input, #filter-date-select {
+    background: #111318;
+    color: #e6e6e6;
+    border: 1px solid #2a2e38;
+    border-radius: 4px;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.85rem;
+  }
+  #filter-task-input { flex: 1; min-width: 0; }
+
   /* ── Stories rail ─────────────────────────────────────────── */
   .stories-rail {
     display: flex;
@@ -471,6 +500,7 @@
     <h2 class="section-heading" style="margin-top:0">What am I looking at?</h2>
     <p><b>Switches panel</b> — Nova's important flags, grouped by category. Bright green = on, dim = off. Tap to toggle. <b>Auto-Dispatch Loop</b> (the old "Board Watch") is whether the headless dispatch loop is allowed to run unattended right now.</p>
     <p><b>Stories rail</b> — real counts from the last 24 hours. <i>Dispatches</i> = how many times the loop <i>attempted</i> to run something (successful or not, not "tasks completed"). <i>Merged</i>/<i>discarded</i> = how many of those you've since reviewed and decided on.</p>
+    <p><b>Feed filters</b> — the chips/search/date row above the Feed. Chips toggle which card types show (tap "All" to reset to everything); the search box matches against a card's task name/ID; the date dropdown hides anything older than the chosen window. Purely a local display filter — it never changes what data gets fetched or re-ranks anything, and resets if you reload the page.</p>
     <p><b>Escalation</b> cards — a headless run paused mid-task to ask you a real question. Tap an option, or type a free-text answer, to resume that exact session.</p>
     <p><b>Tier</b> cards — Nova proposes how safe a task is to hand to an unattended run: <i>autonomous</i>, <i>needs review</i>, or <i>manual only</i>, plus a confidence level and its reasoning. The <b>Accept</b> button's label always names Nova's proposed tier for that specific card (e.g. "Accept: needs review" means accepting sets this task to needs review) — it changes per card, it's not a fixed action. <b>Override</b> requires you to write why — that reasoning is the whole point, not a formality.</p>
     <p><b>Dispatch outcome</b> cards — a record of a past run or review decision. Read-only, tap "show summary" to expand.</p>
@@ -539,6 +569,24 @@
   <div class="stories-rail" id="stories-rail"></div>
 
   <h2 class="section-heading">Feed</h2>
+  <div class="feed-filter-bar" id="feed-filter-bar">
+    <div class="filter-chips" id="filter-chips">
+      <button class="filter-chip" data-kind="all">All</button>
+      <button class="filter-chip active" data-kind="escalation">Escalation</button>
+      <button class="filter-chip active" data-kind="tier">Tier</button>
+      <button class="filter-chip active" data-kind="dispatch">Dispatch</button>
+      <button class="filter-chip active" data-kind="label">Label</button>
+    </div>
+    <div class="filter-row2">
+      <input type="text" id="filter-task-input" placeholder="Search task…">
+      <select id="filter-date-select">
+        <option value="all">All time</option>
+        <option value="today">Today</option>
+        <option value="week">Last 7 days</option>
+        <option value="month">Last 30 days</option>
+      </select>
+    </div>
+  </div>
   <div id="feed"></div>
 
   <h2 class="section-heading">Discover</h2>
@@ -1333,6 +1381,94 @@
       });
     }
 
+    // ── Feed filtering (86bb3cey5) ───────────────────────────────
+    // Client-side only, applied on top of whatever loadFeed() last fetched
+    // -- doesn't touch the strictly-chronological sort or re-rank anything
+    // algorithmically, just hides/shows cards the user explicitly asked to
+    // hide/show. lastAllEntries caches the last fetch so a filter change
+    // re-renders instantly without waiting for the next poll.
+
+    let feedFilters = { kinds: new Set(['escalation', 'tier', 'dispatch', 'label']), taskQuery: '', dateRange: 'all' };
+    let lastAllEntries = [];
+
+    const DATE_RANGE_MS = { today: 24 * 60 * 60 * 1000, week: 7 * 24 * 60 * 60 * 1000, month: 30 * 24 * 60 * 60 * 1000 };
+
+    function passesDateFilter(entry, range) {
+      if (range === 'all') return true;
+      const t = Date.parse(entry.created_at || entry.timestamp || '');
+      if (isNaN(t)) return true; // no timestamp to judge -- don't hide it on a technicality
+      return (Date.now() - t) <= DATE_RANGE_MS[range];
+    }
+
+    function passesTaskFilter(entry, query) {
+      if (!query) return true;
+      const haystack = `${entry.task_name || ''} ${entry.task_id || ''} ${entry.branch || ''}`.toLowerCase();
+      return haystack.includes(query.toLowerCase());
+    }
+
+    function renderFeedEntries() {
+      const container = document.getElementById('feed');
+      if (!lastAllEntries.length) {
+        container.innerHTML = '<p class="empty">Nothing in the feed yet.</p>';
+        return;
+      }
+
+      const filtered = lastAllEntries.filter(e =>
+        feedFilters.kinds.has(e._kind) &&
+        passesTaskFilter(e, feedFilters.taskQuery) &&
+        passesDateFilter(e, feedFilters.dateRange)
+      );
+
+      if (!filtered.length) {
+        container.innerHTML = '<p class="empty">No cards match the current filter.</p>';
+        return;
+      }
+
+      container.innerHTML = '';
+      filtered.forEach(entry => {
+        let el;
+        if (entry._kind === 'escalation') el = renderEscalationCard(entry);
+        else if (entry._kind === 'tier') el = renderTierCard(entry);
+        else if (entry._kind === 'dispatch') el = renderDispatchCard(entry);
+        else el = renderLabelCard(entry);
+        container.appendChild(el);
+      });
+    }
+
+    document.querySelectorAll('.filter-chip[data-kind]').forEach(btn => {
+      if (btn.dataset.kind === 'all') {
+        btn.addEventListener('click', () => {
+          feedFilters.kinds = new Set(['escalation', 'tier', 'dispatch', 'label']);
+          document.querySelectorAll('.filter-chip[data-kind]').forEach(b => {
+            if (b.dataset.kind !== 'all') b.classList.add('active');
+          });
+          renderFeedEntries();
+        });
+        return;
+      }
+      btn.addEventListener('click', () => {
+        const kind = btn.dataset.kind;
+        if (feedFilters.kinds.has(kind)) {
+          feedFilters.kinds.delete(kind);
+          btn.classList.remove('active');
+        } else {
+          feedFilters.kinds.add(kind);
+          btn.classList.add('active');
+        }
+        renderFeedEntries();
+      });
+    });
+
+    document.getElementById('filter-task-input').addEventListener('input', e => {
+      feedFilters.taskQuery = e.target.value.trim();
+      renderFeedEntries();
+    });
+
+    document.getElementById('filter-date-select').addEventListener('change', e => {
+      feedFilters.dateRange = e.target.value;
+      renderFeedEntries();
+    });
+
     // Guards against overlapping/out-of-order loadFeed() calls -- found live
     // 2026-07-19 as the real cause of cards visibly reshuffling on a phone: a
     // slow call (variable mobile network latency) can still be in flight when
@@ -1369,20 +1505,8 @@
         return tb.localeCompare(ta);
       });
 
-      const container = document.getElementById('feed');
-      if (!all.length) {
-        container.innerHTML = '<p class="empty">Nothing in the feed yet.</p>';
-        return;
-      }
-      container.innerHTML = '';
-      all.forEach(entry => {
-        let el;
-        if (entry._kind === 'escalation') el = renderEscalationCard(entry);
-        else if (entry._kind === 'tier') el = renderTierCard(entry);
-        else if (entry._kind === 'dispatch') el = renderDispatchCard(entry);
-        else el = renderLabelCard(entry);
-        container.appendChild(el);
-      });
+      lastAllEntries = all;
+      renderFeedEntries();
     }
 
     loadFlags();
