@@ -159,6 +159,7 @@
     transition: width 0.3s ease;
   }
   .training-status-sub { font-size: 0.78rem; color: #888; margin-top: 0.5rem; }
+  .dispatch-cost-label { font-size: 0.85rem; color: #999; }
 
   /* ── Live in-flight dispatch widget (86bb3cey0) ──────────────── */
   .in-flight-status {
@@ -513,11 +514,10 @@
   </div>
 
   <div class="training-status" id="dispatch-cost-status" style="display:none">
-    <div class="training-status-row">
-      <span class="board-watch-label">Headless dispatch spend</span>
-      <span id="dispatch-cost-today"></span>
-    </div>
-    <div class="training-status-sub" id="dispatch-cost-week"></div>
+    <div class="dispatch-cost-label">Headless dispatch spend</div>
+    <div class="training-status-sub" id="dispatch-cost-real"></div>
+    <div class="training-status-sub" id="dispatch-cost-notional"></div>
+    <div class="training-status-sub" id="dispatch-cost-counts"></div>
   </div>
 
   <div class="token-box" id="token-box" style="display:none">
@@ -796,11 +796,12 @@
 
         const widget = document.getElementById('dispatch-cost-status');
         widget.style.display = 'block';
-        document.getElementById('dispatch-cost-today').textContent =
-          `${formatUsd(s.today.real_usd)} real · ${formatUsd(s.today.notional_usd)} notional (${s.today.count})`;
-        document.getElementById('dispatch-cost-week').textContent =
-          `Last 7 days: ${formatUsd(s.last_7_days.real_usd)} real · ` +
-          `${formatUsd(s.last_7_days.notional_usd)} notional (${s.last_7_days.count})`;
+        document.getElementById('dispatch-cost-real').textContent =
+          `Real: ${formatUsd(s.today.real_usd)} today · ${formatUsd(s.last_7_days.real_usd)} last 7 days`;
+        document.getElementById('dispatch-cost-notional').textContent =
+          `Notional: ${formatUsd(s.today.notional_usd)} today · ${formatUsd(s.last_7_days.notional_usd)} last 7 days`;
+        document.getElementById('dispatch-cost-counts').textContent =
+          `${s.today.count} dispatch${s.today.count === 1 ? '' : 'es'} today · ${s.last_7_days.count} last 7 days`;
       } catch (err) {
         document.getElementById('error').textContent = 'Could not load dispatch cost summary: ' + err.message;
       }
