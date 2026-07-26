@@ -44,7 +44,7 @@
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -52,7 +52,7 @@ import httpx
 from nova_clickup_client import add_comment, add_tag, get_task, update_status
 from nova_config import get_max_unreviewed_dispatches, is_review_backpressure_enabled, is_sandboxed_dispatch_enabled
 from nova_escalation import NOVA_API_URL, is_dispatch_paused
-from nova_omen_dispatch import dispatch_headless_task, dispatch_headless_task_sandboxed
+from nova_omen_dispatch import choose_fuel_source, dispatch_headless_task, dispatch_headless_task_sandboxed
 from nova_task_queue import (
     detect_tier_candidates,
     get_practice_queue_tasks,
@@ -338,6 +338,61 @@ def count_unreviewed_dispatches() -> int:
     return len(dispatched_task_ids - reviewed_task_ids - pending_escalation_task_ids)
 
 
+def _sum_dispatch_cost(entries: list[dict]) -> dict:
+    """
+    Shared summing logic for one bucket of scheduled_dispatch_log.jsonl
+    entries (86bb3ceya). notional_usd sums every entry's cost_usd as-is --
+    claude -p's own token-cost estimate, regardless of which credential
+    actually ran the call. real_usd sums only fuel_source == "api_key"
+    entries -- the ones that draw against the funded metered key, i.e. the
+    only ones that are genuinely real marginal spend. A subscription-fueled
+    run's cost_usd is real work done, but not real dollars charged, since
+    it's already covered by the Pro plan -- counting it in real_usd would
+    overstate actual spend.
+    """
+    notional_usd = sum(e["cost_usd"] for e in entries)
+    real_usd = sum(e["cost_usd"] for e in entries if e.get("fuel_source") == "api_key")
+    return {"notional_usd": round(notional_usd, 4), "real_usd": round(real_usd, 4), "count": len(entries)}
+
+
+def get_dispatch_cost_summary() -> dict:
+    """
+    Real spend readout for headless dispatch (86bb3ceya) -- backs the
+    Controller's "Headless dispatch spend" widget. Reads the same
+    scheduled_dispatch_log.jsonl entries count_unreviewed_dispatches()
+    already reads, bucketed into "today" (calendar day) and "last_7_days"
+    (rolling 7-day window from now). Entries with no cost_usd (an infra
+    failure that never reached claude -p at all -- SSH/timeout/no result
+    JSON) are excluded from both buckets, since there's no real cost to
+    attribute either way.
+
+    See _sum_dispatch_cost()'s docstring for the notional_usd/real_usd
+    distinction -- deliberately never collapsed into one number, since a
+    subscription run's cost_usd is not real spend and showing only one
+    combined figure would make it look like it was.
+    """
+    now = datetime.now()
+    week_ago = now - timedelta(days=7)
+
+    priced_entries = []
+    for entry in _read_jsonl(LOG_PATH):
+        if entry.get("cost_usd") is None:
+            continue
+        try:
+            entry_time = datetime.fromisoformat(entry["timestamp"])
+        except (KeyError, ValueError):
+            continue
+        priced_entries.append((entry_time, entry))
+
+    today_entries = [e for t, e in priced_entries if t.date() == now.date()]
+    week_entries = [e for t, e in priced_entries if t >= week_ago]
+
+    return {
+        "today": _sum_dispatch_cost(today_entries),
+        "last_7_days": _sum_dispatch_cost(week_entries),
+    }
+
+
 def _handle_escalation(task_id: str, task_name: str, result: dict, phase: str) -> None:
     """
     Register a paused-for-escalation dispatch outcome (86bax0wkj) —
@@ -517,6 +572,16 @@ def run_scheduled_dispatch() -> dict:
         task = _pick_task(candidates)
         task_id = task["id"]
 
+        # Resolved once, up front, and reused for both the marker and the
+        # dispatch call itself (rather than letting dispatch_headless_task()
+        # re-derive it internally) -- so a caller reading /in-flight-status
+        # mid-run never sees a fuel_source that could disagree with the one
+        # the dispatch actually used. dispatch_headless_task_sandboxed()
+        # always uses "api_key" internally (confirmed by reading its body),
+        # so there's nothing to resolve on that branch.
+        sandboxed = is_sandboxed_dispatch_enabled()
+        fuel_source = "api_key" if sandboxed else choose_fuel_source()
+
         CURRENT_DISPATCH_PATH.parent.mkdir(exist_ok=True)
         CURRENT_DISPATCH_PATH.write_text(
             json.dumps(
@@ -525,7 +590,8 @@ def run_scheduled_dispatch() -> dict:
                     "task_name": task["name"],
                     "started_at": datetime.now().isoformat(timespec="seconds"),
                     "pid": os.getpid(),
-                    "sandboxed": is_sandboxed_dispatch_enabled(),
+                    "sandboxed": sandboxed,
+                    "fuel_source": fuel_source,
                 }
             ),
             encoding="utf-8",
@@ -546,10 +612,10 @@ def run_scheduled_dispatch() -> dict:
         # handle_dispatch_outcome()/_handle_escalation()/
         # _post_non_clean_comment() below all read), confirmed by direct
         # comparison before wiring this in -- no adapter needed either way.
-        if is_sandboxed_dispatch_enabled():
+        if sandboxed:
             result = dispatch_headless_task_sandboxed(resolved["prompt"])
         else:
-            result = dispatch_headless_task(resolved["prompt"])
+            result = dispatch_headless_task(resolved["prompt"], fuel_source=fuel_source)
 
         # Status transition, logging, and escalation/non-clean handling are
         # all shared with the resume-completion path (triggered later from

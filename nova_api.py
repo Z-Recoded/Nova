@@ -27,6 +27,7 @@
 #   GET  /label-queue               → unlabeled tool-call/blend-flag/dpo-verify entries (JSON)
 #   POST /label-queue/{kind}/{id}/decide → patch a label decision (token-gated)
 #   GET  /training-data-status      → live DPO pair count, coverage, threshold status
+#   GET  /dispatch-cost-summary     → real/notional headless-dispatch spend, today + last 7 days
 #
 # Run:
 #   cd C:/Nova
@@ -66,7 +67,7 @@ from nova_log import (
 from nova_omen_dispatch import resume_headless_task
 from nova_orchestrator import run_coding_task
 from nova_query import ask
-from nova_scheduled_dispatch import handle_dispatch_outcome, is_dispatch_currently_running
+from nova_scheduled_dispatch import get_dispatch_cost_summary, handle_dispatch_outcome, is_dispatch_currently_running
 from nova_sources import SOURCES
 from nova_state import get_state, write_state
 from nova_task_queue import TIER_PENDING_TAG, TIER_TAGS, TIERS
@@ -1096,6 +1097,19 @@ def get_in_flight_status():
     when served from the Omen).
     """
     return is_dispatch_currently_running()
+
+
+@app.get("/dispatch-cost-summary")
+def get_dispatch_cost_summary_route():
+    """
+    Real headless-dispatch spend readout (86bb3ceya) — backs the Nova
+    Controller's "Headless dispatch spend" widget. Thin wrapper, same
+    layering as every other dispatch route here:
+    nova_scheduled_dispatch.py owns the actual log-reading/summing logic.
+    See get_dispatch_cost_summary()'s own docstring for the real_usd vs.
+    notional_usd distinction — deliberately not collapsed into one number.
+    """
+    return get_dispatch_cost_summary()
 
 
 @app.get("/label-queue")

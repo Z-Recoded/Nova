@@ -202,6 +202,12 @@
     color: #3ddc84;
     font-variant-numeric: tabular-nums;
   }
+  .in-flight-fuel {
+    font-size: 0.7rem;
+    margin-left: 0.4rem;
+  }
+  .in-flight-fuel.subscription { color: #888; }
+  .in-flight-fuel.api_key { color: #e0b060; }
 
   /* ── Stories rail ─────────────────────────────────────────── */
   .stories-rail {
@@ -472,6 +478,7 @@
     <p style="margin-left:1rem"><b>Blend flag</b> — did a fiction answer mix details from two different characters? Swipe right if it's fine as-is; swipe left (or tap red) if it genuinely needs a written correction, which opens a text box instead of committing immediately.</p>
     <p style="margin-left:1rem"><b>Verify DPO pair</b> — is an already-written correction (from Claude via <code>nova_corrector.py</code>, or written by hand here) actually good? Swipe right to confirm it, swipe left to flag it as needing rework. This is separate from Blend flag above — that's "does this need a correction written," this is "is the correction that got written actually good."</p>
     <p><b>DPO pairs toward fine-tune</b> — live count of corrected pairs in <code>logs/training_flags.jsonl</code> against the 100-pair floor <code>nova_finetune_phi4.py</code> requires before a real training run. Refreshes every 15 seconds.</p>
+    <p><b>Headless dispatch spend</b> — <i>real</i> is actual metered dollars charged (only dispatches that ran on the funded API key). <i>notional</i> includes every dispatch, including ones that ran on your own Claude Code subscription — those cost no extra money, so notional will usually read higher than real. There's no live per-second cost during an active run — <code>claude -p</code> only reports its final cost once a dispatch finishes, so this widget shows historical totals (today, last 7 days), not the in-flight run's running cost. The in-flight widget above shows a "· subscription" or "· metered" tag instead, so you can tell at a glance whether the run happening right now is free or billed.</p>
     <p>Swipe right or tap the green button for the positive judgment, swipe left or tap the red button otherwise.</p>
     <p><b>Discover</b> — empty for now. Depends on Nova Tutor, which hasn't been built yet.</p>
     <p style="color:#888; font-size:0.8rem; margin-bottom:0">This panel lives in the same file as the UI it explains, so it can't silently go stale as the Feed changes.</p>
@@ -484,7 +491,9 @@
       <span class="in-flight-dot"></span>
       <div class="in-flight-text">
         <div class="in-flight-label">Dispatch running</div>
-        <div class="in-flight-task" id="in-flight-task"></div>
+        <div class="in-flight-task">
+          <span id="in-flight-task"></span><span class="in-flight-fuel" id="in-flight-fuel"></span>
+        </div>
       </div>
     </div>
     <span class="in-flight-elapsed" id="in-flight-elapsed"></span>
@@ -501,6 +510,14 @@
     </div>
     <div class="progress-track"><div class="progress-fill" id="training-status-bar"></div></div>
     <div class="training-status-sub" id="training-status-sub"></div>
+  </div>
+
+  <div class="training-status" id="dispatch-cost-status" style="display:none">
+    <div class="training-status-row">
+      <span class="board-watch-label">Headless dispatch spend</span>
+      <span id="dispatch-cost-today"></span>
+    </div>
+    <div class="training-status-sub" id="dispatch-cost-week"></div>
   </div>
 
   <div class="token-box" id="token-box" style="display:none">
@@ -736,6 +753,17 @@
         document.getElementById('in-flight-task').textContent =
           s.task_name ? escapeHtml(s.task_name) : 'Task detail unavailable';
 
+        const fuelEl = document.getElementById('in-flight-fuel');
+        if (s.fuel_source === 'subscription') {
+          fuelEl.textContent = '· subscription';
+          fuelEl.className = 'in-flight-fuel subscription';
+        } else if (s.fuel_source === 'api_key') {
+          fuelEl.textContent = '· metered';
+          fuelEl.className = 'in-flight-fuel api_key';
+        } else {
+          fuelEl.textContent = '';
+        }
+
         if (s.started_at) {
           inFlightStartedAt = new Date(s.started_at);
           tickInFlightElapsed();
@@ -745,6 +773,36 @@
         }
       } catch (err) {
         document.getElementById('error').textContent = 'Could not load in-flight status: ' + err.message;
+      }
+    }
+
+    // ── Headless dispatch spend (86bb3ceya) ─────────────────────
+    // real_usd = actual metered dollars (api_key-fuel runs only). notional_usd
+    // = claude -p's own cost estimate for every run, including subscription
+    // runs -- those cost $0 real marginal spend, so real_usd and notional_usd
+    // are shown separately rather than combined into one number that could
+    // be misread as "money spent."
+
+    function formatUsd(n) {
+      return '$' + Number(n).toFixed(2);
+    }
+
+    async function loadDispatchCostSummary() {
+      try {
+        const res = await fetch('/dispatch-cost-summary');
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const s = await res.json();
+        clearError();
+
+        const widget = document.getElementById('dispatch-cost-status');
+        widget.style.display = 'block';
+        document.getElementById('dispatch-cost-today').textContent =
+          `${formatUsd(s.today.real_usd)} real · ${formatUsd(s.today.notional_usd)} notional (${s.today.count})`;
+        document.getElementById('dispatch-cost-week').textContent =
+          `Last 7 days: ${formatUsd(s.last_7_days.real_usd)} real · ` +
+          `${formatUsd(s.last_7_days.notional_usd)} notional (${s.last_7_days.count})`;
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not load dispatch cost summary: ' + err.message;
       }
     }
 
@@ -1292,6 +1350,9 @@
 
     loadTrainingDataStatus();
     setInterval(loadTrainingDataStatus, 15000);
+
+    loadDispatchCostSummary();
+    setInterval(loadDispatchCostSummary, 15000);
 
     loadFeed();
     setInterval(loadFeed, 8000);
