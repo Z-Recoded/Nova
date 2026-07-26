@@ -26,15 +26,22 @@
 #      (ssh_patch_training_flags.ps1) that can only patch one file
 #      (training_flags.jsonl), one field at a time, gated by the same
 #      index/timestamp check the local decide route uses.
+#   8. Installs a fifth, relay-only key (worktree-pr) -- also OPT-IN. Never
+#      runs git/gh itself (SSH sessions here can't spawn any process at
+#      all, confirmed during 86bb3ceyj); only relays a create-PR request
+#      to this machine's own already-running nova_api.py, which does the
+#      real work (86bb3ceyf).
 #
 # 2026-07-26 update: added the third ("trainingdata", read-only) key --
 # fixes /training-data-status showing 0/100 on the Omen (it has no
 # training_flags.jsonl of its own) instead of the Aero's real count. Also
 # added the fourth ("trainingflags-write") key so the Controller's
 # blend_flag/dpo_verify swipe cards can actually be decided from the
-# Omen-hosted Controller, not just viewed. Run this again after pulling
-# that change; the first four steps are unchanged and will just report
-# "already done."
+# Omen-hosted Controller, not just viewed. And the fifth ("worktree-pr")
+# key, so the diff-preview-and-merge feature (86bb3ceyf) can push a real
+# GitHub PR for a dispatched task from the Omen-hosted Controller. Run
+# this again after pulling that change; the first four steps are
+# unchanged and will just report "already done."
 
 $ErrorActionPreference = "Stop"
 
@@ -144,7 +151,36 @@ if ($trainingFlagsWriteKey -match '<PASTE_PUBKEY_HERE>') {
     }
 }
 
-Write-Output "7. Restarting sshd to pick up all changes..."
+Write-Output "8. Installing the fifth key (relay-only -- worktree-pr)..."
+Write-Output "   Also opt-in. Unlike the write key above, this one never touches"
+Write-Output "   training_flags.jsonl or any file directly -- it relays a create-PR request"
+Write-Output "   (via Invoke-RestMethod, not a spawned process) to this machine's own"
+Write-Output "   nova_api.py instance, which does the real git fetch/push/gh-pr-create work"
+Write-Output "   (see nova_worktree_pr.py, 86bb3ceyf). Requires nova_api.py to actually be"
+Write-Output "   running locally on the Aero to do anything useful."
+$worktreePrKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_relay_worktree_pr.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 <PASTE_PUBKEY_HERE> omen-to-aero-worktree-pr'
+if ($worktreePrKey -match '<PASTE_PUBKEY_HERE>') {
+    Write-Output "   SKIPPED -- placeholder pubkey not filled in yet. To enable:"
+    Write-Output "     1. On the Omen: ssh-keygen -t ed25519 -N '' -f ~/.ssh/aero_keys/id_ed25519_aero_worktree_pr"
+    Write-Output "     2. Copy its public half (cat ~/.ssh/aero_keys/id_ed25519_aero_worktree_pr.pub)"
+    Write-Output "     3. Paste it into this script in place of <PASTE_PUBKEY_HERE>, then re-run"
+    Write-Output "   Until then, POST /worktree-pr falls back to an honest SSH-transport error"
+    Write-Output "   whenever it's served from the Omen."
+} else {
+    $content = Get-Content $keysFile
+    if ($content -notcontains $worktreePrKey) {
+        $content += $worktreePrKey
+        Set-Content -Path $keysFile -Value $content -Encoding ascii
+        icacls.exe $keysFile /inheritance:r | Out-Null
+        icacls.exe $keysFile /grant "Administrators:F" | Out-Null
+        icacls.exe $keysFile /grant "SYSTEM:F" | Out-Null
+        Write-Output "   Installed."
+    } else {
+        Write-Output "   Already installed."
+    }
+}
+
+Write-Output "9. Restarting sshd to pick up all changes..."
 Restart-Service sshd
 Write-Output "   Done."
 
@@ -154,4 +190,5 @@ Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_agentlog marvi@100.122.2
 Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_worktrees marvi@100.122.229.23 "ignored"'
 Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_trainingdata marvi@100.122.229.23 "ignored"'
 Write-Output '  echo {"kind":"blend_flag","index":0,"expected_timestamp":"...","correction":"test"} | ssh -i ~/.ssh/aero_keys/id_ed25519_aero_trainingflags_write marvi@100.122.229.23 "ignored"'
+Write-Output '  echo {"branch":"nova-dispatch-00000000"} | ssh -i ~/.ssh/aero_keys/id_ed25519_aero_worktree_pr marvi@100.122.229.23 "ignored"'
 Write-Output "(the command argument is ignored either way -- every key always runs its forced script)"

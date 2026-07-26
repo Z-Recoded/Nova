@@ -272,6 +272,15 @@
   .worktree-branch { font-size: 0.9rem; font-weight: 600; color: #ddd; }
   .worktree-path { font-size: 0.75rem; color: #888; word-break: break-all; margin: 0.15rem 0; }
   .worktree-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #999; }
+  .worktree-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+  .worktree-actions .cancel-escalation-btn { display: inline-block; margin-top: 0; }
+  .worktree-action-status { font-size: 0.75rem; color: #999; }
 
   /* ── Stories rail ─────────────────────────────────────────── */
   .stories-rail {
@@ -1057,6 +1066,31 @@
     // (age_days descending) -- the whole point is surfacing stale
     // worktrees, not a chronological feed.
 
+    // Matches nova_worktree_pr.DISPATCH_BRANCH_PATTERN exactly -- only a
+    // real dispatch branch gets Create PR / Discard buttons at all (both
+    // routes re-validate this server-side too; this is just for showing
+    // the right controls, not the real security boundary).
+    const DISPATCH_BRANCH_PATTERN = /^nova-dispatch-[0-9a-f]{8}$/;
+
+    async function createWorktreePr(branch, statusEl, btn) {
+      btn.disabled = true;
+      const result = await tokenPost('/worktree-pr', { branch }, statusEl, null);
+      btn.disabled = false;
+      if (result && result.success) {
+        statusEl.innerHTML = `PR opened: <a href="${escapeHtml(result.pr_url)}" target="_blank" rel="noopener">${escapeHtml(result.pr_url)}</a>`;
+      }
+    }
+
+    async function discardWorktreeEntry(branch, path, statusEl, btn) {
+      if (!confirm(`Discard "${branch}" outright? This deletes the worktree and branch — it cannot be undone.`)) return;
+      btn.disabled = true;
+      const result = await tokenPost('/worktree-discard', { branch, worktree_path: path }, statusEl, loadWorktreeStatus);
+      btn.disabled = false;
+      if (result && result.success) {
+        statusEl.textContent = 'Discarded.';
+      }
+    }
+
     function renderWorktreeMachine(container, label, data) {
       const section = document.createElement('div');
       section.className = 'worktree-machine';
@@ -1101,6 +1135,34 @@
           if (wt.prunable) meta.insertAdjacentHTML('beforeend', '<span class="badge error">prunable</span>');
           if (wt.locked) meta.insertAdjacentHTML('beforeend', '<span class="badge dispatch">locked</span>');
           row.appendChild(meta);
+
+          // Create PR / Discard (86bb3ceyf) -- only for a real,
+          // not-yet-merged dispatch worktree. No custom diff viewer here
+          // by design: "Create PR" pushes the branch and opens a real
+          // GitHub PR, then the Controller just shows the link -- review
+          // and merge happen in GitHub's own already-mobile-friendly UI.
+          if (wt.branch && DISPATCH_BRANCH_PATTERN.test(wt.branch) && !wt.merged) {
+            const actions = document.createElement('div');
+            actions.className = 'worktree-actions';
+
+            const statusEl = document.createElement('span');
+            statusEl.className = 'worktree-action-status';
+
+            const prBtn = document.createElement('button');
+            prBtn.className = 'option-btn';
+            prBtn.textContent = 'Create PR';
+            prBtn.addEventListener('click', () => createWorktreePr(wt.branch, statusEl, prBtn));
+            actions.appendChild(prBtn);
+
+            const discardBtn = document.createElement('button');
+            discardBtn.className = 'option-btn cancel-escalation-btn';
+            discardBtn.textContent = 'Discard';
+            discardBtn.addEventListener('click', () => discardWorktreeEntry(wt.branch, wt.path, statusEl, discardBtn));
+            actions.appendChild(discardBtn);
+
+            actions.appendChild(statusEl);
+            row.appendChild(actions);
+          }
 
           section.appendChild(row);
         });

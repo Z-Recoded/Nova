@@ -32,6 +32,8 @@
 #   GET  /qwen-swap-status          → Qwen3 8B swap-trigger progress (combined on the Aero, Omen-only elsewhere)
 #   GET  /worktree-status           → open git worktrees, both machines, with age/merged/prunable status
 #   POST /dispatch-abort            → kill the currently-running cron-fired dispatch (token-gated)
+#   POST /worktree-pr               → push a dispatch branch + open a draft GitHub PR (token-gated)
+#   POST /worktree-discard          → delete a dispatch worktree+branch outright (token-gated)
 #
 # Run:
 #   cd C:/Nova
@@ -78,12 +80,14 @@ from nova_scheduled_dispatch import (
     get_dispatch_cost_summary,
     handle_dispatch_outcome,
     is_dispatch_currently_running,
+    record_dispatch_review,
 )
 from nova_sources import SOURCES
 from nova_state import get_state, write_state
 from nova_task_queue import TIER_PENDING_TAG, TIER_TAGS, TIERS
 from nova_training_data_status import dispatch_remote_patch, get_combined_training_status, get_training_flags_by_origin
 from nova_training_flags_patch import TrainingFlagsPatchError, patch_training_flags_entry
+from nova_worktree_pr import create_worktree_pr, discard_worktree
 from nova_worktree_status import get_worktree_status
 
 app = FastAPI(title="Nova API", version="0.3")
@@ -1213,6 +1217,59 @@ def get_worktree_status_route():
     production case, Aero side unreachable and honestly reported as such).
     """
     return get_worktree_status()
+
+
+class WorktreePrRequest(BaseModel):
+    branch: str
+
+
+class WorktreeDiscardRequest(BaseModel):
+    branch: str
+    worktree_path: str
+    task_id: str | None = None
+    note: str = ""
+
+
+@app.post("/worktree-pr")
+def create_worktree_pr_route(req: WorktreePrRequest, x_nova_escalation_token: str | None = Header(None)):
+    """
+    Push a dispatch worktree's branch and open a draft GitHub PR for
+    review — backs the Controller's "Create PR" button on worktree
+    browser entries (86bb3ceyf). Thin wrapper: nova_worktree_pr.py owns
+    the real git/gh logic and the Omen<->Aero relay decision.
+
+    No custom diff viewer here by design — Marvin reviews/merges the real
+    PR through GitHub's own already-good, already-mobile-friendly UI; the
+    Controller's job is only to get a real PR link one tap away. Scoped
+    to Omen-hosted headless-dispatch worktrees only (branch must match
+    nova-dispatch-<8 hex chars>, enforced in nova_worktree_pr.py).
+    """
+    _check_escalation_token(x_nova_escalation_token)
+    result = create_worktree_pr(req.branch)
+    if not result.get("success"):
+        raise HTTPException(status_code=422, detail=result.get("error", "Create-PR failed"))
+    return result
+
+
+@app.post("/worktree-discard")
+def discard_worktree_route(req: WorktreeDiscardRequest, x_nova_escalation_token: str | None = Header(None)):
+    """
+    Delete a dispatch worktree and its branch outright — backs the
+    Controller's "Discard" button, the reject half of the review pair
+    alongside /worktree-pr. Records the outcome via the existing
+    record_dispatch_review() (86bawpvzz implication #2) when a task_id is
+    given, same review-tracking mechanism a manual `--review` call uses.
+    """
+    _check_escalation_token(x_nova_escalation_token)
+    result = discard_worktree(req.branch, req.worktree_path)
+    if not result.get("success"):
+        raise HTTPException(status_code=422, detail=result.get("error", "Discard failed"))
+    if req.task_id:
+        try:
+            record_dispatch_review(req.task_id, "discarded", req.note)
+        except Exception as e:
+            result["review_log_error"] = str(e)
+    return result
 
 
 @app.get("/label-queue")
