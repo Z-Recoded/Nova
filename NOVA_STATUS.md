@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-27 01:51 UTC
+Last updated: 2026-07-27 02:26 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,9 +8,7 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- NEW -> ready: 86bb3r0z4 (Evaluate Pocket (heypocket) MCP server as a Nova / life-autosave ingestion source)
-- NEW -> ready: 86bb3r0h4 (Headless-lane equivalent of the pre-action approval gate (86bb3ceym))
-- NEW -> ready: 86bb3qvpa (Integrate slop_linter.py into Nova pipeline (tight mode / STE-100 style check))
+- No category changes since last digest.
 
 ## In progress (3)
 
