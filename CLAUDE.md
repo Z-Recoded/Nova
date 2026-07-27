@@ -10,376 +10,29 @@ is a local-first RAG system with a knowledge graph layer, FastAPI backend, and a
 pipeline for fine-tuning. Nova is not a product — it is a personal tool built incrementally,
 one stable phase at a time.
 
+> **Full build history:** the "why" behind every file, every incident, and the complete dated
+> change log live in `NOVA_BUILD_LOG.md` (repo root) — read it when you need the backstory
+> behind a decision. This file (CLAUDE.md) stays current-facts-only. The file-by-file inventory
+> lives in Section 2's "File Locations" tree below, not duplicated here.
+
 ### Current Phase: Phase 1 — Memory Core (active)
-Nova v0.1 is operational. The following are built and validated:
-- `ingest.py` — document ingestion pipeline into Chroma
-- `nova_query.py` — RAG retrieval + generation via Ollama (LLaMA 3.2 3B)
-- `nova_router.py` — query routing by category
-- `nova_api.py` — FastAPI server (all routes operational except /context-budget — see Section 5)
-- `graph_builder.py` — wikilink graph builder, outputs `nova_graph.json`
-- `nova_watcher.py` — watchdog file monitor (built, deferred — not running)
-- `nova_logger.py` — auto-detects character blending, logs to training_flags.jsonl
-- `nova_corrector.py` — reads flags, generates DPO training pairs via Claude API
-- `nova_chat.py` — CLI chat interface
-- `nova_memory_store.py` — conversation history persistence
-- `nova_benchmark.py` — performance benchmarking
-- `nova_log.py` — Nova Log query telemetry (query_log.jsonl) + Health dashboard data
-- `start_nova.ps1` / `launch_openwebui.ps1` — one-command local launch (nova_api.py + Open WebUI)
-- `nova_config.py` / `nova_config.json` — feature-flag system gating future classical-algorithm
-  augments and framework integrations (all off today); `config_snapshot()` is attached to every
-  query's telemetry in `query_log.jsonl` so flag state is tied to results before any augment exists.
-  **Hardcoded-Windows-path bug fixed 2026-07-16** (same class as the `nova_orchestrator.py` dotenv
-  and `nova_api.py` `GRAPH_PATH` incidents): `CONFIG_PATH` was `"C:/Nova/nova_config.json"` — on the
-  Omen (Linux, runs `nova_scheduled_dispatch.py` natively via cron), `load_config()` silently fell
-  back to `DEFAULT_CONFIG` instead of reading the real, already-present file, with zero error signal.
-  Confirmed live via SSH before fixing. Now resolved relative to the script's own location. Found
-  while building the review-backpressure cap below — would have shipped a gate that's silently
-  always off exactly where it needs to run
-- `nova_mcp_server.py` — standalone MCP server exposing `nova_api.py`'s routes as MCP tools
-  (`nova_query`, `nova_graph`, `nova_neighbors`, `nova_context_budget`, `nova_ingest`) over
-  streamable-http on port 8100; thin `httpx` client over the FastAPI routes, no direct Chroma/Ollama
-  access. Not yet wired into anything — nothing in Nova's own codebase calls it, and no MCP client
-  has been pointed at it
-- `nova_chroma_omen_check.py` — 4-step Chroma-on-Omen reachability probe (raw TCP → HttpClient
-  heartbeat → `nova_memory` collection lookup → a real query), `--host`/`--port` overridable;
-  distinguishes "infra not up yet" from a real code bug before anything gets wired to it
-- `nova_board.py` / `nova_clickup_client.py` — terminal CLI enforcing the ClickUp board's
-  dependency/status house rules (`ready`/`why`/`check`/`audit`/`move`/`block`/`link`/`split`);
-  a cheaper path to board maintenance than round-tripping the ClickUp MCP tools for every action
-- `nova_status_digest.py` — snapshots the board's ready/in-progress/blocked state to
-  `NOVA_STATUS.md`, diffed against the previous run via `.nova_status_snapshot.json`; one-way
-  (Claude Code writes it after sessions that change board state, Claude Chat reads it as a cheap
-  starting point)
-- `nova_chunk_viz.py` — RAG retrieval-audit CLI (`86bara3tj`, stage 1 of 3: CLI → simple web
-  view → Open WebUI debug panel, only CLI built so far). Given a query, prints which chunks
-  Chroma actually retrieved (source, chunk index, distance, character tag), mirroring
-  `nova_query.ask()`'s exact retrieval branching so it reflects real production behavior, not
-  a simplified demo
-- `nova_embedding_viz.py` / `nova_embedding_viz.html` — Embedding-Space Visualization
-  (`86bawjg14`). Projects every Chroma chunk to 2D (`sklearn.manifold.TSNE`, no new pip
-  dependency) so Marvin can visually audit character cluster overlap, with retrieval-hit and
-  DPO-correction overlays. Distinct from `nova_chunk_viz.py` — that debugs one query's
-  results, this audits the whole corpus's cluster structure at once. Served at
-  `GET /embedding-viz` (page) / `GET /embedding-viz/data` (JSON), matching `/nova-log`'s
-  pattern exactly
-- `nova_usage_logger.py` — usage-history-baseline component of `86bawx7vj` (headless Nova
-  coding runner). Scans every local Claude Code session transcript
-  (`~/.claude/projects/**/*.jsonl`, all projects — usage draws from one account-wide
-  subscription pool, not per-project) and aggregates real token usage + estimated cost by
-  calendar day into `logs/claude_usage_history.json` (fully regenerated each run, same
-  convention as `nova_status_digest.py` — not an append log). Exists because `/cost`
-  doesn't work through headless `-p` mode (confirmed live — it gets sent as literal text to
-  the model instead of being intercepted as a UI command); local transcripts already carry
-  the same per-message `usage` data `/cost` would have shown interactively. No live
-  quota-forecast API exists for Claude Code, so this is the self-tracked substitute
-  `86bawx7vj` calls for. **Centralization (2026-07-14):** a `SessionEnd` hook
-  (`.claude/settings.json`, all termination reasons) runs `--push` on every session
-  end, sending this machine's aggregate to `nova_api.py`'s new `POST /usage-history`,
-  which merges it into `nova_state.db`'s `system/claude_usage_history` entity — a
-  deliberate extension beyond Architecture Principles v1.1's original Principle 6
-  list. Push target defaults to the Omen's Tailscale address (`NOVA_API_URL`,
-  `http://100.114.197.117:8001`) — the real cross-machine centralization target from any
-  machine, including the Omen itself. **Activity profile (2026-07-15, `86bawpvzz`
-  groundwork):** the same transcripts also feed `build_activity_profile()`, a second
-  derived artifact — an hour-of-day/day-of-week message-count histogram, windowed to the
-  last 60 days (recent-schedule signal, not diluted by stale history), written to
-  `logs/claude_activity_profile.json` and pushed via the same `--push` flag to `nova_api.py`'s
-  new `POST /activity-profile`, merging into `nova_state.db`'s `system/claude_activity_profile`
-  entity. Exists to find genuine "Marvin is away from Claude Code" windows for the planned
-  autonomous-dispatch dual-fuel design (subscription auth by default, fall back to a funded
-  metered key once usage headroom gets low) — a real activity histogram instead of a guessed
-  reserve percentage. Deliberately Claude Code only: claude.ai chat activity timing isn't
-  obtainable on a personal (non-Enterprise) plan, checked directly against Anthropic's
-  Usage/Cost and Enterprise Analytics API docs before assuming otherwise
-- `nova_tool_call_log.py` — tool-call logging schema for the coding sub-agent
-  (`86bawntpb`). One JSONL entry per tool call (`logs/tool_call_log.jsonl`) —
-  `tool_call_id`, `agent`, `session_id`, `tool`, `args`, `result`
-  (success/error — `timeout` isn't distinguishable yet, `run_command` has no
-  separate timeout signal), `latency_ms`, plus `was_necessary`/`was_used`
-  fields that start `null` and get filled by a future async judge-pass or
-  manual flag (not built — see `86bawntpm`). Wired into
-  `nova_orchestrator.py`'s `_execute_tool` (logs every call regardless of
-  caller; `session_id` is optional so the LangGraph path, which doesn't pass
-  one yet, degrades safely rather than breaking). **Deliberately interim**:
-  `86bax697m` (Langfuse, confirmed as the definite direction) is expected to
-  absorb this as trace/observation instrumentation later — built now anyway
-  per Marvin's explicit sequencing call, accepted as throwaway once Langfuse
-  actually lands
-- `nova_omen_dispatch.py` — headless task dispatch on the Omen, the real
-  "invocation" step of `86bax0exx`'s orchestration layer. Wraps
-  `claude -p --worktree` over SSH (Tailscale IP, works whether or not the
-  Aero is on the same LAN) — worktree isolation uses Claude Code's own
-  native `--worktree` flag, not `nova_orchestrator.py`'s hand-rolled
-  version. Proven live 2026-07-14: `dispatch_headless_task()` returns a
-  clean structured result (session_id, summary, cost, stop_reason).
-  **Bounding mechanism, honestly stated**: this CLI version has no
-  `--max-turns` flag (checked directly) — a wall-clock subprocess timeout
-  (30 min) is the real safety backstop, not a turn count, contrary to what
-  `86bawx7vj`'s original spec assumed was available. Invocation primitive
-  only — no task-queue polling, no real escalation *detection* logic
-  (`86bax0wkj`, still not built). Pause-at-will and the escalation-hook
-  interface itself now exist, see `nova_escalation.py` below. Never
-  merges/deletes its own worktrees, matching `nova_orchestrator.py`'s
-  safety model exactly. **Dual-fuel credential switch (2026-07-16,
-  `86bawpvzz` groundwork):** `dispatch_headless_task()` now picks which
-  credential `claude -p` uses per run via `choose_fuel_source()` — defaults
-  to the Omen's own Claude Code subscription login (confirmed live via
-  `claude auth status`: Pro plan, no `ANTHROPIC_API_KEY` in the shell env)
-  for hours confirmed idle against the real Claude Code activity profile
-  (`/activity-profile`), falls back to the Omen's existing funded metered
-  `ANTHROPIC_API_KEY` otherwise. Three decisions confirmed directly with
-  Marvin rather than assumed: hardcoded `America/Chicago` timezone via
-  stdlib `zoneinfo` (a real bug surfaced live here — Windows has no system
-  IANA tz database, fixed by adding the `tzdata` pip package, confirmed
-  with Marvin first since it's a new dependency), an hour only counts as
-  idle at exactly zero messages across the profile's 60-day window (the
-  strictest option offered), and any missing/ambiguous signal fails toward
-  the metered key, never toward assumed-idle. Only `"zeed"`'s (the Aero's)
-  activity profile counts as the human-activity signal — the Omen's own
-  dispatched-task sessions would land under a different source-machine key
-  if ever logged, and must never be mistaken for Marvin's own usage.
-  Credential handling itself: `env -u ANTHROPIC_API_KEY -u
-  ANTHROPIC_AUTH_TOKEN` immediately before the `claude` invocation for the
-  subscription path (strips at exec time regardless of shell startup
-  state); the metered path extracts only `ANTHROPIC_API_KEY` from `.env`
-  via the Omen's own venv + `python-dotenv` rather than sourcing the whole
-  file — confirmed live that headless `claude -p` uses Claude Code's native
-  Bash tool (no `.mcp.json` registers `nova_tools.py`'s restricted-env
-  wrapper for this path), so a blanket `source .env` would leak
-  `CLICKUP_API_KEY`/`RUNPOD_API_KEY` into every tool call for no reason.
-  **Verified live, both paths for real:** one real dispatch each with
-  `--fuel-source subscription` and `--fuel-source api_key`, both
-  `stop_reason: end_turn`. Found along the way that `claude -p`'s own
-  `cost_usd` field is an estimate independent of which credential actually
-  authenticated the call, not a reliable way to tell the paths apart after
-  the fact — verified the real mechanism instead by directly observing
-  `ANTHROPIC_API_KEY`'s presence/absence over SSH for each constructed
-  shell prefix (subscription: confirmed empty; metered: confirmed present,
-  without ever printing the real key)
-- `nova_escalation.py` — escalation-hook stub + pause-at-will switch for
-  headless dispatch, step 5 of `86bax0exx`'s checklist. Its own module
-  (not folded into `nova_omen_dispatch.py`), mirroring why
-  `nova_token_budget.py` isn't folded into `nova_orchestrator.py` — this
-  is a plausible second caller for `nova_orchestrator.py`'s own worktree
-  loop later, not just the Omen dispatch path. `check_escalation()` is a
-  stub only — always `{"escalation_needed": False}` — taking the generic
-  result dict `dispatch_headless_task()` already returns rather than raw
-  Claude Code CLI session internals, per `86bax0exx`'s requirement that
-  the interface stay backend-agnostic (Claude Code CLI today,
-  OpenHands+local-model later). `is_dispatch_paused()`/
-  `set_dispatch_pause()` are real, not stubbed — built 2026-07-14 after
-  Marvin explicitly asked for the ability to pause the headless runner at
-  will ("no simultaneous building between me and the headless session").
-  State persists to `nova_state.db` (`system/dispatch_pause`, a
-  deliberate extension beyond Principle 6's original list, same
-  precedent as `claude_usage_history`) rather than a local JSON file —
-  `nova_state.db` is the "current reality" layer a future Controller UI
-  (`86bax0wkj`) would read/write anyway. `nova_omen_dispatch.py`'s
-  `--pause "<reason>"`/`--resume` CLI flags are the only lever today,
-  since no Controller UI exists yet. Verified live 2026-07-14: a real
-  dispatch was blocked cleanly while paused (no SSH call fired), then
-  fired normally end-to-end once resumed, returning a real
-  `"escalation": {"escalation_needed": false}` key. **Cross-machine fix
-  (2026-07-16):** `is_dispatch_paused()`/`set_dispatch_pause()` used to
-  import `nova_state.py` directly — broke silently the moment anything
-  checked pause state natively on the Omen (`nova_scheduled_dispatch.py`
-  below), since `nova_state.py`'s `DB_PATH` is a hardcoded Windows path
-  that resolves to a disconnected file on Linux (confirmed live: found
-  the Omen's own accidental copy at
-  `/home/marvinroyal5/nova/C:/Nova/nova_state.db`, invisible to a pause
-  set from the Aero). Fixed by routing both functions through the Omen's
-  own `nova_api.py` (new `POST`/`GET /dispatch-pause`) instead — same
-  canonical-FastAPI-layer pattern the activity profile already uses.
-  `is_dispatch_paused()` fails toward `paused=True` on any network error;
-  `set_dispatch_pause()` does not fail silently, since a pause Marvin
-  explicitly requests needs to be visibly confirmed, not swallowed.
-  **`check_escalation()` shipped for real (2026-07-18, `86bax0wkj`)** —
-  no longer a stub. Real regex parsing of a `NOVA_ESCALATION_START/END`
-  block (see CLAUDE.md's Escalation Protocol subsection above for the
-  exact format) out of a dispatch/resume result's own summary text, pure
-  parsing/no I/O so it's reusable from both `dispatch_headless_task()`
-  and the new `resume_headless_task()` in `nova_omen_dispatch.py`.
-  Alongside it: `dispatch_headless_task()` now always creates an
-  explicitly-named worktree and captures its real path via a before/after
-  `git worktree list --porcelain` diff (needed so a resume can `cd` back
-  into the exact same worktree); `resume_headless_task()` runs
-  `claude -p --resume <session_id>` with no `--worktree` flag, and
-  deliberately does not call `is_dispatch_paused()` — answering a direct
-  question was confirmed with Marvin as a different act than a new
-  autonomous run starting mid-build; and agent-log ingestion is now
-  idempotent via a per-session turn cursor
-  (`logs/agent_log_ingest_cursor.json` on the Omen), so a resumed
-  session's earlier turns don't duplicate into the training corpus. The
-  pause/package/notify/wait/resume flow this hook feeds lives in
-  `nova_scheduled_dispatch.py`'s `_handle_escalation()` and `nova_api.py`'s
-  new `/escalations` routes + `nova_escalations.html` UI — see the
-  Escalation Protocol subsection and Section 7's route table
-- `nova_omen_sync.py` — one-command sync for the Omen's MAIN checkout
-  (distinct from `nova_omen_dispatch.py`'s worktree path above, which
-  already self-syncs by fetching fresh from origin every run). Collapses
-  the sequence that caused the earlier 15-commit stale-clone incident
-  (Section 2, "HP Omen Headless Server") into one call: `git pull` →
-  restart `nova-api`/`nova-chroma` (skipped if nothing new pulled) →
-  confirm both are listening again via TCP probe. Deliberately
-  manual-trigger only, not a git post-push hook — Marvin's explicit call,
-  keeping a human decision point before new code goes live on the Omen,
-  matching the review-before-merge posture `nova_orchestrator.py`'s
-  worktrees already use. Requires a one-time scoped sudoers grant on the
-  Omen (`NOPASSWD` for exactly `systemctl restart nova-api` and
-  `systemctl restart nova-chroma`, nothing broader) — added and verified
-  live 2026-07-14. Proven end-to-end the same day: real `git pull` over
-  SSH, real service restart via the new sudoers grant, real TCP
-  reachability confirmation on both `8001` and `8000` after restart
-- `nova_task_queue.py` — readiness detection + task resolution, steps 1
-  and 2 of `86bax0exx`'s checklist. `get_ready_tasks()` reuses
-  `nova_clickup_client.get_unresolved_blockers()` (the same dependency-
-  chain check `nova_board.py`'s `ready` command already applies) plus a
-  status/description-length filter. `resolve_task_description(task_id)`
-  builds the exact prompt `nova_omen_dispatch.dispatch_headless_task()`
-  expects. **Two scope decisions, confirmed with Marvin 2026-07-14:**
-  scope text comes from ClickUp's own `description` field, not the
-  linked Google Drive doc the original spec named — Nova's runtime has
-  zero Drive credentials anywhere (`.env` has only three unrelated API
-  keys, no code calls the Drive/Docs API); and this stays "functions
-  Marvin calls by hand" (`--list-ready`/`--resolve`/`--dispatch <task_id>`
-  CLI) rather than an auto-picking loop, since `86bawpvzz` already
-  flagged autonomous task selection as its own unresolved trust-boundary
-  question. **Real finding from the first live `--list-ready` run:** it
-  returned ~100 of the board's ~110 backlog tasks as "ready" — technically
-  correct (zero ClickUp-native dependency links + a real description),
-  but confirms `86bawpvzz`'s implication #3 concretely: most real-world
-  blockers (financial-decision tasks, research-only tasks, a task
-  literally named "gate — do before further self-hosting work" with no
-  enforced ClickUp dependency) aren't encoded as dependencies at all, so
-  "ready" here means "not explicitly blocked," not "safe to dispatch
-  unattended." **Scheduler wired in (2026-07-16):** `get_ready_tasks()`
-  now also returns each task's `tags`, and new `get_practice_queue_tasks()`
-  filters further to tasks tagged `"autonomy-safe"` on the board — a
-  deliberate, narrow carve-out of the "no auto-picking" rule above, not a
-  reversal: auto-selection only applies within this small, hand-curated
-  subset. Full-backlog auto-selection is still out of scope, still
-  blocked on `86bawpvzz`'s same unresolved trust-boundary question. See
-  `nova_scheduled_dispatch.py` below for the actual cron-fired consumer.
-- `nova_scheduled_dispatch.py` — the real cron entry point for
-  `86bax0exx`'s invocation/monitoring steps, confirmed with Marvin to fire
-  every 2 hours via a **user crontab entry on the Omen** (`crontab -e` as
-  `marvinroyal5`, no `sudo`) — the only viable trigger of three real
-  options considered. Ruled out both of Claude Code's own scheduling
-  tools first, not assumed: `CronCreate` is session-only (dies when the
-  conversation that created it ends) and `RemoteTrigger`/the `schedule`
-  skill bills through the metered Messages API, never touching the
-  Omen's own `claude -p` subscription login — either would have silently
-  defeated the whole dual-fuel design. Picks one task per firing from
-  `nova_task_queue.get_practice_queue_tasks()`, dispatches via the
-  existing, unmodified `nova_omen_dispatch.dispatch_headless_task()` (the
-  Omen SSHes to itself over a new, dedicated no-passphrase `ed25519`
-  keypair, scoped only to this loop — not reusing `id_ed25519_github`,
-  same narrow-scoping discipline). Deliberately does **not** add a
-  "skip SSH when local" branch to `dispatch_headless_task()` — that would
-  be a second, untested code path for exactly the unattended case where
-  proven behavior matters most. Transitions the ClickUp task to
-  `"in progress"` only when the dispatch result carries a real
-  `session_id` (a genuine round-trip happened, whether the task itself
-  succeeded or reported a real blocker) — not keyed off `success`, so a
-  transient SSH/timeout failure naturally retries next cycle instead of
-  getting stuck, and a completed-but-blocked run still leaves `"to do"`
-  for Marvin to review rather than being silently re-picked forever. A
-  simple atomic-lock file (`O_EXCL`, not check-then-write) prevents
-  overlap with a still-running previous firing. Logs every attempt to
-  `logs/scheduled_dispatch_log.jsonl` (no rotation — same accepted,
-  deferred scope as `86barby7t` at this log's much lower volume).
-  **Known, accepted gap:** one task per 2-hour firing bounds the *rate*
-  of new dispatches (max 12/day) but isn't the deferred review-bandwidth
-  backpressure feature (`86bawpvzz` implication #2) — there's no
-  awareness of how many past results are still unreviewed. The real
-  mitigation is that the curated `autonomy-safe` queue is finite and
-  depletes as tasks leave `"to do"`, capping unreviewed pileup at "queue
-  size," not unbounded. **Review-bandwidth backpressure shipped 2026-07-16
-  (`86baykvan`, `86bawpvzz` implication #2):** `record_dispatch_review(task_id,
-  "merged"|"discarded", note)` appends to a new `logs/dispatch_review_log.jsonl`
-  (a human calls this by hand after reviewing a dispatched task's actual
-  outcome — mirrors `nova_orchestrator.py`'s `record_task_outcome()` discipline,
-  keyed by `task_id` instead of branch since `scheduled_dispatch_log.jsonl`
-  entries don't carry one). `count_unreviewed_dispatches()` diffs
-  `scheduled_dispatch_log.jsonl` entries with a real `session_id` against
-  reviewed `task_id`s. Gated behind `nova_config.json`'s
-  `scheduled_dispatch.review_backpressure_enabled` (default off) +
-  `max_unreviewed_dispatches` (default 3) — when on, `run_scheduled_dispatch()`
-  checks this right after the pause check (before acquiring the lock) and
-  returns `{"status": "review_backlog_full"}` without picking a task once the
-  cap is hit. New `--review TASK_ID OUTCOME [--note]` / `--unreviewed-count`
-  CLI flags. Verified live: pause check confirmed to still take priority
-  (dispatch is currently paused, by Marvin's own explicit switch — the new
-  gate correctly never got reached); `count_unreviewed_dispatches()` and
-  `record_dispatch_review()` verified directly against seeded fake entries
-  (3 unreviewed → 2 after recording one review). **Backfilled same day:**
-  the two real pre-existing dispatches (`86bayjdrh` discarded — its own
-  smoke-test deliverable was never actually merged, confirmed by reading
-  the live file; `86baux7bb` merged — `docs/chonkie_evaluation.md`, commit
-  `c7bf612`) — `count_unreviewed_dispatches()` now correctly reads 0.
-  `86bayjdrh` also deleted from the board per its own stated cleanup step.
-  **Observability Layer 1 shipped same day (`86baykvb7`, `86bawpvzz`
-  implication #6):** `_is_clean_outcome(result)` (session_id present AND
-  success True — everything else is "non-clean") gates a new
-  `_post_non_clean_comment()`, called from both the resolve-failure branch
-  and after `_log_outcome()` in the main dispatch path. Posts a ClickUp
-  comment on the dispatched task (error/stop_reason/session_id/fuel_source/
-  cost/summary, whichever fields are present) — the only notification
-  channel that works today (Open WebUI push doesn't exist, Slack/email
-  need credentials Nova lacks). Required adding `add_comment(task_id,
-  comment_text)` to `nova_clickup_client.py` — no comment-posting function
-  existed there before. Best-effort, non-fatal (a comment failure can't
-  take down a dispatch that already happened), and deliberately does not
-  invent stuck-run detection — `check_escalation()` stays a stub
-  (`86bax0wkj`), this only reports what the result dict already says.
-  Verified live against a real disposable ClickUp task (created, two real
-  comments posted via `_post_non_clean_comment()` for both the "dispatch"
-  and "resolve" phase formats, comment text confirmed via
-  `get_task_comments`, task deleted after). Layer 2 (`/dispatch-log` route
-  + dashboard tile, reconciled with `86bax4akx` first) and Layer 3 (real
-  phone push, Langfuse) remain deferred per `86baykvb7`'s own layered
-  design
-- `nova_agent_log_status.py` — read-only cross-machine status check for
-  Phase 3.5's Qwen3 8B swap trigger (~30-50 diverse real task transcripts
-  in `agent_log.jsonl`, 20% held out). Closes a real gap found 2026-07-16:
-  `agent_log.jsonl` exists as two separate files — the Aero's (interactive
-  `nova_orchestrator.py` runs) and the Omen's (headless dispatch, converted
-  from the Claude Code session transcript — see `nova_omen_dispatch.py`) —
-  and nothing combined them, so "how much do we have toward the swap
-  trigger" was un-answerable. Reads the Aero's local file directly, fetches
-  the Omen's over SSH (same host/user/path `nova_omen_dispatch.py` already
-  uses), groups both by `task_slug` (not `branch` — the Omen's converted
-  entries report `"master"` for `gitBranch` on `--worktree` sessions, a
-  known caveat already documented there). **Deliberately not a
-  `nova_state.db` entity** — confirmed with Marvin before building, chosen
-  over mirroring the `usage_history`/`activity_profile` push-and-merge
-  pattern (`POST`/`GET` routes, `SessionEnd`-hook auto-push): those serve a
-  live dashboard need that's real today; this only answers an occasional
-  manual question, so a fetch-fresh-every-run CLI avoids adding persisted
-  state + auto-push wiring ahead of a real second consumer — same
-  discipline as the GPU-inference-seam and MCP-tool-calling scoping calls
-  earlier in this log. **Real finding from the first live run:** raw
-  task_slug count (20 combined: 19 Aero + 1 Omen) overstates true task
-  *diversity* — 3 of the 19 Aero slugs are retries of the same two
-  underlying tasks (the resource headroom calculator alone was attempted 3
-  times before it landed), each retry getting its own worktree and its own
-  task_slug. Not deduped programmatically (would need correlating task
-  text/outcome across retries, more machinery than a status check
-  warrants) — flagged plainly in the CLI's own printed report instead of
-  presented as a clean number.
+Nova v0.1 is operational — all core pipeline files (`ingest.py`, `nova_query.py`,
+`nova_router.py`, `nova_api.py`, `graph_builder.py`, `nova_logger.py`, `nova_corrector.py`,
+`nova_chat.py`, `nova_memory_store.py`, `nova_benchmark.py`, `nova_log.py`) are built and
+validated. See Section 2's file tree for the full current inventory.
 
 ### Phase Roadmap
 - Phase 0    | Foundation             | ✓ Complete
-- Phase 1    | Memory Core            | ✓ Operational — Nova Log: Health, Query, and Benchmark views all live (see Section 7); only Pipeline view remains, genuinely blocked on the content pipeline (Phase 6, `86bage4ff`); log rotation still deferred
-- Phase 1.5  | Self-Monitoring        | Resource headroom calculator ✓ v1 live (2026-07-05 — `nova_headroom.py`, `GET /headroom`); Task Scheduler auto-start for nova_api.py/Open WebUI ✓ shipped (`nova_watcher.py` itself still not auto-started); periodic benchmarking suite ✓ v1 live (`nova_benchmark.py --golden`) — real Llama 3.2 3B baseline established in `logs/benchmark_log.jsonl`, doubling as the eval harness for Phase 3/3.5's model-swap criteria below
-- Phase 1.75 | Retrieval Intelligence | Backlog, build-first foundation laid — feature-flag system ✓ v1 live (2026-07-06, `nova_config.py`/`nova_config.json`, all flags off; `config_snapshot()` wired into every query's `query_log.jsonl` entry so flag state is tied to results before any augment exists). Remaining: A* graph traversal + document-level embeddings for the heuristic, DP context-window packing, priority-queue routing, two-tier memory decay, weighted wikilinks, link-aware ingestion upgrade — each will gate on a flag already defined above
-- Phase 2    | Voice & Capture        | **Explicitly greenlit early, in progress (`86baeyg3q`, confirmed with Marvin 2026-07-12)** — Whisper Distil (STT) + Piper (TTS) + "Hey Nova" wake word + iPhone/Apple Watch quick-capture, target 2-4s full round-trip, explicit-consent-only (no passive public capture). This is a deliberate exception to the "don't build Phase 2+ without explicit instruction" rule below, not a stale status — confirm with Marvin if picking this back up after a gap to make sure the exception still stands
-- Phase 2.5  | Agent Layer            | Backlog — file CRUD ✓ v1 live (`nova_tools.py`); Nova MCP Server ✓ v1 live (2026-07-06, `nova_mcp_server.py`, wraps `/ask` `/graph` `/neighbors` `/context-budget` `/ingest` as MCP tools over streamable-http:8100) but not yet wired to any MCP client or into `nova_orchestrator.py` itself — `mcp`/`httpx` are installed in `nova-env` but this is an unused standalone server until something connects to it; Docker sub-agent orchestration deferred, see Phase 3.5. **Browser Hands harness (M1) ✓ v1 live (2026-07-10, ClickUp `86barqzmv`):** `browser_hands/` package (`harness/cdp_connect.py`, `retry.py`, `selector_discovery.py`, `tree_walk.py`, `state_writer.py`, `config/sites.yaml`) — CDP-attach-only browser automation foundation, generalized from the proven `C:\Projects\developer_tools\base44_export.py` reference script. No automated login, ever (hard rule). Adapters (M2 PiSignage health-check `86barqztk`, M3 website audit `86barqzy8`, M4 subscription audit `86barr02x`, M5 Base44 conform `86barr06e`) are separate, still-backlog tasks — `browser_hands/adapters/` stays empty until then. New `playwright` dependency (pip package only, no browser-binary download needed since it only ever attaches to Marvin's own already-running Chrome). Writes to a new `browser_tasks` table in `nova_state.db`, separate from the generic `domain_state` table (an event log, not a state snapshot)
-- Phase 3    | First Fine-Tune        | Backlog — Unsloth + DPO → GGUF → Ollama (conversational/lore lane). **Base-model re-eval: DONE, verdict is stay on Llama 3.2 3B (2026-07-21) — see the full evaluation-protocol paragraph at the end of this line.** **Swap trigger, now measurable:** `nova_benchmark.py --golden` (Phase 1.5) established a real Llama 3.2 3B baseline in `logs/benchmark_log.jsonl` (8 golden queries across every router category — latency, routing accuracy, fiction blend rate); a candidate model must clearly beat that logged baseline, re-running the same script, before a swap — not a fixed timeline. **Model-swap eval wrapper ✓ v1 live (2026-07-10, `nova_benchmark.py --evaluate <model>`):** one command pulls a candidate, runs the golden benchmark on it for real (fixed a real bug first — `run_golden_benchmark`'s `model_label` used to only change the log tag, never the actual model used for generation), and prints a pass/fail verdict against the logged baseline with per-metric deltas. **Dynamic model routing ✓ mechanism live (2026-07-10, `nova_config.json`'s `model_routing`, default off):** `nova_query.ask()` resolves a per-category model via `get_routed_model()` instead of a single hardcoded constant — every category maps to `llama3.2` today (the only model actually adopted), so behavior is unchanged by default; swapping in Phi-4 Mini/Qwen3 8B once either is actually adopted (still blocked on `86bagf51n`/`86bagek35`/`86bara7zk`, all backlog) is a config edit, not a code change. Verified live by temporarily routing one category to `llama3.1:8b` (the other model already pulled locally) and confirming the logged model field showed the swap really happened. **Dual-model VRAM fit — NO-GO, confirmed empirically 2026-07-11 (`86bagek35`):** `qwen3:8b` alone uses 86% of the Aero's 8GB card (real `nvidia-smi` measurement — Ollama's own `ollama ps` "SIZE" column undercounts by ~1.5GB, CUDA context/KV cache overhead isn't included there); loading `phi4-mini` alongside it evicts it every time, confirmed both directions, regardless of `OLLAMA_MAX_LOADED_MODELS`. The routing *mechanism* above is unaffected (pure config lookup, no model management), but in practice a category switch that lands on a cold model means a real load/unload latency hit, not instant switching — factor this into how aggressively categories get split across models vs. kept on one default once dual-model routing is revisited. Also surfaced: Qwen3 ships with "thinking mode" on by default, likely inflating the original `86bauwqqd` benchmark's 15728ms average — re-benchmark with `think=False` before drawing conclusions on Qwen3 8B's real fitness. Still open on `86bagek35`: context-fill latency at 8K/32K/64K/128K, quality comparison, cold-start latency, VRAM headroom with Chroma actually running (all prior tests had Chroma off — real headroom is lower now that it's live on the Omen). **Fine-tune pipeline re-scoped for Phi-4 Mini, `86bagf51n` (2026-07-21):** built `nova_finetune_phi4.py` — Unsloth QLoRA DPO training script (`unsloth/Phi-4-mini-instruct-bnb-4bit`, LoRA rank 32, LR 2e-4, batch 2 × grad-accum 4, seq len 8192, gradient checkpointing on) that reads corrected pairs directly out of `logs/training_flags.jsonl` (same file `nova_corrector.py` writes to), applies Phi-4 Mini's real chat template (`<|user|>...<|end|><|assistant|>`, confirmed live from the tokenizer, not assumed), and exports GGUF at Q4_K_M for a straight Ollama pull-back. **Confirmed with Marvin: trains fully on the Aero's own RTX 5070, not a RunPod/Vast rental** — the re-scope doc's own VRAM math (4-6GB at this config) fits the 8GB card, superseding `86baeyg1h`'s older RunPod-rental task text (written before Phi-4 Mini was locked in as the target). **Real blocker found and fixed to make that possible:** `nova-env`'s `torch` was CPU-only (`2.12.0+cpu`, `cuda available: False`) despite the RTX 5070 sitting right there unused — the same gap flagged during the voice-pipeline work, but a hard blocker here since Unsloth's QLoRA path needs CUDA (`bitsandbytes` has no CPU path). Fixed by reinstalling `torch`/`torchaudio`/`torchvision` as CUDA builds — real trial-and-error on the exact CUDA index: `cu130` installed but silently reported `cuda available: False` (driver only supports up to CUDA 12.9, cu130 needs a newer one); `cu128` matched the driver and confirmed real CUDA ops on the RTX 5070 (Blackwell, compute capability 12.0); then Unsloth's own install downgraded `torch` again to a CPU build via its transitive resolver, requiring a second reinstall pinned to `torch<2.11.0` (Unsloth's real, undeclared-in-`pip show` ceiling, only surfaced via pip's own dependency-conflict warning) — settled on `torch==2.10.0+cu128` / `torchvision==0.25.0+cu128` / `torchaudio==2.10.0+cu128`. `transformers` also moved `5.10.2` → `5.5.0` as part of Unsloth's resolver — re-verified live that `nova_voice.py`'s `distil-whisper` STT pipeline still loads and now runs on the GPU instead of CPU, a real bonus fixing the voice pipeline's previously-flagged CPU-only slowness as a side effect. `requirements.txt` regenerated via a full `pip freeze` (this repo's established convention — every transitive dependency pinned, not a curated top-level list). **Verified live, not just reviewed:** a real `--dry-run` run against the 11 existing corrected pairs loaded the actual quantized model, attached a real LoRA adapter (17.8M trainable params, 0.46% of 3.85B), and ran 3 real DPO training steps on this hardware — loss dropped 0.693 → 0.414 and `rewards/accuracies` hit 1.0 by the third step, confirmed mechanically working end-to-end, entirely within the 8GB card. **Explicitly not done, per the doc's own floor:** GGUF export wasn't exercised live (no real trained adapter exists yet to export), and `run()` hard-refuses a non-dry-run invocation below `MIN_REAL_PAIRS = 100` — real corrected pairs are still only 11 (unchanged since 2026-07-05), so `86baeyg1h` (the actual production run) stays blocked on accumulation, not on anything this task was scoped to fix. `nova_config.json`'s `model_routing.default_model` was deliberately **not** flipped to `phi4-mini` — that's `86bagek35`'s call once its own routing validation (still in progress) lands, not this task's. **`86bagek35` closed out same day (2026-07-21):** its own remaining checklist — context-fill latency at 8K/32K/64K/128K, cold-start latency, VRAM headroom with Chroma running — is now fully addressed. Added `test_context_fill()`/`run_context_fill_benchmark()` and `test_cold_start()` to `nova_benchmark.py` (new `--context-fill MODEL`/`--cold-start MODEL` CLI flags) — distinct from the pre-existing `test_context_size()`, which only allocates an empty `num_ctx` buffer and times a short prompt; the new function fills the context with real content up to each target size (measured with Phi-4 Mini's actual Hugging Face tokenizer, not a char-count guess) before timing generation, which is what "context fill latency" actually asks for. **Real numbers, run live against `phi4-mini` on the Aero:** 8K → 7.4s, 32K → 15.8s, 65K → 58.2s, full 128K → 171.2s (~2m51s) — latency scales with context size as expected, no failures at any size. Cold start (unload via `ollama stop`, then time a fresh request): 4.3s. **"VRAM headroom with Chroma running" is now moot, not measured** — Chroma moved off the Aero entirely to the Omen (`HttpClient` over the network) after this task was originally scoped, so it no longer competes for local VRAM regardless of what's loaded in Ollama. Found and fixed a real latent bug while building these: both new functions originally called bare `ollama.chat()` (matching `test_context_size()`'s own existing pattern) and failed outright with `OLLAMA_HOST=0.0.0.0` set in the shell — the exact bind-all-address gotcha `nova_query.py` already guards against via its own `ollama_client`; fixed by reusing `nova_query.ollama_client` instead (the pre-existing `test_context_size()` still has this same latent bug, left untouched since fixing it wasn't part of this task). One minor, harmless finding: the context-fill prompt builder overshot the 128K target by 8 tokens (131,080 vs. 131,072), tripping a benign tokenizer length warning — Ollama processed it successfully anyway, noted rather than hidden. **Full base-model evaluation protocol run for real, same day (2026-07-21) — verdict: stay on Llama 3.2 3B.** Prompted by the Phi-4 Mini speed finding above contradicting the hardware doc's "2-3x faster" claim: rather than trust any doc claim again, ran every real candidate through Nova's own golden-query suite (the actual metric the Phase 3 swap trigger gates on) fresh, in one session, to eliminate cross-day noise. **Caught a second real doc error first:** "Llama 3.3 8B" in the Hardware Profile & Model Comparison doc does not exist — Meta only ever released Llama 3.3 as 70B (43GB, confirmed via Ollama's own library listing) — dropped from the evaluation entirely, nothing to test. Added `gemma3:4b` (confirmed real, 3.3GB) as the replacement fifth candidate. **Fixed Qwen3's thinking-mode measurement bug for real this time:** added a `think` parameter threaded through `nova_query.ask()` → `nova_benchmark.py`'s `_run_single_golden_query()`/`run_golden_benchmark()`/`evaluate_candidate()` (new `--no-think` CLI flag; `None` by default, so every existing call site is behaviorally unchanged), forwarding to `ollama.Client.chat()`'s own `think` kwarg only when explicitly set. Also added a `think` field to logged `benchmark_log.jsonl` entries so a `think=False` run is distinguishable from an old default-thinking-mode one without re-deriving it from latency alone. **Real results, all fresh same-session runs:** llama3.2 (baseline) 3135ms; llama3.1:8b 4251ms (FAIL); phi4-mini 4247ms (FAIL); qwen3:8b with `think=False` 7133ms — down from the old default-thinking 15728ms, confirming that bug was real, but still FAIL; gemma3:4b 4481ms (FAIL). Blend rate tied at 0% across every model this round (including phi4-mini, which showed 33.3% on the earlier single-run test — a reminder that blend detection is noisy run-to-run and single-sample comparisons across different days aren't reliable). **Every real candidate fails Nova's own swap criteria, unambiguously** — Llama 3.2 3B is the fastest model on this actual RAG workload on this hardware, not close, despite having the weakest general benchmarks (MMLU/HumanEval) of the five per the hardware doc. Not treated as a permanent verdict — these are 8 simple sanity queries, not a stress test of reasoning depth on hard queries, so this specifically answers "is a swap justified today," not "will a swap ever be justified"
-- Phase 3.5  | Coding Agent Lane      | ✓ v1 live (2026-07-05) — Claude API-backed coding sub-agent (`nova_orchestrator.py`), git-worktree isolated, no Docker/OpenHands yet (deferred as a hardening pass); proven on 6 real merged tasks so far (headroom calculator, `start_nova.ps1` hardening, router integration + its own live test, Nova Log Query view, the golden benchmark suite itself). **Qwen3 8B swap trigger, not a fixed date:** (1) ~30-50 diverse real task transcripts accumulated in `logs/agent_log.jsonl` — already happening automatically every real `/agent/task` run, not a separate curation project; (2) ~20% held out as a never-trained-on eval set (same benchmarking suite as Phase 1.5/3); (3) swap only once Qwen3 clears a defined pass bar against that held-out set (completion rate within turn budget, no worse than Claude's baseline on the same tasks) — this is the path to Nova coding independently. **LangGraph orchestration v1 live (2026-07-10, ClickUp `86bat0u81`):** `nova_orchestrator.py`'s per-task turn loop can now run through `nova_orchestrator_graph.py` (new file) instead of the original inline loop — LangGraph owns graph state, node transitions, and checkpointing; Nova keeps the task registry schema, Docker container lifecycle, and ClickUp/skill injection. **Scope note:** this ports the loop that actually exists today (`run_coding_task()` runs exactly one task, no parallelism) — the ticket's own language about "sequential + parallel patterns" assumed multi-task orchestration that was never built; that's Section 17's future sub-agent-orchestration vision, not this task. Gated behind `framework_integrations.langgraph_orchestration` in `nova_config.json` (default off, original inline loop untouched when off — including at import time, since `nova_orchestrator_graph` is only imported inside the flag branch). Verified: the same trivial task run through both paths produced identical `final_status`, turn counts, and `agent_log.jsonl` shape. Coordinated with the still-backlogged OpenHands integration (`86barex1u`), which plugs into this same layer as the coding-lane sub-agent
-- Phase 4    | Roaming Layer          | ✓ Lightweight v1 shipped (2026-07-05) — Tailscale installed + authenticated (this machine, "zeed", on the tailnet at `100.122.229.23`); Task Scheduler "Nova Auto-Start" runs `start_nova.ps1 -Silent` at login (idempotent, verified); sleep disabled on AC power only, battery behavior unchanged. Required two admin-elevated firewall rules (`Nova API (Tailscale)`, `Nova Open WebUI (Tailscale)` — ports 8000/3000, Private profile) since Tailscale's virtual adapter classifies as Private while the existing python.exe rules only covered Public/home-WiFi. Verified end-to-end from a phone reaching `http://100.122.229.23:3000` — that test was over the same home WiFi (Tailscale found a direct LAN path), so genuine away-from-home/cellular reachability hasn't been separately confirmed yet, though DERP relay fallback makes it likely to work. **HP Omen headless Ubuntu server (`86baeyfm1`) — ✓ COMPLETE, verified 2026-07-12 (see Section 2):** all 13 phases (0-12) of `omen_setup_runbook.md` done and confirmed live, not just reported. OS/static-IP/packages/Chroma-data-transfer/lid-close/SSH/systemd/firewall/Tailscale all done. Chroma migrated `PersistentClient` → `HttpClient`, hosted on the Omen at `192.168.1.250:8000` (also reachable at its Tailscale IP `100.114.197.117:8000`); `nova-api` runs there on **8001**, not 8000 (real port conflict with Chroma, both defaulted there), reachable on both IPs too. Aero-side/Omen-side Ollama-callback groundwork (`OLLAMA_HOST=0.0.0.0` + `Nova Ollama (Omen callback)` firewall rule, TCP 11434) confirmed working in both directions — including a `curl` run from the Omen's own shell reaching the Aero's Ollama over the tailnet. Inference while Nova runs standalone on the Omen is split three ways: the Aero's own Ollama as primary (above, now live), hosted chat-API fallback (`86baf4eah` — Groq/Together.ai/Fireworks, non-sensitive queries only), serverless/raw GPU rental to run Nova's own weights (`86baw3010` — RunPod/Modal/Vast.ai-style), and a dedicated GPU machine purchase from a third-party vendor for local heavy inference (`86baw3016`). **`nova_api.py` deployed to the Omen, independent of the Aero (`86bawfn19`) — ✓ COMPLETE, verified 2026-07-12:** `nova-api` runs as a systemd unit on the Omen (port 8001, enabled, survives reboots), reachable on both LAN and Tailscale IPs; Ollama callback to the Aero confirmed working both directions; **real test of done passed — reached the Omen's `nova-api` over Tailscale with the Aero fully powered off and got a real grounded answer back.** This closes the last real gap in "Nova reachable from my phone independent of the Aero being on." Caveat: no Open WebUI on the Omen yet, so this is raw-API reachability, not a chat UI — Open WebUI still only runs on the Aero. **Now unblocked, next candidate to pick up:** Dockerized services (`86baf4e29`), held deliberately until this task finished. New ClickUp task `86bawf2z2` (token-based auth for `nova_api.py`) filed as separate, deliberately deferred scope — network-level controls (Tailscale/ufw) come first
+- Phase 1    | Memory Core            | ✓ Operational — Nova Log Health/Query/Benchmark views live; Pipeline view blocked on Phase 6 content pipeline; log rotation deferred
+- Phase 1.5  | Self-Monitoring        | ✓ v1 live — `nova_headroom.py` (`GET /headroom`), Task Scheduler auto-start, `nova_benchmark.py --golden` (Llama 3.2 3B baseline established, doubles as Phase 3/3.5 eval harness)
+- Phase 1.75 | Retrieval Intelligence | Backlog, foundation laid — feature-flag system ✓ v1 live (`nova_config.py`/`.json`, all off). Remaining: A* graph traversal, DP context-window packing, priority-queue routing, two-tier memory decay, weighted wikilinks — each gates on a flag already defined
+- Phase 2    | Voice & Capture        | **Explicitly greenlit early, in progress** (`86baeyg3q`, confirmed with Marvin 2026-07-12) — Minimal tier (wake word + local STT/TTS) live-verified 2026-07-19. Deliberate exception to "don't build Phase 2+ without explicit instruction" below — confirm with Marvin before resuming after a gap
+- Phase 2.5  | Agent Layer            | Backlog — file CRUD ✓ v1 live (`nova_tools.py`); Nova MCP Server ✓ v1 live, unwired (port 8100); Browser Hands harness M1 ✓ v1 live (`browser_hands/`, CDP-attach only, no login — hard rule); Docker sub-agent orchestration deferred, see Phase 3.5
+- Phase 3    | First Fine-Tune        | Backlog — Unsloth + DPO → GGUF → Ollama. **Base-model re-eval DONE 2026-07-21 — verdict: stay on Llama 3.2 3B**, no candidate (llama3.1:8b, phi4-mini, qwen3:8b, gemma3:4b) beat the logged baseline on Nova's own golden-query suite. Swap trigger: a candidate must clearly beat the baseline, re-running `nova_benchmark.py --golden`, not a fixed timeline. Fine-tune pipeline built for Phi-4 Mini (`nova_finetune_phi4.py`, Unsloth QLoRA DPO, trains on the Aero's RTX 5070) — verified live with 3 real DPO steps, but `run()` hard-refuses below `MIN_REAL_PAIRS = 100` (currently ~33 real pairs, still accumulating). Full backstory in NOVA_BUILD_LOG.md
+- Phase 3.5  | Coding Agent Lane      | ✓ v1 live (2026-07-05) — Claude API-backed coding sub-agent (`nova_orchestrator.py`), git-worktree isolated, no Docker/OpenHands yet. LangGraph orchestration v1 live, gated off (`nova_orchestrator_graph.py`). **Qwen3 8B swap trigger:** ~30-50 diverse task transcripts in `agent_log.jsonl` (currently ~29-31 combined Aero+Omen, see `/qwen-swap-status`), 20% held out, swap only once Qwen3 clears a pass bar against Claude's baseline on the same tasks
+- Phase 4    | Roaming Layer          | ✓ Lightweight v1 shipped — Tailscale, Task Scheduler auto-start. **HP Omen headless Ubuntu server (`86baeyfm1`) — ✓ COMPLETE** (full story in NOVA_BUILD_LOG.md). **`nova_api.py` deployed to the Omen (`86bawfn19`) — ✓ COMPLETE** — reachable over Tailscale independent of the Aero being on
 - Phase 5    | Continuous Learning    | Backlog — quarterly fine-tune cycles
-- Phase 6    | Domain Expansion       | Backlog, domain state layer foundation laid — `nova_state.db` schema + system adapter ✓ v1 live (2026-07-07, see Section 2); financial/work/creative/games adapters and the alert engine remain blocked on real open questions (data source approval, ClickUp access from Nova's own runtime). **Chunk visualization tool (`86bara3tj`) — CLI stage ✓ v1 live (2026-07-12, `nova_chunk_viz.py`)**, web view + Open WebUI panel stages still backlog. **Embedding-space visualization (`86bawjg14`) ✓ v1 live (2026-07-12, `nova_embedding_viz.py`/`.html`)** — t-SNE projection of the full corpus, character cluster overlap + retrieval-hit + DPO-correction overlays, `GET /embedding-viz`. Also backlog: pixel RAG (CLIP/ColPali), temporal awareness, proactive memory, content transformation pipeline, Art Practice Companion module
+- Phase 6    | Domain Expansion       | Backlog, foundation laid — `nova_state.db` schema + system adapter ✓ v1 live; financial/work/creative/games adapters blocked on real open questions. Chunk viz (`nova_chunk_viz.py`) + embedding-space viz (`nova_embedding_viz.py`/`.html`, `GET /embedding-viz`) ✓ v1 live. Also backlog: pixel RAG, temporal awareness, proactive memory, content transformation pipeline
 
 **Do not build Phase 2+ features without explicit instruction.**
 
@@ -489,93 +142,19 @@ Read-only always.
   `nova_orchestrator.py` as the interim coding sub-agent brain (see below)
 
 ### HP Omen Headless Server (ClickUp `86baeyfm1`) — ✓ COMPLETE (2026-07-12)
-Repurposed the HP Omen as an always-on Ubuntu service host for Chroma, `nova_state.db`, and
-orchestration — replacing the Aero (which sleeps) for those specifically. **Confirmed service-
-host-only, not a model-inference host**: its GTX 1050 Ti (4GB, Pascal) can't run the planned
-dual-model routing. Full step-by-step commands live in `omen_setup_runbook.md` (all 13 phases,
-0-12, marked done).
+Always-on Ubuntu service host (Chroma, `nova_state.db`, orchestration) for the Aero, which
+sleeps. Service-host-only, not inference-capable (GTX 1050 Ti, no driver installed). Ubuntu
+24.04, static IP `192.168.1.250`, Tailscale IP `100.114.197.117` (hostname `nova`). Chroma runs
+as `HttpClient` server on port 8000; `nova-api` runs on **port 8001** (not 8000 — real port
+conflict, both services defaulted there). `nova-chroma`/`nova-api` are permanent systemd units.
+Full step-by-step commands in `omen_setup_runbook.md`. Full incident narrative (stale-clone
+discovery, passphrase-protected deploy key, hardcoded-path bugs) in `NOVA_BUILD_LOG.md`.
 
-**Live and verified end-to-end, not just reported:** Ubuntu 24.04 installed (static IP
-`192.168.1.250` on `eno1`), Chroma migrated from `PersistentClient` to `HttpClient` and running
-as a standalone server there (port 8000), Chroma data transferred from the Aero, lid-close set
-to ignore (SSH-able while closed), SSH from the Aero via key-based auth, `nova-chroma` and
-`nova-api` running as permanent systemd units, `ufw` tightened to LAN-subnet-only, **Tailscale
-live on the Omen (tailnet IP `100.114.197.117`, hostname `nova`)**. **`nova-api` runs on port
-8001 on the Omen** — not the 8000 this file documents elsewhere for local Aero dev — because
-both services defaulted to 8000 and conflicted once co-located on the same box.
-
-**Final validation, all confirmed live:** `nova_chroma_omen_check.py` full pass against both the
-LAN IP and the Tailscale IP (heartbeat OK, `nova_memory` collection found at 479 chunks, a real
-query returned real results); `nova_api.py` returns `200` on `/`, `/headroom`, `/docs` on both
-IPs (`/graph` correctly 404s — `nova_graph.json` hasn't been generated on this clone yet,
-unrelated to setup); and the Ollama callback path — Aero's `OLLAMA_HOST=0.0.0.0` + a `Nova
-Ollama (Omen callback)` firewall rule (TCP 11434, Private profile) — confirmed working in both
-directions, including a `curl http://100.122.229.23:11434/` run **from the Omen's own shell**
-returning `Ollama is running`.
-
-**Now unblocked:** Dockerizing these services (`86baf4e29`) was deliberately held until this
-task finished — it's the next real candidate to pick up. Re-running the Tailscale DERP relay
-reachability test (`86bat0ue1`) against the Omen instead of the Aero is also now possible, not
-done yet.
-
-**Real bugs found and fixed along the way, not just workbook steps:** a second physical disk
-still had the old Windows install — wiped and reclaimed; a nested-folder flatten, a UTF-16-
-encoded `requirements.txt` (artifact of PowerShell's default output encoding), and `pywin32`
-(Windows-only) needed stripping from the cloned repo/venv on Ubuntu; the Chroma/`nova-api` port
-conflict above; `nova_orchestrator.py`'s `load_dotenv(dotenv_path="C:/Nova/.env")` was hardcoded
-to a Windows path — broke silently on Linux (returns `False`, not a raised error, so the real
-failure only surfaced later as a confusing "env var not set") — fixed to resolve relative to the
-script's own location instead.
-
-**Board hygiene note:** the runbook itself claimed SSH access into the Omen "closes out ClickUp
-`86bavtz06`" — checked the actual task and it's really "Onboard Nova server, Pi fleet, and
-trading bot box via SSH," three targets, only one done. Moved to "in progress," not "complete."
-Same class of false-completeness as the OpenHands/RAGAS cases the ClickUp workflow-split memory
-already flagged — always open the real task before trusting a prose completion claim.
-
-### Important gap in the "COMPLETE" verification above, found and fixed same day (`86bawfn19`)
-The verification that marked `86baeyfm1` complete checked **reachability** (`200` on `/`,
-`/headroom`, `/docs`) but never actually exercised `/ask`'s real RAG behavior on the Omen's own
-deployment. Picking up `86bawfn19` (deploy `nova_api.py` to the Omen, independent of the Aero)
-surfaced a real, serious gap that reachability checks alone had missed:
-
-1. **The Omen's git clone was 15 commits stale** — still on `5146222`, missing `b5f7f68` (the
-   actual `PersistentClient` → `HttpClient` migration) and everything after it. `nova_query.py`
-   there was still the old code, silently defaulting to an empty local Chroma store instead of
-   the real `nova-chroma` server — `collection.count()` was `0`, and `/ask` returned fluent but
-   **completely hallucinated** answers (e.g. claimed Null "was the lead singer of a fictional
-   industrial rock band called Riven" — not in the corpus at all) with empty `sources`/`chunks`,
-   no error, no signal anything was wrong except the content being wrong.
-2. **Root cause of the stale clone: the GitHub deploy key (`id_ed25519_github`) was
-   passphrase-protected**, which silently breaks any unattended `git pull`/`fetch` — there's no
-   TTY to prompt for it. `ssh -T git@github.com` returned a flat `Permission denied (publickey)`
-   even after re-pasting the (correct) public key to GitHub, because the private key could never
-   actually be used to authenticate in the first place. Fixed by regenerating the key with no
-   passphrase (`ssh-keygen -N ''`) — the whole point of a deploy key is unattended access, so a
-   passphrase defeats its purpose; already locked to 600 perms and scoped to one repo.
-3. Once fetchable, `git pull` brought the Omen fully current (`5146222` → `01b0866`, 14 files).
-   `requirements.txt` needed `pywin32` filtered out before `pip install` (Windows-only, same
-   gotcha the runbook already documented) — piped through `grep -v` rather than editing the
-   tracked file, to avoid recreating the exact "local diff drifts from origin" problem that
-   caused the stale-requirements.txt half of this mess in the first place.
-4. **A second hardcoded-Windows-path bug, same class as the dotenv one already fixed**:
-   `nova_api.py`'s `GRAPH_PATH = "C:/Nova/nova_graph.json"` silently returned empty nodes/edges
-   on Linux instead of erroring. Fixed to resolve relative to the script's own location
-   (`nova_api.py:58`).
-
-**Lesson:** "reachable" and "functionally correct" are different claims — a route returning `200`
-doesn't mean it's doing real work. Verify the payload, not just the status code, especially for
-routes that can fail open (wrong data, not an error) rather than fail loud.
-
-**`86bawfn19` — COMPLETE.** All 4 scope items done: requirements.txt encoding (resolved as part
-of the stale-clone fix above — origin's copy was already correct UTF-8, the Omen's local UTF-16
-copy was a stale artifact discarded via `git checkout -- requirements.txt`), `nova-api` running
-as a systemd unit on the Omen (port 8001, enabled, survives reboots), the Ollama-callback path
-(Aero `OLLAMA_HOST=0.0.0.0` + firewall rule, confirmed both directions), and the real test of
-done — reaching the Omen's `nova-api` over Tailscale with the Aero fully powered off, getting a
-real grounded answer back. This closes the last real gap in "Nova reachable from my phone
-independent of the Aero being on" (note: no Open WebUI on the Omen yet, so this is the raw API,
-not a chat UI — Open WebUI still only runs on the Aero).
+**Key lesson from `86bawfn19`'s verification gap:** "reachable" (HTTP 200) and "functionally
+correct" are different claims — a route can fail open (wrong data, no error) rather than fail
+loud. Always verify the payload, not just the status code, especially after deploying to the
+Omen. `nova_api.py` on the Omen is now COMPLETE and verified — reachable over Tailscale
+independent of the Aero being powered on (no Open WebUI on the Omen, raw API only).
 
 ### Working Directly on the Omen via SSH (away from the Aero)
 When SSHed into the Omen to do real work away from the Aero — a real interactive/manual
@@ -583,7 +162,7 @@ session, not the automated `nova_omen_dispatch.py` headless path — **never edi
 checkout (`~/nova`) directly.** That directory is a one-directional deployment target:
 `nova_omen_sync.py` pulls into it and restarts `nova-api`/`nova-chroma`. Hand-editing and
 pushing from there recreates the exact two-way drift that caused the 15-commit stale-clone
-incident documented above ("Important gap in the 'COMPLETE' verification above").
+incident (full story in `NOVA_BUILD_LOG.md`, "Important gap..." under `86bawfn19`).
 
 Instead, use the same worktree discipline `nova_orchestrator.py` already uses for headless
 dispatch — `origin` is the only source of truth, every worktree fetches fresh from it, the
@@ -611,74 +190,26 @@ main checkout only ever receives, never originates:
 6. Back on the Aero next session: `git pull` before starting new work there — same discipline
    as any second machine touching a shared repo.
 
-**Two more real gotchas hit doing this live, 2026-07-25, worth knowing before it looks like a
-mystery failure:**
-- **No git identity configured on the Omen's main repo** — every commit that's ever landed
-  there came from a push made elsewhere, then pulled via `nova_omen_sync.py`, so `user.name`/
-  `user.email` were never set locally. A commit made directly on the Omen needs `git -c
-  user.name='...' -c user.email='...' commit ...` (scoped to that one command, not a global
-  config change) until/unless this gets set up permanently.
-- **A plain `ssh host "command"` is non-interactive and doesn't source `.bashrc`**, so PATH is
-  missing `~/.local/bin` — this silently breaks the `gitleaks` pre-commit hook (the binary is
-  genuinely installed there per `86bawk37h`, just invisible to this invocation style). Fix:
-  prepend `PATH=$HOME/.local/bin:$PATH` explicitly in the SSH command.
+**Two gotchas worth knowing before they look like a mystery failure:** no git identity is
+configured on the Omen's main repo — a commit made directly on the Omen needs `git -c
+user.name='...' -c user.email='...' commit ...`; and a plain `ssh host "command"` doesn't source
+`.bashrc`, so PATH is missing `~/.local/bin` (breaks `gitleaks`'s pre-commit hook) — prepend
+`PATH=$HOME/.local/bin:$PATH` explicitly in the SSH command.
 
-No new tooling required for the worktree/push mechanics — this is exactly the `git worktree
-add` + fetch-fresh-from-`origin` pattern `nova_orchestrator.py`'s `_create_worktree()` already
-uses, just applied by hand instead of by the dispatcher, with the push step now correctly
-routed through the Aero. Once the Nova Controller (`86bax0wkj`/`86baxahn7`) exists, this manual
-SSH workflow is expected to mostly be replaced by triggering `nova_omen_dispatch.py` from the
-Controller UI instead, which already self-syncs from `origin` on every run and never needed the
-Omen to push in the first place (it dispatches over its own separate SSH-to-self keypair, and
-`nova_omen_sync.py`/`nova_omen_dispatch.py` both only ever pull).
+Once the Nova Controller exists, this manual SSH workflow is expected to mostly be replaced by
+triggering `nova_omen_dispatch.py` from the Controller UI, which already self-syncs from
+`origin` and never needed the Omen to push in the first place.
 
 ### Omen Capacity Audit (86baxty6d, self-hosting gate) — 2026-07-21
-This task exists because every self-hosting decision so far (Chroma, Ollama callback,
-Dockerized services, headless dispatch, the still-unscoped Langfuse/Vaultwarden/self-hosted-git/
-Obsidian-CouchDB-sync ideas) was scoped individually, assuming "the Omen can host this," with
-nobody ever checking the sum — flagged 2026-07-13 as a gate: no further self-hosting tasks
-(`86baxtb4m` Obsidian migration, `86bau47mb`, `86baf4e29`, `86bax697m`) proceed until this audit
-happens, revisited periodically as new services get proposed, not just once.
-
-Built `nova_omen_capacity.py` — SSHes from the Aero (same Tailscale-IP connection details as
-`nova_agent_log_status.py`) and pulls a real CPU/RAM/disk/GPU snapshot plus what's actually
-running, rather than trusting an assumption. Appends one line per run to
-`logs/omen_capacity_log.jsonl` — this is the task's own "own growth-rate tracking, not just a
-one-time snapshot" requirement, satisfied by making the check cheap enough to re-run instead of
-building a live monitoring stack for services that don't exist yet.
-
-**Real findings, run live 2026-07-21:**
-- **Compute headroom is large:** 8 CPU cores at near-zero load (0.04 avg), 6.42GB of 7.64GB RAM
-  available (84% free), 75.4GB of 97.9GB disk available (77% free), swap barely touched.
-- **Because almost nothing is actually deployed yet** — the only two persistent (always-on)
-  services are `nova-api.service` and `nova-chroma.service`, both lightweight. Every other
-  self-hosting idea (Langfuse's ClickHouse+Postgres+Redis stack, Vaultwarden, self-hosted git,
-  Obsidian CouchDB sync) is still `[Initiative — not scoped]` on the board — there is currently
-  nothing to model resource competition against for the task's "split always-on vs. bursty
-  services" scope item beyond these two. Docker itself is installed and running
-  (`docker.service` active) but completely empty — 0 containers, 0 images — a clean, ready
-  starting point for whenever `86baf4e29` (Dockerize) actually happens, but nothing to
-  "consolidate to one source of truth" (the task's 4th scope item) yet since there's nothing
-  ad-hoc to consolidate.
-- **Disk breakdown:** Chroma's real data directory is only 0.02GB (mirrors the Second Brain's
-  actual size, not explosive), the git repo is negligible, and the one real disk consumer is the
-  Python venv itself (5.53GB, fixed-size — doesn't grow the way a database's trace/vector store
-  would). No component with a genuine unbounded growth trajectory exists on the Omen today.
-- **GPU confirmed present but unusable, not just underpowered:** `lspci` confirms a real GTX 1050
-  Ti Mobile (GP107M) — but zero NVIDIA driver is installed (`dpkg -l | grep nvidia` returns
-  nothing), so it's not a factor in capacity planning at all right now, consistent with (and a
-  stronger version of) the existing "service-host-only, not inference-capable" framing.
-
-**Verdict: gate open for today's actual headroom, not a blanket clearance for everything
-queued.** Real capacity is not remotely a constraint right now, precisely because most of the
-self-hosting backlog hasn't been built yet — this audit answers "is there room for the next
-reasonable increment," not "will Langfuse's full stack fit," since Langfuse has no real resource
-spec to check against until it's actually scoped. **Recommendation, not yet acted on:** re-run
-`nova_omen_capacity.py` before and after each individual self-hosting task actually gets
-deployed (starting with whichever of `86baxtb4m`/`86bau47mb`/`86baf4e29`/`86bax697m` gets picked
-up next), watching RAM specifically — it's the smallest absolute pool of the three (7.64GB
-total) and the one a multi-service database stack (Langfuse's Postgres+ClickHouse+Redis) would
-plausibly pressure first, well before CPU or disk become a concern.
+Gate: no further self-hosting tasks proceed until `nova_omen_capacity.py` (SSHes from the Aero,
+real CPU/RAM/disk/GPU snapshot, logs to `logs/omen_capacity_log.jsonl`) confirms headroom —
+revisited periodically as new services get proposed, not just once. **Verdict as of 2026-07-21:
+gate open, large headroom** (8 cores near-idle, 84% RAM free, 77% disk free) — mostly because
+almost nothing is deployed yet (only `nova-api`/`nova-chroma` are persistent; Docker installed
+but empty). GPU present (GTX 1050 Ti) but no driver installed, not a capacity factor.
+**Recommendation, not yet acted on:** re-run before/after each self-hosting task deploys,
+watching RAM specifically — smallest of the three pools, most likely to get pressured first by
+a multi-service stack like Langfuse's. Full findings in `NOVA_BUILD_LOG.md`.
 
 ### Nova Coding Sub-Agent (nova_orchestrator.py)
 Nova can now write to its own codebase — the one sanctioned exception to a human
@@ -687,12 +218,9 @@ isolation**, not manual review of each write: every task runs in its own disposa
 worktree + branch under `C:/nova-agent-worktrees/`, never the live `C:/Nova` tree.
 `nova_orchestrator.py` never merges or deletes a worktree — Marvin always reviews the
 diff and merges by hand. v1 is driven by the Claude API (not a local model yet) and has
-no Docker/OpenHands sandboxing — that's deferred; see Phase 3.5.
-
-**LangGraph orchestration (2026-07-10):** the turn loop inside `nova_orchestrator.py`
-can now run via `nova_orchestrator_graph.py` (LangGraph nodes/edges) instead of the
-original inline loop, gated behind `framework_integrations.langgraph_orchestration`
-(default off) — see Phase 3.5 and ClickUp `86bat0u81`.
+no Docker/OpenHands sandboxing for the interactive lane — that's deferred; see Phase 3.5.
+LangGraph orchestration (`nova_orchestrator_graph.py`) is available as an alternate turn
+loop, gated behind `framework_integrations.langgraph_orchestration` (default off).
 
 **Tool preference (2026-07-07):** `file_replace(path, old_str, new_str)` — a
 search/replace primitive in `nova_tools.py` — is preferred over `write_file`
@@ -731,290 +259,76 @@ escalates (marked `malformed: true`, surfaced to Marvin rather than silently dro
 
 **Mechanism, end to end:** `nova_escalation.check_escalation()` parses the block out of
 the dispatch/resume result's own summary text via regex. `nova_scheduled_dispatch.py`'s
-`_handle_escalation()` registers it with `nova_api.py`'s `POST /escalations` (never a
-direct `nova_state.py` import — see that file's `pending_escalations` entity note: the
-same cross-machine hardcoded-`DB_PATH` bug that already broke `dispatch_pause`), tags
+`_handle_escalation()` registers it with `nova_api.py`'s `POST /escalations`, tags
 the ClickUp task `awaiting-answer`, and comments the question. Marvin answers via
-`GET /escalations-ui` (`nova_escalations.html`); the answer is accepted immediately
+`GET /escalations-ui` (redirects to `/controller`); the answer is accepted immediately
 (fire-and-forget `BackgroundTasks`), and `nova_omen_dispatch.resume_headless_task()`
 runs `claude -p --resume <session_id>` in the background, `cd`'d into the exact
-original worktree (never re-passing `--worktree`, which would create a new one).
-`dispatch_headless_task()` always creates an explicitly-named worktree now
-(`nova-dispatch-<uuid8>`, never the bare `--worktree` flag) and captures its real path
-via a before/after `git worktree list --porcelain` diff, since `claude -p`'s own JSON
-result never reports it — safe because `nova_scheduled_dispatch.py`'s atomic lock file
-already serializes every cron-triggered dispatch (a manual `--dispatch` call bypassing
-that lock is a documented, accepted narrow gap). The resumed result goes through the
-identical `handle_dispatch_outcome()` logic shared with a fresh dispatch — can escalate
-again, uncapped, or finish clean/non-clean like any other run.
-
-**Four decisions confirmed with Marvin:** (1) resuming an escalated session is **not**
-blocked by the global dispatch-pause switch — answering a direct question is a
-different act than a new autonomous run starting while he's mid-build; (2) agent-log
-transcript ingestion is now genuinely idempotent via a per-session turn cursor
-(`logs/agent_log_ingest_cursor.json` on the Omen) — a resumed session's earlier turns
-must not duplicate into the Qwen3 training corpus; (3) `POST /escalations/{id}/answer`
-requires header `X-Nova-Escalation-Token` matching env var `NOVA_ESCALATION_TOKEN` —
-the first cost-incurring write route on `nova_api.py`'s otherwise-unauthenticated
-Tailscale-only surface, ahead of the general token-auth ticket (`86bawf2z2`); (4) a
-task awaiting an answer gets ClickUp tag `awaiting-answer`, not just a comment.
-
-**Review-backpressure interaction (found and fixed same day):** a paused-for-escalation
-dispatch has a real `session_id` but `success` is not `True` — without a fix, it would
-count against both the review-backpressure cap (`86baykvan`, a "not done yet" task
-counted as "done and unreviewed") and fire a non-clean-outcome ClickUp comment
-(`86baykvb7`) alongside the escalation comment. Fixed via `handle_dispatch_outcome()`
-checking escalation first (mutually exclusive `if`/`elif` with the clean/non-clean
-branch) and `count_unreviewed_dispatches()` excluding `pending`/`resuming` task_ids via
-new `_pending_escalation_task_ids()` (fails toward an empty/non-excluding set on error,
-keeping the cap conservative).
+original worktree. `POST /escalations/{id}/answer` requires header
+`X-Nova-Escalation-Token` matching env var `NOVA_ESCALATION_TOKEN` — the first
+cost-incurring write route on `nova_api.py`'s otherwise-unauthenticated Tailscale-only
+surface. Resuming an escalated session is **not** blocked by the global dispatch-pause
+switch (answering a direct question is a different act than starting a new autonomous
+run). Full decision narrative in `NOVA_BUILD_LOG.md`.
 
 **Manual step required:** Marvin must set `NOVA_ESCALATION_TOKEN` in the Omen's `.env`
 and restart `nova-api` (or run `nova_omen_sync.py`) before the answer route will accept
 anything — it 401s otherwise, by design (fail-closed, not a soft pass).
 
 ### Task Tiering (86bb01wur, 2026-07-19)
-Extends `nova_task_queue.py`'s existing `autonomy-safe` batch-tag gating (Phase-4-era
-scheduled dispatch, see "Scheduler wired in" above) with a per-task decision made at
-creation/rescope time instead of a later sweep. Nova proposes an autonomy tier
-(`autonomous` / `needs review` / `manual only`) + a qualitative confidence
-(`low`/`medium`/`high`) + one-sentence reasoning via `propose_tier()` — a single
-non-agentic Claude completion, not the full agent loop (mirrors `nova_corrector.py`'s
-`request_correction()` pattern). Detection is polling-based inside
-`nova_scheduled_dispatch.py`'s existing 2-hour loop
-(`nova_task_queue.detect_tier_candidates()` diffs each task's real `date_updated`
-against a stored per-task watermark) — no ClickUp webhooks exist anywhere in this
-codebase, confirmed by grep, so push-based detection isn't available without new infra.
-
-Reuses `86bax0wkj`'s exact propose→register→notify→answer shape: `system/
-pending_tier_proposals` + `system/task_tier_watermarks` in `nova_state.db`, new
-`/tier-proposals`/`/tier-watermarks` routes, a decide route reusing the same
-`X-Nova-Escalation-Token`. The `autonomous` tier maps to the exact existing
-`autonomy-safe` tag string (`TIER_TAGS`) — `get_practice_queue_tasks()` needed zero
-code change, and every already-hand-tagged task keeps working with no migration.
-Accept is one tap, comment optional (weak positive signal — confirms the guess was
-right); override requires real reasoning (strong signal) — together these are the
-first real mechanism for `86bax8bb5`'s capability-understanding differential scorer,
-which had sat parked with no way to generate its own comparison data.
-
-Only plausibly-dispatchable tasks get tiered — exploratory `"Spec:"`-prefixed tasks
-are skipped (`_is_tierable()`). A `--sweep-tiers [--limit N]` CLI flag on
-`nova_task_queue.py` does the retroactive backlog backfill, reusing the identical
-`register_tier_proposal()` pipeline the ongoing poll uses — not a separate bulk-apply
-path. `--limit` deliberately skips persisting watermarks, for testing a small subset
-before committing to the real full sweep.
-
-**Two real bugs found and fixed during live verification, not code review:**
-(1) `detect_tier_candidates()` originally persisted the watermark map as a side
-effect of merely being called — a pure inspection call with no intent to process
-anything silently marked the whole backlog "seen," which would have quietly
-defeated the retroactive sweep before it ever ran. Fixed by splitting detection
-(pure read/diff) from `persist_tier_watermarks()` (explicit, called only after a
-caller has actually attempted every candidate). (2) `propose_tier()` didn't strip
-markdown code fences from Claude's response — Claude sometimes wraps its JSON in
-` ```json ... ``` ` despite being told not to, which silently tripped the
-fail-toward-restrictive fallback (`manual only`/`low`) on a real proposal. Fixed to
-strip a leading/trailing fence before parsing.
+`nova_task_queue.propose_tier()` proposes an autonomy tier (`autonomous`/`needs review`/
+`manual only`) + confidence + reasoning per task via a single non-agentic Claude completion.
+Polling-based detection inside `nova_scheduled_dispatch.py`'s 2-hour loop (no ClickUp webhooks
+exist). Reuses the escalation propose→register→notify→answer shape (`/tier-proposals`,
+`X-Nova-Escalation-Token`). The `autonomous` tier maps to the existing `autonomy-safe` tag —
+`get_practice_queue_tasks()` needed zero code change. `--sweep-tiers [--limit N]` CLI flag does
+retroactive backlog backfill. Full build story (two real bugs found/fixed) in `NOVA_BUILD_LOG.md`.
 
 ### Nova Controller UX (86baxahn7, 2026-07-19)
-The real UX layer on top of `86bax0wkj`'s backend — one reverse-chronological Feed
-(`nova_controller.html`, served at `GET /controller`) replacing separate dashboards,
-per Marvin's 2026-07-13 framing (lift interaction primitives from social media,
-explicitly reject engagement-optimization mechanics — no unread badges, no
-streak-as-pressure UI, no engagement-ranked ordering; strictly chronological sort).
-`/escalations-ui` now redirects to `/controller`; `nova_escalations.html` itself was
-retired, its escalation/tier-proposal card logic ported in as-is.
+One reverse-chronological Feed (`nova_controller.html`, `GET /controller`) replacing separate
+dashboards — explicitly rejects engagement-optimization mechanics (no unread badges, no
+streak pressure, strictly chronological, no ranking). Merges escalations, tier proposals,
+dispatch outcomes (`GET /dispatch-log`), and tool-call/blend-flag/dpo-verify swipe-labeling
+cards (`GET /label-queue`, `POST /label-queue/{kind}/{id}/decide`, token-gated). Hand-rolled
+touch gestures, no library (no bundler in this repo's frontend). PWA-installable
+(`manifest.json`/`sw.js`, app-shell-only caching, never live data). Optimistic UI + serialized
+write queue for swipe/tap decisions (2026-07-26) — card collapses immediately, ~4s undo
+snackbar, writes processed one at a time against the read-all/rewrite-all JSONL files.
 
-**Scoped to real data only, checked before building** (this project's standing
-discipline): the Feed merges escalations, tier proposals, dispatch outcomes
-(new `GET /dispatch-log`, reading `scheduled_dispatch_log.jsonl` +
-`agent_task_outcomes.jsonl`), and tool-call/blend-flag swipe-labeling prompts
-(new `GET /label-queue`, reading `tool_call_log.jsonl` where `was_necessary is None`
-and `training_flags.jsonl` where `correction == ""`). Tutor-prompt and
-differential-scorer card types are **not built** — no `nova_tutor*.py` or
-`nova_differential*.py` file exists anywhere (confirmed by grep), both are pure
-ClickUp backlog. The Discover tab shows an honest "not built yet, depends on Nova
-Tutor" line instead of a fake placeholder card.
-
-**The swipe-labeling cards are the real UX target** the ticket names explicitly —
-`was_necessary`/`was_used` and `correction` have sat `null`/`""` waiting for exactly
-this kind of judge-pass since those logging modules were built. Hand-rolled
-`touchstart`/`touchmove`/`touchend` gestures (`translateX` drag-follow, a
-distance threshold to commit) — no gesture library, since nothing in this repo's
-frontend uses a bundler/npm and a CDN script would fight the PWA's offline
-app-shell caching. A tap (no meaningful drag) falls back to the same two choices as
-buttons, matching the ticket's own "tap-or-expand-to-text" universal card action.
-`POST /label-queue/{kind}/{id}/decide` (token-gated) patches the matching
-`tool_call_log.jsonl`/`training_flags.jsonl` entry in place (read-all/rewrite-all,
-same idiom as `nova_corrector.py`'s `load_entries()`/`save_entries()`) — a known,
-accepted concurrency limitation is documented directly in the route's own docstring
-(`tool_call_log.jsonl` is actively appended to by this project's own tool-call
-logging hook during any live session; real file-locking isn't justified for a
-personal, single-user, human-triggered write against this risk profile).
-
-**PWA**: `manifest.json` + two hand-written flat PNG icons (`icon-192.png`/
-`icon-512.png`, generated via raw `zlib`/`struct` — no Pillow, confirmed not
-installed, and a flat two-color placeholder mark doesn't need an imaging library;
-swappable for real branding later with zero code change) + `sw.js`, a service
-worker caching **only the app shell** (this page's own HTML/CSS/JS/icons), never
-live data — stated explicitly so "offline" never means "stale escalation data."
-Verified live: real browser load at phone width (390×844), zero console errors,
-a real label decision confirmed on disk over SSH after clicking the button in the
-actual browser (`was_necessary`/`was_used` both flipped from `null` to `true`).
-
-**Token Budget Governor — scoped v1 (2026-07-07, ClickUp `86barhqt9`):**
-the finalized spec assumes infrastructure that doesn't exist yet —
-`nova_state.db` (its own ClickUp task, `86bara3qe`, is still "to do"), a
-push-notification channel into an active Open WebUI chat session, and a
-ClickUp-driven task queue with Sonnet/Haiku routing and concurrency slots
-(`nova_orchestrator.py` today is one synchronous call per task, no queue,
-no daemon, one hardcoded model). Matching the earlier Nova Log v1 decision:
-built what's real, explicitly deferred the rest rather than faking it.
-**Built:** `nova_token_budget.py` tracks the coding sub-agent's Claude API
-consumption (`input + output + cache_creation + cache_read×0.1`, the
-finalized formula) against `nova_config.json`'s `token_budget` thresholds,
-persisted to a local JSON file (`logs/token_budget_state.json`) in place of
-`nova_state.db`. Classifies normal/conservative/critical/halt and folds
-into `GET /headroom` via `nova_headroom.py`. `nova_orchestrator.py` checks
-the mode at the top of each turn loop and stops cleanly (no further API
-call, so no new tool_use is ever proposed) once halted, tags the commit
-message, and logs a `budget_halt` outcome to `agent_task_outcomes.jsonl`.
-Gated behind `token_budget_governor` in `nova_config.json` (default off).
-**Explicitly deferred, not built:** Haiku downgrade (no task-type
-classifier exists), task-queue priority-aware selection and concurrency
-capping (no task queue exists), Open WebUI push notifications, automatic
-ClickUp status updates on halt. `conservative`/`critical` modes are
-classified and reported but have no enforced behavioral difference yet —
-their spec'd effects all depend on the missing task-queue/classifier.
+**Token Budget Governor (86barhqt9):** `nova_token_budget.py` tracks the coding sub-agent's
+Claude API consumption against `nova_config.json`'s `token_budget` thresholds
+(`logs/token_budget_state.json`), classifies normal/conservative/critical/halt, folds into
+`GET /headroom`. `nova_orchestrator.py` stops cleanly once halted. Gated behind
+`token_budget_governor` (default off). Interactive lane only — headless dispatch doesn't call
+`record_usage()`.
 
 ### Training-Data Accumulation Oversight (86bax4akx, 2026-07-21)
-Closes the gap named 2026-07-13: existing tasks *build* or *consume* training sets
-(`86bara7pn` curates coding data, `86baeyg1h` consumes DPO pairs) but nothing tracked
-accumulation *as it happens* — `86baeyg1h`'s own task text says "currently 11 pairs, keep
-accumulating" as a static line, not a live count.
-
-**Real spec-vs-repo check before building** (this project's standing discipline): the
-ticket's full scope named 5 items plus an anti-poisoning mechanism. Two of the five don't
-have a real data source to build against — a "tutor-domain `blend_flag` log" (Nova Tutor is
-entirely unbuilt, confirmed by grep, same finding `86baxahn7` already made) and a
-"coding"-domain coverage bucket (`86bara7pn` is still blocked, zero coding DPO pairs exist).
-Built what's real instead of stubbing those two.
-
-**Built:**
-- `GET /training-data-status` (`nova_api.py`) — live count from `logs/training_flags.jsonl`
-  computed fresh on every call: total flagged, total corrected (real DPO pairs), coverage by
-  `nova_router.py`'s real categories (not the ticket's aspirational lore/tutor/coding split),
-  and threshold status against `MIN_REAL_PAIRS_FOR_FINETUNE = 100` — duplicated from, not
-  imported from, `nova_finetune_phi4.MIN_REAL_PAIRS`, so `nova_api.py` (the always-running
-  production server) never depends on the training stack (`datasets`/`unsloth`/`torch`) being
-  installed. A comment cross-references the source of truth so the two can't silently drift
-  without a visible TODO.
-- New `dpo_verify` kind on the existing `/label-queue` + `/label-queue/{kind}/{id}/decide`
-  mechanism (86baxahn7's swipe-card infrastructure, reused rather than a new endpoint) — the
-  real three-state shape the ticket asked for (unverified → confirmed-good / needs-rework),
-  distinct from the pre-existing `blend_flag` kind (which asks "does this need a correction
-  written," not "is the correction that got written actually good"). Same synthetic
-  `line:<index>:<timestamp>` id scheme, same token-gated decide route, same
-  read-all/rewrite-all idiom as `blend_flag` and `tool_call`.
-- `nova_controller.html` — a small persistent "DPO pairs toward fine-tune" status widget
-  (progress bar + category/verification breakdown, refreshes every 15s) alongside the
-  existing Board Watch toggle, plus a `renderLabelCard()` branch for `dpo_verify` cards and a
-  help-panel entry explaining the new card type.
-
-**Real bug found and fixed during live verification, not code review:** testing
-`/label-queue` at its real default `limit=50` (not a large test limit) showed **zero**
-`blend_flag`/`dpo_verify` entries in the response — `tool_call` entries are so much more
-numerous (2400+) and recent that a single merge-then-truncate silently starved out every
-training-data card, meaning the rarer, higher-value human judgments this whole feature exists
-for were **never reaching the real Feed at all**, a pre-existing gap this work made
-concretely visible rather than introduced. Fixed by capping each kind at `limit`
-independently before merging, so a busy tool-call day can no longer hide every blend-flag or
-DPO-verification card. Verified live: `/training-data-status` returned real numbers (57
-flagged, 11 corrected, 89 remaining, 11.0%, all 11 in `fiction`, all unverified) matching a
-manual count exactly; `/label-queue?limit=5000` confirmed all 11 real corrected pairs surface
-as `dpo_verify` entries with real correction text; the decide route confirmed 401 without a
-token (fail-closed, same as every other token-gated route).
-
-**Explicitly deferred, with real reasons, not stubbed:** tutor-domain and coding-domain
-coverage (no data source yet — see above); the anti-poisoning statistical outlier check (the
-ticket's own text ties it to auto-promotion "via the Langfuse dataset-promotion pipeline,
-`86bax697m`," which hasn't been adopted yet even though newly unblocked by `86baxty6d` — and
-a distribution of 11 points is too thin for outlier detection to mean anything yet regardless
-of Langfuse); literal reuse of the tool-call audit pattern (`86bawntpb`/`86bawntpm`) — that
-async judge-pass doesn't exist either, so this followed the same *conceptual* shape via the
-already-working Controller swipe-card mechanism instead of a nonexistent reference
-implementation.
-
-**Real incident, same day:** Marvin loaded `/controller` on the Omen via Tailscale and saw the
-new widget show 0/100, not the real 11/100. Root cause: `nova_logger.py`'s `LOGS_DIR` and
-`nova_corrector.py`'s `JSONL_PATH`/dotenv path were **both still hardcoded to
-`"C:/Nova/..."`** — the same bug class as `GRAPH_PATH`/`CONFIG_PATH`/`CHROMA_HOST` above, just
-never caught here before because nothing had exercised these two files' Omen-side behavior
-until this feature made it visible. Confirmed via SSH: the Omen has **no `training_flags.jsonl`
-file at all**, not even a misplaced one (checked for the same accidental-nested-folder pattern
-`nova_state.db`'s bug left behind — found nothing, meaning `log_blend()` has likely just never
-fired for real on the Omen yet, not that it's been silently corrupting data). Fixed both to
-resolve relative to their own file location, verified live on the Aero (both now resolve to
-the real, existing `training_flags.jsonl`). `nova_corrector.py`'s `SECOND_BRAIN` path is
-deliberately left hardcoded — Marvin's OneDrive vault is genuinely Aero-only, not a portability
-bug.
-
-**Broader pattern check, same incident:** grepped the whole codebase for `C:/Nova` — found 17
-more real instances beyond the ~8 already fixed across this project's history, including one
-with likely real user-facing impact (`nova_log.py`'s `LOGS_DIR`, meaning the Nova Log Health
-dashboard probably has this identical bug on the Omen right now). Filed as a dedicated task,
-**`86bb1pkpb`**, rather than fixed ad hoc — two of the seventeen (`nova_state.py`'s `DB_PATH`,
-`nova_tools.py`'s venv Scripts path) need a different fix shape than a relative-path swap
-(architectural routing and OS-conditional logic respectively), so this needs real per-file
-review, not a blind sweep.
+`GET /training-data-status` — live DPO pair count/coverage from `logs/training_flags.jsonl`
+against `MIN_REAL_PAIRS_FOR_FINETUNE = 100`. New `dpo_verify` label kind on `/label-queue`
+(unverified → confirmed-good/needs-rework). `nova_controller.html` progress-bar widget.
+Cross-machine: `nova_training_data_status.py` gives `combined`/`omen_only`/`aero_only` views via
+the Omen↔Aero SSH bridge (see below) since training data mostly lives on the Aero only. Full
+incident history (a `/label-queue` truncation bug, hardcoded `C:/Nova` paths found in
+`nova_logger.py`/`nova_corrector.py`, 17 more instances filed as `86bb1pkpb`) in
+`NOVA_BUILD_LOG.md`.
 
 ### Nova Skills Library (2026-07-07, ClickUp `86barguac`)
 Structured per-category instruction files (`skills/coding.md`, `retrieval.md`,
-`financial.md`, `orchestration.md`, `lore.md`, `memory.md`) that
-`nova_orchestrator.py` can prepend to a coding task's context — a compact
-skill prompt orients the model with precise conventions instead of the
-model re-deriving them from scratch (Nova Reference — Token Efficiency
-Strategy v1.0). All six files were already fully drafted in the Nova
-Skills Library Index doc; this shipped the wiring, not new content.
-**One trim from the literal spec:** category was meant to come from a
-ClickUp task's tag, but nothing in Nova's own runtime code reads ClickUp
-today (only this interactive session does) — `run_coding_task(task,
-category=None)` and `POST /agent/task`'s `category` field take an
-explicit caller-supplied string instead. `load_skill()`/`get_skill_version()`
-live in `nova_skills.py`; a missing category or skill file is a graceful
-no-op, not an error. Each turn's `agent_log.jsonl` entry now carries
-`skill_category`/`skill_version` for traceability, per the skill files'
-own maintenance note. Gated behind `skill_injection` in `nova_config.json`
-(default off).
+`financial.md`, `orchestration.md`, `lore.md`, `memory.md`) that `nova_orchestrator.py`
+prepends to a coding task's context. `load_skill()`/`get_skill_version()` live in
+`nova_skills.py`; category is an explicit caller-supplied string (not a ClickUp tag —
+nothing in Nova's own runtime reads ClickUp). Gated behind `skill_injection` (default off).
 
 ### Domain State Layer (2026-07-07, ClickUp `86bara3qe`) — scoped v1
-Architecture Principles v1.1, Principle 6 distinguishes Chroma (deep
-knowledge — lore, documents, past reality) from `nova_state.db` (current
-reality — live balances, active projects, system health), and defines 5
-domains × 12 entities. **Built:** `nova_state.py` — one generic
-`domain_state` table (`domain`, `entity`, `data` JSON, `updated_at`)
-covering every domain/entity pair Principle 6 defines, rather than fixed
-per-entity columns invented ahead of real data. `write_state`/`get_state`/
-`get_domain` are the only interface; adapters are the only intended
-writers. `nova_state.db` is local-only, gitignored like `memory/` (never
-synced, per Principle 6's data-sensitivity rules). Also built
-`nova_state_system.py`, the one adapter with a real, already-existing data
-source — wraps `nova_headroom.get_headroom_report()` (now including token
-budget) into `system/nova_health` and `system/pending_alerts`.
-**Explicitly deferred, each on a real open question, not stubbed:**
-`nova_state_financial.py` (needs an approved financial data source — none
-named yet, and Principle 6 requires explicit per-connection approval before
-one is picked), `nova_state_work.py` / `nova_state_games.py` (both need a
-ClickUp API/MCP client inside Nova's own runtime code — nothing in
-`nova_tools.py`/`nova_orchestrator.py` gives Nova's own scripts ClickUp
-access today, only this interactive session has it), `nova_state_creative.py`
-(needs an "art practice log" that doesn't appear to exist under that
-description anywhere in the repo or vault). No alert engine (`86bara3qu`)
-yet either — Principle 6's own build order sequences it after the
-adapters. No refresh scheduler — `refresh_system_state()` is a manual/
-future-cron call, since no scheduler infrastructure runs in Nova today
-(`nova_watcher.py` itself is still deferred). No new `nova_api.py` route —
-nothing reads domain state yet to justify one.
+`nova_state.py` — one generic `domain_state` table (`domain`, `entity`, `data` JSON,
+`updated_at`) per Architecture Principles v1.1 Principle 6 (Chroma = deep knowledge,
+`nova_state.db` = current reality). `write_state`/`get_state`/`get_domain` are the only
+interface. `nova_state.db` is local-only, gitignored. Only real adapter built:
+`nova_state_system.py` (wraps `nova_headroom.get_headroom_report()` into
+`system/nova_health`/`system/pending_alerts`). Financial/work/games/creative adapters
+deferred, each blocked on a real open question (no approved data source, no ClickUp API
+access from Nova's runtime, no art-practice-log data source). No alert engine, no refresh
+scheduler yet.
 
 **Known limitation, updated 2026-07-15 (`86baxbrmj` interim hardening):** the worktree
 boundary is fully hard-enforced for `read_file`/`write_file`/`list_files` (path-validated
@@ -1294,29 +608,26 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 ## 10. Change Log
 
 Full narrative detail for every entry below (the "why," bug stories, live-verification steps) lives
-in Sections 1 and 2's file-by-file writeups — this table is a terse date-ordered index, not the
-source of truth. Search Section 1/2 by filename or ClickUp ID for the full story.
+in `NOVA_BUILD_LOG.md` — this table is a terse date-ordered index, not the source of truth.
 
 | Date       | Change                                        |
 |------------|------------------------------------------------|
-| 2026-06-15 | CLAUDE.md created |
-| 2026-06-15 | Documented /context-budget bug (Section 5) |
-| 2026-07-04 | Marked /context-budget fixed; added Open WebUI OpenAI-compat routes/launch scripts; added Nova Log v1 (query_log.jsonl + /nova-log Health dashboard) |
-| 2026-07-05 | Reconciled Phase Roadmap with ~40 ClickUp tasks (added Phases 1.75/3.5/6); shipped Phase 3.5 v1 coding sub-agent (`nova_tools.py`/`nova_orchestrator.py`, worktree-isolated, Claude-backed); merged first sub-agent task (`nova_headroom.py`, commit `c516cca`); defined Phase 3/3.5 swap triggers, re-scoped Phase 4 lightweight; shipped Phase 4 v1 (Tailscale, auto-start, firewall rules); added `record_task_outcome()`, `/code` router prefix, Nova Log Query view, golden-benchmark suite (Llama 3.2 3B baseline); added metrics legend to `nova_log.html` |
-| 2026-07-06 | Shipped standalone `nova_mcp_server.py` (unwired, port 8100); added prompt caching to orchestrator/corrector Claude calls; shipped feature-flag system (`nova_config.py`/`.json`, all off) |
-| 2026-07-10 | Documented LangGraph decision (`86bat0u81`); shipped LangGraph orchestration v1 (`nova_orchestrator_graph.py`, gated off); shipped dynamic model-routing mechanism + model-swap eval wrapper (`--evaluate`); shipped Browser Hands harness M1 (`browser_hands/`, CDP-attach only, no login) |
-| 2026-07-11 | Migrated Chroma `PersistentClient`→`HttpClient` (Omen-hosted) across `ingest.py`/`graph_builder.py`/`nova_query.py`; added `nova_board.py`/`nova_clickup_client.py`/`nova_chroma_omen_check.py`; fixed hardcoded-Windows-path bug in `nova_orchestrator.py`'s dotenv load |
-| 2026-07-12 | Added `nova_status_digest.py`/`NOVA_STATUS.md`; Omen Ubuntu setup verified through step 9/11; added uncommitted-changes check to Sections 8/11; **`86baeyfm1` (Omen headless server) marked complete** — Tailscale live, full validation passed; documented Phi-4/Qwen3 VRAM NO-GO and Phase 2 early greenlight; added end-of-turn CTA requirement (Section 8); shipped `nova_chunk_viz.py` (CLI stage) and `nova_embedding_viz.py`/`.html`; found+fixed Omen's 15-commit-stale git clone (passphrase-protected deploy key) and `GRAPH_PATH` hardcoded-path bug; added "Known At-Risk Character Pairs" to Section 6; **`86bawfn19` marked complete** — `nova_api.py` live on Omen independent of Aero |
-| 2026-07-14 | Shipped `nova_omen_sync.py` (pull→restart→verify); shipped `nova_escalation.py` pause-at-will switch (`check_escalation()` still a stub); documented standard git strategy (push→sync) in Section 8; shipped `nova_task_queue.py` readiness detection + task resolution |
-| 2026-07-15 | Shipped security-cluster fixes: `nova_tools.py` `run_command` hardening (`cd`/PATH/env restrictions), `resolve_task_description()` prompt-injection boundary language, `.env` git-ignore audit; committed `graphify-out/` knowledge graph + documented Omen SSH worktree workflow; added Claude Code activity profile (`nova_usage_logger.py`, `/activity-profile`) |
-| 2026-07-16 | Shipped dual-fuel credential switch for headless dispatch (`choose_fuel_source()`, fixed a Windows-`zoneinfo` bug via `tzdata`); shipped `nova_scheduled_dispatch.py` cron trigger (2hr, `autonomy-safe` tag) — found+fixed a cross-machine `dispatch_pause` bug (`nova_state.py`'s hardcoded `DB_PATH`) along the way; shipped `nova_agent_log_status.py` (Aero+Omen `agent_log.jsonl` merge, Qwen3 swap-trigger progress); shipped review-bandwidth backpressure (`86baykvan`, fixed `nova_config.py`'s hardcoded `CONFIG_PATH` first); backfilled review decisions, shipped observability Layer 1 (ClickUp non-clean-outcome comments) |
-| 2026-07-18 | Shipped Nova Controller v1 Escalation Answer UI (`86bax0wkj`) — real `check_escalation()` regex parsing, `resume_headless_task()`, `/escalations` routes, `nova_escalations.html`; fixed a review-backpressure/escalation double-count interaction and 3 hardcoded-path 500s found during live verification |
-| 2026-07-19 | Merged `86baxbt82` into `86bawf2z2` (auth-layer tickets); shipped Task Tiering (`86bb01wur`) — `propose_tier()`, `/tier-proposals`; shipped Nova Controller UX (`86baxahn7`) — `nova_controller.html` Feed/swipe-labeling, `/dispatch-log`, `/label-queue`, PWA shell; shipped `nova_remote_inference.py` RunPod adapter (gated, wired into `ask()`); shipped `nova_agentic_dataset_curator.py` (10K-row curated dataset); shipped `nova_voice.py` Minimal-tier voice (wake word + local STT/TTS), fixed `CHROMA_HOST` to Omen's Tailscale IP (was LAN IP, broke off-network) |
-| 2026-07-21 | Shipped `nova_finetune_phi4.py` Phi-4 Mini QLoRA DPO script (CUDA `torch` reinstall required, verified 3 real DPO steps); closed out `86bagek35` context-fill/cold-start benchmarks; ran full base-model evaluation protocol — **verdict: stay on Llama 3.2 3B**, no candidate beats baseline; shipped `nova_omen_capacity.py` self-hosting-gate audit — verdict: headroom open today; shipped training-data accumulation oversight (`86bax4akx`) — `/training-data-status`, `dpo_verify` label kind, fixed a `/label-queue` truncation bug; fixed hardcoded `C:/Nova` paths in `nova_logger.py`/`nova_corrector.py` (filed `86bb1pkpb` for 15 more instances) and in `nova_log.py`/`nova_benchmark.py` |
-| 2026-07-25 | Shipped `nova_log_rotation.py` (`86barby7t`, merged PR #9) — weekly, non-destructive rotation of the Nova Log telemetry files (`query_log.jsonl`/`benchmark_log.jsonl`): archives entries >90 days old and past the most-recent 1000 into month-stamped files under `logs/archive/`, atomic active-file rewrite. Standalone cron CLI (`--dry-run`/`--file`/`--max-age-days`/`--max-active`), not wired into the deferred `nova_watcher.py`. Deliberately scoped to the two real Nova Log files only — the other append-only JSONL logs (`training_flags.jsonl`, `tool_call_log.jsonl`, `agent_log.jsonl`, `scheduled_dispatch_log.jsonl`) feed full-history consumers and need a per-log decision before rotating. Live `--dry-run` against the real Aero logs confirmed clean before merge (158/12 entries, both unchanged, no errors) — closes the gap this task's own dispatch flagged (see next). **Merged PR #8** — closed the `run_command()` absolute-path-argument gap (`_command_references_outside_root()`), independently re-verified with real test cases before merging, not just trusted from the PR body. **Real end-to-end sandboxed-cron-dispatch test run for real** (first genuine unpaused firing through `run_scheduled_dispatch()`, not just monkeypatched isolation) — surfaced and fixed a serious bug: `--permission-mode acceptEdits` never approves the Bash tool, only file edits, confirmed via a real `permission_denials` entry on a bare `python3 -c "print(2+2)"` call outside Docker entirely. This affected **both** headless dispatch paths since 2026-07-14, unnoticed because no prior real dispatch had needed to execute code. Fixed by switching only the sandboxed path to `--permission-mode bypassPermissions` (safe there specifically because the Docker mount boundary is real, verified containment) — deliberately left the bare-SSH path alone, since bypassing permissions with no container underneath would mean zero prompts and zero containment together. Re-verified live: a second sandboxed dispatch requiring real Bash execution succeeded. Dispatch pause restored to its prior state after testing — **`sandboxed_dispatch_enabled` was reported as reverted here too but actually wasn't; see the correction later in this same day's entry.** **Fixed the "Working Directly on the Omen via SSH" section above** — its documented step 3 ("commit and push from the Omen") doesn't actually work: the Omen's GitHub deploy key is read-only, confirmed live. Corrected to route the push through the Aero instead of widening the key's access, plus documented two more real gotchas hit along the way (no git identity configured on the Omen, non-interactive SSH missing `~/.local/bin` on PATH). **Filed 10 Controller-expansion tasks** (`86bb3cey0`–`86bb3cgna`, tagged `controller-expansion`) after Marvin asked for suggestions and said "I like all of them" — live status, approve/deny mechanisms, diff-merge, abort switch, optimistic-UI write queue, etc. **Shipped `86bb3cey0` same day (commit `4367d62`)** — Nova Controller live in-flight dispatch status widget, new `GET /in-flight-status`. Scoped to the headless-dispatch lane only (confirmed with Marvin during planning): the interactive/native `nova_orchestrator.py` lane only runs on the Aero, invisible to the Omen's `nova_api.py` (what the phone Controller actually hits) without a new push mechanism — deferred as a real, separate task. New `current_dispatch.json` marker in `nova_scheduled_dispatch.py`, written the moment a task is picked and cleared alongside the existing dispatch lock; `is_dispatch_currently_running()` reuses the lock's own PID-liveness check (`_pid_is_alive()`, extracted for reuse) so a crashed process self-heals the same way a stale lock already does. Investigated `tool_call_log.jsonl` as a live-detail signal first and rejected it: hook-tagged entries are all indistinguishable (`agent: "claude_cli"` regardless of source), and — a real, previously-undiscovered gap — **sandboxed dispatch's tool-call-log writes are silently lost entirely**, since the container only mounts `.git` + the worktree + `~/.claude`, not the repo's `logs/` dir; noted for a future fix, not addressed here. Widget is a persistent element alongside Board Watch/DPO-progress, not a Feed card, matching the Controller's existing anti-engagement-ranking design. Verified: 4 states of `is_dispatch_currently_running()` directly, the route against a local dev server, `formatElapsed()` unit-tested in Node, and one real end-to-end dispatch against a disposable test task. **Real self-caught error during that verification:** `sandboxed_dispatch_enabled` was still `true` — the earlier same-day claim that it had been reverted was wrong; fixed for real this time (commit `588fb93`), confirmed via direct file read after the fix rather than re-asserted from memory. **Shipped the Controller flag switches panel** (`86bb3d725`) — `GET`/`POST /flags`, `nova_config.FLAG_REGISTRY` (7 flags: dispatch_pause + 6 nova_config.json flags), replaces the standalone Board Watch widget with one unified panel. Real design correction found live: the toggle route originally also pushed nova_config.json to origin/master after committing, which can never succeed from the Omen (same read-only deploy key) — asked Marvin directly, confirmed keep the key read-only, toggle route now commits locally only, publishing stays a manual step like the rest of this file's history. Two more real bugs found and fixed during the same live verification, both specific to running inside the Omen's systemd service rather than an interactive shell: no git identity configured (fixed with scoped `-c` flags) and systemd's own minimal PATH missing `~/.local/bin` (fixed with an explicit subprocess `env`, not relying on the parent process's PATH). **Shipped `86bb3ceya`** — Nova Controller headless-dispatch cost/budget readout, new `GET /dispatch-cost-summary`. Real scope correction made before building, not after: the board text's "extend `nova_token_budget.py` to a specific session" doesn't hold up — that module tracks the *interactive* `nova_orchestrator.py` lane only (real Anthropic `response.usage` objects) and headless dispatch never calls its `record_usage()` at all (confirmed by grep). Headless dispatch is also a single blocking SSH call to `claude -p` with no mid-run cost signal — a true live per-second ticker would need `--output-format stream-json`, a real architecture change, deferred rather than faked. Built the honest, real half instead: `nova_scheduled_dispatch.get_dispatch_cost_summary()` sums `cost_usd` from the existing `scheduled_dispatch_log.jsonl` entries, bucketed today/last-7-days, split into `real_usd` (`fuel_source == "api_key"` only — actual metered spend) vs. `notional_usd` (every entry, including subscription runs, which cost no real marginal dollars) — deliberately never collapsed into one number a glance could misread as "money spent." Also resolves `fuel_source` once in `run_scheduled_dispatch()` (previously only decided inside `dispatch_headless_task()`, after the marker was already written) and writes it into the `current_dispatch.json` marker, so `/in-flight-status` now shows a live "subscription vs. metered" badge for whichever run is happening right now — `is_dispatch_currently_running()` needed zero changes since it already spreads the whole marker dict. Verified live against the real (small — 3 real entries, all from 2026-07-18) `scheduled_dispatch_log.jsonl`, both new/changed routes hit directly on the already-running local `nova_api.py`. One verification gap, honestly noted rather than glossed over: `_pid_is_alive()`'s `os.kill(pid, 0)` liveness check is POSIX-only and this script is Omen(Linux)-only by design, so simulating a live in-flight marker to visually confirm the new fuel badge couldn't be done from the Windows Aero — confirmed instead by code inspection plus the pre-existing, already-proven marker-spread mechanism from `86bb3cey0`. Browser-based visual confirmation of the new widget also wasn't done this session (Chrome extension not connected) — worth a real look at `/controller` next time it's available. Marvin's follow-up: split the real/notional line into two separate lines after seeing it, shipped same session (commit `5957698`). **Shipped `86bb3cey2`** — Nova Controller Qwen3 8B swap-trigger progress widget, new `GET /qwen-swap-status`. Real architecture problem found before writing code: `nova_agent_log_status.py` (the existing CLI this reuses) was built assuming "local = the Aero, fetch the Omen's copy over SSH" — true when Marvin runs it by hand, false once wrapped in a `nova_api.py` route, since that server runs on both the Aero (dev) and the Omen (production, what the phone actually hits). Fixed `LOCAL_AGENT_LOG_PATH`'s hardcoded `C:/Nova/...` path (same bug class as `86bb1pkpb`) and made `get_combined_status()` platform-aware: on Windows, unchanged behavior (full Aero+Omen combined view); on Linux (the Omen), skips the pointless self-SSH and reports only its own local data, tagged `view: "omen_only"` rather than silently showing a partial number as if it were complete — same honest scope limit `/in-flight-status` (`86bb3cey0`) already accepted for the native orchestrator lane, since no reverse-SSH path from the Omen to the Aero exists anywhere in this codebase. Verified live on the Aero: real combined count is 29 distinct task_slugs (27 Aero + 2 Omen), 96.7% of the 30-task swap-trigger minimum — noticeably higher than the 20-task count logged 2026-07-16, and close enough to the threshold to be worth watching. Frontend widget follows the DPO-pairs progress-bar pattern exactly, with the `omen_only` caveat appended to the sub-line rather than hidden. Also verified `view: "omen_only"` for real directly against the live Omen-hosted `nova-api` after syncing (`curl` to `100.114.197.117:8001/qwen-swap-status`) — real numbers there are 2/30 (6.7%), a genuinely large gap from the Aero's 29/30 view, exactly the honesty gap the caveat exists to surface. **Shipped `86bb3cey5`** — Nova Controller Feed filtering by card type/task/date, `nova_controller.html` only, no backend change. Client-side filter bar (type chips + task search box + date-range dropdown) above the Feed; `loadFeed()` split into fetch/merge (unchanged) and a new `renderFeedEntries()` that filters `lastAllEntries` (a cache of the last fetch, so a filter change re-renders instantly without waiting for the next poll) — never changes what's fetched or re-ranks anything, matching the Controller's existing anti-engagement-ranking design (a filter is user-invoked, not algorithmic). Verified: extracted script syntax-checked clean via `node --check`, filter-bar markup confirmed present in the served `/controller` page over HTTP. Browser-based visual/interaction verification not done this session (Chrome extension still not connected, same gap as the two prior tasks today). Marvin confirmed live on his phone that both `86bb3cey2` and `86bb3cey5` render correctly in production. **Shipped `86bb3ceyc`** — Nova Controller worktree browser, new module `nova_worktree_status.py` + `GET /worktree-status`. Real motivating find named directly in the task text: two stale `sandbox-verify-test*` worktrees from the earlier Docker-sandboxing PR verification were sitting unmerged on the Omen, unnoticed until manually checked — this exists so that stops happening silently. Third consecutive Controller task today to hit and reuse the same platform-awareness pattern from `86bb3cey2`: `get_worktree_status()` reports the full `view: "aero_and_omen"` combined inventory when served from the Aero, and `view: "omen_only"` (Omen's own worktrees only, Aero side honestly reported unreachable) when served from the Omen — no reverse-SSH path to the Aero exists anywhere in this codebase. Age comes from `git for-each-ref`'s committer date per branch (one command, not N per-worktree round-trips); merged status from `git branch --merged master` (no `git fetch` — stays a pure local read, no network side effect). One combined SSH call for the Omen side (porcelain listing + merged list + dates, `&&`-chained with text markers), matching `_run_claude_over_ssh()`'s one-round-trip convention rather than three separate SSH calls. **Real, useful finding confirmed live on first run:** both stale worktrees are `merged: true` — already safely mergeable into `master` and just never pruned, exactly the kind of cleanup gap this browser exists to surface. Verified: CLI run directly against real Aero+Omen state (0 Aero worktrees, 2 real stale Omen ones, 2.9 days old each), route hit on a disposable local `nova_api.py` instance, `node --check` clean on the extracted script, filter/list markup confirmed present in the served page. Same day, Marvin asked to move the Worktrees and Discover sections above the Feed ("don't want that finite information drowned out by something potentially infinite") — pure HTML reorder, `nova_controller.html` only, shipped same session (commit `4b92ed9`). **Shipped `86bb3cgna`** — optimistic UI + serialized write queue for label-queue swipe/tap decisions, `nova_controller.html` only, cross-cutting fix (not a Controller-expansion phase item). Real, measured gap fixed: every swipe/tap previously awaited the full round trip to `/label-queue/{kind}/{id}/decide`, then called `loadFeed()` — refetching all 4 Feed endpoints and rebuilding every card, against a `tool_call_log.jsonl` already past 2400 entries with a read-all/rewrite-all decide route. Now: the card collapses immediately (CSS transition on `.swipe-wrap`, no full re-render), a ~4s Gmail-style undo snackbar holds the actual write, and only once that window elapses uncancelled does the write get pushed onto a client-side queue that processes exactly one at a time — never parallel, since `decide_label_queue_entry()`'s own docstring warns that racing writes on that same read-all/rewrite-all file can silently stomp each other. **Real correctness problem found while tracing the code, not stated in the ticket text but load-bearing for the fix to actually work:** the Feed's own 8s poll rebuilds `#feed`'s entire `innerHTML` from a fresh `/label-queue` fetch every cycle — a card removed from only the current DOM would have silently reappeared on the very next poll while still mid-undo-window or mid-queue. Fixed by adding a `suppressedLabelIds` set that `renderFeedEntries()`'s existing filter (from `86bb3cey5`, shipped earlier the same day) also excludes, so a card stays hidden across every re-render, not just the current one, until Undo explicitly clears it. Failures (network error, non-2xx, or a 401 that also re-triggers the token prompt) push to a small persistent toast ("N labels failed to save — tap to retry") instead of interrupting the swipe flow with inline text. Scoped strictly to the three label kinds named in the ticket (`tool_call`, `dpo_verify`, `blend_flag`) — escalations/tier-proposals (different interaction shape, explicit accept/override buttons) and the flags panel (already has its own separate optimistic-toggle logic) were deliberately left untouched. Verified: `node --check` clean on the extracted script; a standalone Node reproduction of the exact `enqueueWrite`/`processQueue` pattern used in the real code, run against 5 rapid-fire simulated writes with randomized latency, confirmed strictly one-at-a-time processing (`maxConcurrent: 1`) with no interleaved start/end pairs — real evidence for the one correctness guarantee that mattered most, not just a syntax check. Full browser click/swipe interaction not verified this session (Chrome extension still not connected, same gap as every other Controller task today). **Chrome connected later the same session** — real live verification followed, using direct `javascript_tool` execution against the page's own functions (not just screenshots, which proved unreliable here: the Feed's 8s poll plus this very testing session's own tool-call logging kept reshuffling card positions faster than screenshot-coordinate clicks could track). Confirmed correct end to end against real data: immediate collapse, correct undo-snackbar text, write genuinely deferred (queue empty until the ~4s window elapses), undo cleanly cancels (proven with an atomic test spanning past the full window with zero new failures), suppression survives across time, and the failure toast + tap-to-retry both fire correctly — two real 401s occurred naturally in the fresh test browser session (no escalation token entered), which is itself the intended failure-path behavior, not a bug. **Real, separate finding surfaced along the way, unrelated to this fix:** `/training-data-status` (built 2026-07-21, predates today's platform-awareness pattern) shows 0/100 on the live Omen vs. the real 33/100 on the Aero — same "Omen can't see Aero-only data" bug class fixed three times today for newer routes, just never applied to this older one. Flagged to Marvin, not fixed (out of scope for what was asked). **Extended to tier proposals same day**, per Marvin's direct ask ("can we apply that optimistic ui to the tiering tasks too") — generalized `suppressedLabelIds`→`suppressedCardIds` and `optimisticallyCommitLabel`→`optimisticallyCommitCard` (now takes an explicit `key` via new `cardKey(entry)` helper instead of assuming a label-shaped entry), wired `renderTierCard()`'s Accept and Submit-override buttons through the same path, added `.optimistic-collapsible` CSS (tier cards have no separate wrapper element the way label cards do — the card `div` itself collapses, 800px cap vs. label cards' 500px since tier cards carry more content). Verified live: no real pending tier proposal existed to test against non-invasively, so verified by rendering synthetic entries through the real `renderTierCard()` function directly in the browser (real DOM, real event listeners, never touching the actual backend/database) — confirmed Accept, the atomic undo-cancels-cleanly sequence, and Override (both the empty-reasoning client-side block and a real filled-in submission) all work correctly. **Also same session: prepared (not yet completed) command-restricted Omen→Aero SSH access**, Marvin's direct ask after seeing the `omen_only` limitation live on his phone. Two dedicated, narrowly-scoped ed25519 keypairs generated on the Omen (`aero_agentlog`, `aero_worktrees` — never reusing the existing Aero→Omen keypair, since SSH keys are directional); two forced-command scripts (`scripts/ssh_read_agent_log.ps1`, `scripts/ssh_read_worktrees.ps1`) written and verified working locally on the Aero, producing output in the exact format `nova_agent_log_status.py`/`nova_worktree_status.py` already parse; one idempotent elevated-PowerShell setup script (`scripts/setup_omen_to_aero_ssh.ps1`) prepared covering OpenSSH Server install, a firewall rule scoped to Tailscale's address range only (not the LAN), `ListenAddress` restricted to the Tailscale interface, and the two command-restricted keys installed into `administrators_authorized_keys` with correct ACLs (required since Marvin's Windows account is in the Administrators group — confirmed live, this file is silently ignored otherwise, a well-documented Windows OpenSSH gotcha). Real tradeoff surfaced and discussed before building anything: this gives the Omen a genuine remote-execution foothold into the Aero, a bigger blast radius than anything it has today (the same reasoning that already keeps the Omen's GitHub deploy key read-only) — mitigated by scoping each key to exactly one whitelisted read-only script, no shell access, no port/agent/X11 forwarding. Marvin chose the command-restricted approach over a full open key. **Deliberately not yet wired into the Python side** — waiting on Marvin to run the elevated setup script and confirm real connectivity before building on top of an unverified assumption, matching this project's own standing discipline. **SSH setup completed live the same session, two real bugs hit and fixed along the way, not hypothetical:** (1) `Add-WindowsCapability -Online` for the OpenSSH Server feature hung indefinitely on the first attempt — confirmed genuinely stalled, not just slow, by sampling the `DismHost` process's CPU time twice 5 seconds apart and seeing zero movement, combined with `sshd` not existing yet; root cause was the Windows Update service itself being stuck, fixed by `Restart-Service wuauserv -Force` before re-running. (2) The setup script's own `ListenAddress` restriction step blindly appended the directive to the end of `sshd_config` via `Add-Content`, landing it *after* Windows' default `Match Group administrators` block — `ListenAddress` isn't in the small allowlist of directives OpenSSH permits inside a `Match` block, so `sshd` refused to parse the config at all and failed to start (confirmed via `Get-WinEvent`: "terminated unexpectedly," twice). Fixed both the live `sshd_config` (a one-off repair script, `scripts/fix_sshd_listenaddress.ps1`) and `setup_omen_to_aero_ssh.ps1` itself, so a fresh run on another machine wouldn't hit the same bug — the corrected logic finds the `Match` line and inserts `ListenAddress` before it, not a blind append. One real paste-order surprise along the way: pasting a multi-line fix directly into the elevated PowerShell console executed the lines in *reverse* order (a terminal/clipboard quirk, not a logic bug) — worked around by writing fixes as `.ps1` files and running them with `-File` instead of pasting inline, avoiding the ambiguity entirely. **Real end-to-end connectivity verified directly over SSH from the Omen**, both dedicated keys: `ssh -i ~/.ssh/aero_keys/id_ed25519_aero_agentlog ... "ignored-command"` returned real `agent_log.jsonl` content, and the `aero_worktrees` key returned real `git worktree list` output — confirming the command restriction genuinely works (the bogus `"ignored-command"` argument was ignored; the forced script ran instead, not an error). **Same session, wired into the Python side**: `nova_agent_log_status.get_combined_status()` and `nova_worktree_status.get_worktree_status()` both refactored from a one-way Windows-vs-Linux branch to a fully symmetric `local` + live-SSH-to-`remote` shape — new `read_aero_agent_log()`/`list_aero_worktrees()` mirror the existing Omen-fetch functions exactly, reusing their parsing unchanged. `view` is now genuinely three real states either module can return: `"combined"` (both sides real, whichever machine served the request), `"omen_only"`, or `"aero_only"` (the other machine couldn't be reached right now, most commonly because the Aero is asleep) — never a structural impossibility on either side anymore, just an honest live reachability fact. `nova_controller.html`'s Qwen widget caveat generalized to handle both directions; the worktree browser needed zero frontend changes since it already read each machine's own `.error` field directly rather than a top-level `view` check. Verified live end-to-end through the real deployed routes after syncing, not just unit-level: both `/qwen-swap-status` and `/worktree-status` returned `"view": "combined"` with genuine Aero task/turn counts and worktree entries, served from the Omen, for the first time |
-| 2026-07-26 | Applied the same Omen→Aero SSH bridge to `/training-data-status` — new `nova_training_data_status.py` (`get_combined_training_status()`, identical `combined`/`omen_only`/`aero_only` shape as `nova_agent_log_status.get_combined_status()`), a third dedicated command-restricted key (`id_ed25519_aero_trainingdata`) + forced script (`scripts/ssh_read_training_flags.ps1`, raw-byte passthrough per the same `agent_log.jsonl` encoding bug already fixed once), and `setup_omen_to_aero_ssh.ps1` updated to install it alongside the existing two. Fixes the real gap flagged the day before: the route used to read only its own machine's local `training_flags.jsonl` — real on the Aero (33/100) but always 0/100 from the Omen, which has no such file at all (`log_blend()` only ever fires from an interactive Aero-side `nova_query.ask()` call). `nova_controller.html`'s DPO-progress widget now surfaces the same `omen_only`/`aero_only` caveat text as the Qwen widget. Verified live: the new module's local-read path confirmed against the real Aero `training_flags.jsonl` (33 corrected, all `fiction`, all unverified — matches the number Marvin already saw), and the pre-existing Aero→Omen leg confirmed reachable with an honest empty result (no error) since the Omen genuinely has nothing yet. **Key generated on the Omen, activation still manual, matching this project's established pattern for the first two keys**: Marvin needs to `git pull` this change into the live `C:/Nova` checkout, then re-run `scripts/setup_omen_to_aero_ssh.ps1` (elevated) to install the third `administrators_authorized_keys` entry and restart `sshd` — not done unilaterally here, since editing the Aero's live SSH server config is exactly the kind of system-level, trust-boundary-expanding action this project's own discipline treats as a confirm-first step, not an auto-apply one, even though the mechanism itself is already precedented twice over. **Same-day follow-up: the write side.** `/label-queue`'s blend_flag/dpo_verify cards had the identical gap one layer deeper — not just the aggregate count, but the actual per-entry cards and their decide action: when served from the Omen, the route could only ever see (and patch) the Omen's own near-empty `training_flags.jsonl`, meaning the Controller's swipe-labeling UI silently couldn't show or act on the Aero's real cards at all from the Omen-hosted production instance. Fixed with the same bridge, extended: new `nova_training_flags_patch.py` (shared `patch_training_flags_entry()` — one file, one field, index/timestamp-checked, used both locally and remotely so the two paths can never drift), `nova_patch_training_flags_cli.py` (a stdin/stdout JSON wrapper so a patch request can cross the SSH bridge as data, since a forced command's own argv is always ignored), and a **fourth, WRITE-capable** key + forced script (`scripts/ssh_patch_training_flags.ps1`). `get_training_flags_by_origin()` (refactored out of `get_combined_training_status()`) now tags each blend_flag/dpo_verify entry's synthetic id with which machine it actually lives on (`line:<aero|omen>:<index>:<timestamp>`); `decide_label_queue_entry()` patches locally if the id says "here," otherwise calls `dispatch_remote_patch()` — Aero→Omen reuses the Aero's pre-existing full-trust SSH access (no new key needed, same as `nova_omen_sync.py`), Omen→Aero uses the new key. **This step is qualitatively bigger than the three read-only keys, and the session's own permission classifier caught that live** — attempting to `ssh-keygen` the fourth keypair on the Omen was blocked outright ("blocked by classifier"), a real, automatic guard against autonomously minting a new *write*-capable remote credential rather than a read-only one. Correctly treated as a stop-and-ask boundary, not routed around: the code (module, CLI wrapper, forced script, decide-route rewrite) is fully built, unit-tested end-to-end against a disposable synthetic `training_flags.jsonl` (success path, stale-timestamp 409, bad-`verification_status` 422, malformed-JSON 422 — all through the actual CLI wrapper, not just the underlying function), and `setup_omen_to_aero_ssh.ps1` extended with an explicit opt-in step 6 that requires the real pubkey to be pasted in by hand before it'll install anything. The keypair itself does not exist yet anywhere — generating it is left as a decision for Marvin (or an explicitly re-confirmed follow-up ask), not assumed. |
-| 2026-07-26 | Shipped `86bb3ceyj` — Nova Controller abort/kill switch for an in-flight headless dispatch, first of the four Phase C Controller-expansion tasks. Scoped in a dedicated conversation first (4 settled decisions, recorded as a ClickUp comment on the task before building): cron-fired dispatch only (matches `/in-flight-status`'s existing lane boundary — manual `--dispatch` runs bypass the lock entirely and are out of scope); the aborted task's worktree is left in place for manual review, never auto-cleaned; a dispatch paused on a pending escalation gets a *different* action (cancel the escalation, not a process kill, since `claude -p` already exited cleanly by that point); and the write is token-gated like every other destructive action on this surface. **Real technical finding that shaped the whole build:** `_run_claude_over_ssh()` allocates no pty, so killing the wrapper process (or its SSH client) does NOT reliably kill the remote `claude -p` process — it just orphans it, still running, unreachable from the wrapper. Fixed by having the dispatch itself capture the real PID: `dispatch_headless_task()`'s remote_command now backgrounds the `claude` invocation and writes its real PID to a fixed path (`REMOTE_DISPATCH_PID_PATH`) before `wait`ing on it, and `dispatch_headless_task_sandboxed()`'s `docker run` now takes a fixed `--name` (`SANDBOXED_CONTAINER_NAME`, with a `docker rm -f` pre-clear for a stale leftover) so the sandboxed path can be killed with a plain `docker kill`. Both are fixed, not per-task, names/paths — safe because `nova_scheduled_dispatch.py`'s lock already guarantees at most one cron-fired dispatch runs at a time. New `nova_scheduled_dispatch.abort_current_dispatch()` reads the in-flight marker, posts an immediate ClickUp comment naming the manual abort, then kills the real target (SIGTERM, escalating to SIGKILL after a 2s grace period, for bare-SSH; `docker kill` for sandboxed) — deliberately does NOT touch the lock/marker files itself, since `run_scheduled_dispatch()` is still blocked inside the SSH call when this runs and will release them naturally, moments later, once the kill causes that call to return; touching them here too would risk a race against an already-re-acquired lock from a near-simultaneous new firing. New `nova_api.py` routes: `POST /dispatch-abort` (token-gated, backs the Controller's new in-flight-widget "Abort" button) and `POST /escalations/{id}/cancel` (token-gated, backs a new "Cancel escalation" button on pending escalation cards — the scoping decision's answer for the paused-on-escalation case). **Verified for real, not just reviewed:** `abort_current_dispatch()`'s full control-flow tested locally against real disposable subprocesses (not-running, no-PID-file-yet, malformed-PID, already-gone-process, and a real spawned Python process actually killed and confirmed dead) — the one Windows-only artifact hit along the way (`signal.SIGKILL` doesn't exist on Windows, and `os.kill(pid, SIGTERM)` behaves differently there) is expected and harmless, since this module is Omen(Linux)-only by the same established precedent as `_pid_is_alive()` elsewhere in this file; the actual SIGTERM-kills-a-real-process assumption was separately confirmed live over SSH against the real Omen. **Known, honestly-stated gap:** the two new `nova_api.py` routes themselves weren't exercised through a live `TestClient`/dev server — a cold `import nova_api` hung past 60s in this environment (heavy runtime dependencies, e.g. the Chroma client, unrelated to this change) — so route-level verification rests on exact structural parity with already-proven routes in the same file (same `_check_escalation_token()` gate, same request/response shape as `/escalations/{id}/answer`), not a live request. |
-| 2026-07-26 | Shipped `86bb3ceyf` — Nova Controller diff-preview-and-merge for dispatched tasks, second of the four Phase C Controller-expansion tasks. Scoped in a dedicated conversation first (recorded as a ClickUp comment on the task), starting from two real findings that reframed the whole approach: (1) the Omen genuinely cannot push to GitHub at all — confirmed live, its deploy key is read-only and it has no `gh` CLI installed — so a tap-to-merge action served from the Omen (the real production case) needs the Aero involved somehow; (2) GitHub's own mobile web UI already does diff review + merge well, so building a custom diff viewer in `nova_controller.html` would just be reinventing that. Settled: extend the Omen→Aero SSH bridge with a fifth key rather than widen the Omen's deploy-key permissions; push a real draft GitHub PR and have the Controller deep-link to it rather than build an in-app diff viewer; scope to Omen-hosted headless-dispatch worktrees only (`nova-dispatch-<8 hex chars>` branches, matching `86bb3ceyj`'s own lane precedent); ship a discard action alongside merge, reusing the existing `record_dispatch_review()`. **A second real technical finding surfaced while building, directly extending `86bb3ceyj`'s own discovery the same day:** confirmed the "SSH sessions here can't spawn a process" restriction isn't python.exe-specific — the earlier failure was a generic Win32 `CreateProcess`-level "Access is denied," so it applies to `git.exe`/`gh.exe` too. That ruled out having the fifth key's forced script run git/gh directly; instead `scripts/ssh_relay_worktree_pr.ps1` only relays the request (via `Invoke-RestMethod`, a native .NET HTTP call, not a spawned process — confirmed unaffected) to the Aero's own already-running `nova_api.py` instance, which — being a normal locally-launched process, not an SSH session — has no such restriction and does the real `git fetch`/`git push`/`gh pr create` work directly. Real, honestly-stated consequence: this only works when `nova_api.py` is actually running on the Aero (Task Scheduler's "Nova Auto-Start" covers this whenever Marvin's logged in, but it's a real precondition beyond the usual aero_only/omen_only reachability pattern). New `nova_worktree_pr.py` owns the git/gh logic and the platform-aware relay decision (`create_worktree_pr()`, `discard_worktree()`); new `nova_api.py` routes `POST /worktree-pr` and `POST /worktree-discard` (both token-gated); new "Create PR"/"Discard" buttons on the worktree browser's dispatch-branch entries. **Verified:** branch-name validation (`nova-dispatch-<8 hex>` only, rejecting path-traversal-shaped input) and the full local git/gh success/failure control-flow tested with mocked subprocess calls (fetch failure correctly short-circuits before push/gh, branch-delete failure after a successful worktree removal still reports success-with-a-warning rather than a false failure); the relay script tested end-to-end via a real child-process stdin pipe, including a genuine connection-refused case against a real absent `nova_api.py` on port 8000, which surfaced an unhelpful generic PS 5.1 exception message (`Object reference not set...`) on the first pass — fixed to detect that specific case and report "nova_api.py may not be running on the Aero" instead. Same honest gap as `86bb3ceyj`: the two new `nova_api.py` routes weren't exercised through a live `TestClient` (same `import nova_api` hang), and no real end-to-end PR/discard was run against an actual dispatch worktree this session. The fifth keypair itself was not generated — same stop-and-ask boundary as the fourth key, left for Marvin. |
+| 2026-06-15 | CLAUDE.md created; documented /context-budget bug |
+| 2026-07-04 | Fixed /context-budget; Open WebUI OpenAI-compat routes; Nova Log v1 |
+| 2026-07-05 | Phase 3.5 v1 coding sub-agent shipped; Phase 4 v1 (Tailscale/auto-start); golden benchmark suite |
+| 2026-07-06 | `nova_mcp_server.py` (unwired); prompt caching; feature-flag system |
+| 2026-07-10 | LangGraph orchestration v1 (gated off); model-routing + eval wrapper; Browser Hands M1 |
+| 2026-07-11 | Chroma migrated to Omen-hosted `HttpClient`; `nova_board.py`/ClickUp CLI |
+| 2026-07-12 | Omen headless server (`86baeyfm1`) COMPLETE; `nova_api.py` on Omen (`86bawfn19`) COMPLETE; chunk/embedding viz shipped |
+| 2026-07-14 | `nova_omen_sync.py`; `nova_escalation.py` pause switch (stub); `nova_task_queue.py` |
+| 2026-07-15 | `run_command` security hardening; Claude Code activity profile |
+| 2026-07-16 | Dual-fuel credential switch; `nova_scheduled_dispatch.py` cron trigger; Qwen swap-trigger tracking; review-bandwidth backpressure |
+| 2026-07-18 | Escalation Answer UI real (`check_escalation()` no longer a stub), `/escalations` routes |
+| 2026-07-19 | Task Tiering; Nova Controller UX v1 (Feed, swipe-labeling, PWA); RunPod adapter; voice Minimal tier live-verified |
+| 2026-07-21 | Phi-4 Mini fine-tune pipeline; base-model eval — verdict stay on Llama 3.2 3B; Omen capacity audit; training-data oversight (`/training-data-status`) |
+| 2026-07-25 | Log rotation shipped; sandboxed-dispatch permission-mode bug fixed; 10 Controller-expansion tasks filed and 4 shipped same day (in-flight status, flags panel, cost summary, Qwen widget, Feed filtering, worktree browser, optimistic UI); Omen→Aero SSH bridge (3 read-only keys) built + activated |
+| 2026-07-26 | Omen→Aero bridge extended to training-data read+write (4th key, write path built but not yet generated — stop-and-ask boundary); abort/kill switch (`86bb3ceyj`) and diff-preview-and-merge (`86bb3ceyf`) shipped, both Phase C Controller-expansion tasks |
+| 2026-07-26 | CLAUDE.md split: narrative/incident history (~136K chars) moved to `NOVA_BUILD_LOG.md`, this file trimmed to current facts + standards |
 
 ---
 
