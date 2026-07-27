@@ -63,6 +63,25 @@ DEFAULT_CONFIG = {
         "max_unreviewed_dispatches": 3,
         "sandboxed_dispatch_enabled": False,
     },
+    "push_notifications": {
+        "enabled": False,
+    },
+    "pre_action_approval_gate": {
+        "enabled": False,
+        "command_patterns": [
+            "pip install",
+            "npm install",
+            "pip uninstall",
+            "npm uninstall",
+            "git commit --amend",
+            "git rebase",
+            "curl ",
+            "wget ",
+        ],
+        "max_files_per_turn": None,
+        "timeout_seconds": 300,
+        "poll_interval_seconds": 3,
+    },
 }
 
 
@@ -151,6 +170,52 @@ def is_sandboxed_dispatch_enabled() -> bool:
     return bool(load_config().get("scheduled_dispatch", {}).get("sandboxed_dispatch_enabled"))
 
 
+def is_push_notifications_enabled() -> bool:
+    """
+    True if nova_notify.send_notification() should actually POST to ntfy.sh
+    (86bb3ceyp) — independent flag, no shared master switch. Default off:
+    even with this on, send_notification() still no-ops silently if
+    NTFY_TOPIC isn't set in .env, so flipping this alone is harmless.
+    """
+    return bool(load_config().get("push_notifications", {}).get("enabled"))
+
+
+def is_pre_action_approval_gate_enabled() -> bool:
+    """
+    True if nova_orchestrator.py's Aero-lane turn loop should pause and wait
+    for a human decision before executing a tool call that matches
+    get_approval_gate_patterns() (86bb3ceym) — independent flag, no shared
+    master switch. Aero-only: the Omen's headless dispatch lane bypasses
+    nova_orchestrator.py entirely and is not covered by this gate at all
+    (see CLAUDE.md's Pre-Action Approval Gate subsection).
+    """
+    return bool(load_config().get("pre_action_approval_gate", {}).get("enabled"))
+
+
+def get_approval_gate_patterns() -> list[str]:
+    """Substring command patterns that pause for approval instead of executing silently."""
+    return load_config().get("pre_action_approval_gate", {}).get("command_patterns", [])
+
+
+def get_approval_gate_max_files_per_turn() -> int | None:
+    """
+    File-edit-count gate threshold, or None if that trigger is disabled.
+    Deliberately a fast-follow, not wired into _approval_gate_reason() yet —
+    the command-pattern trigger ships and gets proven live first.
+    """
+    return load_config().get("pre_action_approval_gate", {}).get("max_files_per_turn")
+
+
+def get_approval_gate_timeout_seconds(fallback: int = 300) -> int:
+    """How long _request_tool_approval() waits for a decision before failing closed (denied)."""
+    return load_config().get("pre_action_approval_gate", {}).get("timeout_seconds", fallback)
+
+
+def get_approval_gate_poll_interval_seconds(fallback: int = 3) -> int:
+    """How often _request_tool_approval() re-checks nova_state.db for a decision."""
+    return load_config().get("pre_action_approval_gate", {}).get("poll_interval_seconds", fallback)
+
+
 def get_max_unreviewed_dispatches(fallback: int = 3) -> int:
     """
     The review-backpressure cap threshold — nova_scheduled_dispatch.py
@@ -230,6 +295,18 @@ FLAG_REGISTRY: dict[str, FlagMeta] = {
         "path": ["framework_integrations", "openhands_coding_agent"],
         "label": "OpenHands Auto-Coder",
         "category": "scaffolding",
+        "aero_only": True,
+    },
+    "push_notifications_enabled": {
+        "path": ["push_notifications", "enabled"],
+        "label": "Push Notifications (ntfy.sh)",
+        "category": "operational_safety",
+        "aero_only": False,
+    },
+    "pre_action_approval_gate_enabled": {
+        "path": ["pre_action_approval_gate", "enabled"],
+        "label": "Pre-Action Approval Gate (coding agent)",
+        "category": "operational_safety",
         "aero_only": True,
     },
 }

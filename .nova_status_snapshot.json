@@ -1,6 +1,18 @@
 {
   "ready": [
     {
+      "id": "86bb3r0z4",
+      "name": "Evaluate Pocket (heypocket) MCP server as a Nova / life-autosave ingestion source"
+    },
+    {
+      "id": "86bb3r0h4",
+      "name": "Headless-lane equivalent of the pre-action approval gate (86bb3ceym)"
+    },
+    {
+      "id": "86bb3qvpa",
+      "name": "Integrate slop_linter.py into Nova pipeline (tight mode / STE-100 style check)"
+    },
+    {
       "id": "86bb3pgnc",
       "name": "Marimo Adoption \u2014 Reactive Notebook Tooling"
     },

@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-26 22:08 UTC
+Last updated: 2026-07-27 01:51 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,8 +8,9 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- ready -> complete/removed: 86bb3ceyj (Nova Controller: abort/kill switch for an in-flight dispatch)
-- ready -> complete/removed: 86bb3ceyf (Nova Controller: diff-preview-and-merge for dispatched tasks)
+- NEW -> ready: 86bb3r0z4 (Evaluate Pocket (heypocket) MCP server as a Nova / life-autosave ingestion source)
+- NEW -> ready: 86bb3r0h4 (Headless-lane equivalent of the pre-action approval gate (86bb3ceym))
+- NEW -> ready: 86bb3qvpa (Integrate slop_linter.py into Nova pipeline (tight mode / STE-100 style check))
 
 ## In progress (3)
 
@@ -31,8 +32,11 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (91)
+## Ready (94)
 
+- 86bb3r0z4  Evaluate Pocket (heypocket) MCP server as a Nova / life-autosave ingestion source
+- 86bb3r0h4  Headless-lane equivalent of the pre-action approval gate (86bb3ceym)
+- 86bb3qvpa  Integrate slop_linter.py into Nova pipeline (tight mode / STE-100 style check)
 - 86bb3pgnc  Marimo Adoption — Reactive Notebook Tooling
 - 86bb3p8xw  Automation Handover Package — Reusable Template
 - 86bb3ceyp  Nova Controller: push notifications (Layer 3)

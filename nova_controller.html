@@ -348,6 +348,7 @@
   .badge.tier { background: #1a3a4a; color: #60b0e0; }
   .badge.dispatch { background: #2a2e38; color: #999; }
   .badge.label { background: #3a2e1a; color: #d0a060; }
+  .badge.tool-approval { background: #3a1a2a; color: #e07090; }
 
   .question { font-size: 0.95rem; margin-bottom: 0.5rem; }
   .malformed-note { color: #e0b060; font-size: 0.8rem; margin-bottom: 0.5rem; }
@@ -700,6 +701,7 @@
       <button class="filter-chip active" data-kind="tier">Tier</button>
       <button class="filter-chip active" data-kind="dispatch">Dispatch</button>
       <button class="filter-chip active" data-kind="label">Label</button>
+      <button class="filter-chip active" data-kind="tool_approval">Tool Approval</button>
     </div>
     <div class="filter-row2">
       <input type="text" id="filter-task-input" placeholder="Search task…">
@@ -1329,6 +1331,86 @@
       return div;
     }
 
+    // ── Tool-call approval cards (86bb3ceym) ────────────────────
+    // Immediate-submit, like escalations -- NOT the swipe-and-undo
+    // optimisticallyCommitCard() pattern the label queue uses. A real
+    // process is genuinely blocked mid-turn waiting on this decision, so a
+    // few seconds' undo delay (harmless for async label cleanup) would
+    // just be needless extra wait time here.
+
+    function renderToolApprovalCard(entry) {
+      const status = entry.status || 'pending';
+      const div = document.createElement('div');
+      div.className = 'card ' + status;
+
+      const header = document.createElement('div');
+      header.className = 'card-header';
+      header.innerHTML =
+        `<span class="badge tool-approval">tool approval</span>` +
+        `<span class="task-name" style="flex:1">${escapeHtml(entry.tool_name)}</span>` +
+        `<span class="badge ${badgeClass(status)}">${escapeHtml(status)}</span>`;
+      div.appendChild(header);
+
+      const reason = document.createElement('div');
+      reason.className = 'question';
+      reason.textContent = entry.reason || '(no reason recorded)';
+      div.appendChild(reason);
+
+      const pre = document.createElement('pre');
+      pre.textContent = JSON.stringify(entry.tool_input, null, 2);
+      div.appendChild(pre);
+
+      if (entry.task_description) {
+        const toggle = document.createElement('span');
+        toggle.className = 'context-toggle';
+        toggle.textContent = 'show task';
+        const body = document.createElement('div');
+        body.className = 'context-body';
+        body.textContent = entry.task_description;
+        toggle.addEventListener('click', () => {
+          body.classList.toggle('open');
+          toggle.textContent = body.classList.contains('open') ? 'hide task' : 'show task';
+        });
+        div.appendChild(toggle);
+        div.appendChild(body);
+      }
+
+      if (status === 'pending') {
+        const statusEl = document.createElement('div');
+        statusEl.className = 'submit-status';
+        const row = document.createElement('div');
+        row.className = 'decision-row';
+
+        const approveBtn = document.createElement('button');
+        approveBtn.className = 'accept-btn';
+        approveBtn.textContent = 'Approve';
+        approveBtn.addEventListener('click', () => {
+          row.querySelectorAll('button').forEach(b => b.disabled = true);
+          tokenPost(`/tool-approvals/${entry.approval_id}/decide`, { decision: 'approve' }, statusEl, loadFeed);
+        });
+        row.appendChild(approveBtn);
+
+        const denyBtn = document.createElement('button');
+        denyBtn.className = 'option-btn cancel-escalation-btn';
+        denyBtn.textContent = 'Deny';
+        denyBtn.addEventListener('click', () => {
+          row.querySelectorAll('button').forEach(b => b.disabled = true);
+          tokenPost(`/tool-approvals/${entry.approval_id}/decide`, { decision: 'deny' }, statusEl, loadFeed);
+        });
+        row.appendChild(denyBtn);
+
+        div.appendChild(row);
+        div.appendChild(statusEl);
+      } else if (entry.comment) {
+        const summary = document.createElement('div');
+        summary.className = 'result-summary';
+        summary.textContent = entry.comment;
+        div.appendChild(summary);
+      }
+
+      return div;
+    }
+
     // ── Tier proposal cards (86bb01wur, ported as-is) ───────────
 
     function tierBadgeClass(tier) {
@@ -1807,7 +1889,7 @@
     // hide/show. lastAllEntries caches the last fetch so a filter change
     // re-renders instantly without waiting for the next poll.
 
-    let feedFilters = { kinds: new Set(['escalation', 'tier', 'dispatch', 'label']), taskQuery: '', dateRange: 'all' };
+    let feedFilters = { kinds: new Set(['escalation', 'tier', 'dispatch', 'label', 'tool_approval']), taskQuery: '', dateRange: 'all' };
     let lastAllEntries = [];
 
     // Cards optimistically committed (86bb3cgna, generalized beyond
@@ -1820,6 +1902,7 @@
     function cardKey(entry) {
       if (entry._kind === 'label') return `label:${entry.kind}:${entry.id}`;
       if (entry._kind === 'tier') return `tier:${entry.proposal_id}`;
+      if (entry._kind === 'tool_approval') return `tool_approval:${entry.approval_id}`;
       return `${entry._kind}:${entry.id || entry.proposal_id || ''}`;
     }
 
@@ -1863,6 +1946,7 @@
         if (entry._kind === 'escalation') el = renderEscalationCard(entry);
         else if (entry._kind === 'tier') el = renderTierCard(entry);
         else if (entry._kind === 'dispatch') el = renderDispatchCard(entry);
+        else if (entry._kind === 'tool_approval') el = renderToolApprovalCard(entry);
         else el = renderLabelCard(entry);
         container.appendChild(el);
       });
@@ -1871,7 +1955,7 @@
     document.querySelectorAll('.filter-chip[data-kind]').forEach(btn => {
       if (btn.dataset.kind === 'all') {
         btn.addEventListener('click', () => {
-          feedFilters.kinds = new Set(['escalation', 'tier', 'dispatch', 'label']);
+          feedFilters.kinds = new Set(['escalation', 'tier', 'dispatch', 'label', 'tool_approval']);
           document.querySelectorAll('.filter-chip[data-kind]').forEach(b => {
             if (b.dataset.kind !== 'all') b.classList.add('active');
           });
@@ -1913,11 +1997,12 @@
 
     async function loadFeed() {
       const requestToken = ++feedRequestToken;
-      const [escalationsData, tierData, dispatchData, labelData] = await Promise.all([
+      const [escalationsData, tierData, dispatchData, labelData, toolApprovalData] = await Promise.all([
         fetchJson('/escalations', {}),
         fetchJson('/tier-proposals', {}),
         fetchJson('/dispatch-log', { entries: [] }),
         fetchJson('/label-queue', { entries: [] }),
+        fetchJson('/tool-approvals', {}),
       ]);
       if (requestToken !== feedRequestToken) return; // a newer call has since been issued -- discard this one
 
@@ -1927,10 +2012,12 @@
         .map(e => ({ ...e, _kind: 'tier', _pending: e.status === 'pending' }));
       const dispatches = (dispatchData.entries || []).map(e => ({ ...e, _kind: 'dispatch', _pending: false }));
       const labels = (labelData.entries || []).map(e => ({ ...e, _kind: 'label', _pending: true }));
+      const toolApprovals = Object.values(toolApprovalData).filter(v => v && typeof v === 'object' && v.approval_id)
+        .map(e => ({ ...e, _kind: 'tool_approval', _pending: e.status === 'pending' }));
 
       renderStories(dispatches);
 
-      const all = [...escalations, ...tiers, ...dispatches, ...labels];
+      const all = [...escalations, ...tiers, ...dispatches, ...labels, ...toolApprovals];
       all.sort((a, b) => {
         if (a._pending !== b._pending) return a._pending ? -1 : 1;
         const ta = a.created_at || a.timestamp || '';

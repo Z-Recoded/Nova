@@ -16,14 +16,23 @@ import os
 import re
 import subprocess
 import time
+import uuid
 from datetime import datetime
 from pathlib import Path
 
 import anthropic
 from dotenv import load_dotenv
 
-from nova_config import is_framework_integration_enabled
+from nova_config import (
+    get_approval_gate_patterns,
+    get_approval_gate_poll_interval_seconds,
+    get_approval_gate_timeout_seconds,
+    is_framework_integration_enabled,
+    is_pre_action_approval_gate_enabled,
+)
+from nova_notify import send_notification
 from nova_skills import get_skill_version, load_skill
+from nova_state import get_state, write_state
 from nova_token_budget import get_budget_status, record_usage
 from nova_tool_call_log import log_tool_call
 from nova_tools import file_replace, list_files, read_file, run_command, write_file
@@ -253,15 +262,133 @@ def _build_system_prompt(root: str) -> str:
     )
 
 
-def _execute_tool(name: str, tool_input: dict, root: str, session_id: str | None = None) -> dict:
+# Aero-lane-only, in-memory, process-lifetime counter backing the (not yet
+# wired in) max_files_per_turn gate trigger — resets on process restart, no
+# persistence. Accepted gap for this narrow slice (86bb3ceym); file-count
+# gating is a deliberate fast-follow once the command-pattern trigger below
+# is proven live, not part of this cut.
+_session_file_edit_counts: dict[str, int] = {}
+
+
+def _approval_gate_reason(name: str, tool_input: dict, session_id: str | None) -> str | None:
+    """
+    None means silently allow. Any other value is the human-readable reason
+    a tool call is being paused for approval (86bb3ceym). Only run_command
+    is gated in this first cut — read_file/list_files/write_file/file_replace
+    are left alone (max_files_per_turn is designed but deliberately not
+    wired in yet, see _session_file_edit_counts above). This is a distinct,
+    less-severe tier than nova_tools.py's DANGEROUS_COMMAND_PATTERNS hard
+    denylist (rm -rf, git push, etc.) — those are always refused and never
+    reach here; these patterns are risky-but-sometimes-legitimate actions
+    that today execute silently with zero friction.
+    """
+    if name != "run_command":
+        return None
+    cmd_lower = tool_input.get("cmd", "").lower()
+    for pattern in get_approval_gate_patterns():
+        if pattern.lower() in cmd_lower:
+            return f"matched approval-gate pattern '{pattern}'"
+    return None
+
+
+def _request_tool_approval(
+    name: str, tool_input: dict, root: str, session_id: str | None, task_description: str, reason: str
+) -> dict:
+    """
+    Register a pending tool-call approval directly in nova_state.db and
+    block (sleep-poll) until Marvin decides via the Controller's tool
+    approval card, or the configured timeout elapses. No HTTP hop needed —
+    unlike the cross-machine escalation flow, POST /agent/task runs
+    synchronously in-process on the Aero's own nova_api.py, the same
+    machine/process whose nova_state.db this call is already writing to.
+
+    Fails CLOSED on timeout (status becomes "timed_out", treated as a
+    denial by the caller) — same fail-toward-restrictive instinct as
+    nova_escalation.is_dispatch_paused() failing toward paused=True.
+    """
+    approval_id = str(uuid.uuid4())
+    pending = get_state("system", "pending_tool_approvals") or {}
+    pending.pop("_updated_at", None)
+    pending[approval_id] = {
+        "approval_id": approval_id,
+        "session_id": session_id,
+        "task_description": task_description[:200],
+        "tool_name": name,
+        "tool_input": tool_input,
+        "reason": reason,
+        "status": "pending",
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "decided_at": None,
+        "comment": None,
+        "root": root,
+    }
+    write_state("system", "pending_tool_approvals", pending)
+
+    send_notification(
+        title="Nova: approval needed",
+        message=f"{name}: {reason}",
+        tags="warning",
+        priority="high",
+    )
+
+    timeout_seconds = get_approval_gate_timeout_seconds()
+    poll_interval = get_approval_gate_poll_interval_seconds()
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        time.sleep(poll_interval)
+        current = get_state("system", "pending_tool_approvals") or {}
+        record = current.get(approval_id)
+        if record and record["status"] != "pending":
+            return record
+
+    current = get_state("system", "pending_tool_approvals") or {}
+    current.pop("_updated_at", None)
+    record = current.get(approval_id, pending[approval_id])
+    record["status"] = "timed_out"
+    record["decided_at"] = datetime.now().isoformat(timespec="seconds")
+    current[approval_id] = record
+    write_state("system", "pending_tool_approvals", current)
+    return record
+
+
+def _execute_tool(
+    name: str, tool_input: dict, root: str, session_id: str | None = None, task_description: str = ""
+) -> dict:
     """
     Dispatch one Claude tool_use call to the matching nova_tools function.
     Logs every call to tool_call_log.jsonl (86bawntpb) regardless of caller —
     session_id is optional so this stays a safe drop-in for callers (e.g.
     nova_orchestrator_graph.py) that don't pass one yet.
+
+    When pre_action_approval_gate is enabled, a matching call pauses here
+    (before dispatch to the real nova_tools function) and blocks on a human
+    decision — see _request_tool_approval(). This covers the Aero
+    interactive lane only; the Omen headless dispatch lane runs `claude -p`
+    directly over SSH and never calls this function at all (see CLAUDE.md's
+    Pre-Action Approval Gate subsection for the full scoping note).
     """
     start = time.monotonic()
     try:
+        if is_pre_action_approval_gate_enabled():
+            reason = _approval_gate_reason(name, tool_input, session_id)
+            if reason:
+                decision = _request_tool_approval(name, tool_input, root, session_id, task_description, reason)
+                if decision.get("status") != "approved":
+                    latency_ms = (time.monotonic() - start) * 1000
+                    detail = f"approval_gate:{decision.get('status')} — {reason}"
+                    log_tool_call(
+                        agent="nova_orchestrator",
+                        session_id=session_id,
+                        tool=name,
+                        args=tool_input,
+                        result="error",
+                        error_detail=detail,
+                        latency_ms=round(latency_ms, 1),
+                    )
+                    return {
+                        "content": f"Tool call blocked by approval gate ({decision.get('status')}): {reason}",
+                        "is_error": True,
+                    }
         if name == "read_file":
             outcome = {"content": read_file(tool_input["path"], root)}
         elif name == "write_file":
@@ -432,7 +559,9 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
             for block in response.content:
                 if block.type != "tool_use":
                     continue
-                result = _execute_tool(block.name, block.input, root, session_id=slug)
+                result = _execute_tool(
+                    block.name, block.input, root, session_id=slug, task_description=task_description
+                )
                 tool_results.append(
                     {
                         "type": "tool_result",

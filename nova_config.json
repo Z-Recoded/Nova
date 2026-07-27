@@ -42,5 +42,24 @@
     "review_backpressure_enabled": false,
     "max_unreviewed_dispatches": 3,
     "sandboxed_dispatch_enabled": false
+  },
+  "push_notifications": {
+    "enabled": false
+  },
+  "pre_action_approval_gate": {
+    "enabled": false,
+    "command_patterns": [
+      "pip install",
+      "npm install",
+      "pip uninstall",
+      "npm uninstall",
+      "git commit --amend",
+      "git rebase",
+      "curl ",
+      "wget "
+    ],
+    "max_files_per_turn": null,
+    "timeout_seconds": 300,
+    "poll_interval_seconds": 3
   }
 }

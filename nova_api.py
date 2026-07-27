@@ -196,6 +196,11 @@ class TierProposalCreateRequest(BaseModel):
 class TierDecisionRequest(BaseModel):
     decision: str  # "accept" | "override"
     comment: str | None = None
+
+
+class ToolApprovalDecisionRequest(BaseModel):
+    decision: str  # "approve" | "deny"
+    comment: str | None = None
     final_tier: str | None = None
     reasoning: str | None = None
 
@@ -1040,6 +1045,53 @@ def decide_tier_proposal(
         print(f"Failed to post tier-decision comment on {task_id}: {e}")
 
     return record
+
+
+@app.get("/tool-approvals")
+def get_tool_approvals():
+    """
+    All pending/decided tool-call approvals from the Aero interactive
+    coding lane's pre-action approval gate (86bb3ceym) -- not token-gated
+    (read-only), same posture as GET /escalations and GET /tier-proposals.
+    Only ever populated by nova_orchestrator.py's own machine -- the Omen
+    headless dispatch lane bypasses this gate entirely (see CLAUDE.md).
+    """
+    return get_state("system", "pending_tool_approvals") or {}
+
+
+@app.post("/tool-approvals/{approval_id}/decide")
+def decide_tool_approval(
+    approval_id: str,
+    req: ToolApprovalDecisionRequest,
+    x_nova_escalation_token: str | None = Header(None),
+):
+    """
+    Approve or deny a pending tool-call approval (86bb3ceym). Token-gated,
+    reusing X-Nova-Escalation-Token/NOVA_ESCALATION_TOKEN -- one
+    Controller-wide auth surface, not a second secret. No background task
+    to fire: nova_orchestrator.py's own _request_tool_approval() poll loop
+    (same machine, same process that registered this record) picks up this
+    write on its next tick -- there is no killed session to resume, unlike
+    answer_escalation()'s cross-machine resume flow.
+    """
+    _check_escalation_token(x_nova_escalation_token)
+    if req.decision not in ("approve", "deny"):
+        raise HTTPException(status_code=422, detail="decision must be 'approve' or 'deny'")
+
+    pending = get_state("system", "pending_tool_approvals") or {}
+    record = pending.get(approval_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"No tool approval '{approval_id}'")
+    if record["status"] != "pending":
+        raise HTTPException(status_code=409, detail=f"Approval '{approval_id}' is already '{record['status']}'")
+
+    record["status"] = "approved" if req.decision == "approve" else "denied"
+    record["decided_at"] = datetime.now().isoformat(timespec="seconds")
+    record["comment"] = req.comment
+    pending.pop("_updated_at", None)
+    pending[approval_id] = record
+    write_state("system", "pending_tool_approvals", pending)
+    return {"status": record["status"], "approval_id": approval_id}
 
 
 # ── Nova Controller UX (86baxahn7) ──────────────────────────────

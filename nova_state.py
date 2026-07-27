@@ -45,9 +45,15 @@ DB_PATH = "C:/Nova/nova_state.db"
 # autonomy tier + confidence + reasoning for a task, keyed by proposal_id,
 # awaiting Marvin's accept/override via the same UI; task_tier_watermarks
 # is a separate {task_id: last_seen date_updated} map so a task doesn't
-# get re-proposed every polling cycle for the same rescope. None of these
-# fit financial/work/creative/games, but all belong in system alongside
-# nova_health.
+# get re-proposed every polling cycle for the same rescope.
+# pending_tool_approvals (86bb3ceym) is the same merge-by-key shape again,
+# keyed by approval_id — holds a paused, in-flight tool call from the Aero
+# interactive coding lane (nova_orchestrator.py) awaiting Marvin's
+# approve/deny via the Controller. Written and polled directly by
+# nova_orchestrator.py itself (same machine, same process, correct
+# DB_PATH), unlike pending_escalations' cross-machine HTTP round-trip.
+# None of these fit financial/work/creative/games, but all belong in
+# system alongside nova_health.
 KNOWN_ENTITIES = {
     "financial": ["debt_sequence", "budget_pace", "upcoming_obligations", "subscription_audit", "atm_fees"],
     "work": ["active_projects", "next_actions"],
@@ -62,6 +68,7 @@ KNOWN_ENTITIES = {
         "pending_escalations",
         "pending_tier_proposals",
         "task_tier_watermarks",
+        "pending_tool_approvals",
     ],
 }
 

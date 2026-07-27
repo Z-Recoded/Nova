@@ -55,6 +55,7 @@ import httpx
 from nova_clickup_client import add_comment, add_tag, get_task, update_status
 from nova_config import get_max_unreviewed_dispatches, is_review_backpressure_enabled, is_sandboxed_dispatch_enabled
 from nova_escalation import NOVA_API_URL, is_dispatch_paused
+from nova_notify import send_notification
 from nova_omen_dispatch import (
     REMOTE_DISPATCH_PID_PATH,
     SANDBOXED_CONTAINER_NAME,
@@ -395,6 +396,12 @@ def _post_non_clean_comment(task_id: str, task_name: str, result: dict, phase: s
     except Exception as e:
         print(f"Failed to post non-clean-outcome comment on {task_id}: {e}")
 
+    send_notification(
+        title="Nova: non-clean dispatch outcome",
+        message=f"{task_name} ({phase}): {result.get('stop_reason') or result.get('error') or 'see ClickUp comment'}",
+        tags="warning",
+    )
+
 
 def _pending_escalation_task_ids() -> set:
     """
@@ -547,6 +554,13 @@ def _handle_escalation(task_id: str, task_name: str, result: dict, phase: str) -
         add_comment(task_id, "\n".join(lines))
     except Exception as e:
         print(f"Failed to post escalation comment on {task_id}: {e}")
+
+    send_notification(
+        title="Nova: awaiting your answer",
+        message=f"{task_name}: {escalation.get('question') or '(malformed escalation — check Controller)'}",
+        tags="question",
+        priority="high",
+    )
 
 
 def handle_dispatch_outcome(task_id: str, task_name: str, result: dict, phase: str) -> dict:

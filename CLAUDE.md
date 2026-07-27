@@ -76,6 +76,7 @@ C:/Nova/
 ├── nova_escalation.py      # Real escalation-block parsing + pause-at-will switch for headless dispatch (86bax0exx step 5, 86bax0wkj)
 ├── nova_controller.html    # Nova Controller Feed — served at /controller, PWA-installable (86baxahn7, supersedes nova_escalations.html)
 ├── manifest.json, sw.js, icon-192.png, icon-512.png  # PWA manifest/service worker/icons for nova_controller.html
+├── nova_notify.py          # Thin ntfy.sh push-notification wrapper — Layer 3 of 86baykvb7's deferred real-push design (86bb3ceyp)
 ├── nova_omen_sync.py       # One-command sync for the Omen's main checkout — git pull, restart nova-api/nova-chroma, verify listening
 ├── nova_task_queue.py      # Readiness detection + task resolution for headless dispatch (86bax0exx steps 1-2)
 ├── nova_scheduled_dispatch.py # Cron-fired entry point on the Omen — picks + dispatches one autonomy-safe-tagged task every 2 hours; also owns abort_current_dispatch() (86bb3ceyj)
@@ -301,6 +302,48 @@ Claude API consumption against `nova_config.json`'s `token_budget` thresholds
 `GET /headroom`. `nova_orchestrator.py` stops cleanly once halted. Gated behind
 `token_budget_governor` (default off). Interactive lane only — headless dispatch doesn't call
 `record_usage()`.
+
+**Push Notifications — Layer 3 (86bb3ceyp, 2026-07-26):** `nova_notify.send_notification()`
+POSTs to `https://ntfy.sh/<NTFY_TOPIC>` (ntfy.sh's public relay — no TLS/VAPID setup needed on
+Nova's side, phone subscribes via the ntfy app). Wired into `nova_scheduled_dispatch.py`'s
+`_post_non_clean_comment()` and `_handle_escalation()`, right after their existing `add_comment()`
+calls — best-effort, never raises, silently no-ops if `push_notifications.enabled` is false or
+`NTFY_TOPIC` is unset. **Security note:** ntfy.sh public topics are NOT access-controlled —
+anyone who knows the topic string can publish/subscribe, and content transits ntfy's servers in
+plaintext. `NTFY_TOPIC` must be a long random string, treated exactly like a secret, stored only
+in `.env` on both machines. Generate one with:
+```
+python -c "import secrets; print('nova-' + secrets.token_urlsafe(24))"
+```
+then subscribe to the exact printed string in the ntfy phone app. One shared topic for every
+notification type today (escalation vs. non-clean outcome distinguished only by title/tags, not
+separate topics) — splitting into per-category topics is a plausible fast-follow, not built.
+
+**Pre-Action Approval Gate (86bb3ceym, 2026-07-26):** `nova_orchestrator.py`'s `_execute_tool()`
+can pause a `run_command` call — before it executes — when it matches a configured pattern
+(`pre_action_approval_gate.command_patterns`, e.g. `pip install`, `git rebase`, `curl `), distinct
+from `nova_tools.py`'s existing `DANGEROUS_COMMAND_PATTERNS` hard-block tier (which always
+refuses and is untouched). `_request_tool_approval()` registers a `system/pending_tool_approvals`
+record directly in `nova_state.db` (no HTTP hop — `/agent/task` already runs in-process on the
+Aero's own `nova_api.py`), fires a push notification, then sleep-polls for a decision, failing
+closed (denied) after `timeout_seconds` (default 300s). Marvin decides via a new Controller card
+(`GET /tool-approvals`, `POST /tool-approvals/{id}/decide`, token-gated). Gated behind
+`pre_action_approval_gate.enabled` (default off).
+
+**Critical scoping limit, not a nitpick:** this only covers the **Aero interactive lane**
+(`POST /agent/task` → `nova_orchestrator.py`). The **Omen headless lane**
+(`nova_omen_dispatch.py`'s `dispatch_headless_task()`, which runs `claude -p --worktree` directly
+over SSH) bypasses `nova_tools.py`/`_execute_tool()` entirely and remains **fully ungated** by
+this feature — a headless dispatch can run any of the gated patterns with zero friction, exactly
+as before. Filed as its own deferred ClickUp task (`86bb3r0h4`, headless-lane approval-gate
+equivalent) rather than left silent — would need either a `claude -p` permission-prompt hook or a
+before-the-fact `NOVA_APPROVAL_START/END` block, unlike `check_escalation()`'s current
+after-the-fact-only parsing. Also note: since `/agent/task` and this gate both run on the Aero's
+own `nova_api.py`, load the Controller from the **Aero's** address while a gated task is in
+flight, not the Omen's always-on `:8001` — the two processes have independent `nova_state.db`
+files. `max_files_per_turn` file-count gating is designed (config field exists) but deliberately
+not wired into `_approval_gate_reason()` yet — a fast-follow once the command-pattern trigger is
+proven live.
 
 ### Training-Data Accumulation Oversight (86bax4akx, 2026-07-21)
 `GET /training-data-status` — live DPO pair count/coverage from `logs/training_flags.jsonl`
@@ -534,7 +577,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | /dispatch-cost-summary | GET | ✓ Working | Real (`api_key`-only) vs. notional (every run) headless-dispatch spend, today + last 7 days (86bb3ceya) |
 | /qwen-swap-status | GET | ✓ Working | Progress toward Phase 3.5's Qwen3 8B swap trigger — full Aero+Omen `"combined"` count via live command-restricted SSH either direction, `"omen_only"`/`"aero_only"` only when the other machine genuinely can't be reached right now (e.g. asleep) (86bb3cey2) |
 | /worktree-status | GET | ✓ Working | Open git worktrees on both machines with age/merged/prunable status — same live combined-or-partial `view` pattern as `/qwen-swap-status` (86bb3ceyc) |
-| /flags | GET | ✓ Working | Current value of 7 important boolean flags (6 in nova_config.json + dispatch_pause) — backs the Controller's switches panel (86bb3d725) |
+| /flags | GET | ✓ Working | Current value of 9 important boolean flags (8 in nova_config.json + dispatch_pause) — backs the Controller's switches panel (86bb3d725) |
 | /flags/{flag_key} | POST | ✓ Working | Toggle one flag — token-gated. Config-file flags commit locally on whichever machine handled the request but do NOT auto-push (the Omen's deploy key is read-only) |
 | /label-queue | GET | ✓ Working | Unlabeled tool-call/blend-flag/dpo-verify entries awaiting a judge-pass — each kind capped at `limit` independently before merging (86bax4akx fix) |
 | /label-queue/{kind}/{id}/decide | POST | ✓ Working | Patch a label decision — token-gated (X-Nova-Escalation-Token) |
@@ -545,6 +588,8 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | /dispatch-abort | POST | ✓ Working | Kill the currently-running cron-fired dispatch — token-gated. docker kill for sandboxed, direct SIGTERM/SIGKILL against the real captured PID for bare-SSH; worktree left in place for review (86bb3ceyj) |
 | /worktree-pr | POST | ✓ Working | Push a dispatch branch + open a draft GitHub PR — token-gated. No custom diff viewer; Controller just deep-links to the real PR (86bb3ceyf) |
 | /worktree-discard | POST | ✓ Working | Delete a dispatch worktree+branch outright — token-gated. Records the outcome via record_dispatch_review() when a task_id is given (86bb3ceyf) |
+| /tool-approvals | GET | ✓ Working | Pending/decided tool-call approvals from the Aero interactive coding lane's pre-action approval gate — not token-gated (read-only) (86bb3ceym) |
+| /tool-approvals/{id}/decide | POST | ✓ Working | Approve or deny a pending tool-call approval — token-gated. No background task; nova_orchestrator.py's own poll loop picks up the decision |
 
 ---
 
@@ -628,6 +673,7 @@ in `NOVA_BUILD_LOG.md` — this table is a terse date-ordered index, not the sou
 | 2026-07-25 | Log rotation shipped; sandboxed-dispatch permission-mode bug fixed; 10 Controller-expansion tasks filed and 4 shipped same day (in-flight status, flags panel, cost summary, Qwen widget, Feed filtering, worktree browser, optimistic UI); Omen→Aero SSH bridge (3 read-only keys) built + activated |
 | 2026-07-26 | Omen→Aero bridge extended to training-data read+write (4th key, write path built but not yet generated — stop-and-ask boundary); abort/kill switch (`86bb3ceyj`) and diff-preview-and-merge (`86bb3ceyf`) shipped, both Phase C Controller-expansion tasks |
 | 2026-07-26 | CLAUDE.md split: narrative/incident history (~136K chars) moved to `NOVA_BUILD_LOG.md`, this file trimmed to current facts + standards |
+| 2026-07-26 | Shipped the last two Controller-expansion tasks: push notifications (`86bb3ceyp`, `nova_notify.py`, ntfy.sh) and the pre-action approval gate (`86bb3ceym`, `nova_orchestrator.py`, Aero interactive lane only — headless-lane gap filed as `86bb3r0h4`). Verified live: real approve/deny/timeout poll-loop timing, full HTTP route auth/validation/state-transition behavior, and a real POST to ntfy.sh's live API. Both gated off by default; both flags toggleable from the Controller Switches panel. Real phone-delivery confirmation and a real `NTFY_TOPIC` secret still need Marvin |
 
 ---
 
