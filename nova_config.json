@@ -44,7 +44,7 @@
     "sandboxed_dispatch_enabled": false
   },
   "push_notifications": {
-    "enabled": false
+    "enabled": true
   },
   "pre_action_approval_gate": {
     "enabled": false,

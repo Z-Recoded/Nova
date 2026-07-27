@@ -319,6 +319,16 @@ then subscribe to the exact printed string in the ntfy phone app. One shared top
 notification type today (escalation vs. non-clean outcome distinguished only by title/tags, not
 separate topics) — splitting into per-category topics is a plausible fast-follow, not built.
 
+**Real-world gotcha found during setup, 2026-07-26:** `send_notification()` reliably reaches
+ntfy.sh (confirmed via real POSTs — server-side delivery is not in question), and messages
+correctly appear in the ntfy app's own history/Notification Center on Marvin's iPhone — but they
+weren't confirmed showing as a live banner/alert with sound, even at `priority="urgent"`, after
+walking through the most common iOS causes (Settings → Notifications → ntfy → Banners toggle,
+Focus mode, the ntfy app's own per-topic instant-delivery setting). Deliberately not chased
+further — checking the ntfy app periodically is an acceptable interim workflow, and this is an
+iOS/ntfy-app configuration question, not a Nova code gap. Revisit if it becomes annoying enough
+to be worth the troubleshooting time.
+
 **Pre-Action Approval Gate (86bb3ceym, 2026-07-26):** `nova_orchestrator.py`'s `_execute_tool()`
 can pause a `run_command` call — before it executes — when it matches a configured pattern
 (`pre_action_approval_gate.command_patterns`, e.g. `pip install`, `git rebase`, `curl `), distinct
@@ -673,7 +683,7 @@ in `NOVA_BUILD_LOG.md` — this table is a terse date-ordered index, not the sou
 | 2026-07-25 | Log rotation shipped; sandboxed-dispatch permission-mode bug fixed; 10 Controller-expansion tasks filed and 4 shipped same day (in-flight status, flags panel, cost summary, Qwen widget, Feed filtering, worktree browser, optimistic UI); Omen→Aero SSH bridge (3 read-only keys) built + activated |
 | 2026-07-26 | Omen→Aero bridge extended to training-data read+write (4th key, write path built but not yet generated — stop-and-ask boundary); abort/kill switch (`86bb3ceyj`) and diff-preview-and-merge (`86bb3ceyf`) shipped, both Phase C Controller-expansion tasks |
 | 2026-07-26 | CLAUDE.md split: narrative/incident history (~136K chars) moved to `NOVA_BUILD_LOG.md`, this file trimmed to current facts + standards |
-| 2026-07-26 | Shipped the last two Controller-expansion tasks: push notifications (`86bb3ceyp`, `nova_notify.py`, ntfy.sh) and the pre-action approval gate (`86bb3ceym`, `nova_orchestrator.py`, Aero interactive lane only — headless-lane gap filed as `86bb3r0h4`). Verified live: real approve/deny/timeout poll-loop timing, full HTTP route auth/validation/state-transition behavior, and a real POST to ntfy.sh's live API. Both gated off by default; both flags toggleable from the Controller Switches panel. Real phone-delivery confirmation and a real `NTFY_TOPIC` secret still need Marvin |
+| 2026-07-26 | Shipped the last two Controller-expansion tasks: push notifications (`86bb3ceyp`, `nova_notify.py`, ntfy.sh) and the pre-action approval gate (`86bb3ceym`, `nova_orchestrator.py`, Aero interactive lane only — headless-lane gap filed as `86bb3r0h4`). Verified live: real approve/deny/timeout poll-loop timing, full HTTP route auth/validation/state-transition behavior, and a real POST to ntfy.sh's live API. Both gated off by default; both flags toggleable from the Controller Switches panel. `NTFY_TOPIC` generated, set on both machines, `push_notifications.enabled` flipped on — messages confirmed reaching ntfy's history on Marvin's iPhone, but not yet as a live banner/alert (iOS notification settings, not a code gap — deferred, see Nova Controller UX subsection) |
 
 ---
 
