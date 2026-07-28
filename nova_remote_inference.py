@@ -119,7 +119,7 @@ def _extract_answer(response_json: dict) -> dict | None:
 # ── Core ───────────────────────────────────────────────────────
 
 
-def chat(messages: list[dict], num_ctx: int) -> dict | None:
+def chat(messages: list[dict], num_ctx: int, max_tokens: int = MAX_OUTPUT_TOKENS) -> dict | None:
     """
     Send a chat completion request to Nova's RunPod-hosted model
     (Qwen2.5-Coder-32B-Instruct-AWQ) and return an ollama.chat()-shaped
@@ -127,7 +127,11 @@ def chat(messages: list[dict], num_ctx: int) -> dict | None:
     local Ollama.
 
     num_ctx is accepted for interface parity with ollama_client.chat() but
-    is not forwarded -- see MAX_OUTPUT_TOKENS's comment above.
+    is not forwarded -- see MAX_OUTPUT_TOKENS's comment above. max_tokens
+    defaults to MAX_OUTPUT_TOKENS (nova_query.py's existing RAG-path call
+    keeps that behavior unchanged) but can be overridden by callers needing
+    a larger cap -- e.g. the coding sub-agent's RunPod backend, where a
+    single write_file tool call can run several thousand tokens.
     """
     if not RUNPOD_API_KEY:
         print("[nova_remote_inference] RUNPOD_API_KEY not set -- skipping remote call")
@@ -141,7 +145,7 @@ def chat(messages: list[dict], num_ctx: int) -> dict | None:
         "input": {
             "messages": messages,
             "sampling_params": {
-                "max_tokens": MAX_OUTPUT_TOKENS,
+                "max_tokens": max_tokens,
                 "temperature": SAMPLING_TEMPERATURE,
             },
         }
