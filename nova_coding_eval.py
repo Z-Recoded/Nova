@@ -15,6 +15,7 @@ import json
 import os
 import subprocess
 from datetime import datetime
+from pathlib import Path
 
 import nova_orchestrator
 import nova_orchestrator_runpod
@@ -147,7 +148,46 @@ def _reconstruct_claude_result(entry: dict) -> dict:
     }
 
 
-def run_runpod_backend(task_description: str) -> dict:
+def _create_worktree_at(slug: str, base_ref: str) -> tuple:
+    """
+    Like nova_orchestrator._create_worktree(), but branches from an
+    arbitrary base_ref instead of current master. Real bug found live
+    2026-07-27: nova_orchestrator._create_worktree() always branches from
+    today's master, but every held-out task here was already merged into
+    master back on 2026-07-05 -- branching from today's master meant each
+    task's own target files (nova_headroom.py, its /headroom route, etc.)
+    already existed correctly in the worktree before the model ever
+    touched it, silently turning "build X" into "X already exists, do
+    something to it" and invalidating the whole comparison. base_ref must
+    be the commit immediately BEFORE this task's original work, i.e. the
+    merged commit's own parent (<commit>^), not the merge commit itself.
+    """
+    branch_name = f"nova-agent/{slug}"
+    worktree_path = Path(nova_orchestrator.NOVA_AGENT_WORKTREES_ROOT) / slug
+    subprocess.run(
+        ["git", "worktree", "add", str(worktree_path), "-b", branch_name, base_ref],
+        cwd=NOVA_REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return worktree_path, branch_name
+
+
+def _git_diff_against_ref(root: str, base_ref: str) -> str:
+    """Like nova_orchestrator._git_diff_against_master(), but against an arbitrary base_ref."""
+    result = subprocess.run(
+        ["git", "diff", base_ref],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    return result.stdout
+
+
+def run_runpod_backend(task_description: str, base_ref: str) -> dict:
     """
     Runs one task through the RunPod backend directly (bypassing
     run_coding_task()'s flag dispatch -- no need to flip runpod_coding_agent
@@ -156,9 +196,13 @@ def run_runpod_backend(task_description: str) -> dict:
     run_coding_task() -- the full CLAUDE.md version overflows this
     endpoint's 32768-token context window on anything beyond a couple of
     turns (real bug found and fixed 2026-07-27).
+
+    base_ref: the pre-task commit this task's worktree must branch from --
+    see _create_worktree_at()'s docstring for why this can't be today's
+    master.
     """
     slug = nova_orchestrator._slugify(task_description)
-    worktree_path, branch_name = nova_orchestrator._create_worktree(slug)
+    worktree_path, branch_name = _create_worktree_at(slug, base_ref)
     root = str(worktree_path)
     system_prompt = nova_orchestrator_runpod.build_condensed_system_prompt()
     messages = [{"role": "user", "content": task_description}]
@@ -178,7 +222,7 @@ def run_runpod_backend(task_description: str) -> dict:
         nova_orchestrator_runpod.CODING_AGENT_MAX_OUTPUT_TOKENS,
     )
     elapsed_s = round((datetime.now() - started_at).total_seconds(), 1)
-    diff = nova_orchestrator._git_diff_against_master(root)
+    diff = _git_diff_against_ref(root, base_ref)
 
     return {
         "worktree_path": root,
@@ -216,8 +260,9 @@ def generate_report() -> str:
     sections = []
     for i, entry in enumerate(tasks, start=1):
         claude_side = _reconstruct_claude_result(entry)
-        print(f"[{i}/{len(tasks)}] Running via RunPod: {claude_side['task_description'][:70]}...")
-        runpod_side = run_runpod_backend(claude_side["task_description"])
+        base_ref = f"{claude_side['commit']}^"
+        print(f"[{i}/{len(tasks)}] Running via RunPod (base {base_ref}): {claude_side['task_description'][:70]}...")
+        runpod_side = run_runpod_backend(claude_side["task_description"], base_ref)
         print(
             f"  -> status={runpod_side['status']} turns={runpod_side['turns_used']} elapsed={runpod_side['elapsed_s']}s"
         )
