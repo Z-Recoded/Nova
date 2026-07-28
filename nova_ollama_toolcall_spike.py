@@ -137,10 +137,15 @@ READ_BEFORE_WRITE_GUARD_PROMPT = (
     "\n\n---\n"
     "HARD RULE (safety guard): before calling write_file or file_replace on a "
     "path that already exists in this worktree, you MUST call read_file on "
-    "that exact path first, in an earlier turn. Never guess a file's existing "
-    "contents. If you try to edit an existing file without having read it "
-    "first, the tool call will be refused and you will be told to read it "
-    "first, instead."
+    "that exact path first. Never guess a file's existing contents. If you "
+    "try to edit an existing file without having read it first, the tool "
+    "call will be refused and you will be told to read it first, instead.\n\n"
+    "Once you have read a file, its contents will not change again this "
+    "task -- do NOT call read_file on the same path a second time, and do "
+    "NOT respond with a summary, explanation, or analysis of what you read. "
+    "A read_file call exists only so your next tool call (write_file or "
+    "file_replace) is well-informed -- make that edit immediately, in your "
+    "very next turn. This task asks you to make a change, not explain code."
 )
 
 
@@ -152,12 +157,17 @@ def _execute_tool_guarded(
     name: str, args: dict, root: str, session_id: str, task_description: str, read_paths: set
 ) -> dict:  # noqa: E501
     """
-    Wraps nova_orchestrator._execute_tool() with one extra check: refuse
-    write_file/file_replace on a path that already exists on disk but hasn't
-    been read_file'd yet this task run. Returns a synthetic is_error result
-    (same shape _execute_tool already returns on a real error) rather than
-    dispatching — read_file/list_files/run_command and edits to brand-new
-    paths are never gated.
+    Wraps nova_orchestrator._execute_tool() with two extra checks beyond
+    nova_orchestrator._execute_tool(): (1) refuse write_file/file_replace on
+    a path that already exists on disk but hasn't been read_file'd yet this
+    task run, (2) refuse a second read_file on a path already read this run
+    (round 1 of this guard fixed a destructive blind overwrite; a follow-up
+    run then showed the model re-reading the same already-read file up to
+    8 times in a row instead of proceeding to the edit -- this second check
+    closes that loop by forcing a corrective message instead of re-serving
+    the same content). Both return a synthetic is_error result (same shape
+    _execute_tool already returns on a real error) rather than dispatching --
+    list_files/run_command and edits to brand-new paths are never gated.
     """
     if name in ("write_file", "file_replace"):
         path = args.get("path", "")
@@ -169,6 +179,17 @@ def _execute_tool_guarded(
                 ),
                 "is_error": True,
             }
+
+    if name == "read_file" and args.get("path", "") in read_paths:
+        already_read_path = args.get("path", "")
+        return {
+            "content": (
+                f"You already read '{already_read_path}' earlier -- its contents have not "
+                f"changed. Do not call read_file on it again. Make your edit now with "
+                f"write_file or file_replace."
+            ),
+            "is_error": True,
+        }
 
     result = nova_orchestrator._execute_tool(name, args, root, session_id=session_id, task_description=task_description)
     if name == "read_file" and not result.get("is_error", False):
