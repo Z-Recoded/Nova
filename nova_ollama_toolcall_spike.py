@@ -9,10 +9,17 @@
 #   python nova_ollama_toolcall_spike.py
 
 import os
+import sys
 
 import ollama
 
 import nova_orchestrator
+
+# Same recurring Windows-console gotcha this repo has hit and fixed before
+# (nova_benchmark.py's ✓/✗ output, this project's own print()s with em/en
+# dashes) — cp1252's default codepage can't encode arrows/em-dashes that
+# show up verbatim in real file contents printed to the transcript.
+sys.stdout.reconfigure(encoding="utf-8")
 
 # ── Config ─────────────────────────────────────────────────────
 SPIKE_MODEL = "qwen3:8b"
@@ -120,20 +127,71 @@ OLLAMA_TOOL_DEFINITIONS = [
 ]
 
 
+# Spike-only safety guard (round 2): the first run showed qwen3:8b calling
+# write_file/file_replace on files it had never read, guessing at their
+# contents — once destructively (wiped a real 1644-line file down to 7
+# lines), once with a wrong guessed old_str that just silently went nowhere.
+# read_file/list_files/run_command are left alone; only edits to an
+# already-existing file are gated.
+READ_BEFORE_WRITE_GUARD_PROMPT = (
+    "\n\n---\n"
+    "HARD RULE (safety guard): before calling write_file or file_replace on a "
+    "path that already exists in this worktree, you MUST call read_file on "
+    "that exact path first, in an earlier turn. Never guess a file's existing "
+    "contents. If you try to edit an existing file without having read it "
+    "first, the tool call will be refused and you will be told to read it "
+    "first, instead."
+)
+
+
+def _worktree_has_file(root: str, path: str) -> bool:
+    return os.path.isfile(os.path.join(root, path))
+
+
+def _execute_tool_guarded(
+    name: str, args: dict, root: str, session_id: str, task_description: str, read_paths: set
+) -> dict:  # noqa: E501
+    """
+    Wraps nova_orchestrator._execute_tool() with one extra check: refuse
+    write_file/file_replace on a path that already exists on disk but hasn't
+    been read_file'd yet this task run. Returns a synthetic is_error result
+    (same shape _execute_tool already returns on a real error) rather than
+    dispatching — read_file/list_files/run_command and edits to brand-new
+    paths are never gated.
+    """
+    if name in ("write_file", "file_replace"):
+        path = args.get("path", "")
+        if path and _worktree_has_file(root, path) and path not in read_paths:
+            return {
+                "content": (
+                    f"Refused: '{path}' already exists and has not been read this session. "
+                    f"Call read_file('{path}') first, then retry your edit."
+                ),
+                "is_error": True,
+            }
+
+    result = nova_orchestrator._execute_tool(name, args, root, session_id=session_id, task_description=task_description)
+    if name == "read_file" and not result.get("is_error", False):
+        read_paths.add(args.get("path", ""))
+    return result
+
+
 def run_spike_task(task_description: str, max_turns: int = DEFAULT_MAX_TURNS) -> dict:
     """
     Run one task through qwen3:8b via Ollama's tool-calling API, dispatching
-    every tool call to nova_orchestrator's real, backend-agnostic
-    _execute_tool() against a real disposable worktree. Prints a full
-    per-turn transcript — that printed transcript is the pass/fail signal
-    for this spike, not the quality of the resulting code.
+    every tool call through the read-before-write guard above to
+    nova_orchestrator's real, backend-agnostic _execute_tool() against a real
+    disposable worktree. Prints a full per-turn transcript — that printed
+    transcript is the pass/fail signal for this spike, not the quality of
+    the resulting code.
     """
     client = ollama.Client(host=OLLAMA_HOST)
 
     slug = nova_orchestrator._slugify(task_description)
     worktree_path, branch_name = nova_orchestrator._create_worktree(slug)
     root = str(worktree_path)
-    system_prompt = nova_orchestrator._build_system_prompt(root)
+    system_prompt = nova_orchestrator._build_system_prompt(root) + READ_BEFORE_WRITE_GUARD_PROMPT
+    read_paths: set = set()
 
     print(f"\n=== Spike task: {task_description!r} ===")
     print(f"Worktree: {root}")
@@ -169,9 +227,7 @@ def run_spike_task(task_description: str, max_turns: int = DEFAULT_MAX_TURNS) ->
         for tc in tool_calls:
             name = tc["function"]["name"]
             args = tc["function"]["arguments"]  # already a dict, no json.loads needed
-            result = nova_orchestrator._execute_tool(
-                name, args, root, session_id=slug, task_description=task_description
-            )
+            result = _execute_tool_guarded(name, args, root, slug, task_description, read_paths)
             print(f"  dispatched {name}({args}) -> is_error={result.get('is_error', False)}")
             print(f"  result content: {result['content'][:500]!r}")
             messages.append({"role": "tool", "tool_name": name, "content": result["content"]})
