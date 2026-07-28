@@ -233,20 +233,44 @@ def _worktree_has_file(root: str, path: str) -> bool:
     return os.path.isfile(os.path.join(root, path))
 
 
+def _call_key(name: str, args: dict) -> tuple:
+    """Hashable identity for one tool call, used to detect an exact repeat."""
+    return (name, json.dumps(args, sort_keys=True, default=str))
+
+
 def _execute_tool_guarded(
-    name: str, args: dict, root: str, session_id: str, task_description: str, read_paths: set
+    name: str, args: dict, root: str, session_id: str, task_description: str, read_paths: set, failed_calls: set
 ) -> dict:
     """
     Wraps nova_orchestrator._execute_tool() (deferred import -- avoids
     import-time circularity with nova_orchestrator.py lazily importing this
-    module) with two extra checks: refuse write_file/file_replace on a path
-    that already exists on disk but hasn't been read_file'd yet this task
-    run, and refuse a second read_file on a path already read (closes a
+    module) with three extra checks: refuse write_file/file_replace on a
+    path that already exists on disk but hasn't been read_file'd yet this
+    task run; refuse a second read_file on a path already read (closes a
     real observed loop: the model re-reading an already-read file up to 8
-    times instead of proceeding to the edit). Both return a synthetic
-    is_error result rather than dispatching -- list_files/run_command and
-    edits to brand-new paths are never gated.
+    times instead of proceeding to the edit); and refuse an exact repeat of
+    a call that already failed (closes a second real observed loop: the
+    model retrying an identical failing file_replace 8 times in a row --
+    e.g. targeting an old_str for a route in a module it never actually
+    wrote -- instead of recognizing the missing step). All three return a
+    synthetic is_error result rather than dispatching -- list_files/
+    run_command and edits to brand-new paths are never gated by the first
+    two checks (run_command repeats can still legitimately fail the same
+    way twice for a different reason, so only the failed-repeat check
+    applies to it).
     """
+    key = _call_key(name, args)
+    if key in failed_calls:
+        return {
+            "content": (
+                f"Refused: you already tried this exact {name} call and it failed. Repeating "
+                f"it verbatim will fail again for the same reason. If you're editing content "
+                f"that doesn't exist yet, write it first with write_file instead of guessing at "
+                f"file_replace's old_str. Take a genuinely different next step."
+            ),
+            "is_error": True,
+        }
+
     if name in ("write_file", "file_replace"):
         path = args.get("path", "")
         if path and _worktree_has_file(root, path) and path not in read_paths:
@@ -272,6 +296,8 @@ def _execute_tool_guarded(
     from nova_orchestrator import _execute_tool
 
     result = _execute_tool(name, args, root, session_id=session_id, task_description=task_description)
+    if result.get("is_error", False):
+        failed_calls.add(key)
     if name == "read_file" and not result.get("is_error", False):
         read_paths.add(args.get("path", ""))
     return result
@@ -376,6 +402,7 @@ def run_via_runpod(
         *messages,
     ]
     read_paths: set = set()
+    failed_calls: set = set()
 
     final_status = "incomplete"
     turn = 0
@@ -420,7 +447,7 @@ def run_via_runpod(
         for call in tool_calls:
             name = call.get("name", "")
             args = call.get("arguments", {}) or {}
-            result = _execute_tool_guarded(name, args, root, slug, task_description, read_paths)
+            result = _execute_tool_guarded(name, args, root, slug, task_description, read_paths, failed_calls)
             messages.append({"role": "user", "content": f"<tool_response>\n{result['content']}\n</tool_response>"})
     else:
         final_status = "max_turns_reached"
