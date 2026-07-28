@@ -230,12 +230,14 @@ def run_spike_task(task_description: str, max_turns: int = DEFAULT_MAX_TURNS) ->
             model=SPIKE_MODEL,
             messages=messages,
             tools=OLLAMA_TOOL_DEFINITIONS,
-            think=False,
+            think=True,
         )
         msg = response["message"]
         tool_calls = msg.get("tool_calls") or []
 
         print(f"--- turn {turn} ---")
+        if msg.get("thinking"):
+            print(f"thinking: {msg.get('thinking')!r}")
         print(f"content: {msg.get('content')!r}")
         print(f"tool_calls: {tool_calls}")
 
