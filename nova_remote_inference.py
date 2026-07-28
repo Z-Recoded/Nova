@@ -16,9 +16,22 @@
 # endpoint (not assumed) -- this is RunPod's raw vLLM-worker format from
 # its "Deploy LLM from Hugging Face" quick-deploy flow, NOT an
 # OpenAI-compatible chat schema:
-#   request:  {"input": {"messages": [...], "max_tokens": N, "temperature": T}}
+#   request:  {"input": {"messages": [...], "sampling_params":
+#              {"max_tokens": N, "temperature": T}}}
 #   response: {"status": "COMPLETED", "output": [{"choices": [{"tokens": [...]}],
 #              "usage": {"input": N, "output": M}}], ...}
+#
+# Real bug found and fixed 2026-07-27: max_tokens/temperature were previously
+# sent as flat keys directly under "input" instead of nested under
+# "sampling_params" (RunPod worker-vllm's actual documented schema) -- the
+# worker silently ignored both and fell back to its own defaults, which
+# capped every real response at exactly 100 output tokens regardless of what
+# MAX_OUTPUT_TOKENS was set to (confirmed by testing max_tokens=50/300/2000
+# against the same prompt -- eval_count came back as exactly 100 every time),
+# and meant SAMPLING_TEMPERATURE=0.0 was likely never actually applied
+# either. Discovered while spiking a coding-agent tool-use loop against this
+# endpoint (nova_runpod_toolcall_spike.py) -- real responses were getting
+# truncated mid-JSON, which first looked like a model failure.
 #
 # Run standalone for a sanity check:
 #   nova-env\\Scripts\\python nova_remote_inference.py
@@ -127,8 +140,10 @@ def chat(messages: list[dict], num_ctx: int) -> dict | None:
     payload = {
         "input": {
             "messages": messages,
-            "max_tokens": MAX_OUTPUT_TOKENS,
-            "temperature": SAMPLING_TEMPERATURE,
+            "sampling_params": {
+                "max_tokens": MAX_OUTPUT_TOKENS,
+                "temperature": SAMPLING_TEMPERATURE,
+            },
         }
     }
 
