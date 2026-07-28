@@ -96,6 +96,86 @@ READ_BEFORE_WRITE_GUARD_PROMPT = (
     "very next turn. This task asks you to make a change, not explain code."
 )
 
+
+# ── System prompt ────────────────────────────────────────────────
+
+# Real bug found live: nova_orchestrator._build_system_prompt() bakes the
+# full CLAUDE.md in verbatim (~58,000 characters, ~14,500 tokens on its
+# own) -- on this endpoint's 32,768-token context window, that alone left
+# too little room for a real multi-turn task once the task description,
+# tool-call/response content, and the 8192 reserved output tokens were also
+# counted (confirmed live: a genuine feature-build task failed outright,
+# "your prompt contains at least 32769 input tokens"). This condensed
+# summary covers the same essential rules (CLAUDE.md Sections 3/4/9) in a
+# fraction of the space -- used only by this backend; the Claude/LangGraph
+# paths keep the full CLAUDE.md unchanged.
+CONDENSED_CODING_STANDARDS = (
+    "Nova coding standards (condensed -- the full project CLAUDE.md is too "
+    "large for this model's context window, so only the essential rules "
+    "are included here):\n\n"
+    "Legibility first: code must be easy to read, understand, troubleshoot, "
+    "and edit by a human at any time. Prioritize this over cleverness, "
+    "brevity, or performance.\n"
+    "- One job per function. If a function does two things, split it.\n"
+    "- Name things like sentences: retrieve_with_graph(query), not ret(q).\n"
+    "- Plain English comment above every function describing what it does "
+    "and why it exists.\n"
+    "- No magic numbers -- every constant gets a named variable "
+    "(NUM_CTX = 8192, not a bare 8192).\n"
+    "- No clever one-liners -- if it takes more than a moment to parse, "
+    "rewrite it as steps.\n"
+    "- Explicit over implicit. Write what you mean.\n"
+    "- Avoid deep nesting -- use early returns and guard clauses.\n\n"
+    "Python style: snake_case for variables/functions, PascalCase for "
+    "classes, SCREAMING_SNAKE_CASE for constants. Type hints on function "
+    "signatures. Imports grouped stdlib -> third-party -> local. Private "
+    "helpers prefixed with a single underscore.\n\n"
+    "Never do: refactor code that isn't part of the task; rename things "
+    "without a clear reason; add new pip/npm dependencies casually; write "
+    "to the Second Brain Obsidian vault (read-only, always); call Chroma "
+    "or Ollama directly instead of going through the existing FastAPI "
+    "routes; leave a TODO comment unimplemented; optimize prematurely."
+)
+
+
+def build_condensed_system_prompt() -> str:
+    """
+    RunPod-backend system prompt: the same worktree-scoped tool-use
+    guidance nova_orchestrator._build_system_prompt() gives every backend,
+    with CONDENSED_CODING_STANDARDS in place of the full CLAUDE.md. No
+    file read needed (unlike the Claude path) since nothing here depends
+    on the specific worktree.
+    """
+    return (
+        "You are Nova's coding sub-agent, operating inside a disposable git "
+        "worktree. You have file read/write/list tools and a run_command tool, "
+        "all scoped to this worktree only — nothing you do here touches the "
+        "live Nova codebase until a human reviews and merges your branch. "
+        "run_command executes via Git Bash, so use Unix-style commands (ls, "
+        "grep, cat), not cmd.exe/PowerShell syntax. Your worktree has no "
+        "virtualenv of its own (nova-env/ isn't git-tracked) — plain `python` "
+        "and `pip` in run_command already resolve to the live project's venv, "
+        "so just use them directly; no need to hunt for an interpreter path. "
+        "All file edits must go through write_file or file_replace, scoped to "
+        "this worktree. For edits to a file that already exists, prefer "
+        "file_replace over write_file — it only sends the changed "
+        "old_str/new_str pair as output instead of the whole file. old_str "
+        "must match exactly once; if it doesn't, either pick a larger, more "
+        "specific old_str or fall back to write_file. Reserve write_file for "
+        "brand-new files.\n\n"
+        "Read and follow the project's own coding standards below exactly:\n\n"
+        f"{CONDENSED_CODING_STANDARDS}\n\n"
+        "---\n"
+        "You have a limited number of turns. Prefer writing files directly "
+        "with write_file over exploring the shell environment — don't spend "
+        "turns probing tool availability or paths defensively; write the "
+        "code, then verify it with one focused run_command call. Work the "
+        "task to completion within your available turns. When finished, "
+        "reply with a short plain-text summary of what you changed and why "
+        "— no more tool calls after that summary."
+    )
+
+
 # Extracts <tools>...</tools> content, tolerating an unclosed trailing tag
 # (the model's final block sometimes never gets a closing tag before it
 # stops generating).
@@ -323,7 +403,18 @@ def run_via_runpod(
         messages.append({"role": "assistant", "content": content})
 
         if not tool_calls:
-            final_status = "completed"
+            # This endpoint has no stop_reason concept -- a response cut off
+            # by hitting max_output_tokens looks identical to a genuine
+            # "no more tool calls, done" response (empty tool_calls either
+            # way). Real bug found live: a truncated mid-generation response
+            # was being read as "completed" here. eval_count landing at (or
+            # past) the requested cap is the only signal available that
+            # generation was cut off rather than finishing on its own.
+            eval_count = response.get("eval_count")
+            if eval_count is not None and eval_count >= max_output_tokens:
+                final_status = "stopped_max_output_tokens"
+            else:
+                final_status = "completed"
             break
 
         for call in tool_calls:

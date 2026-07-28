@@ -477,7 +477,19 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
     worktree_path, branch_name = _create_worktree(slug)
     root = str(worktree_path)
 
-    system_prompt = _build_system_prompt(root)
+    if runpod_enabled:
+        # The full system prompt (_build_system_prompt) bakes in CLAUDE.md
+        # verbatim -- ~14.5K tokens on its own, real bug found live: this
+        # left too little of the RunPod endpoint's 32768-token context
+        # window for actual task work, hard-failing on anything beyond a
+        # couple of turns. A condensed, RunPod-specific standards summary
+        # replaces it for this backend only -- the Claude/LangGraph paths
+        # are untouched.
+        from nova_orchestrator_runpod import build_condensed_system_prompt
+
+        system_prompt = build_condensed_system_prompt()
+    else:
+        system_prompt = _build_system_prompt(root)
 
     skill_category = None
     skill_version = None
