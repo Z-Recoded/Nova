@@ -459,10 +459,18 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
     compact conventions instead of the model re-deriving them from
     CLAUDE.md alone. No effect if the flag is off or category is None.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        raise OSError("ANTHROPIC_API_KEY environment variable is not set. Export it before calling run_coding_task().")
-    client = anthropic.Anthropic(api_key=api_key)
+    runpod_enabled = is_framework_integration_enabled("runpod_coding_agent")
+    client = None
+    if not runpod_enabled:
+        # The RunPod backend has no Anthropic SDK client and doesn't need
+        # ANTHROPIC_API_KEY at all -- only construct/require it for the
+        # Claude-backed paths (inline loop or LangGraph).
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise OSError(
+                "ANTHROPIC_API_KEY environment variable is not set. Export it before calling run_coding_task()."
+            )
+        client = anthropic.Anthropic(api_key=api_key)
     budget_gate_enabled = is_framework_integration_enabled("token_budget_governor")
     skill_injection_enabled = is_framework_integration_enabled("skill_injection")
 
@@ -470,7 +478,19 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
     worktree_path, branch_name = _create_worktree(slug)
     root = str(worktree_path)
 
-    system_prompt = _build_system_prompt(root)
+    if runpod_enabled:
+        # The full system prompt (_build_system_prompt) bakes in CLAUDE.md
+        # verbatim -- ~14.5K tokens on its own, real bug found live: this
+        # left too little of the RunPod endpoint's 32768-token context
+        # window for actual task work, hard-failing on anything beyond a
+        # couple of turns. A condensed, RunPod-specific standards summary
+        # replaces it for this backend only -- the Claude/LangGraph paths
+        # are untouched.
+        from nova_orchestrator_runpod import build_condensed_system_prompt
+
+        system_prompt = build_condensed_system_prompt()
+    else:
+        system_prompt = _build_system_prompt(root)
 
     skill_category = None
     skill_version = None
@@ -488,7 +508,28 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
     final_status = "incomplete"
     turns_used = 0
 
-    if is_framework_integration_enabled("langgraph_orchestration"):
+    if runpod_enabled:
+        # Lazy import, same rationale as the langgraph branch below: this
+        # module (and nova_remote_inference) is only ever imported when the
+        # flag is on. RunPod and LangGraph are mutually exclusive alternate
+        # backends, not stackable -- checked first since it needs no
+        # Anthropic client at all (client is None on this path).
+        from nova_orchestrator_runpod import CODING_AGENT_MAX_OUTPUT_TOKENS, run_via_runpod
+
+        final_status, turns_used = run_via_runpod(
+            system_prompt,
+            messages,
+            root,
+            slug,
+            branch_name,
+            task_description,
+            skill_category,
+            skill_version,
+            budget_gate_enabled,
+            NOVA_AGENT_MAX_TURNS,
+            CODING_AGENT_MAX_OUTPUT_TOKENS,
+        )
+    elif is_framework_integration_enabled("langgraph_orchestration"):
         # Lazy import: langgraph is only ever imported when this flag is on,
         # so a missing/broken install can't affect Nova while the feature is
         # disabled (the default). See nova_orchestrator_graph.py for the

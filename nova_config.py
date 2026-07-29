@@ -52,6 +52,7 @@ DEFAULT_CONFIG = {
         "token_budget_governor": False,  # nosec B105
         "skill_injection": False,
         "remote_gpu_inference": False,
+        "runpod_coding_agent": False,
     },
     "model_routing": {
         "enabled": False,
@@ -294,6 +295,12 @@ FLAG_REGISTRY: dict[str, FlagMeta] = {
     "openhands_coding_agent": {
         "path": ["framework_integrations", "openhands_coding_agent"],
         "label": "OpenHands Auto-Coder",
+        "category": "scaffolding",
+        "aero_only": True,
+    },
+    "runpod_coding_agent": {
+        "path": ["framework_integrations", "runpod_coding_agent"],
+        "label": "RunPod Qwen2.5-Coder Task Runner",
         "category": "scaffolding",
         "aero_only": True,
     },
