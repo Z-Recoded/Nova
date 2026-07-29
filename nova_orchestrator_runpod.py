@@ -426,6 +426,7 @@ def _log_agent_turn_runpod(
     usage: dict,
     skill_category: str | None,
     skill_version: str | None,
+    pruned_pairs: int = 0,
 ) -> None:
     """
     Sibling to nova_orchestrator._log_agent_turn(), writing the identical
@@ -436,6 +437,11 @@ def _log_agent_turn_runpod(
     prompt caching on this endpoint -- distinct from record_usage()'s own
     real-zero convention above, since a log entry should say "not
     applicable" honestly rather than imply caching happened and yielded 0).
+
+    pruned_pairs (default 0, backward-compatible with any other caller):
+    how many turn-pairs _prune_history_if_needed() removed before this
+    turn's request was sent -- real, otherwise-invisible context-window
+    pruning events, visible here for anyone reading eval transcripts later.
     """
     from nova_orchestrator import AGENT_LOG_PATH
 
@@ -454,10 +460,86 @@ def _log_agent_turn_runpod(
         "cache_creation_input_tokens": None,
         "cache_read_input_tokens": None,
         "model": nova_remote_inference.MODEL_NAME,
+        "pruned_pairs": pruned_pairs,
     }
     with open(AGENT_LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     del content  # not logged today, same as _log_agent_turn's own omission of response text
+
+
+# ── Context-window management ────────────────────────────────────
+
+# The real deployment ceiling for this endpoint (distinct from NUM_CTX above,
+# which nova_remote_inference.chat() accepts for interface parity only and
+# never actually forwards to the request -- confirmed by reading that
+# function's own docstring). Cited in several comments elsewhere in this
+# file; finally given a real name here.
+CODING_AGENT_CONTEXT_WINDOW_TOKENS = 32768
+
+# No live tokenizer call is available for this endpoint without an extra
+# round trip -- this is a standard, documented rough approximation for
+# English/code-mixed content, not exact tiktoken-level precision.
+CHARS_PER_TOKEN_ESTIMATE = 4
+
+# Buffer against the char-based estimate's real slop on code-heavy content --
+# comfortably larger than the estimate's typical error margin at this scale.
+CONTEXT_SAFETY_MARGIN_TOKENS = 2000
+
+
+def _estimate_tokens(text: str) -> int:
+    """Rough, cheap token-count estimate -- see CHARS_PER_TOKEN_ESTIMATE's own comment."""
+    return len(text) // CHARS_PER_TOKEN_ESTIMATE
+
+
+def _estimate_message_list_tokens(messages: list[dict]) -> int:
+    """
+    Sum of _estimate_tokens() across every message's content. Safe to assume
+    a plain string here -- unlike Claude's structured content blocks, every
+    message this backend builds (system prompt, task, assistant response,
+    tool_response) has a plain-string content field.
+    """
+    return sum(_estimate_tokens(message["content"]) for message in messages)
+
+
+def _prune_history_if_needed(messages: list[dict], max_output_tokens: int) -> int:
+    """
+    Proactively drop the oldest turn history from `messages` in place, so a
+    request is never sent already knowing it will overflow this endpoint's
+    real 32,768-token context window -- the real failure mode the 2026-07-27
+    held-out eval hit mid-task (project_qwen3_coding_spike_result.md).
+
+    messages[0] (the system prompt) and messages[1] (the original task) are
+    never touched. From index 2 onward, messages are always built as strict
+    (assistant, user-tool-response) pairs by run_via_runpod()'s own loop --
+    removing whole pairs from the front preserves role alternation exactly,
+    with no placeholder-message insertion needed. Stops once the estimated
+    total fits under CODING_AGENT_CONTEXT_WINDOW_TOKENS minus the reserved
+    output budget and safety margin, or once only one pair remains (pruning
+    can't help a single turn that's too large on its own -- the caller
+    checks for that case separately).
+
+    If any pairs were pruned, prepends an honest note to the new earliest
+    remaining pair's user-role (tool-response) content, so the model knows
+    history was trimmed rather than silently losing context -- never the
+    assistant-role message, which would put words in the model's own past
+    turn that it never actually said. Returns the number of pairs pruned
+    (0 if none were needed).
+    """
+    budget = CODING_AGENT_CONTEXT_WINDOW_TOKENS - max_output_tokens - CONTEXT_SAFETY_MARGIN_TOKENS
+    pairs_pruned = 0
+
+    while _estimate_message_list_tokens(messages) > budget and len(messages) > 4:
+        del messages[2:4]
+        pairs_pruned += 1
+
+    if pairs_pruned:
+        # messages[2] is the earliest remaining pair's assistant turn,
+        # messages[3] is its user-role tool-response -- the note belongs on
+        # the latter.
+        note = f"[Note: {pairs_pruned} earlier turn(s) of tool output were removed to fit the context window.]\n\n"
+        messages[3]["content"] = note + messages[3]["content"]
+
+    return pairs_pruned
 
 
 # ── Entry point used by nova_orchestrator.py ─────────────────────
@@ -504,6 +586,17 @@ def run_via_runpod(
             final_status = "stopped_budget_halt"
             break
 
+        pairs_pruned = _prune_history_if_needed(messages, max_output_tokens)
+        remaining_budget = CODING_AGENT_CONTEXT_WINDOW_TOKENS - max_output_tokens - CONTEXT_SAFETY_MARGIN_TOKENS
+        if _estimate_message_list_tokens(messages) > remaining_budget:
+            # Pruning already dropped every prunable pair and the request is
+            # still over budget -- a single turn (e.g. one enormous
+            # write_file call) is too large on its own, not fixable by more
+            # pruning. Stop here rather than spend a paid call on a request
+            # already known to overflow this endpoint's real context window.
+            final_status = "stopped_context_overflow"
+            break
+
         response = nova_remote_inference.chat(messages, num_ctx=NUM_CTX, max_tokens=max_output_tokens)
         if response is None:
             # Infra/network failure, not a model stop condition -- a distinct
@@ -515,7 +608,16 @@ def run_via_runpod(
         tool_calls = _parse_tool_calls(content)
 
         _log_agent_turn_runpod(
-            slug, branch_name, turn, task_description, content, tool_calls, response, skill_category, skill_version
+            slug,
+            branch_name,
+            turn,
+            task_description,
+            content,
+            tool_calls,
+            response,
+            skill_category,
+            skill_version,
+            pruned_pairs=pairs_pruned,
         )
         if budget_gate_enabled:
             record_usage(_RunpodUsage(response.get("prompt_eval_count"), response.get("eval_count")))

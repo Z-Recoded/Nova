@@ -251,6 +251,24 @@ defect — leftover duplicate code after a `file_replace`: after a successful `f
 functions sharing an identical normalized body, or the same name defined twice, returning the
 same synthetic `is_error` corrective-nudge shape as the other three guards.
 
+**Context-window pruning (`86bb4gy0y` punch-list item #2, 2026-07-29):** this endpoint's real
+32,768-token context window (`CODING_AGENT_CONTEXT_WINDOW_TOKENS` — distinct from the file's
+`NUM_CTX = 8192`, which is accepted for interface parity only and never actually forwarded to the
+request) is a genuine constraint the 2026-07-27 held-out eval hit mid-task. Rather than detecting
+an overflow after a remote failure (RunPod's exact error text for this case was never captured,
+and `nova_remote_inference.chat()` — shared with the unrelated RAG path — returns bare `None` on
+every failure type today, indistinguishable from a network error), `_prune_history_if_needed()`
+proactively estimates the prompt's token size before every turn (a standard char-based
+approximation, `CHARS_PER_TOKEN_ESTIMATE`) and drops the oldest complete
+(assistant, tool-response) turn-pairs — never the system prompt or original task — until back
+under budget, leaving an honest note on the earliest remaining pair. If even the single most
+recent pair alone still overflows (one oversized tool call, unfixable by pruning), `run_via_runpod()`
+stops with a new distinct `stopped_context_overflow` status **before** spending a paid RunPod
+call on a request already known to fail — previously indistinguishable from a generic
+`stopped_runpod_call_failed`. Unconditional once `runpod_coding_agent` is on, same as the other
+four guards — no separate flag. Pruning events are visible in `agent_log.jsonl` via a new
+`pruned_pairs` field.
+
 **Coding review pass (`86bb4gy0y` punch-list item #1, 2026-07-29):** the review half of Marvin's
 2026-07-27 review-split decision (RunPod/Qwen writes, Claude reviews — see
 `project_coding_agent_review_split_decision.md`). `_review_coding_diff()` in
@@ -743,7 +761,8 @@ in `NOVA_BUILD_LOG.md` — this table is a terse date-ordered index, not the sou
 | 2026-07-26 | CLAUDE.md split: narrative/incident history (~136K chars) moved to `NOVA_BUILD_LOG.md`, this file trimmed to current facts + standards |
 | 2026-07-26 | Shipped the last two Controller-expansion tasks: push notifications (`86bb3ceyp`, `nova_notify.py`, ntfy.sh) and the pre-action approval gate (`86bb3ceym`, `nova_orchestrator.py`, Aero interactive lane only — headless-lane gap filed as `86bb3r0h4`). Verified live: real approve/deny/timeout poll-loop timing, full HTTP route auth/validation/state-transition behavior, and a real POST to ntfy.sh's live API. Both gated off by default; both flags toggleable from the Controller Switches panel. `NTFY_TOPIC` generated, set on both machines, `push_notifications.enabled` flipped on — messages confirmed reaching ntfy's history on Marvin's iPhone, but not yet as a live banner/alert (iOS notification settings, not a code gap — deferred, see Nova Controller UX subsection) |
 | 2026-07-28 | Closed `86bb3r0h4` — headless-lane pre-action approval gate via a real Claude Code `PreToolUse` hook (`nova_headless_approval_hook.py`), not the `NOVA_APPROVAL_START/END`-block idea the ticket floated. Verified against Claude Code's own hooks docs that `PreToolUse` denials are enforced independently of permission-mode (works under both `acceptEdits` and `bypassPermissions`) and identically under headless `-p` mode. New `POST /tool-approvals` (create) and `POST /tool-approvals/{id}/timeout` routes, `NOVA_HEADLESS_DISPATCH=1` scoping env var on all three headless invocation sites, Controller lane badge. Same shared `pre_action_approval_gate.enabled` flag now covers both lanes. |
-| 2026-07-29 | Merged the RunPod Qwen2.5-Coder-32B eval-spike branch (PR #16 — `nova_orchestrator_runpod.py`, `nova_coding_eval.py`, real 2/6-pass held-out result). Shipped `86bb4gy0y`'s punch-list items #1 and #3: a post-dispatch dead-code/leftover-duplicate guard (`_find_duplicate_functions()`, `ast`-based) closing the eval's other recurring defect, and the review-split's Claude-reviews-Qwen's-diff pass (`_review_coding_diff()`/`_log_coding_review()` in `nova_orchestrator.py`, new `coding_review_pass` flag). Review call verified structurally tool-less (no write path) per an explicit isolation guarantee confirmed with Marvin before building. |
+| 2026-07-29 | Merged the RunPod Qwen2.5-Coder-32B eval-spike branch (PR #16 — `nova_orchestrator_runpod.py`, `nova_coding_eval.py`, real 2/6-pass held-out result). Shipped `86bb4gy0y`'s punch-list items #1 and #3: a post-dispatch dead-code/leftover-duplicate guard (`_find_duplicate_functions()`, `ast`-based) closing the eval's other recurring defect, and the review-split's Claude-reviews-Qwen's-diff pass (`_review_coding_diff()`/`_log_coding_review()` in `nova_orchestrator.py`, new `coding_review_pass` flag). Review call verified structurally tool-less (no write path) per an explicit isolation guarantee confirmed with Marvin before building. Real end-to-end live test (both flags on, one trivial task) merged as `86bb4gy0y`'s first live proof, recorded via `record_task_outcome()`. |
+| 2026-07-29 | Shipped `86bb4gy0y`'s punch-list item #2: proactive context-window pruning (`_prune_history_if_needed()` in `nova_orchestrator_runpod.py`) drops the oldest turn-pairs before each request to stay under this endpoint's real 32,768-token ceiling, instead of failing after the fact. New `stopped_context_overflow` status distinguishes an unavoidable single-turn overflow from a generic RunPod call failure. Verified via synthetic unit-style cases (no live API cost) covering under-budget no-op, real multi-pair pruning, and the unavoidable-single-pair-overflow signal. `nova_remote_inference.py` deliberately untouched (shared with the unrelated RAG path). |
 
 ---
 
