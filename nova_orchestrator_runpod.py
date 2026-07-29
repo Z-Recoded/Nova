@@ -397,23 +397,22 @@ def _execute_tool_guarded(
 
 
 # ── Turn logging ─────────────────────────────────────────────────
-
-
-class _RunpodUsage:
-    """
-    Adapts nova_remote_inference's usage dict shape (prompt_eval_count/
-    eval_count, no caching concept) into the attribute interface
-    nova_token_budget.record_usage() expects (an Anthropic response.usage
-    object, or anything with the same four attributes). Cache fields are
-    real zeros here (no prompt caching on this endpoint), not an
-    approximation.
-    """
-
-    def __init__(self, prompt_eval_count: int | None, eval_count: int | None):
-        self.input_tokens = prompt_eval_count or 0
-        self.output_tokens = eval_count or 0
-        self.cache_creation_input_tokens = 0
-        self.cache_read_input_tokens = 0
+#
+# No usage-object adapter for nova_token_budget.record_usage() here
+# (removed 2026-07-29, 86bb4gy0y punch-list item #5) -- that module's
+# session/daily ceilings and cache-discount weighting are calibrated for
+# Anthropic's per-token pricing, but RunPod actually bills per GPU-second of
+# real execution time, not per token. Feeding real RunPod token counts
+# through a budget model built for a different pricing structure produced a
+# session/daily "budget %" with no relationship to real dollars spent --
+# exactly the "stand-in" the punch list flagged, not a second, disagreeing
+# number worth keeping alongside real tracking. Real cost now comes from
+# nova_remote_inference.py's own execution-time-based cost_usd (see
+# RUNPOD_GPU_HOURLY_RATE_USD there) via _log_runpod_cost_summary() below.
+# The budget_gate_enabled halt-check earlier in run_via_runpod()'s loop is
+# untouched -- that respects a shared, global halt state any caller
+# (including the Claude lane) may have already tripped, which stays valid
+# even though this backend no longer writes into that state itself.
 
 
 def _log_agent_turn_runpod(
@@ -427,6 +426,7 @@ def _log_agent_turn_runpod(
     skill_category: str | None,
     skill_version: str | None,
     pruned_pairs: int = 0,
+    cost_usd: float | None = None,
 ) -> None:
     """
     Sibling to nova_orchestrator._log_agent_turn(), writing the identical
@@ -434,14 +434,20 @@ def _log_agent_turn_runpod(
     of Anthropic SDK objects. tool_calls are re-keyed to {"name", "input"}
     (not "arguments") to stay consistent with nova_coding_dataset_curator.py's
     existing reader of this file. cache_* fields are explicitly None (no
-    prompt caching on this endpoint -- distinct from record_usage()'s own
-    real-zero convention above, since a log entry should say "not
+    prompt caching on this endpoint, and no equivalent real-zero convention
+    to borrow from since this backend no longer calls
+    nova_token_budget.record_usage() at all -- a log entry should say "not
     applicable" honestly rather than imply caching happened and yielded 0).
 
     pruned_pairs (default 0, backward-compatible with any other caller):
     how many turn-pairs _prune_history_if_needed() removed before this
     turn's request was sent -- real, otherwise-invisible context-window
     pruning events, visible here for anyone reading eval transcripts later.
+
+    cost_usd (default None, backward-compatible): this turn's real dollar
+    cost from nova_remote_inference.py's execution-time-based calculation
+    (86bb4gy0y punch-list item #5) -- None if the call failed before a
+    cost could be computed.
     """
     from nova_orchestrator import AGENT_LOG_PATH
 
@@ -461,10 +467,45 @@ def _log_agent_turn_runpod(
         "cache_read_input_tokens": None,
         "model": nova_remote_inference.MODEL_NAME,
         "pruned_pairs": pruned_pairs,
+        "cost_usd": cost_usd,
     }
     with open(AGENT_LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
     del content  # not logged today, same as _log_agent_turn's own omission of response text
+
+
+def _log_runpod_cost_summary(
+    slug: str,
+    branch: str,
+    task: str,
+    final_status: str,
+    turns_used: int,
+    total_cost_usd: float,
+    total_execution_time_ms: int,
+) -> None:
+    """
+    Append one real-cost summary for the whole task run to
+    logs/runpod_cost_log.jsonl (86bb4gy0y punch-list item #5) -- the actual
+    cost-accounting record the punch list asked for, replacing the removed
+    fake-token-budget stand-in (_RunpodUsage, deleted above). Same
+    JSONL-append pattern as nova_orchestrator._log_coding_review()/
+    record_task_outcome().
+    """
+    from nova_orchestrator import LOGS_DIR
+
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    entry = {
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "task_slug": slug,
+        "branch": branch,
+        "task": task,
+        "final_status": final_status,
+        "turns_used": turns_used,
+        "total_cost_usd": round(total_cost_usd, 6),
+        "total_execution_time_ms": total_execution_time_ms,
+    }
+    with open(f"{LOGS_DIR}/runpod_cost_log.jsonl", "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
 # ── Context-window management ────────────────────────────────────
@@ -565,7 +606,7 @@ def run_via_runpod(
     client/model params -- this endpoint has one deployed model and no SDK
     client object, unlike the Claude/LangGraph paths.
     """
-    from nova_token_budget import get_budget_status, record_usage
+    from nova_token_budget import get_budget_status
 
     # `messages` arrives as [{"role": "user", "content": task_description}]
     # (nova_orchestrator.py never includes a system-role entry -- Claude's
@@ -578,6 +619,8 @@ def run_via_runpod(
     ]
     read_paths: set = set()
     failed_calls: set = set()
+    total_cost_usd = 0.0
+    total_execution_time_ms = 0
 
     final_status = "incomplete"
     turn = 0
@@ -607,6 +650,9 @@ def run_via_runpod(
         content = response["message"]["content"]
         tool_calls = _parse_tool_calls(content)
 
+        total_cost_usd += response.get("cost_usd") or 0.0
+        total_execution_time_ms += response.get("execution_time_ms") or 0
+
         _log_agent_turn_runpod(
             slug,
             branch_name,
@@ -618,9 +664,8 @@ def run_via_runpod(
             skill_category,
             skill_version,
             pruned_pairs=pairs_pruned,
+            cost_usd=response.get("cost_usd"),
         )
-        if budget_gate_enabled:
-            record_usage(_RunpodUsage(response.get("prompt_eval_count"), response.get("eval_count")))
 
         messages.append({"role": "assistant", "content": content})
 
@@ -646,5 +691,9 @@ def run_via_runpod(
             messages.append({"role": "user", "content": f"<tool_response>\n{result['content']}\n</tool_response>"})
     else:
         final_status = "max_turns_reached"
+
+    _log_runpod_cost_summary(
+        slug, branch_name, task_description, final_status, turn, total_cost_usd, total_execution_time_ms
+    )
 
     return final_status, turn

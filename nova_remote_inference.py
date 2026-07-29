@@ -81,6 +81,29 @@ POLL_MAX_TOTAL_SECONDS = 180
 
 TERMINAL_STATUSES = {"COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT"}
 
+# This endpoint's real configured GPU tier and RunPod's serverless rate for
+# it -- confirmed 2026-07-29 by checking the RunPod dashboard directly (H100
+# SXM, $2.99/hr), not assumed or looked up from a generic pricing page.
+# RunPod bills on executionTime (real GPU compute time), never delayTime
+# (queue/cold-start wait) -- both are captured in a COMPLETED job's response
+# but only executionTime feeds the cost calculation below. Needs manual
+# updating here if the endpoint's GPU tier is ever changed.
+RUNPOD_GPU_HOURLY_RATE_USD = 2.99
+
+
+def _calculate_cost_usd(execution_time_ms: int | None) -> float | None:
+    """
+    Real dollar cost for one job, from its real executionTime -- RunPod
+    bills per GPU-second, not per token, so this is the only accurate way
+    to price a call (see RUNPOD_GPU_HOURLY_RATE_USD's own comment). Returns
+    None (not 0.0) when execution_time_ms itself is unknown, so callers can
+    tell "unpriced" apart from "genuinely free."
+    """
+    if execution_time_ms is None:
+        return None
+    hours = execution_time_ms / 1000 / 3600
+    return hours * RUNPOD_GPU_HOURLY_RATE_USD
+
 
 # ── Helpers ────────────────────────────────────────────────────
 
@@ -88,8 +111,13 @@ TERMINAL_STATUSES = {"COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT"}
 def _extract_answer(response_json: dict) -> dict | None:
     """
     Parse a COMPLETED RunPod job's response into the same shape
-    ollama_client.chat() returns: {"message": {"content": str},
-    "prompt_eval_count": int|None, "eval_count": int|None}.
+    ollama_client.chat() returns, plus three extra keys this project's own
+    callers use for real cost tracking: {"message": {"content": str},
+    "prompt_eval_count": int|None, "eval_count": int|None,
+    "execution_time_ms": int|None, "delay_time_ms": int|None,
+    "cost_usd": float|None}. The three extra keys are additive -- confirmed
+    safe against nova_query.py's own use of this return value, which only
+    ever checks `is None` and never enumerates the dict's keys.
 
     Shared by both the inline-completed and polled-completed paths in
     chat(), since both hit this same output envelope. Logs loudly and
@@ -103,10 +131,14 @@ def _extract_answer(response_json: dict) -> dict | None:
         tokens = result["choices"][0]["tokens"]
         answer_text = "".join(tokens)
         usage = result.get("usage", {})
+        execution_time_ms = response_json.get("executionTime")
         return {
             "message": {"content": answer_text},
             "prompt_eval_count": usage.get("input"),
             "eval_count": usage.get("output"),
+            "execution_time_ms": execution_time_ms,
+            "delay_time_ms": response_json.get("delayTime"),
+            "cost_usd": _calculate_cost_usd(execution_time_ms),
         }
     except (KeyError, IndexError, TypeError) as e:
         print(
