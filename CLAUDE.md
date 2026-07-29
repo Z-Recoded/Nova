@@ -66,6 +66,8 @@ C:/Nova/
 ├── nova_tools.py           # Path-scoped file/exec primitives for the coding sub-agent
 ├── nova_orchestrator.py    # Coding sub-agent loop (Claude-backed v1, git-worktree isolated)
 ├── nova_orchestrator_graph.py # LangGraph port of the turn loop (langgraph_orchestration flag, default off)
+├── nova_orchestrator_runpod.py # RunPod (Qwen2.5-Coder-32B) backend for the turn loop — prompted tool-call format, 4 guards (runpod_coding_agent flag, default off)
+├── nova_coding_eval.py     # Human-graded held-out comparison harness — reruns historical merged tasks against a backend under test
 ├── nova_config.py          # Feature-flag reads (is_augment_enabled, config_snapshot, etc.)
 ├── nova_config.json        # Feature-flag values — all off today (Phase 1.75 gating)
 ├── nova_mcp_server.py      # Standalone MCP server wrapping nova_api.py routes (unwired, port 8100)
@@ -234,6 +236,37 @@ specific `old_str` or fall back to `write_file` for that edit. Reserve
 `write_file` for brand-new files. This paragraph is picked up automatically
 by `_build_system_prompt()`, which reads all of CLAUDE.md verbatim into the
 sub-agent's system prompt every run.
+
+**RunPod backend (`nova_orchestrator_runpod.py`, 2026-07-27):** an alternate turn loop using
+Nova's RunPod-hosted Qwen2.5-Coder-32B-Instruct-AWQ endpoint instead of Claude, gated behind
+`framework_integrations.runpod_coding_agent` (default off, `aero_only`). This endpoint has no
+native tool-calling API, so tool calls are requested via a prompted `<tools>{...}</tools>` text
+format and parsed out of the plain-text response. Three pre-dispatch guards prevent observed
+failure loops from the 2026-07-27 held-out eval (`project_qwen3_coding_spike_result.md`):
+refusing `write_file`/`file_replace` on an unread existing path, refusing a repeat `read_file` on
+an already-read path, and refusing an exact repeat of an already-failed call. A fourth,
+**post**-dispatch guard (`86bb4gy0y` punch-list item #3) targets the eval's other recurring
+defect — leftover duplicate code after a `file_replace`: after a successful `file_replace` on a
+`.py` path, `_find_duplicate_functions()` re-parses the file with `ast` and flags any two
+functions sharing an identical normalized body, or the same name defined twice, returning the
+same synthetic `is_error` corrective-nudge shape as the other three guards.
+
+**Coding review pass (`86bb4gy0y` punch-list item #1, 2026-07-29):** the review half of Marvin's
+2026-07-27 review-split decision (RunPod/Qwen writes, Claude reviews — see
+`project_coding_agent_review_split_decision.md`). `_review_coding_diff()` in
+`nova_orchestrator.py` runs once, right after `run_coding_task()` computes the final diff and
+before `_commit_worktree_changes()` — a single non-agentic `client.messages.create()` call
+(same no-tool-use pattern as `nova_task_queue.propose_tier()`), never given a `tools` argument,
+so it is structurally unable to write files regardless of what it says; its JSON verdict
+(`approved`/`issues`/`summary`) only ever feeds a JSONL log entry and a commit-message string,
+never back into a tool call. Gated behind `framework_integrations.coding_review_pass` (default
+off, `aero_only`) **and** `runpod_coding_agent` together — meaningless without RunPod actually
+having written the diff, so it never runs for the Claude-backed lane. Deliberately does **not**
+block the commit or re-enter the turn loop on a negative verdict: a worktree commit here isn't a
+merge (Marvin already reviews every diff by hand before that), so v1's job is to make that human
+pass faster and start generating real (diff, verdict) pairs toward a future Qwen fine-tune
+dataset (`logs/coding_review_log.jsonl`, written by `_log_coding_review()`), not to gate anything
+itself yet.
 
 ### Escalation Protocol — Headless Dispatch (86bax0wkj, 2026-07-18)
 A headless task dispatched via `nova_omen_dispatch.dispatch_headless_task()` can now
@@ -710,6 +743,7 @@ in `NOVA_BUILD_LOG.md` — this table is a terse date-ordered index, not the sou
 | 2026-07-26 | CLAUDE.md split: narrative/incident history (~136K chars) moved to `NOVA_BUILD_LOG.md`, this file trimmed to current facts + standards |
 | 2026-07-26 | Shipped the last two Controller-expansion tasks: push notifications (`86bb3ceyp`, `nova_notify.py`, ntfy.sh) and the pre-action approval gate (`86bb3ceym`, `nova_orchestrator.py`, Aero interactive lane only — headless-lane gap filed as `86bb3r0h4`). Verified live: real approve/deny/timeout poll-loop timing, full HTTP route auth/validation/state-transition behavior, and a real POST to ntfy.sh's live API. Both gated off by default; both flags toggleable from the Controller Switches panel. `NTFY_TOPIC` generated, set on both machines, `push_notifications.enabled` flipped on — messages confirmed reaching ntfy's history on Marvin's iPhone, but not yet as a live banner/alert (iOS notification settings, not a code gap — deferred, see Nova Controller UX subsection) |
 | 2026-07-28 | Closed `86bb3r0h4` — headless-lane pre-action approval gate via a real Claude Code `PreToolUse` hook (`nova_headless_approval_hook.py`), not the `NOVA_APPROVAL_START/END`-block idea the ticket floated. Verified against Claude Code's own hooks docs that `PreToolUse` denials are enforced independently of permission-mode (works under both `acceptEdits` and `bypassPermissions`) and identically under headless `-p` mode. New `POST /tool-approvals` (create) and `POST /tool-approvals/{id}/timeout` routes, `NOVA_HEADLESS_DISPATCH=1` scoping env var on all three headless invocation sites, Controller lane badge. Same shared `pre_action_approval_gate.enabled` flag now covers both lanes. |
+| 2026-07-29 | Merged the RunPod Qwen2.5-Coder-32B eval-spike branch (PR #16 — `nova_orchestrator_runpod.py`, `nova_coding_eval.py`, real 2/6-pass held-out result). Shipped `86bb4gy0y`'s punch-list items #1 and #3: a post-dispatch dead-code/leftover-duplicate guard (`_find_duplicate_functions()`, `ast`-based) closing the eval's other recurring defect, and the review-split's Claude-reviews-Qwen's-diff pass (`_review_coding_diff()`/`_log_coding_review()` in `nova_orchestrator.py`, new `coding_review_pass` flag). Review call verified structurally tool-less (no write path) per an explicit isolation guarantee confirmed with Marvin before building. |
 
 ---
 
