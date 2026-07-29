@@ -39,6 +39,10 @@ SMOKE_TEST_DENYLIST_SUBSTRINGS = [
 # marker).
 ALREADY_SPIKE_TESTED_BRANCHES = {
     "nova-agent/add-a-one-line-comment-above-the-sources-20260705-173537",
+    # Merge commit a671fa6 (2026-07-28) is itself the review-split pipeline's
+    # first live end-to-end confirmation run (86bb4gy0y) -- already tested
+    # against this exact RunPod model, not a fresh held-out comparison point.
+    "nova-agent/add-a-one-line-comment-above-supported-e-20260728-215210",
 }
 
 # Hand-verified branch -> merged commit map (2026-07-27) -- resolved once by
