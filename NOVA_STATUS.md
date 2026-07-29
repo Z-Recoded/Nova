@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-29 02:47 UTC
+Last updated: 2026-07-29 03:13 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,8 +8,7 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- ready -> in_progress: 86bb4gy0y (Build Qwen-writes / Claude-reviews coding pipeline (Phase 3.5 refinement))
-- in_progress -> complete/removed: 86bb3r0h4 (Headless-lane equivalent of the pre-action approval gate (86bb3ceym))
+- NEW -> ready: 86bb53hmk (Fix latent ThinkingBlock bug in nova_task_queue.propose_tier())
 
 ## In progress (4)
 
@@ -32,8 +31,9 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (95)
+## Ready (96)
 
+- 86bb53hmk  Fix latent ThinkingBlock bug in nova_task_queue.propose_tier()
 - 86bb52gc5  Explore: Unified failure-state dashboard (Vivarium + chunk-viz + agent-run pane)
 - 86bb4e29m  Evaluate Pushover as ntfy replacement for push notifications
 - 86bb3r0z4  Evaluate Pocket (heypocket) MCP server as a Nova / life-autosave ingestion source

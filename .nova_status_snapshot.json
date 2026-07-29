@@ -1,6 +1,10 @@
 {
   "ready": [
     {
+      "id": "86bb53hmk",
+      "name": "Fix latent ThinkingBlock bug in nova_task_queue.propose_tier()"
+    },
+    {
       "id": "86bb52gc5",
       "name": "Explore: Unified failure-state dashboard (Vivarium + chunk-viz + agent-run pane)"
     },
