@@ -51,6 +51,16 @@
         ]
       },
       {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 nova_headless_approval_hook.py",
+            "timeout": 330
+          }
+        ]
+      },
+      {
         "matcher": "Read|Glob",
         "hooks": [
           {
