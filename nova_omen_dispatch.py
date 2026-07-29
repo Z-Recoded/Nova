@@ -464,7 +464,7 @@ def dispatch_headless_task(
     # intermediate wrapper. stdout/stderr stay inherited from the backgrounded
     # job, so `_run_claude_over_ssh()`'s result-JSON scan is unaffected.
     remote_command = (
-        f"cd {OMEN_REPO_PATH} && {credential_prefix} "
+        f"cd {OMEN_REPO_PATH} && {credential_prefix} NOVA_HEADLESS_DISPATCH=1 "
         f"claude -p --worktree {resolved_worktree_name} --permission-mode acceptEdits "
         f"--output-format json {quoted_task} & "
         f"echo $! > {REMOTE_DISPATCH_PID_PATH}; wait $!"
@@ -704,6 +704,7 @@ def dispatch_headless_task_sandboxed(
         # guarantees at most one sandboxed dispatch runs at a time.
         f"docker run --rm --name {SANDBOXED_CONTAINER_NAME} --user $(id -u):$(id -g) "
         f'-e HOME={shlex.quote(omen_home)} -e ANTHROPIC_API_KEY="$API_KEY" '
+        f"-e NOVA_HEADLESS_DISPATCH=1 "
         f"-v {shlex.quote(omen_home)}/.claude:{shlex.quote(omen_home)}/.claude "
         f"-v {shlex.quote(OMEN_REPO_PATH)}/.git:{shlex.quote(OMEN_REPO_PATH)}/.git "
         f"-v {shlex.quote(worktree_path)}:{shlex.quote(worktree_path)} "
@@ -793,7 +794,7 @@ def resume_headless_task(
     credential_prefix = _build_credential_prefix(resolved_fuel_source)
     quoted_answer = shlex.quote(answer_text)
     remote_command = (
-        f"cd {shlex.quote(worktree_path)} && {credential_prefix} "
+        f"cd {shlex.quote(worktree_path)} && {credential_prefix} NOVA_HEADLESS_DISPATCH=1 "
         f"claude -p --resume {shlex.quote(session_id)} --permission-mode acceptEdits "
         f"--output-format json {quoted_answer}"
     )

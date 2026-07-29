@@ -205,6 +205,14 @@ class ToolApprovalDecisionRequest(BaseModel):
     reasoning: str | None = None
 
 
+class ToolApprovalCreateRequest(BaseModel):
+    tool_name: str
+    tool_input: dict
+    reason: str
+    session_id: str | None = None
+    cwd: str | None = None
+
+
 # ── Routes ─────────────────────────────────────────────────────
 
 
@@ -1047,14 +1055,54 @@ def decide_tier_proposal(
     return record
 
 
+@app.post("/tool-approvals")
+def create_tool_approval(req: ToolApprovalCreateRequest):
+    """
+    Register a new pending tool-call approval — called by
+    nova_headless_approval_hook.py (86bb3r0h4), the Omen headless dispatch
+    lane's equivalent of nova_orchestrator._request_tool_approval(). That
+    Aero-lane function writes pending_tool_approvals directly since
+    POST /agent/task runs in-process on the same machine/nova_state.db; the
+    headless hook is a separate subprocess spawned by a real Claude Code
+    `PreToolUse` hook, so it needs this HTTP hop instead — same
+    register-over-HTTP shape as create_escalation() above. Not token-gated:
+    this only records that approval is being sought, same posture as
+    POST /escalations. Stamps lane="headless" so the Controller can tell
+    these apart from the Aero lane's lane="interactive" records.
+    """
+    try:
+        approval_id = str(uuid.uuid4())
+        pending = get_state("system", "pending_tool_approvals") or {}
+        pending.pop("_updated_at", None)
+        pending[approval_id] = {
+            "approval_id": approval_id,
+            "lane": "headless",
+            "session_id": req.session_id,
+            "task_description": req.cwd,
+            "tool_name": req.tool_name,
+            "tool_input": req.tool_input,
+            "reason": req.reason,
+            "status": "pending",
+            "created_at": datetime.now().isoformat(timespec="seconds"),
+            "decided_at": None,
+            "comment": None,
+            "root": None,
+        }
+        write_state("system", "pending_tool_approvals", pending)
+        return pending[approval_id]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @app.get("/tool-approvals")
 def get_tool_approvals():
     """
-    All pending/decided tool-call approvals from the Aero interactive
-    coding lane's pre-action approval gate (86bb3ceym) -- not token-gated
-    (read-only), same posture as GET /escalations and GET /tier-proposals.
-    Only ever populated by nova_orchestrator.py's own machine -- the Omen
-    headless dispatch lane bypasses this gate entirely (see CLAUDE.md).
+    All pending/decided tool-call approvals from the pre-action approval
+    gate (86bb3ceym / 86bb3r0h4) — not token-gated (read-only), same
+    posture as GET /escalations and GET /tier-proposals. Covers both lanes:
+    lane="interactive" (Aero, written in-process by nova_orchestrator.py)
+    and lane="headless" (Omen, registered over HTTP by
+    nova_headless_approval_hook.py).
     """
     return get_state("system", "pending_tool_approvals") or {}
 
@@ -1066,13 +1114,13 @@ def decide_tool_approval(
     x_nova_escalation_token: str | None = Header(None),
 ):
     """
-    Approve or deny a pending tool-call approval (86bb3ceym). Token-gated,
-    reusing X-Nova-Escalation-Token/NOVA_ESCALATION_TOKEN -- one
-    Controller-wide auth surface, not a second secret. No background task
-    to fire: nova_orchestrator.py's own _request_tool_approval() poll loop
-    (same machine, same process that registered this record) picks up this
-    write on its next tick -- there is no killed session to resume, unlike
-    answer_escalation()'s cross-machine resume flow.
+    Approve or deny a pending tool-call approval (86bb3ceym / 86bb3r0h4).
+    Token-gated, reusing X-Nova-Escalation-Token/NOVA_ESCALATION_TOKEN --
+    one Controller-wide auth surface, not a second secret. No background
+    task to fire either lane: the Aero lane's own
+    _request_tool_approval() poll loop and the headless lane's
+    nova_headless_approval_hook.py poll loop both pick up this write on
+    their next tick.
     """
     _check_escalation_token(x_nova_escalation_token)
     if req.decision not in ("approve", "deny"):
@@ -1088,6 +1136,34 @@ def decide_tool_approval(
     record["status"] = "approved" if req.decision == "approve" else "denied"
     record["decided_at"] = datetime.now().isoformat(timespec="seconds")
     record["comment"] = req.comment
+    pending.pop("_updated_at", None)
+    pending[approval_id] = record
+    write_state("system", "pending_tool_approvals", pending)
+    return {"status": record["status"], "approval_id": approval_id}
+
+
+@app.post("/tool-approvals/{approval_id}/timeout")
+def timeout_tool_approval(approval_id: str):
+    """
+    Self-reported timeout from nova_headless_approval_hook.py (86bb3r0h4)
+    when its own poll loop gives up waiting — not a human decision, so
+    unlike decide_tool_approval() above this is deliberately NOT
+    token-gated, mirroring how the Aero lane's _request_tool_approval()
+    also needs no token to write its own "timed_out" status (same process,
+    same trust boundary; here it's a separate process but the same
+    no-elevated-trust-needed action). No-ops (200, unchanged record) if the
+    approval was already decided by the time this lands — never overwrites
+    a real human decision with a timeout.
+    """
+    pending = get_state("system", "pending_tool_approvals") or {}
+    record = pending.get(approval_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"No tool approval '{approval_id}'")
+    if record["status"] != "pending":
+        return {"status": record["status"], "approval_id": approval_id}
+
+    record["status"] = "timed_out"
+    record["decided_at"] = datetime.now().isoformat(timespec="seconds")
     pending.pop("_updated_at", None)
     pending[approval_id] = record
     write_state("system", "pending_tool_approvals", pending)

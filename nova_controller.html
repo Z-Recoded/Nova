@@ -349,6 +349,8 @@
   .badge.dispatch { background: #2a2e38; color: #999; }
   .badge.label { background: #3a2e1a; color: #d0a060; }
   .badge.tool-approval { background: #3a1a2a; color: #e07090; }
+  .badge.lane-headless { background: #1a2e3a; color: #60a0d0; }
+  .badge.lane-interactive { background: #2a2a2a; color: #999; }
 
   .question { font-size: 0.95rem; margin-bottom: 0.5rem; }
   .malformed-note { color: #e0b060; font-size: 0.8rem; margin-bottom: 0.5rem; }
@@ -1346,8 +1348,10 @@
 
       const header = document.createElement('div');
       header.className = 'card-header';
+      const lane = entry.lane === 'headless' ? 'headless (Omen)' : 'interactive (Aero)';
       header.innerHTML =
         `<span class="badge tool-approval">tool approval</span>` +
+        `<span class="badge lane-${escapeHtml(entry.lane || 'interactive')}">${escapeHtml(lane)}</span>` +
         `<span class="task-name" style="flex:1">${escapeHtml(entry.tool_name)}</span>` +
         `<span class="badge ${badgeClass(status)}">${escapeHtml(status)}</span>`;
       div.appendChild(header);

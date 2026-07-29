@@ -311,6 +311,7 @@ def _request_tool_approval(
     pending.pop("_updated_at", None)
     pending[approval_id] = {
         "approval_id": approval_id,
+        "lane": "interactive",
         "session_id": session_id,
         "task_description": task_description[:200],
         "tool_name": name,

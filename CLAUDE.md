@@ -77,6 +77,7 @@ C:/Nova/
 ├── nova_controller.html    # Nova Controller Feed — served at /controller, PWA-installable (86baxahn7, supersedes nova_escalations.html)
 ├── manifest.json, sw.js, icon-192.png, icon-512.png  # PWA manifest/service worker/icons for nova_controller.html
 ├── nova_notify.py          # Thin ntfy.sh push-notification wrapper — Layer 3 of 86baykvb7's deferred real-push design (86bb3ceyp)
+├── nova_headless_approval_hook.py # Claude Code PreToolUse hook — headless-lane pre-action approval gate, wired via .claude/settings.json (86bb3r0h4)
 ├── nova_omen_sync.py       # One-command sync for the Omen's main checkout — git pull, restart nova-api/nova-chroma, verify listening
 ├── nova_task_queue.py      # Readiness detection + task resolution for headless dispatch (86bax0exx steps 1-2)
 ├── nova_scheduled_dispatch.py # Cron-fired entry point on the Omen — picks + dispatches one autonomy-safe-tagged task every 2 hours; also owns abort_current_dispatch() (86bb3ceyj)
@@ -340,20 +341,42 @@ closed (denied) after `timeout_seconds` (default 300s). Marvin decides via a new
 (`GET /tool-approvals`, `POST /tool-approvals/{id}/decide`, token-gated). Gated behind
 `pre_action_approval_gate.enabled` (default off).
 
-**Critical scoping limit, not a nitpick:** this only covers the **Aero interactive lane**
-(`POST /agent/task` → `nova_orchestrator.py`). The **Omen headless lane**
-(`nova_omen_dispatch.py`'s `dispatch_headless_task()`, which runs `claude -p --worktree` directly
-over SSH) bypasses `nova_tools.py`/`_execute_tool()` entirely and remains **fully ungated** by
-this feature — a headless dispatch can run any of the gated patterns with zero friction, exactly
-as before. Filed as its own deferred ClickUp task (`86bb3r0h4`, headless-lane approval-gate
-equivalent) rather than left silent — would need either a `claude -p` permission-prompt hook or a
-before-the-fact `NOVA_APPROVAL_START/END` block, unlike `check_escalation()`'s current
-after-the-fact-only parsing. Also note: since `/agent/task` and this gate both run on the Aero's
-own `nova_api.py`, load the Controller from the **Aero's** address while a gated task is in
-flight, not the Omen's always-on `:8001` — the two processes have independent `nova_state.db`
+Scoped originally to the **Aero interactive lane** only (`POST /agent/task` →
+`nova_orchestrator.py`) — since `/agent/task` and this gate both run on the Aero's own
+`nova_api.py`, load the Controller from the **Aero's** address while a gated interactive task is
+in flight, not the Omen's always-on `:8001` — the two processes have independent `nova_state.db`
 files. `max_files_per_turn` file-count gating is designed (config field exists) but deliberately
 not wired into `_approval_gate_reason()` yet — a fast-follow once the command-pattern trigger is
 proven live.
+
+**Headless-lane equivalent (86bb3r0h4, 2026-07-28):** the Omen headless dispatch lane
+(`nova_omen_dispatch.py`'s `dispatch_headless_task()`, `dispatch_headless_task_sandboxed()`,
+`resume_headless_task()`) runs the real `claude` CLI directly over SSH and never touches
+`nova_tools.py`/`_execute_tool()` — the Aero-lane mechanism above literally cannot reach it. The
+real fix is a genuine Claude Code `PreToolUse` hook (`nova_headless_approval_hook.py`, wired into
+`.claude/settings.json`'s `PreToolUse`/`Bash` matcher, `timeout: 330`), not the
+`NOVA_APPROVAL_START/END`-block idea originally floated on the ticket — verified live against
+Claude Code's own hooks docs that a `PreToolUse` hook can synchronously `deny` a tool call via
+stdout JSON (`{"hookSpecificOutput": {"permissionDecision": "deny", ...}}`), that this is enforced
+**independently of permission-mode** (a `deny` still blocks under both `acceptEdits` and
+`bypassPermissions`), and that headless `claude -p` honors project hooks identically to
+interactive mode. Because `.claude/settings.json` is a tracked file, it — and the hook script
+itself — ship into every dispatch worktree automatically via `git worktree add ... origin/master`,
+no extra deploy step needed.
+
+Scoped by `NOVA_HEADLESS_DISPATCH=1`, set only in `nova_omen_dispatch.py`'s three real headless
+invocation sites — the hook is a silent no-op without it, so it never gates Marvin's own
+interactive Claude Code sessions in this repo. On a match it registers via the new, unauthenticated
+`POST /tool-approvals` (create) — a separate HTTP hop from the Aero lane's in-process
+`nova_state.db` write, since the hook runs as its own subprocess — against the Omen's own
+always-on `nova-api` over its **Tailscale IP**, not `127.0.0.1` (the sandboxed Docker path has no
+`--network host`, so loopback wouldn't reach the host's nova-api there). Records are tagged
+`lane: "interactive"` or `lane: "headless"` so the Controller's tool-approval card can show which
+lane a pending approval came from; a self-reported `POST /tool-approvals/{id}/timeout` (also
+unauthenticated — it's not a human decision, just the hook's own poll loop giving up) keeps a
+timed-out headless record from showing as stuck-pending forever. Same shared
+`pre_action_approval_gate.enabled` flag now gates both lanes at once — deliberately not split into
+a second toggle for this first cut.
 
 ### Training-Data Accumulation Oversight (86bax4akx, 2026-07-21)
 `GET /training-data-status` — live DPO pair count/coverage from `logs/training_flags.jsonl`
@@ -598,8 +621,10 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | /dispatch-abort | POST | ✓ Working | Kill the currently-running cron-fired dispatch — token-gated. docker kill for sandboxed, direct SIGTERM/SIGKILL against the real captured PID for bare-SSH; worktree left in place for review (86bb3ceyj) |
 | /worktree-pr | POST | ✓ Working | Push a dispatch branch + open a draft GitHub PR — token-gated. No custom diff viewer; Controller just deep-links to the real PR (86bb3ceyf) |
 | /worktree-discard | POST | ✓ Working | Delete a dispatch worktree+branch outright — token-gated. Records the outcome via record_dispatch_review() when a task_id is given (86bb3ceyf) |
-| /tool-approvals | GET | ✓ Working | Pending/decided tool-call approvals from the Aero interactive coding lane's pre-action approval gate — not token-gated (read-only) (86bb3ceym) |
-| /tool-approvals/{id}/decide | POST | ✓ Working | Approve or deny a pending tool-call approval — token-gated. No background task; nova_orchestrator.py's own poll loop picks up the decision |
+| /tool-approvals | POST | ✓ Working | Register a new pending tool-call approval (system/pending_tool_approvals) — called by nova_headless_approval_hook.py, not token-gated (86bb3r0h4) |
+| /tool-approvals | GET | ✓ Working | Pending/decided tool-call approvals from the pre-action approval gate, both lanes (lane: "interactive"/"headless") — not token-gated (read-only) (86bb3ceym / 86bb3r0h4) |
+| /tool-approvals/{id}/decide | POST | ✓ Working | Approve or deny a pending tool-call approval — token-gated. No background task; the originating lane's own poll loop picks up the decision |
+| /tool-approvals/{id}/timeout | POST | ✓ Working | Self-reported timeout from nova_headless_approval_hook.py's poll loop — not token-gated (not a human decision); no-ops if already decided (86bb3r0h4) |
 
 ---
 
@@ -684,6 +709,7 @@ in `NOVA_BUILD_LOG.md` — this table is a terse date-ordered index, not the sou
 | 2026-07-26 | Omen→Aero bridge extended to training-data read+write (4th key, write path built but not yet generated — stop-and-ask boundary); abort/kill switch (`86bb3ceyj`) and diff-preview-and-merge (`86bb3ceyf`) shipped, both Phase C Controller-expansion tasks |
 | 2026-07-26 | CLAUDE.md split: narrative/incident history (~136K chars) moved to `NOVA_BUILD_LOG.md`, this file trimmed to current facts + standards |
 | 2026-07-26 | Shipped the last two Controller-expansion tasks: push notifications (`86bb3ceyp`, `nova_notify.py`, ntfy.sh) and the pre-action approval gate (`86bb3ceym`, `nova_orchestrator.py`, Aero interactive lane only — headless-lane gap filed as `86bb3r0h4`). Verified live: real approve/deny/timeout poll-loop timing, full HTTP route auth/validation/state-transition behavior, and a real POST to ntfy.sh's live API. Both gated off by default; both flags toggleable from the Controller Switches panel. `NTFY_TOPIC` generated, set on both machines, `push_notifications.enabled` flipped on — messages confirmed reaching ntfy's history on Marvin's iPhone, but not yet as a live banner/alert (iOS notification settings, not a code gap — deferred, see Nova Controller UX subsection) |
+| 2026-07-28 | Closed `86bb3r0h4` — headless-lane pre-action approval gate via a real Claude Code `PreToolUse` hook (`nova_headless_approval_hook.py`), not the `NOVA_APPROVAL_START/END`-block idea the ticket floated. Verified against Claude Code's own hooks docs that `PreToolUse` denials are enforced independently of permission-mode (works under both `acceptEdits` and `bypassPermissions`) and identically under headless `-p` mode. New `POST /tool-approvals` (create) and `POST /tool-approvals/{id}/timeout` routes, `NOVA_HEADLESS_DISPATCH=1` scoping env var on all three headless invocation sites, Controller lane badge. Same shared `pre_action_approval_gate.enabled` flag now covers both lanes. |
 
 ---
 
