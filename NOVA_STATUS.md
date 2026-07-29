@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-29 03:13 UTC
+Last updated: 2026-07-29 03:46 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,7 +8,7 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- NEW -> ready: 86bb53hmk (Fix latent ThinkingBlock bug in nova_task_queue.propose_tier())
+- No category changes since last digest.
 
 ## In progress (4)
 
