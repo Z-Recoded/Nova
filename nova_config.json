@@ -17,7 +17,8 @@
     "token_budget_governor": false,
     "skill_injection": false,
     "remote_gpu_inference": false,
-    "runpod_coding_agent": false
+    "runpod_coding_agent": false,
+    "coding_review_pass": false
   },
   "token_budget": {
     "session_ceiling": 100000,

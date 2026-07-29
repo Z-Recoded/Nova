@@ -62,6 +62,7 @@ NOVA_AGENT_MAX_TOKENS = 8192
 LOGS_DIR = os.path.join(NOVA_REPO_ROOT, "logs")
 AGENT_LOG_PATH = f"{LOGS_DIR}/agent_log.jsonl"
 TASK_OUTCOMES_LOG_PATH = f"{LOGS_DIR}/agent_task_outcomes.jsonl"
+CODING_REVIEW_LOG_PATH = f"{LOGS_DIR}/coding_review_log.jsonl"
 
 TOOL_DEFINITIONS = [
     {
@@ -620,11 +621,22 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
     diff = _git_diff_against_master(root)
     budget_status = get_budget_status() if budget_gate_enabled else {"enabled": False}
 
+    # RunPod/Qwen writes, Claude reviews (2026-07-27 review-split decision) --
+    # only meaningful when the RunPod backend actually wrote this diff, so
+    # gated on both flags together. Never runs for the Claude-backed path
+    # (reviewing its own output would be redundant) or the LangGraph path.
+    review = None
+    if runpod_enabled and is_framework_integration_enabled("coding_review_pass"):
+        review = _review_coding_diff(diff, task_description)
+        _log_coding_review(branch_name, task_description, diff, review)
+
     commit_note = ""
     if final_status == "stopped_budget_halt":
         commit_note = (
             f"[budget-halt] stopped at {budget_status.get('session_pct')}% session budget, task left {final_status}"
         )
+    elif review is not None and not review["approved"]:
+        commit_note = f"[review-flagged] {review['summary']} — issues: {'; '.join(review['issues'])}"
     committed = _commit_worktree_changes(root, task_description, note=commit_note)
 
     if final_status == "stopped_budget_halt":
@@ -643,6 +655,7 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
         "elapsed_s": elapsed_s,
         "committed": committed,
         "diff": diff,
+        "review": review,
         "budget_status": budget_status,
         "next_steps": (
             f"Review: git diff master...{branch_name} (from C:/Nova). "
@@ -652,6 +665,106 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
         if committed
         else "Nothing was changed — no commit made, nothing to merge.",
     }
+
+
+def _review_coding_diff(diff: str, task_description: str) -> dict:
+    """
+    Single non-agentic Claude call reviewing a RunPod-backed coding task's
+    final diff before it's committed to its (still-disposable, still
+    human-reviewed-before-merge) worktree branch. Mirrors
+    nova_task_queue.propose_tier()'s existing pattern exactly: a plain
+    client.messages.create() call, no tool use, no second turn loop.
+    Part of Marvin's 2026-07-27 review-split decision (RunPod/Qwen writes,
+    Claude reviews) -- see project_coding_agent_review_split_decision.md.
+
+    Deliberately does NOT block the commit or re-enter the turn loop on a
+    negative verdict: a worktree commit here is not a merge -- Marvin
+    already reviews every diff by hand before that (see run_coding_task()'s
+    own "next_steps" field). This review's job is to make that human pass
+    faster and to generate real review-labeled data toward a future
+    fine-tuning dataset, not to gate anything by itself yet.
+
+    Isolation guarantee, confirmed with Marvin before building this: this
+    call is never given a `tools` argument, so it has no way to write
+    files even if it wanted to -- it can only return text, which is parsed
+    as JSON below and never re-applied to the worktree. If this function
+    is ever extended with tool access later, that guarantee needs to be
+    re-verified explicitly, not assumed.
+
+    Returns {"approved": bool, "issues": list[str], "summary": str}.
+    Fails toward NOT approved (with an issue explaining why) on a missing
+    API key or a parse/API failure -- same fail-toward-restrictive instinct
+    as propose_tier()'s own fail-toward-"manual only". An empty diff is
+    trivially approved (nothing to review).
+    """
+    if not diff.strip():
+        return {"approved": True, "issues": [], "summary": "No changes to review."}
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return {"approved": False, "issues": ["ANTHROPIC_API_KEY not set — review could not run."], "summary": ""}
+
+    system = (
+        "You are code-reviewing a diff produced by a different, less reliable coding model "
+        "(Qwen2.5-Coder-32B) working inside a disposable git worktree. A human always reviews "
+        "and merges by hand afterward -- your job is to catch real defects early, not to gate "
+        "the commit. Known recurring failure modes to check for specifically: leftover "
+        "duplicate/dead code left behind after a partial edit, an incomplete multi-file change "
+        "(edited one file but left a dependent file inconsistent), and any change that doesn't "
+        "actually address the stated task. Respond with ONLY a JSON object, no other text, in "
+        'exactly this shape: {"approved": true|false, "issues": ["<short, specific issue>", ...], '
+        '"summary": "<one sentence>"}. approved=true only if you found no real defects.'
+    )
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model=NOVA_AGENT_MODEL,
+            max_tokens=600,
+            system=system,
+            messages=[{"role": "user", "content": f"Task:\n{task_description}\n\nDiff:\n{diff}"}],
+        )
+        # Real bug found live: message.content[0] is not reliably the text
+        # block -- this account/model returns a leading ThinkingBlock (no
+        # usable .text) before the real TextBlock for some prompts. Find the
+        # first block with type "text" explicitly rather than assuming index 0.
+        text_blocks = [block.text for block in message.content if block.type == "text"]
+        if not text_blocks:
+            raise ValueError("No text block in Claude's response.")
+        raw = text_blocks[0].strip()
+        # Same markdown-fence-stripping as propose_tier() -- Claude sometimes
+        # wraps the JSON in a ```json ... ``` fence despite being told not to.
+        unfenced = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.IGNORECASE).strip()
+        parsed = json.loads(unfenced)
+        return {
+            "approved": bool(parsed["approved"]),
+            "issues": list(parsed.get("issues", [])),
+            "summary": str(parsed.get("summary", "")),
+        }
+    except Exception as e:
+        return {"approved": False, "issues": [f"Review itself failed to run: {e}"], "summary": ""}
+
+
+def _log_coding_review(branch: str, task_description: str, diff: str, review: dict) -> None:
+    """
+    Append one review verdict to coding_review_log.jsonl -- the natural
+    side-effect data source for a future Qwen fine-tune dataset (a real
+    diff paired with Claude's real corrected/approved judgment on it),
+    generated automatically as a byproduct of the review pass itself
+    rather than needing separate manual curation. Same JSONL-append shape
+    as record_task_outcome() below.
+    """
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    entry = {
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "branch": branch,
+        "task": task_description,
+        "diff": diff,
+        "approved": review["approved"],
+        "issues": review["issues"],
+        "summary": review["summary"],
+    }
+    with open(CODING_REVIEW_LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
 def record_task_outcome(branch: str, outcome: str, note: str = "") -> None:

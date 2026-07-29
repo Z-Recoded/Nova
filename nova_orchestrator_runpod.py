@@ -24,7 +24,9 @@
 # correct (verified via git diff), 1/5 with one reproducible minor defect,
 # 0 destructive edits, 0 hallucinations, 0 stalls.
 
+import ast
 import json
+import os
 import re
 from datetime import datetime
 
@@ -228,14 +230,79 @@ def _parse_tool_calls(content: str) -> list[dict]:
 
 
 def _worktree_has_file(root: str, path: str) -> bool:
-    import os
-
     return os.path.isfile(os.path.join(root, path))
 
 
 def _call_key(name: str, args: dict) -> tuple:
     """Hashable identity for one tool call, used to detect an exact repeat."""
     return (name, json.dumps(args, sort_keys=True, default=str))
+
+
+# Functions shorter than this are excluded from duplicate detection -- a
+# handful of trivial one- or two-line helpers/properties coincidentally
+# matching isn't the failure mode this guards against.
+MIN_DUPLICATE_FUNCTION_STATEMENTS = 3
+
+
+def _normalized_function_bodies(source: str) -> dict[str, list[str]]:
+    """
+    Parse `source` as Python and return {qualified_name: [normalized_body, ...]}
+    for every function/method with at least MIN_DUPLICATE_FUNCTION_STATEMENTS
+    statements in its body. A qualified name with more than one entry means
+    that name was defined more than once in this file. Returns {} if the
+    file isn't valid Python (e.g. a non-Python path, or content mid-edit
+    with a real syntax error that will surface elsewhere) -- this guard is
+    Python-source-only, not a general-purpose parser.
+    """
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return {}
+
+    bodies: dict[str, list[str]] = {}
+
+    def visit(node: ast.AST, prefix: str) -> None:
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                qualified_name = f"{prefix}{child.name}"
+                if len(child.body) >= MIN_DUPLICATE_FUNCTION_STATEMENTS:
+                    normalized = "\n".join(ast.dump(statement) for statement in child.body)
+                    bodies.setdefault(qualified_name, []).append(normalized)
+                visit(child, prefix=f"{qualified_name}.")
+            elif isinstance(child, ast.ClassDef):
+                visit(child, prefix=f"{prefix}{child.name}.")
+            else:
+                visit(child, prefix)
+
+    visit(tree, prefix="")
+    return bodies
+
+
+def _find_duplicate_functions(source: str) -> list[str]:
+    """
+    Real names of functions/methods that either (a) share an identical
+    normalized body with a DIFFERENT function elsewhere in the file, or
+    (b) are defined more than once under the same qualified name -- the two
+    concrete shapes of the "leftover duplicate after file_replace" defect
+    observed in the 2026-07-27 held-out eval (project_qwen3_coding_spike_
+    result.md: 3 of 6 tasks left old code behind next to new, similar code).
+    Returns a sorted, deduped list of offending names (empty if none found).
+    """
+    bodies = _normalized_function_bodies(source)
+    flagged: set[str] = set()
+    seen_bodies: dict[str, str] = {}
+    for name, body_list in bodies.items():
+        if len(body_list) > 1:
+            flagged.add(name)
+            continue
+        body = body_list[0]
+        earlier_name = seen_bodies.get(body)
+        if earlier_name is not None and earlier_name != name:
+            flagged.add(name)
+            flagged.add(earlier_name)
+        else:
+            seen_bodies[body] = name
+    return sorted(flagged)
 
 
 def _execute_tool_guarded(
@@ -300,6 +367,32 @@ def _execute_tool_guarded(
         failed_calls.add(key)
     if name == "read_file" and not result.get("is_error", False):
         read_paths.add(args.get("path", ""))
+
+    # Post-dispatch check (unlike the three above): the edit has already
+    # landed on disk by the time this fires, so it can't be refused -- it
+    # can only tell the model to fix it on the next turn, same corrective-
+    # nudge shape as the other guards. Only file_replace on a .py path is
+    # checked: write_file is a deliberate full-file rewrite (not the
+    # partial-content-substitution failure mode this guards against), and
+    # non-Python files can't be parsed by _find_duplicate_functions() anyway.
+    path = args.get("path", "")
+    if name == "file_replace" and not result.get("is_error", False) and path.endswith(".py"):
+        try:
+            new_source = open(os.path.join(root, path), encoding="utf-8").read()
+        except OSError:
+            new_source = ""
+        duplicates = _find_duplicate_functions(new_source)
+        if duplicates:
+            return {
+                "content": (
+                    f"Warning: after this edit, '{path}' has what looks like leftover duplicate "
+                    f"function(s): {', '.join(duplicates)}. This usually means file_replace left "
+                    f"the old version behind next to a new, similar one. Re-read the file, remove "
+                    f"the stale version, and keep only the correct one before moving on."
+                ),
+                "is_error": True,
+            }
+
     return result
 
 
