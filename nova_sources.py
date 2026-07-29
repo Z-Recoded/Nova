@@ -20,6 +20,7 @@ SOURCES = [
     {"path": NOVA_ROOT, "project": "Nova", "description": "Nova project source files and documentation"},
 ]
 
+# Set of file extensions that are supported for ingestion
 SUPPORTED_EXTENSIONS = {
     ".md",
     ".txt",
