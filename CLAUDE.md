@@ -109,6 +109,8 @@ C:/Nova/
     ├── query_log.jsonl          # Per-query telemetry (nova_log.py) — Nova Log Health data source
     ├── agent_log.jsonl          # Per-turn coding sub-agent telemetry (nova_orchestrator.py)
     ├── agent_task_outcomes.jsonl # Merged/discarded label per branch (nova_orchestrator.record_task_outcome) — call by hand after each merge/discard decision; this is what turns agent_log.jsonl into a usable Qwen3 training set later
+    ├── coding_review_log.jsonl # (diff, verdict) pairs from the RunPod-lane review pass (nova_orchestrator._log_coding_review) — future Qwen fine-tune training data
+    ├── runpod_cost_log.jsonl   # Per-task real dollar cost for the RunPod coding lane (nova_orchestrator_runpod._log_runpod_cost_summary)
     └── watcher.log              # File watcher logs
 
 C:/nova-agent-worktrees/    # Sibling dir, outside the repo — disposable per-task git
@@ -268,6 +270,26 @@ call on a request already known to fail — previously indistinguishable from a 
 `stopped_runpod_call_failed`. Unconditional once `runpod_coding_agent` is on, same as the other
 four guards — no separate flag. Pruning events are visible in `agent_log.jsonl` via a new
 `pruned_pairs` field.
+
+**Real cost tracking (`86bb4gy0y` punch-list item #5, 2026-07-29):** RunPod bills per GPU-second
+of real execution time, not per token — a real gap confirmed live: a completed job's response
+includes top-level `executionTime`/`delayTime` fields (milliseconds) that
+`nova_remote_inference._extract_answer()` previously discarded entirely, while
+`nova_orchestrator_runpod.py`'s `_RunpodUsage` fed real RunPod token counts through
+`nova_token_budget.record_usage()` — a budget model calibrated for Anthropic's per-token pricing,
+producing a session/daily "budget %" with no relationship to real RunPod dollars spent. Fixed by
+threading `execution_time_ms`/`delay_time_ms`/`cost_usd` through `chat()`'s return dict
+(`RUNPOD_GPU_HOURLY_RATE_USD = 2.99`, this endpoint's real confirmed rate — **H100 SXM**, checked
+directly against the RunPod dashboard, not assumed from a generic pricing page) and **removing**
+`_RunpodUsage`/its `record_usage()` call entirely rather than keeping two disagreeing cost signals
+side by side. Real per-task cost now lands in a new `logs/runpod_cost_log.jsonl`
+(`_log_runpod_cost_summary()`), and per-turn cost is visible in `agent_log.jsonl` via a new
+`cost_usd` field. Verified live: a real trivial task's three-turn run cost exactly $0.003591
+total, matching the sum of its three logged per-turn costs. The separate
+`budget_gate_enabled`/`get_budget_status().get("mode") == "halt"` check in `run_via_runpod()`'s
+loop is untouched — it respects a shared, global halt state any caller (including the Claude
+lane) may have already tripped, which stays valid even though this backend no longer writes into
+that state itself.
 
 **Coding review pass (`86bb4gy0y` punch-list item #1, 2026-07-29):** the review half of Marvin's
 2026-07-27 review-split decision (RunPod/Qwen writes, Claude reviews — see
@@ -763,6 +785,7 @@ in `NOVA_BUILD_LOG.md` — this table is a terse date-ordered index, not the sou
 | 2026-07-28 | Closed `86bb3r0h4` — headless-lane pre-action approval gate via a real Claude Code `PreToolUse` hook (`nova_headless_approval_hook.py`), not the `NOVA_APPROVAL_START/END`-block idea the ticket floated. Verified against Claude Code's own hooks docs that `PreToolUse` denials are enforced independently of permission-mode (works under both `acceptEdits` and `bypassPermissions`) and identically under headless `-p` mode. New `POST /tool-approvals` (create) and `POST /tool-approvals/{id}/timeout` routes, `NOVA_HEADLESS_DISPATCH=1` scoping env var on all three headless invocation sites, Controller lane badge. Same shared `pre_action_approval_gate.enabled` flag now covers both lanes. |
 | 2026-07-29 | Merged the RunPod Qwen2.5-Coder-32B eval-spike branch (PR #16 — `nova_orchestrator_runpod.py`, `nova_coding_eval.py`, real 2/6-pass held-out result). Shipped `86bb4gy0y`'s punch-list items #1 and #3: a post-dispatch dead-code/leftover-duplicate guard (`_find_duplicate_functions()`, `ast`-based) closing the eval's other recurring defect, and the review-split's Claude-reviews-Qwen's-diff pass (`_review_coding_diff()`/`_log_coding_review()` in `nova_orchestrator.py`, new `coding_review_pass` flag). Review call verified structurally tool-less (no write path) per an explicit isolation guarantee confirmed with Marvin before building. Real end-to-end live test (both flags on, one trivial task) merged as `86bb4gy0y`'s first live proof, recorded via `record_task_outcome()`. |
 | 2026-07-29 | Shipped `86bb4gy0y`'s punch-list item #2: proactive context-window pruning (`_prune_history_if_needed()` in `nova_orchestrator_runpod.py`) drops the oldest turn-pairs before each request to stay under this endpoint's real 32,768-token ceiling, instead of failing after the fact. New `stopped_context_overflow` status distinguishes an unavoidable single-turn overflow from a generic RunPod call failure. Verified via synthetic unit-style cases (no live API cost) covering under-budget no-op, real multi-pair pruning, and the unavoidable-single-pair-overflow signal. `nova_remote_inference.py` deliberately untouched (shared with the unrelated RAG path). |
+| 2026-07-29 | Shipped `86bb4gy0y`'s punch-list item #5: real RunPod cost tracking. Confirmed live that a completed job's response carries `executionTime`/`delayTime` (RunPod's real GPU-second billing basis) that were previously discarded entirely, and that `_RunpodUsage` was feeding real token counts through a budget system calibrated for Anthropic pricing — removed that stand-in rather than keeping two disagreeing numbers. Real rate confirmed directly from the RunPod dashboard (H100 SXM, $2.99/hr). New `logs/runpod_cost_log.jsonl` per-task summary + `cost_usd` field in `agent_log.jsonl`. Verified live: a real 3-turn task's summary cost ($0.003591) exactly matched the sum of its per-turn logged costs. |
 
 ---
 
