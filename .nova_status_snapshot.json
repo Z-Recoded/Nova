@@ -1,12 +1,24 @@
 {
   "ready": [
     {
-      "id": "86bb3r0z4",
-      "name": "Evaluate Pocket (heypocket) MCP server as a Nova / life-autosave ingestion source"
+      "id": "86bb52gc5",
+      "name": "Explore: Unified failure-state dashboard (Vivarium + chunk-viz + agent-run pane)"
     },
     {
-      "id": "86bb3r0h4",
-      "name": "Headless-lane equivalent of the pre-action approval gate (86bb3ceym)"
+      "id": "86bb4gy0y",
+      "name": "Build Qwen-writes / Claude-reviews coding pipeline (Phase 3.5 refinement)"
+    },
+    {
+      "id": "86bb4epxr",
+      "name": "Evaluate Qwen2.5-Coder-32B (RunPod) as Nova coding-agent brain"
+    },
+    {
+      "id": "86bb4e29m",
+      "name": "Evaluate Pushover as ntfy replacement for push notifications"
+    },
+    {
+      "id": "86bb3r0z4",
+      "name": "Evaluate Pocket (heypocket) MCP server as a Nova / life-autosave ingestion source"
     },
     {
       "id": "86bb3qvpa",
@@ -378,6 +390,10 @@
     }
   ],
   "in_progress": [
+    {
+      "id": "86bb3r0h4",
+      "name": "Headless-lane equivalent of the pre-action approval gate (86bb3ceym)"
+    },
     {
       "id": "86bara3tj",
       "name": "Spec + Build: Chunk visualization tool \u2014 RAG retrieval audit"

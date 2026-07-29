@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-07-27 02:26 UTC
+Last updated: 2026-07-29 01:52 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,10 +8,15 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- No category changes since last digest.
+- NEW -> ready: 86bb52gc5 (Explore: Unified failure-state dashboard (Vivarium + chunk-viz + agent-run pane))
+- NEW -> ready: 86bb4gy0y (Build Qwen-writes / Claude-reviews coding pipeline (Phase 3.5 refinement))
+- NEW -> ready: 86bb4epxr (Evaluate Qwen2.5-Coder-32B (RunPod) as Nova coding-agent brain)
+- NEW -> ready: 86bb4e29m (Evaluate Pushover as ntfy replacement for push notifications)
+- ready -> in_progress: 86bb3r0h4 (Headless-lane equivalent of the pre-action approval gate (86bb3ceym))
 
-## In progress (3)
+## In progress (4)
 
+- 86bb3r0h4  Headless-lane equivalent of the pre-action approval gate (86bb3ceym)
 - 86bara3tj  Spec + Build: Chunk visualization tool — RAG retrieval audit
 - 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
 - 86baeyg3q  Voice interface (Whisper + Piper)
@@ -30,10 +35,13 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (94)
+## Ready (97)
 
+- 86bb52gc5  Explore: Unified failure-state dashboard (Vivarium + chunk-viz + agent-run pane)
+- 86bb4gy0y  Build Qwen-writes / Claude-reviews coding pipeline (Phase 3.5 refinement)
+- 86bb4epxr  Evaluate Qwen2.5-Coder-32B (RunPod) as Nova coding-agent brain
+- 86bb4e29m  Evaluate Pushover as ntfy replacement for push notifications
 - 86bb3r0z4  Evaluate Pocket (heypocket) MCP server as a Nova / life-autosave ingestion source
-- 86bb3r0h4  Headless-lane equivalent of the pre-action approval gate (86bb3ceym)
 - 86bb3qvpa  Integrate slop_linter.py into Nova pipeline (tight mode / STE-100 style check)
 - 86bb3pgnc  Marimo Adoption — Reactive Notebook Tooling
 - 86bb3p8xw  Automation Handover Package — Reusable Template
