@@ -40,6 +40,7 @@ import os
 
 from datasets import Dataset
 
+from nova_hf_upload import upload_merged_to_hub
 from nova_orchestrator import CODING_REVIEW_LOG_PATH
 
 # ── Constants — Qwen2.5-Coder-32B training config ──────────────────────────────
@@ -51,6 +52,9 @@ from nova_orchestrator import CODING_REVIEW_LOG_PATH
 RAW_BASE_MODEL_NAME = "unsloth/Qwen2.5-Coder-32B-Instruct-bnb-4bit"  # verified to exist on Hugging Face, 2026-07-29
 SFT_MERGED_OUTPUT_DIR = (
     "finetune_output/qwen-coder-32b-sft-merged"  # must match nova_finetune_qwen_coder_sft.py's own constant
+)
+SFT_HUB_REPO_ID = (
+    "zrecoded/nova-qwen-coder-32b-sft-merged"  # must match nova_finetune_qwen_coder_sft.py's own HF_HUB_REPO_ID
 )
 MAX_SEQ_LENGTH = 8192  # diffs (esp. full-file rewrites) may need more than a single chat turn
 LORA_RANK = 16  # deliberately lower than Phi-4 Mini's 32 -- the 32B base already eats more VRAM budget
@@ -71,18 +75,43 @@ DRY_RUN_MAX_STEPS = 3
 ADAPTER_OUTPUT_DIR = "finetune_output/qwen-coder-32b-dpo-adapter"
 MERGED_OUTPUT_DIR = "finetune_output/qwen-coder-32b-dpo-merged"
 
+# Marvin's call, 2026-07-29: private HF Hub repo as the hand-off point so a
+# rented A100 pod can be stopped right after training instead of waiting on
+# a slow pod-to-home transfer for a ~64GB checkpoint. See nova_hf_upload.py.
+HF_HUB_REPO_ID = "zrecoded/nova-qwen-coder-32b-dpo-merged"
+
 
 def _resolve_base_model_name() -> str:
     """
     Use the SFT stage's (nova_finetune_qwen_coder_sft.py) merged checkpoint
-    as this DPO stage's starting point if it exists -- standard SFT-warm-
-    start-then-DPO-refine practice, better than DPO alone on a barely-nudged
-    base model. Falls back to the raw Unsloth checkpoint if the SFT stage
-    hasn't been run yet, so this script's already-verified behavior is
-    unchanged for anyone who runs DPO without ever running SFT first.
+    as this DPO stage's starting point if it's available -- standard SFT-
+    warm-start-then-DPO-refine practice, better than DPO alone on a barely-
+    nudged base model. Checks local disk first (same pod, no download
+    needed), then the SFT stage's private HF Hub repo (2026-07-29 decision --
+    a fresh DPO pod started after the SFT pod was already stopped won't have
+    the local directory at all, only the Hub upload; checking local-only
+    here would silently skip the warm-start with no warning in exactly the
+    pod-lifecycle this pipeline is now designed around). Falls back to the
+    raw Unsloth checkpoint only if neither exists, so this script's original
+    behavior is unchanged for anyone who runs DPO without ever running SFT.
     """
     if os.path.isdir(SFT_MERGED_OUTPUT_DIR):
+        print(f"Using local SFT output as base model: {SFT_MERGED_OUTPUT_DIR}")
         return SFT_MERGED_OUTPUT_DIR
+
+    from huggingface_hub import HfApi
+    from huggingface_hub.utils import HfHubHTTPError
+
+    try:
+        HfApi().repo_info(SFT_HUB_REPO_ID)
+        print(f"No local SFT output found -- using the SFT stage's HF Hub repo as base model: {SFT_HUB_REPO_ID}")
+        return SFT_HUB_REPO_ID
+    except HfHubHTTPError:
+        pass
+
+    print(
+        f"No SFT output found locally or on the Hub -- falling back to the raw base checkpoint: {RAW_BASE_MODEL_NAME}"
+    )
     return RAW_BASE_MODEL_NAME
 
 
@@ -253,6 +282,7 @@ def run(dry_run: bool) -> None:
     trainer.save_model(ADAPTER_OUTPUT_DIR)
     print(f"Adapter saved to {ADAPTER_OUTPUT_DIR}")
     export_merged(model, tokenizer)
+    upload_merged_to_hub(MERGED_OUTPUT_DIR, HF_HUB_REPO_ID)
 
 
 if __name__ == "__main__":

@@ -40,6 +40,8 @@ import os
 
 from datasets import Dataset, load_dataset
 
+from nova_hf_upload import upload_merged_to_hub
+
 # ── Constants — KodCode-V1 SFT config ──────────────────────────────────────────
 KODCODE_DATASET_ID = "KodCode/KodCode-V1"
 KODCODE_SPLIT = "train"  # deliberately excludes the dataset's own
@@ -72,6 +74,11 @@ SFT_SHUFFLE_SEED = 42
 DRY_RUN_MAX_STEPS = 3
 SFT_ADAPTER_OUTPUT_DIR = "finetune_output/qwen-coder-32b-sft-adapter"
 SFT_MERGED_OUTPUT_DIR = "finetune_output/qwen-coder-32b-sft-merged"
+
+# Marvin's call, 2026-07-29: private HF Hub repo as the hand-off point so a
+# rented A100 pod can be stopped right after training instead of waiting on
+# a slow pod-to-home transfer for a ~64GB checkpoint. See nova_hf_upload.py.
+HF_HUB_REPO_ID = "zrecoded/nova-qwen-coder-32b-sft-merged"
 
 
 # ── Example loading ─────────────────────────────────────────────────────────────
@@ -211,6 +218,7 @@ def run(dry_run: bool) -> None:
     trainer.save_model(SFT_ADAPTER_OUTPUT_DIR)
     print(f"Adapter saved to {SFT_ADAPTER_OUTPUT_DIR}")
     export_merged(model, tokenizer)
+    upload_merged_to_hub(SFT_MERGED_OUTPUT_DIR, HF_HUB_REPO_ID)
 
 
 if __name__ == "__main__":
