@@ -48,7 +48,10 @@ from nova_orchestrator import CODING_REVIEW_LOG_PATH
 # Qwen2.5-Coder-32B on rented hardware. These are reasoned starting points
 # only -- confirm against real VRAM usage on the actual rented A100 before a
 # production run, not just this file's own comments.
-BASE_MODEL_NAME = "unsloth/Qwen2.5-Coder-32B-Instruct-bnb-4bit"  # verified to exist on Hugging Face, 2026-07-29
+RAW_BASE_MODEL_NAME = "unsloth/Qwen2.5-Coder-32B-Instruct-bnb-4bit"  # verified to exist on Hugging Face, 2026-07-29
+SFT_MERGED_OUTPUT_DIR = (
+    "finetune_output/qwen-coder-32b-sft-merged"  # must match nova_finetune_qwen_coder_sft.py's own constant
+)
 MAX_SEQ_LENGTH = 8192  # diffs (esp. full-file rewrites) may need more than a single chat turn
 LORA_RANK = 16  # deliberately lower than Phi-4 Mini's 32 -- the 32B base already eats more VRAM budget
 LORA_ALPHA = 16
@@ -67,6 +70,23 @@ DRY_RUN_MAX_STEPS = 3
 
 ADAPTER_OUTPUT_DIR = "finetune_output/qwen-coder-32b-dpo-adapter"
 MERGED_OUTPUT_DIR = "finetune_output/qwen-coder-32b-dpo-merged"
+
+
+def _resolve_base_model_name() -> str:
+    """
+    Use the SFT stage's (nova_finetune_qwen_coder_sft.py) merged checkpoint
+    as this DPO stage's starting point if it exists -- standard SFT-warm-
+    start-then-DPO-refine practice, better than DPO alone on a barely-nudged
+    base model. Falls back to the raw Unsloth checkpoint if the SFT stage
+    hasn't been run yet, so this script's already-verified behavior is
+    unchanged for anyone who runs DPO without ever running SFT first.
+    """
+    if os.path.isdir(SFT_MERGED_OUTPUT_DIR):
+        return SFT_MERGED_OUTPUT_DIR
+    return RAW_BASE_MODEL_NAME
+
+
+BASE_MODEL_NAME = _resolve_base_model_name()
 
 
 # ── DPO pair loading ───────────────────────────────────────────────────────────
