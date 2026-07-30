@@ -270,6 +270,19 @@ def generate_report() -> str:
         print(
             f"  -> status={runpod_side['status']} turns={runpod_side['turns_used']} elapsed={runpod_side['elapsed_s']}s"
         )
+
+        # Seeds real coding_review_log.jsonl data on every eval run, through
+        # the exact same review path production dispatch will eventually use
+        # (nova_orchestrator._review_coding_diff/_log_coding_review) -- not
+        # gated on coding_review_pass, since that flag controls the
+        # production dispatch-time call inside run_coding_task(), and this
+        # standalone research script's whole point here is to produce review
+        # data regardless of whether that flag is on.
+        review = nova_orchestrator._review_coding_diff(runpod_side["diff"], claude_side["task_description"])
+        nova_orchestrator._log_coding_review(
+            runpod_side["branch"], claude_side["task_description"], runpod_side["diff"], review
+        )
+
         sections.append(_report_section(i, claude_side, runpod_side))
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

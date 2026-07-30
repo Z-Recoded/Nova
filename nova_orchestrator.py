@@ -719,7 +719,15 @@ def _review_coding_diff(diff: str, task_description: str) -> dict:
         client = anthropic.Anthropic(api_key=api_key)
         message = client.messages.create(
             model=NOVA_AGENT_MODEL,
-            max_tokens=600,
+            # 600 was too small for a real review on a large diff -- this
+            # account/model defaults to extended thinking (see this
+            # function's own docstring on the ThinkingBlock gotcha), and on
+            # a big/complex diff the invisible thinking block can eat the
+            # whole budget before any real text gets emitted, producing a
+            # response with no usable text block at all. Confirmed live
+            # 2026-07-29: 5/6 real reviews on the held-out eval's diffs
+            # failed this way under 600.
+            max_tokens=4096,
             system=system,
             messages=[{"role": "user", "content": f"Task:\n{task_description}\n\nDiff:\n{diff}"}],
         )
