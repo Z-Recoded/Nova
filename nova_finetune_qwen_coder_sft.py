@@ -1,10 +1,14 @@
 # nova_finetune_qwen_coder_sft.py
 # SFT warm-start stage for Qwen2.5-Coder-32B-Instruct, Nova's RunPod-hosted coding
-# sub-agent brain. Trains on KodCode-V1 (Hugging Face) -- 487K real, unit-test-
-# verified Python question/solution/test triplets, notably benchmarked directly
-# against this exact base model in its own paper -- before the DPO stage
-# (nova_finetune_qwen_coder.py) refines on Nova's own much smaller set of real
-# corrected-diff pairs. Standard practice: SFT warm-start raises general
+# sub-agent brain. Trains on two sources: KodCode-V1 (Hugging Face) -- 487K real,
+# unit-test-verified Python question/solution/test triplets, notably benchmarked
+# directly against this exact base model in its own paper -- for general Python
+# competence, plus every usable real (task, good diff) example from Nova's own
+# coding_review_log.jsonl (load_nova_review_examples(), 2026-07-30) for Nova's
+# actual task distribution (editing existing code, respecting scope), which
+# KodCode's self-contained problems don't cover at all. The DPO stage
+# (nova_finetune_qwen_coder.py) then refines on Nova's own much smaller set of
+# real corrected-diff pairs. Standard practice: SFT warm-start raises general
 # competence, DPO then refines specific preferences -- DPO alone on a barely-
 # nudged base model, especially with only a handful of real pairs, is a weaker
 # starting point.
@@ -36,11 +40,13 @@
 #   python nova_finetune_qwen_coder_sft.py             # real run.
 
 import argparse
+import json
 import os
 
-from datasets import Dataset, load_dataset
+from datasets import Dataset, concatenate_datasets, load_dataset
 
 from nova_hf_upload import upload_merged_to_hub
+from nova_orchestrator import CODING_REVIEW_LOG_PATH
 
 # ── Constants — KodCode-V1 SFT config ──────────────────────────────────────────
 KODCODE_DATASET_ID = "KodCode/KodCode-V1"
@@ -97,6 +103,41 @@ def load_sft_examples() -> Dataset:
         lambda row: {"prompt": row["question"], "completion": row["solution"]},
         remove_columns=raw.column_names,
     )
+
+
+def load_nova_review_examples() -> list[dict]:
+    """
+    Read every usable (task, good diff) example out of
+    coding_review_log.jsonl -- Nova's own real coding-agent task
+    distribution (editing existing code, respecting scope), which KodCode's
+    self-contained problems don't cover at all (see this file's header
+    comment). Two real cases count as "good": an approved diff (the
+    reviewer found nothing to correct) or a corrected chosen_diff
+    (nova_coding_corrector.py's fix for a flagged diff). Entries flagged as
+    issues but not yet corrected (chosen_diff missing) are skipped -- there
+    is no known-good completion for them yet. Real signal here is scarce
+    (a handful of rows, not KodCode's hundreds of thousands), so every
+    usable row is used -- no subset sampling, unlike load_sft_examples().
+    Nova's own data, so no license concern like KodCode's CC BY-NC 4.0.
+    """
+    if not os.path.exists(CODING_REVIEW_LOG_PATH):
+        return []
+
+    examples = []
+    with open(CODING_REVIEW_LOG_PATH, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            entry = json.loads(line)
+            if entry.get("approved", True):
+                examples.append({"prompt": entry["task"], "completion": entry["diff"]})
+                continue
+            chosen_diff = entry.get("chosen_diff")
+            if chosen_diff:
+                examples.append({"prompt": entry["task"], "completion": chosen_diff})
+
+    return examples
 
 
 def build_dataset(examples: Dataset, tokenizer) -> Dataset:
@@ -194,8 +235,18 @@ def export_merged(model, tokenizer) -> None:
 # ── Main ─────────────────────────────────────────────────────────────────────────
 def run(dry_run: bool) -> None:
     print(f"Loading up to {SFT_SUBSET_SIZE} example(s) from {KODCODE_DATASET_ID} ({KODCODE_SPLIT} split)...")
-    examples = load_sft_examples()
-    print(f"Loaded {len(examples)} example(s).")
+    kodcode_examples = load_sft_examples()
+    print(f"Loaded {len(kodcode_examples)} KodCode-V1 example(s).")
+
+    nova_examples = load_nova_review_examples()
+    print(f"Loaded {len(nova_examples)} real Nova coding-agent example(s) from {CODING_REVIEW_LOG_PATH}.")
+
+    examples = (
+        concatenate_datasets([kodcode_examples, Dataset.from_list(nova_examples)])
+        if nova_examples
+        else kodcode_examples
+    )
+    print(f"Total training examples: {len(examples)}.")
 
     if dry_run:
         print(

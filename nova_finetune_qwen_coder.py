@@ -65,11 +65,13 @@ GRAD_ACCUM_STEPS = 8
 NUM_EPOCHS = 3
 DPO_BETA = 0.1
 
-# PLACEHOLDER, not a fact -- unlike Phi-4 Mini's 100 (sourced from that
-# model's own re-scope doc), no floor has been specified anywhere for Qwen
-# yet. Reused here only for code-structure parity with nova_finetune_phi4.py;
-# needs a real number before it should be trusted as a production gate.
-MIN_REAL_PAIRS = 100
+# Marvin's real call, 2026-07-30: start training on whatever real corrected
+# pairs exist now (5 as of this writing) and keep building the pair count up
+# from there, rather than waiting on a fixed floor before ever running DPO --
+# unlike the old 100-pair placeholder (unsourced, structure-parity-only with
+# nova_finetune_phi4.py), this number matches real data on hand. Still
+# refuses a true zero-pair run.
+MIN_REAL_PAIRS = 5
 DRY_RUN_MAX_STEPS = 3
 
 ADAPTER_OUTPUT_DIR = "finetune_output/qwen-coder-32b-dpo-adapter"
