@@ -100,14 +100,21 @@ def _resolve_base_model_name() -> str:
         return SFT_MERGED_OUTPUT_DIR
 
     from huggingface_hub import HfApi
-    from huggingface_hub.utils import HfHubHTTPError
 
+    # Checking repo_info() alone isn't enough -- nova_hf_upload.py's
+    # create_repo(exist_ok=True) means the repo can exist but be empty (real
+    # case hit live 2026-07-29: the target repo was pre-created to verify
+    # write access before any SFT run ever happened). config.json is always
+    # written by save_pretrained_merged(), so its presence is a reliable
+    # signal a real checkpoint actually landed here, not just an empty shell.
     try:
-        HfApi().repo_info(SFT_HUB_REPO_ID)
+        remote_files = HfApi().list_repo_files(SFT_HUB_REPO_ID)
+    except Exception:
+        remote_files = []
+
+    if "config.json" in remote_files:
         print(f"No local SFT output found -- using the SFT stage's HF Hub repo as base model: {SFT_HUB_REPO_ID}")
         return SFT_HUB_REPO_ID
-    except HfHubHTTPError:
-        pass
 
     print(
         f"No SFT output found locally or on the Hub -- falling back to the raw base checkpoint: {RAW_BASE_MODEL_NAME}"
