@@ -305,41 +305,89 @@ def _find_duplicate_functions(source: str) -> list[str]:
     return sorted(flagged)
 
 
+# Real observed loop (86bb728nj, found while auditing the 2026-08-01 held-out
+# eval): the model repeatedly re-attempts file_replace against the same path
+# after earlier attempts on that same path already failed, instead of
+# switching strategy. Reproduced on both the fine-tuned and the stock model
+# -- the stock model eventually discovered the write_file fallback on its
+# own (by turn 5 of an 8-turn capped test run) and recovered; the fine-tuned
+# model never did within its full 25-turn budget and stalled out entirely.
+# Rather than only detecting/refusing the loop (the existing failed_calls
+# guard below already does that for an *exact* repeat), proactively tell the
+# model the way out once a path has accumulated this many real failures --
+# cheaper and more reliable than waiting for the model to rediscover it.
+FILE_REPLACE_FALLBACK_THRESHOLD = 2
+
+
+def _maybe_suggest_write_file_fallback(content: str, path: str, failed_replace_counts: dict) -> str:
+    """
+    Appends a nudge toward write_file to `content` once `path` has
+    accumulated FILE_REPLACE_FALLBACK_THRESHOLD or more failed file_replace
+    attempts this task run -- see FILE_REPLACE_FALLBACK_THRESHOLD's own
+    comment for why. Returns `content` unchanged below that threshold.
+    """
+    count = failed_replace_counts.get(path, 0)
+    if count < FILE_REPLACE_FALLBACK_THRESHOLD:
+        return content
+    return (
+        f"{content}\n\nYou have now failed file_replace on '{path}' {count} time(s) in this "
+        f"task. Stop guessing at old_str -- call write_file('{path}', ...) with the complete "
+        f"corrected file contents instead."
+    )
+
+
 def _execute_tool_guarded(
-    name: str, args: dict, root: str, session_id: str, task_description: str, read_paths: set, failed_calls: set
+    name: str,
+    args: dict,
+    root: str,
+    session_id: str,
+    task_description: str,
+    read_paths: set,
+    failed_calls: set,
+    failed_replace_counts: dict,
 ) -> dict:
     """
     Wraps nova_orchestrator._execute_tool() (deferred import -- avoids
     import-time circularity with nova_orchestrator.py lazily importing this
-    module) with three extra checks: refuse write_file/file_replace on a
+    module) with four extra checks: refuse write_file/file_replace on a
     path that already exists on disk but hasn't been read_file'd yet this
     task run; refuse a second read_file on a path already read (closes a
     real observed loop: the model re-reading an already-read file up to 8
-    times instead of proceeding to the edit); and refuse an exact repeat of
-    a call that already failed (closes a second real observed loop: the
-    model retrying an identical failing file_replace 8 times in a row --
-    e.g. targeting an old_str for a route in a module it never actually
-    wrote -- instead of recognizing the missing step). All three return a
-    synthetic is_error result rather than dispatching -- list_files/
-    run_command and edits to brand-new paths are never gated by the first
-    two checks (run_command repeats can still legitimately fail the same
-    way twice for a different reason, so only the failed-repeat check
-    applies to it).
+    times instead of proceeding to the edit); refuse an exact repeat of a
+    call that already failed (closes a second real observed loop: the model
+    retrying an identical failing file_replace 8 times in a row -- e.g.
+    targeting an old_str for a route in a module it never actually wrote --
+    instead of recognizing the missing step); and, once a path has failed
+    file_replace FILE_REPLACE_FALLBACK_THRESHOLD+ times (not necessarily via
+    an *exact* repeat -- a third real loop shape, 86bb728nj, where each
+    attempt targets a slightly different old_str against the same stuck
+    path), append a proactive write_file suggestion to the error content.
+    The first three checks return a synthetic is_error result rather than
+    dispatching -- list_files/run_command and edits to brand-new paths are
+    never gated by the first two (run_command repeats can still legitimately
+    fail the same way twice for a different reason, so only the
+    failed-repeat check applies to it).
     """
     key = _call_key(name, args)
+    path = args.get("path", "")
+
     if key in failed_calls:
-        return {
-            "content": (
-                f"Refused: you already tried this exact {name} call and it failed. Repeating "
-                f"it verbatim will fail again for the same reason. If you're editing content "
-                f"that doesn't exist yet, write it first with write_file instead of guessing at "
-                f"file_replace's old_str. Take a genuinely different next step."
-            ),
-            "is_error": True,
-        }
+        content = (
+            f"Refused: you already tried this exact {name} call and it failed. Repeating "
+            f"it verbatim will fail again for the same reason. If you're editing content "
+            f"that doesn't exist yet, write it first with write_file instead of guessing at "
+            f"file_replace's old_str. Take a genuinely different next step."
+        )
+        if name == "file_replace":
+            # Counts toward the same fallback threshold as a fresh dispatch
+            # failure below -- otherwise a model that repeats the *exact*
+            # same failing call, rather than varying old_str each time,
+            # would never accumulate enough failures to trigger the nudge.
+            failed_replace_counts[path] = failed_replace_counts.get(path, 0) + 1
+            content = _maybe_suggest_write_file_fallback(content, path, failed_replace_counts)
+        return {"content": content, "is_error": True}
 
     if name in ("write_file", "file_replace"):
-        path = args.get("path", "")
         if path and _worktree_has_file(root, path) and path not in read_paths:
             return {
                 "content": (
@@ -349,11 +397,10 @@ def _execute_tool_guarded(
                 "is_error": True,
             }
 
-    if name == "read_file" and args.get("path", "") in read_paths:
-        already_read_path = args.get("path", "")
+    if name == "read_file" and path in read_paths:
         return {
             "content": (
-                f"You already read '{already_read_path}' earlier -- its contents have not "
+                f"You already read '{path}' earlier -- its contents have not "
                 f"changed. Do not call read_file on it again. Make your edit now with "
                 f"write_file or file_replace."
             ),
@@ -365,8 +412,18 @@ def _execute_tool_guarded(
     result = _execute_tool(name, args, root, session_id=session_id, task_description=task_description)
     if result.get("is_error", False):
         failed_calls.add(key)
+        if name == "file_replace":
+            failed_replace_counts[path] = failed_replace_counts.get(path, 0) + 1
+            result = {
+                **result,
+                "content": _maybe_suggest_write_file_fallback(result["content"], path, failed_replace_counts),
+            }
+    elif name == "file_replace":
+        # A successful edit means the model is no longer stuck on this path
+        # -- don't carry a stale failure count into a later, unrelated edit.
+        failed_replace_counts.pop(path, None)
     if name == "read_file" and not result.get("is_error", False):
-        read_paths.add(args.get("path", ""))
+        read_paths.add(path)
 
     # Post-dispatch check (unlike the three above): the edit has already
     # landed on disk by the time this fires, so it can't be refused -- it
@@ -375,7 +432,6 @@ def _execute_tool_guarded(
     # checked: write_file is a deliberate full-file rewrite (not the
     # partial-content-substitution failure mode this guards against), and
     # non-Python files can't be parsed by _find_duplicate_functions() anyway.
-    path = args.get("path", "")
     if name == "file_replace" and not result.get("is_error", False) and path.endswith(".py"):
         try:
             new_source = open(os.path.join(root, path), encoding="utf-8").read()
@@ -619,6 +675,7 @@ def run_via_runpod(
     ]
     read_paths: set = set()
     failed_calls: set = set()
+    failed_replace_counts: dict = {}
     total_cost_usd = 0.0
     total_execution_time_ms = 0
 
@@ -687,7 +744,9 @@ def run_via_runpod(
         for call in tool_calls:
             name = call.get("name", "")
             args = call.get("arguments", {}) or {}
-            result = _execute_tool_guarded(name, args, root, slug, task_description, read_paths, failed_calls)
+            result = _execute_tool_guarded(
+                name, args, root, slug, task_description, read_paths, failed_calls, failed_replace_counts
+            )
             messages.append({"role": "user", "content": f"<tool_response>\n{result['content']}\n</tool_response>"})
     else:
         final_status = "max_turns_reached"

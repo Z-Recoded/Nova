@@ -179,7 +179,13 @@ def _create_worktree_at(slug: str, base_ref: str) -> tuple:
 
 
 def _git_diff_against_ref(root: str, base_ref: str) -> str:
-    """Like nova_orchestrator._git_diff_against_master(), but against an arbitrary base_ref."""
+    """
+    Like nova_orchestrator._git_diff_against_master(), but against an
+    arbitrary base_ref. Same `git add -N` fix (2026-08-01) so newly-created
+    (untracked) files show up in the diff instead of being silently
+    dropped -- see that function's docstring for why.
+    """
+    subprocess.run(["git", "add", "-N", "."], cwd=root, capture_output=True, text=True)
     result = subprocess.run(
         ["git", "diff", base_ref],
         cwd=root,

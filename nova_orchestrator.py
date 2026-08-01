@@ -23,6 +23,7 @@ from pathlib import Path
 import anthropic
 from dotenv import load_dotenv
 
+from nova_completion_gate import check_ground_truth_completion
 from nova_config import (
     get_approval_gate_patterns,
     get_approval_gate_poll_interval_seconds,
@@ -63,6 +64,7 @@ LOGS_DIR = os.path.join(NOVA_REPO_ROOT, "logs")
 AGENT_LOG_PATH = f"{LOGS_DIR}/agent_log.jsonl"
 TASK_OUTCOMES_LOG_PATH = f"{LOGS_DIR}/agent_task_outcomes.jsonl"
 CODING_REVIEW_LOG_PATH = f"{LOGS_DIR}/coding_review_log.jsonl"
+GROUND_TRUTH_GATE_LOG_PATH = f"{LOGS_DIR}/ground_truth_gate_log.jsonl"
 
 TOOL_DEFINITIONS = [
     {
@@ -210,7 +212,15 @@ def _commit_worktree_changes(root: str, task_description: str, note: str = "") -
 
 
 def _git_diff_against_master(root: str) -> str:
-    """Return the full diff of this worktree's branch against master."""
+    """
+    Return the full diff of this worktree's branch against master. Runs
+    `git add -N` first so newly-created (untracked) files show up as real
+    additions in the diff instead of being silently omitted -- `git diff`
+    alone ignores untracked paths entirely. This doesn't stage file
+    content (just the path), so _commit_worktree_changes()'s later
+    `git add -A` still commits everything normally.
+    """
+    subprocess.run(["git", "add", "-N", "."], cwd=root, capture_output=True, text=True)
     result = subprocess.run(
         ["git", "diff", "master"],
         cwd=root,
@@ -621,6 +631,15 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
     diff = _git_diff_against_master(root)
     budget_status = get_budget_status() if budget_gate_enabled else {"enabled": False}
 
+    # Ground-truth completion gate (86bb71x39) -- runs for every backend
+    # (Claude, LangGraph, RunPod alike), right after the diff is known and
+    # before anything downstream trusts final_status at face value. Never
+    # blocks the commit itself -- see nova_completion_gate.py's own header
+    # for why, and CLAUDE.md Section 8 for the "Marvin reviews every diff
+    # by hand" standing rule this design leans on.
+    gate_result = check_ground_truth_completion(diff, task_description, root)
+    _log_ground_truth_gate(branch_name, task_description, gate_result)
+
     # RunPod/Qwen writes, Claude reviews (2026-07-27 review-split decision) --
     # only meaningful when the RunPod backend actually wrote this diff, so
     # gated on both flags together. Never runs for the Claude-backed path
@@ -630,13 +649,16 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
         review = _review_coding_diff(diff, task_description)
         _log_coding_review(branch_name, task_description, diff, review)
 
-    commit_note = ""
+    commit_note_parts = []
     if final_status == "stopped_budget_halt":
-        commit_note = (
+        commit_note_parts.append(
             f"[budget-halt] stopped at {budget_status.get('session_pct')}% session budget, task left {final_status}"
         )
-    elif review is not None and not review["approved"]:
-        commit_note = f"[review-flagged] {review['summary']} — issues: {'; '.join(review['issues'])}"
+    if not gate_result["passed"]:
+        commit_note_parts.append(f"[ground-truth-fail] {'; '.join(gate_result['hard_fails'])}")
+    if review is not None and not review["approved"]:
+        commit_note_parts.append(f"[review-flagged] {review['summary']} — issues: {'; '.join(review['issues'])}")
+    commit_note = " ".join(commit_note_parts)
     committed = _commit_worktree_changes(root, task_description, note=commit_note)
 
     if final_status == "stopped_budget_halt":
@@ -772,6 +794,28 @@ def _log_coding_review(branch: str, task_description: str, diff: str, review: di
         "summary": review["summary"],
     }
     with open(CODING_REVIEW_LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def _log_ground_truth_gate(branch: str, task_description: str, gate_result: dict) -> None:
+    """
+    Append one gate result to ground_truth_gate_log.jsonl -- kept separate
+    from coding_review_log.jsonl since this is a mechanical check result,
+    not a judged verdict, and gives a training/monitoring signal that's
+    independent of (and a useful cross-check against) Claude's own review
+    pass. Same JSONL-append shape as _log_coding_review()/
+    record_task_outcome().
+    """
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    entry = {
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "branch": branch,
+        "task": task_description,
+        "passed": gate_result["passed"],
+        "hard_fails": gate_result["hard_fails"],
+        "warnings": gate_result["warnings"],
+    }
+    with open(GROUND_TRUTH_GATE_LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
