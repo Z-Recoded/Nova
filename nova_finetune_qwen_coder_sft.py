@@ -81,6 +81,16 @@ DRY_RUN_MAX_STEPS = 3
 SFT_ADAPTER_OUTPUT_DIR = "finetune_output/qwen-coder-32b-sft-adapter"
 SFT_MERGED_OUTPUT_DIR = "finetune_output/qwen-coder-32b-sft-merged"
 
+# Marvin's call, 2026-08-01: with 1 epoch over 20K+ examples measuring ~2,500
+# real steps (~7 hours on an A100, confirmed against the DPO dry-run's real
+# per-step timing), the previous save_strategy="epoch" meant a single save
+# point at the very end -- any interruption at hour 6 loses everything with
+# nothing to resume from. Checkpointing every SAVE_STEPS steps instead.
+# SAVE_TOTAL_LIMIT caps disk use to the last few checkpoints rather than
+# accumulating one per save indefinitely.
+SAVE_STEPS = 250
+SAVE_TOTAL_LIMIT = 3
+
 # Marvin's call, 2026-07-29: private HF Hub repo as the hand-off point so a
 # rented A100 pod can be stopped right after training instead of waiting on
 # a slow pod-to-home transfer for a ~64GB checkpoint. See nova_hf_upload.py.
@@ -213,10 +223,24 @@ def build_trainer(model, tokenizer, dataset: Dataset, dry_run: bool):
         max_length=MAX_SEQ_LENGTH,
         max_steps=DRY_RUN_MAX_STEPS if dry_run else -1,
         logging_steps=1,
-        save_strategy="no" if dry_run else "epoch",
+        save_strategy="no" if dry_run else "steps",
+        save_steps=SAVE_STEPS,
+        save_total_limit=SAVE_TOTAL_LIMIT,
         report_to=[],
     )
     return SFTTrainer(model=model, args=config, processing_class=tokenizer, train_dataset=dataset)
+
+
+# ── Resume support ──────────────────────────────────────────────────────────────
+def _has_existing_checkpoint(output_dir: str) -> bool:
+    """
+    True if a prior interrupted run already left a checkpoint-N directory in
+    output_dir -- used to resume training instead of silently restarting a
+    ~7-hour run from scratch and re-spending the pod time already paid for.
+    """
+    if not os.path.isdir(output_dir):
+        return False
+    return any(name.startswith("checkpoint-") for name in os.listdir(output_dir))
 
 
 # ── Export ─────────────────────────────────────────────────────────────────────
@@ -260,7 +284,12 @@ def run(dry_run: bool) -> None:
     dataset = build_dataset(examples, tokenizer)
     trainer = build_trainer(model, tokenizer, dataset, dry_run)
 
-    trainer.train()
+    resume = (not dry_run) and _has_existing_checkpoint(SFT_ADAPTER_OUTPUT_DIR)
+    if resume:
+        print(
+            f"Found an existing checkpoint in {SFT_ADAPTER_OUTPUT_DIR} — resuming instead of restarting from scratch."
+        )
+    trainer.train(resume_from_checkpoint=resume)
 
     if dry_run:
         print("Dry run complete — pipeline validated, no adapter saved.")

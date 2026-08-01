@@ -73,9 +73,14 @@ export HF_HOME=/workspace/hf_cache
 ```
 
 ## 4. Run the SFT warm-start stage first
+A real run over the full `SFT_SUBSET_SIZE` is long — measured ~10.2s/step from the DPO stage's
+real per-step timing puts a full epoch at ~2,500 steps, roughly **~7 hours**. Checkpoints save
+every `SAVE_STEPS` steps (not just at the end) specifically so an interruption doesn't lose the
+whole run — if `finetune_output/qwen-coder-32b-sft-adapter` already has a `checkpoint-N`
+directory, re-running the same command resumes from it automatically instead of restarting.
 ```bash
 python nova_finetune_qwen_coder_sft.py --dry-run   # mechanical pipeline check, a few real steps, discarded
-python nova_finetune_qwen_coder_sft.py             # real run
+python nova_finetune_qwen_coder_sft.py             # real run (resumes automatically if interrupted and re-run)
 ```
 (`HF_HOME` from step 3 carries through automatically since it's exported in the shell, not
 passed per-command.)
