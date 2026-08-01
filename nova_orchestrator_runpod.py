@@ -439,36 +439,71 @@ def _execute_tool_guarded(
                 **result,
                 "content": _maybe_suggest_write_file_fallback(result["content"], path, failed_replace_counts),
             }
-    elif name == "file_replace":
-        # A successful edit means the model is no longer stuck on this path
-        # -- don't carry a stale failure count into a later, unrelated edit.
+    elif name == "file_replace" and not path.endswith(".py"):
+        # Non-.py files skip the content-validity check below entirely (no
+        # syntax/duplicate-function check applies), so this is the only
+        # place their success resets the counter. .py files reset inside
+        # that check instead, only once confirmed genuinely valid.
         failed_replace_counts.pop(path, None)
     if name == "read_file" and not result.get("is_error", False):
         read_paths.add(path)
 
-    # Post-dispatch check (unlike the three above): the edit has already
-    # landed on disk by the time this fires, so it can't be refused -- it
-    # can only tell the model to fix it on the next turn, same corrective-
-    # nudge shape as the other guards. Only file_replace on a .py path is
-    # checked: write_file is a deliberate full-file rewrite (not the
-    # partial-content-substitution failure mode this guards against), and
-    # non-Python files can't be parsed by _find_duplicate_functions() anyway.
+    # Post-dispatch content-validity check (unlike the three checks above):
+    # the edit has already landed on disk by the time this fires, so a bad
+    # result here can't be refused pre-dispatch -- it can only be reported.
+    # Only file_replace on a .py path is checked: write_file is a deliberate
+    # full-file rewrite (not the partial-content-substitution failure mode
+    # this guards against), and non-Python files can't be parsed here anyway.
+    #
+    # Real gap closed here, found live 2026-08-01 (86bb72gpa): a file_replace
+    # call that matches its old_str exactly always reports success, even if
+    # the substituted content is syntactically broken (e.g. missing
+    # indentation) or leaves a leftover duplicate function behind. Because
+    # success/failure accounting above only looks at whether the TOOL CALL
+    # itself errored, a model could run its own syntax check (86bb71x2a),
+    # find the same real bug three turns in a row, and never accumulate
+    # enough recorded failures to trigger the write_file fallback nudge
+    # (86bb728nj) -- every file_replace call had "succeeded." Folding this
+    # check's result into the same failed_calls/failed_replace_counts
+    # accounting means a content-level defect now counts the same way a
+    # dispatch failure already does, and gets the same corrective nudge.
     if name == "file_replace" and not result.get("is_error", False) and path.endswith(".py"):
+        invalidity_reason = None
         try:
             new_source = open(os.path.join(root, path), encoding="utf-8").read()
         except OSError:
-            new_source = ""
-        duplicates = _find_duplicate_functions(new_source)
-        if duplicates:
-            return {
-                "content": (
-                    f"Warning: after this edit, '{path}' has what looks like leftover duplicate "
-                    f"function(s): {', '.join(duplicates)}. This usually means file_replace left "
-                    f"the old version behind next to a new, similar one. Re-read the file, remove "
-                    f"the stale version, and keep only the correct one before moving on."
-                ),
-                "is_error": True,
-            }
+            new_source = None
+
+        if new_source is not None:
+            try:
+                ast.parse(new_source)
+            except SyntaxError as e:
+                invalidity_reason = f"the file no longer parses as valid Python: {e}"
+            else:
+                duplicates = _find_duplicate_functions(new_source)
+                if duplicates:
+                    invalidity_reason = (
+                        f"it has what looks like leftover duplicate function(s): {', '.join(duplicates)} "
+                        f"-- file_replace likely left the old version behind next to a new, similar one"
+                    )
+
+        if invalidity_reason:
+            failed_calls.add(key)
+            failed_replace_counts[path] = failed_replace_counts.get(path, 0) + 1
+            content = (
+                f"Warning: after this edit, '{path}' is not in a good state -- {invalidity_reason}. "
+                f"Re-read the file, and either fix the specific problem directly or replace the whole "
+                f"broken section with write_file before moving on."
+            )
+            content = _maybe_suggest_write_file_fallback(content, path, failed_replace_counts)
+            return {"content": content, "is_error": True}
+
+        # Only reached once the edit is confirmed syntax-valid and duplicate-
+        # free -- a successful-but-still-broken edit (handled above) must
+        # NOT reset this counter, or a model bouncing between two broken
+        # variants of the same edit would never accumulate toward the
+        # fallback threshold.
+        failed_replace_counts.pop(path, None)
 
     return result
 
