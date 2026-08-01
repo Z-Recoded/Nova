@@ -4,6 +4,29 @@
 > provisioned" spirit as `omen_setup_runbook.md`, scoped to one ephemeral training run rather
 > than a permanent server.
 
+**Standing rule, confirmed live 2026-08-01: any real (non-dry-run) training command must be
+launched detached from its SSH session, not run in the foreground.** A plain `ssh pod "long
+command"` ties the remote process's survival to that one SSH connection — if the machine driving
+it (the Aero) sleeps, loses network, or the session otherwise drops, the remote process gets
+`SIGHUP` and very likely dies with it, silently losing however many hours had already run.
+Verified live: a `nohup <command> > log 2>&1 & disown` process survived a full SSH disconnect and
+reconnect on this pod's image; a plain foregrounded command would not have. Always launch real
+training this way:
+```bash
+ssh -p <port> root@<ip> "cd /workspace/nova && nohup <command> < /dev/null > /workspace/nova/<name>.log 2>&1 & disown; echo STARTED"
+```
+`< /dev/null` matters for the *launching* SSH session, not the remote process: without it,
+confirmed live 2026-08-01, the ssh command itself hangs (the shell's stdin stays tied to the SSH
+channel even after the job is backgrounded) even though the remote process is genuinely detached
+and running fine regardless — a fresh reconnect confirms it. Redirecting stdin too avoids that
+hang on the launching side.
+
+Then check progress with a fresh, short-lived connection any time — no persistent connection
+required:
+```bash
+ssh -p <port> root@<ip> "tail -50 /workspace/nova/<name>.log"
+```
+
 ## 0. Launch the pod (from the Aero)
 ```
 nova-env\Scripts\python nova_runpod_pod_launch.py launch --name qwen-coder-run
