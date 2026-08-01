@@ -131,6 +131,38 @@ default volume size was bumped to 200GB after hitting a real `Disk quota exceede
 mkdir -p /root/finetune_output && ln -s /root/finetune_output /workspace/nova/finetune_output
 ```
 
+**Real gotcha, confirmed live 2026-08-01 (second occurrence): 200GB is not a permanent fix if
+you run SFT and DPO back-to-back on the same volume.** A real SFT run's merged output (66GB) plus
+`hf_cache` (96GB, the raw fp16 base checkpoint Unsloth needs at merge time) already sit at ~162GB
+before DPO's own ~65GB merge output is written — enough headroom looks fine until a leftover
+partial merge from a prior crashed attempt (see below) pushes it over. **The failure mode is
+silent**: the process dies with no Python traceback and `cat /sys/fs/cgroup/memory.events` shows
+`oom_kill 0` (it is not an OOM kill), just a dead PID and a log frozen mid-write. If a merge dies
+with no explanation, check disk usage before assuming anything else:
+```bash
+du -sh --si /workspace/nova/finetune_output/* /workspace/hf_cache; df -h /workspace
+```
+The real fix used live: delete any stale/partial output from the dead attempt, then symlink just
+the DPO stage's own output directory (not the whole `finetune_output` tree, which would also move
+the SFT checkpoint the DPO merge still needs to *read*) to the container disk:
+```bash
+rm -rf /workspace/nova/finetune_output/qwen-coder-32b-dpo-merged
+mkdir -p /root/dpo_merged_output
+ln -s /root/dpo_merged_output /workspace/nova/finetune_output/qwen-coder-32b-dpo-merged
+```
+
+**Real gotcha, confirmed live 2026-08-01: after a process dies mid-run (e.g. the quota death
+above), `nohup ... & disown` — and `setsid` as a fallback — stopped reliably detaching *any*
+backgrounded process on the same pod, including a trivial `sleep 20; echo done` with no training
+involved at all.** Confirmed directly: the backgrounded PID was gone and its log file was still
+0 bytes within a couple seconds of launch, every time, across multiple relaunch attempts. Root
+cause not identified (cgroup/session-scope process cleanup on this pod's image is suspected but
+unconfirmed — `ulimit -a`, zombie count, and `/dev/shm` were all checked and ruled out). No fix
+found; the workaround used live was to skip detaching entirely and run training in a **kept-open
+foreground SSH session** instead (acceptable for the ~15-minute DPO stage; **not** a real fix for
+the ~7-hour SFT stage, which genuinely needs to survive a dropped connection — if this recurs on
+an SFT run, that's a real open problem, not just an inconvenience).
+
 **Real gotcha, confirmed live 2026-08-01: Hugging Face private-repo storage has a real plan
 limit.** A second ~65GB private checkpoint (SFT and DPO stages each produce one) can hit `403
 Forbidden: Private repository storage limit reached` even though the upload itself works fine.
@@ -154,4 +186,7 @@ From the Aero, not the pod itself. `terminate` (not `stop`) is the real "stop bi
 ## Not covered here
 Re-quantizing the merged safetensors to AWQ and redeploying onto
 `nova_remote_inference.RUNPOD_ENDPOINT_ID` is still a separate, undesigned manual step — see
-both finetune scripts' own header comments.
+both finetune scripts' own header comments. Re-running `nova_coding_eval.py`'s held-out suite
+against the newly deployed weights — the actual test of whether this fine-tune closed the gap
+found in `project_qwen3_coding_spike_result.md` — also isn't built yet and can't happen until
+the AWQ/redeploy step exists.
