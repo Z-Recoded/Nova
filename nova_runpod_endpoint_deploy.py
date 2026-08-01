@@ -48,15 +48,26 @@ load_dotenv(dotenv_path=Path(__file__).parent / ".env")
 RUNPOD_API_KEY = os.environ.get("RUNPOD_API_KEY")
 RUNPOD_REST_BASE_URL = "https://rest.runpod.io/v1"
 
-# Confirmed live 2026-08-01 against runpod-workers/worker-vllm's own README.
-# UNVALIDATED exact tag -- confirm the current stable tag on Docker Hub
-# (hub.docker.com/r/runpod/worker-v1-vllm/tags) before a real deploy; image
-# tags move, same not-doc-sourced-yet honesty convention as
+# Confirmed live 2026-08-01 directly against Docker Hub's tag list for
+# runpod/worker-v1-vllm -- no "stable"-named tag exists (an earlier guess
+# assumed one did); tags are plain semver (v2.X.X). v2.23.0 was the newest
+# real tag at deploy time (pushed 2026-07-29). Tags move -- re-check
+# hub.docker.com/r/runpod/worker-v1-vllm/tags before trusting this on faith
+# for a future deploy, same not-doc-sourced-yet honesty convention as
 # nova_runpod_pod_launch.py's own DEFAULT_IMAGE_NAME comment.
-DEFAULT_WORKER_IMAGE = "runpod/worker-v1-vllm:stable-cuda12.1.0"
+DEFAULT_WORKER_IMAGE = "runpod/worker-v1-vllm:v2.23.0"
 
 DEFAULT_MODEL_REPO_ID = "zrecoded/nova-qwen-coder-32b-awq"  # nova_quantize_qwen_coder_awq.py's AWQ_HUB_REPO_ID
-DEFAULT_QUANTIZATION = "awq"
+
+# Real bug found live 2026-08-01: worker startup failed with "Quantization
+# method specified in the model config (compressed-tensors) does not match
+# the quantization method specified in the `quantization` argument (awq)".
+# llm-compressor (nova_quantize_qwen_coder_awq.py) saves checkpoints in
+# vLLM's native compressed-tensors format, NOT the older AutoAWQ checkpoint
+# format the production endpoint's stock model (quantized by a different,
+# now-deprecated tool) uses -- "awq" was copied from that endpoint's config
+# without checking it actually matched this checkpoint's real format.
+DEFAULT_QUANTIZATION = "compressed-tensors"
 
 # Matches CODING_AGENT_CONTEXT_WINDOW_TOKENS in nova_orchestrator_runpod.py --
 # the real context window the coding-agent lane already assumes this endpoint
@@ -66,9 +77,9 @@ DEFAULT_MAX_MODEL_LEN = 32768
 
 DEFAULT_GPU_MEMORY_UTILIZATION = 0.95  # worker-vLLM's own documented default
 
-# UNVALIDATED exact ID string -- confirm against RunPod's live GPU type
-# catalog (GET /gputypes) before a real deploy, same discipline as
-# nova_runpod_pod_launch.py's DEFAULT_GPU_TYPE_ID comment.
+# Confirmed live 2026-08-01 against the REST API's own OpenAPI schema enum
+# (no dedicated GET /gputypes endpoint exists on this API -- checked and
+# ruled out, unlike nova_runpod_pod_launch.py's Pod-side equivalent).
 DEFAULT_GPU_TYPE_ID = "NVIDIA H100 80GB HBM3"
 
 DEFAULT_WORKERS_MIN = 0  # scale-to-zero -- zero cost while idle

@@ -49,9 +49,19 @@ load_dotenv(dotenv_path=Path(__file__).parent / ".env")
 # Exposed so callers (nova_query.py) can log which model actually generated
 # a response -- the endpoint has exactly one model deployed, there's no
 # per-request model selection.
-MODEL_NAME = "Qwen/Qwen2.5-Coder-32B-Instruct-AWQ"
+#
+# TEMPORARY, 2026-08-01: pointed at the new AWQ-quantized fine-tune
+# (zrecoded/nova-qwen-coder-32b-awq, endpoint gwhpxqmae68fgr) for
+# nova_coding_eval.py's held-out re-eval only. Rollback to the stock model
+# is exactly these two lines -- revert to:
+#   MODEL_NAME = "Qwen/Qwen2.5-Coder-32B-Instruct-AWQ"
+#   RUNPOD_ENDPOINT_ID = "2ldulpirwqz1vp"
+# Keep this pointed at the new endpoint only if the eval clears a real pass
+# bar against Claude's baseline (Phase 3.5 swap-trigger framing, CLAUDE.md)
+# -- not on a vibe.
+MODEL_NAME = "zrecoded/nova-qwen-coder-32b-awq"
 
-RUNPOD_ENDPOINT_ID = "2ldulpirwqz1vp"
+RUNPOD_ENDPOINT_ID = "gwhpxqmae68fgr"
 RUNPOD_BASE_URL = f"https://api.runpod.ai/v2/{RUNPOD_ENDPOINT_ID}"
 RUNPOD_RUNSYNC_URL = f"{RUNPOD_BASE_URL}/runsync"
 RUNPOD_STATUS_URL_TEMPLATE = f"{RUNPOD_BASE_URL}/status/{{job_id}}"
