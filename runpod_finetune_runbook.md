@@ -183,10 +183,15 @@ nova-env\Scripts\python nova_runpod_pod_launch.py terminate <pod_id>
 From the Aero, not the pod itself. `terminate` (not `stop`) is the real "stop billing" action —
 `stop` alone keeps the volume disk (and its cost) alive.
 
-## Not covered here
-Re-quantizing the merged safetensors to AWQ and redeploying onto
-`nova_remote_inference.RUNPOD_ENDPOINT_ID` is still a separate, undesigned manual step — see
-both finetune scripts' own header comments. Re-running `nova_coding_eval.py`'s held-out suite
-against the newly deployed weights — the actual test of whether this fine-tune closed the gap
-found in `project_qwen3_coding_spike_result.md` — also isn't built yet and can't happen until
-the AWQ/redeploy step exists.
+## 8. AWQ-quantize and redeploy
+
+Covered by two new scripts, `nova_quantize_qwen_coder_awq.py` (run on a rented pod, same as the
+finetune stages) and `nova_runpod_endpoint_deploy.py` (run from the Aero, creates a **new**
+serverless endpoint rather than mutating the production one — see both scripts' own header
+comments for the full design). Once the new endpoint is sanity-checked and
+`nova_remote_inference.py`'s `MODEL_NAME`/`RUNPOD_ENDPOINT_ID` are pointed at it, re-run
+`python nova_coding_eval.py` — that's the actual test of whether this fine-tune closed the gap
+found in `project_qwen3_coding_spike_result.md`. (Correction, 2026-08-01: an earlier version of
+this note said the eval suite itself "isn't built yet" — that was stale even when written;
+`nova_coding_eval.py` has existed since 2026-07-29 and already ran once against the stock
+endpoint. What was actually missing was the AWQ/redeploy step above, not the eval script.)

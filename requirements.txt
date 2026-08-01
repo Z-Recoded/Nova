@@ -70,6 +70,7 @@ langgraph-sdk==0.4.2
 langsmith==0.10.2
 librt==0.13.0
 license-expression==30.4.4
+llmcompressor==0.12.0.1
 markdown-it-py==4.2.0
 MarkupSafe==3.0.3
 mcp==1.28.1
