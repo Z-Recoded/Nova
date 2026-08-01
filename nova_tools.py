@@ -288,6 +288,7 @@ def _build_restricted_path(root_path: Path) -> str:
 # child process.
 ENV_ALLOWLIST = [
     "SYSTEMROOT",
+    "SYSTEMDRIVE",
     "WINDIR",
     "COMSPEC",
     "PATHEXT",
@@ -305,6 +306,22 @@ ENV_ALLOWLIST = [
     "PROCESSOR_LEVEL",
     "PROCESSOR_REVISION",
 ]
+
+# Real root cause, confirmed live 2026-08-01: SYSTEMDRIVE was missing from
+# this allowlist, so any run_command child process had an environment with
+# no SystemDrive variable at all. Windows' shell32 folder-icon-cache
+# subsystem (triggered incidentally by ordinary subprocess/console activity,
+# not by anything Nova's tools intentionally do) internally expands a path
+# template of `%SystemDrive%\ProgramData\Microsoft\Windows\Caches\...` via
+# ExpandEnvironmentStringsW -- confirmed directly that this API leaves
+# `%SystemDrive%` completely un-expanded (literal percent signs and all)
+# when the variable is absent, rather than failing or substituting a
+# default. That produced a real, reproducible leftover in agent worktrees: a
+# literal directory named `%SystemDrive%` (visible in git diff/status) with
+# real Windows cache database files inside it -- previously documented as an
+# unexplained "Windows env-var expansion leak" in the 2026-07-27 held-out
+# eval, now root-caused and fixed by simply including this non-secret
+# variable in the allowlist.
 
 
 def _build_restricted_env(root_path: Path) -> dict:

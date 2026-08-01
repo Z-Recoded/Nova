@@ -83,6 +83,27 @@ TOOLS_FORMAT_PROMPT = (
 # destructively overwriting a real 1644-line file with a guessed 7-line
 # stub), and separately re-reading an already-read file instead of
 # proceeding to the edit.
+# Self-verification affordance (86bb71x2a). Deliberately a soft nudge, not
+# a hard requirement -- research cited on this ticket found reasoning
+# models tend to produce traces that "rationalize completion rather than
+# verify it," so self-checking is a real improvement over nothing but not
+# a sufficient defense on its own. The authoritative backstop is the
+# harness-level ground-truth gate (nova_completion_gate.py), which doesn't
+# rely on the model reporting on itself at all -- this prompt is the
+# complementary, cheaper first line of defense.
+SELF_VERIFICATION_PROMPT = (
+    "\n\n---\n"
+    "SELF-VERIFICATION: once you believe your edits are complete, do not "
+    "immediately stop. First call run_command to check your own work -- e.g. "
+    "a Python syntax check on every .py file you edited (python -m py_compile "
+    "<path>), or re-read a file you claim to have created to confirm it's "
+    "really there. Only respond with a final summary and no <tools> block "
+    "after you've done this. This matters because prior runs have reported "
+    "being done while a file was left with a real syntax error, or a claimed "
+    "edit was never actually applied -- catching that yourself here is much "
+    "cheaper than a human finding it later."
+)
+
 READ_BEFORE_WRITE_GUARD_PROMPT = (
     "\n\n---\n"
     "HARD RULE (safety guard): before calling write_file or file_replace on a "
@@ -670,12 +691,20 @@ def run_via_runpod(
     # backend's raw messages list has no equivalent slot, so the system
     # prompt is prepended here as a real system-role message.
     messages = [
-        {"role": "system", "content": system_prompt + TOOLS_FORMAT_PROMPT + READ_BEFORE_WRITE_GUARD_PROMPT},
+        {
+            "role": "system",
+            "content": (
+                system_prompt + TOOLS_FORMAT_PROMPT + READ_BEFORE_WRITE_GUARD_PROMPT + SELF_VERIFICATION_PROMPT
+            ),
+        },
         *messages,
     ]
     read_paths: set = set()
     failed_calls: set = set()
     failed_replace_counts: dict = {}
+    edited_paths: set = set()
+    has_verified_edits = False
+    verification_nudge_used = False
     total_cost_usd = 0.0
     total_execution_time_ms = 0
 
@@ -737,8 +766,32 @@ def run_via_runpod(
             eval_count = response.get("eval_count")
             if eval_count is not None and eval_count >= max_output_tokens:
                 final_status = "stopped_max_output_tokens"
-            else:
-                final_status = "completed"
+                break
+
+            if edited_paths and not has_verified_edits and not verification_nudge_used:
+                # Self-verification nudge (86bb71x2a): the model edited
+                # files but never ran any check on them before trying to
+                # stop. Give it exactly one more turn to verify rather than
+                # accepting the stop immediately -- deliberately only once,
+                # so an ignored nudge doesn't burn the whole turn budget
+                # (same "nudge once, don't force forever" instinct as the
+                # file_replace fallback nudge above).
+                verification_nudge_used = True
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "<tool_response>\nBefore finishing: you edited "
+                            f"{len(edited_paths)} file(s) this task but haven't run any "
+                            "check on them yet. Verify your work now (e.g. a syntax check "
+                            "via run_command, or re-reading an edited file) before your "
+                            "final summary.\n</tool_response>"
+                        ),
+                    }
+                )
+                continue
+
+            final_status = "completed"
             break
 
         for call in tool_calls:
@@ -747,6 +800,10 @@ def run_via_runpod(
             result = _execute_tool_guarded(
                 name, args, root, slug, task_description, read_paths, failed_calls, failed_replace_counts
             )
+            if name in ("write_file", "file_replace") and not result.get("is_error", False):
+                edited_paths.add(args.get("path", ""))
+            if name == "run_command" and edited_paths:
+                has_verified_edits = True
             messages.append({"role": "user", "content": f"<tool_response>\n{result['content']}\n</tool_response>"})
     else:
         final_status = "max_turns_reached"
