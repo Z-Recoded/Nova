@@ -55,10 +55,12 @@ DEFAULT_INTERRUPTIBLE = False
 # UNVALIDATED hardware constants.
 DEFAULT_IMAGE_NAME = "runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04"
 
-# Sized for a ~64GB merged safetensors checkpoint plus the 4-bit base model
-# cache -- a reasoned starting point, not measured against a real run yet.
+# Validated against a real run, 2026-08-01: a warm-started DPO run needs the
+# base checkpoint cached (~62GB) AND the merged output (~65GB) present on
+# /workspace at once -- 100GB hit a real "Disk quota exceeded" mid-merge.
+# 200GB covers one warm-started run's cache + merged output with headroom.
 DEFAULT_CONTAINER_DISK_GB = 100
-DEFAULT_VOLUME_GB = 100
+DEFAULT_VOLUME_GB = 200
 DEFAULT_VOLUME_MOUNT_PATH = "/workspace"
 
 DEFAULT_SSH_PUBLIC_KEY_PATH = str(Path.home() / ".ssh" / "id_ed25519.pub")
