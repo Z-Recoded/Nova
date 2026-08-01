@@ -104,7 +104,16 @@ def request_correction(client: anthropic.Anthropic, query: str, lore: str) -> st
             }
         ],
     )
-    return message.content[0].text.strip()
+    # Same ThinkingBlock gotcha nova_orchestrator._review_coding_diff() and
+    # nova_task_queue.propose_tier() already found live (86bb53hmk):
+    # message.content[0] is not reliably the text block -- this account/
+    # model can return a leading ThinkingBlock (no .text attribute) before
+    # the real TextBlock. Find the first block with type "text" explicitly
+    # rather than assuming index 0.
+    text_blocks = [block.text for block in message.content if block.type == "text"]
+    if not text_blocks:
+        raise ValueError("No text block in Claude's response.")
+    return text_blocks[0].strip()
 
 
 # ── JSONL read / write ─────────────────────────────────────────

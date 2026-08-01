@@ -169,14 +169,24 @@ def propose_tier(task: dict) -> dict:
             }
         ],
     )
-    raw = message.content[0].text.strip()
-    # Claude sometimes wraps the JSON in a markdown code fence (```json ... ```)
-    # despite the system prompt asking for "ONLY a JSON object, no other text"
-    # -- found live 2026-07-19 when a real proposal silently fell back to the
-    # "manual only"/low-confidence parse-failure path because of exactly this.
-    # Strip a leading/trailing fence before parsing, don't just fail on it.
-    unfenced = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.IGNORECASE).strip()
     try:
+        # Real bug found live 2026-07-28/29 (86bb53hmk): message.content[0]
+        # is not reliably the text block -- this account/model can return a
+        # leading ThinkingBlock (no .text attribute) before the real
+        # TextBlock, so content[0].text raised AttributeError for some
+        # prompts. Find the first block with type "text" explicitly rather
+        # than assuming index 0 -- same fix as
+        # nova_orchestrator._review_coding_diff() already uses.
+        text_blocks = [block.text for block in message.content if block.type == "text"]
+        if not text_blocks:
+            raise ValueError("No text block in Claude's response.")
+        raw = text_blocks[0].strip()
+        # Claude sometimes wraps the JSON in a markdown code fence (```json ... ```)
+        # despite the system prompt asking for "ONLY a JSON object, no other text"
+        # -- found live 2026-07-19 when a real proposal silently fell back to the
+        # "manual only"/low-confidence parse-failure path because of exactly this.
+        # Strip a leading/trailing fence before parsing, don't just fail on it.
+        unfenced = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.IGNORECASE).strip()
         parsed = json.loads(unfenced)
         tier = parsed["tier"]
         confidence = parsed["confidence"]
