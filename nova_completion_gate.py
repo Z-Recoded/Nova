@@ -180,7 +180,41 @@ def _check_nonzero_diff(diff: str) -> str | None:
     return None
 
 
-def _check_required_files_touched(diff: str, required_files: list[str]) -> list[str]:
+def _find_untracked_file_by_basename(root: str, basename: str) -> bool:
+    """
+    True if a file named `basename` exists anywhere under the task's own
+    worktree (`root`), regardless of whether git tracks it.
+
+    Exists specifically for a required file living under a gitignored path
+    (e.g. a `logs/*.jsonl` file) -- _touched_files() parses `git diff`
+    output, which structurally can never show a gitignored file no matter
+    what the model actually did. Real, verified gap: `logs/` is gitignored
+    repo-wide, and `logs/benchmark_log.jsonl` has never once been tracked in
+    this repo's git history (confirmed via `git check-ignore` and `git log
+    --all`) -- so a task requiring it would hard-fail this check for every
+    candidate, including a hypothetically perfect one, without this
+    fallback.
+
+    Safe to treat plain existence as real evidence here (no mtime check
+    needed): `git worktree add` only ever populates a fresh worktree from
+    tracked content, confirmed live by inspecting a real fresh worktree --
+    it carries no `logs/` directory at all. So a gitignored file found
+    inside one MUST have been created by the model's own run_command
+    execution during this exact task, not inherited from the main repo.
+
+    Matches anywhere in the tree, by basename only -- same "match by
+    filename, not exact path" discipline the git-diff-based check above
+    already uses, since required_files is a free-text extraction that may
+    carry an absolute path straight from the task's own description (e.g.
+    "C:/Nova/logs/benchmark_log.jsonl") rather than a worktree-relative one.
+    """
+    for _dirpath, _dirnames, filenames in os.walk(root):
+        if basename in filenames:
+            return True
+    return False
+
+
+def _check_required_files_touched(diff: str, required_files: list[str], root: str) -> list[str]:
     """
     Hard-fail reasons, one per file the task's own spec explicitly named as
     something to create or modify (extract_task_requirements()'s
@@ -188,6 +222,10 @@ def _check_required_files_touched(diff: str, required_files: list[str]) -> list[
     filename, not exact repo-relative path -- required_files entries are
     free-text extractions that may not carry the exact path the diff
     header uses.
+
+    A required file not found in the diff gets one more chance via
+    _find_untracked_file_by_basename() before being flagged -- see that
+    function's own docstring for the real gitignored-file gap this closes.
     """
     if not required_files:
         return []
@@ -195,8 +233,13 @@ def _check_required_files_touched(diff: str, required_files: list[str]) -> list[
     reasons = []
     for required in required_files:
         required_name = os.path.basename(required.strip())
-        if required_name and required_name not in touched_names:
-            reasons.append(f"'{required}' was named as a file the task requires touching, but it was never touched.")
+        if not required_name:
+            continue
+        if required_name in touched_names:
+            continue
+        if _find_untracked_file_by_basename(root, required_name):
+            continue
+        reasons.append(f"'{required}' was named as a file the task requires touching, but it was never touched.")
     return reasons
 
 
@@ -958,7 +1001,7 @@ def check_ground_truth_completion(
     hard_fails.extend(_tag("module_level_name_order", _check_module_level_name_order(diff, root)))
     hard_fails.extend(_tag("cross_module_circular_import", _check_module_level_circular_imports(diff, root)))
     hard_fails.extend(
-        _tag("required_files_touched", _check_required_files_touched(diff, requirements["required_files"]))
+        _tag("required_files_touched", _check_required_files_touched(diff, requirements["required_files"], root))
     )
     hard_fails.extend(
         _tag("forbidden_paths_untouched", _check_forbidden_paths_untouched(diff, requirements["forbidden_files"]))
