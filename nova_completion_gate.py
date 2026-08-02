@@ -746,6 +746,22 @@ def _check_deliverables_present(diff: str, deliverables: list[str]) -> list[str]
 # ── Entry point ────────────────────────────────────────────────
 
 
+def _tag(check_name: str, messages: list[str]) -> list[str]:
+    """
+    Prefixes each message with which check produced it, e.g.
+    "[syntax_valid] ...". Guard-firing attribution (Marvin's ask, 2026-08-02):
+    without this, hard_fails/warnings is one flat, untagged list and nobody
+    can tell which of the 6 checks below is actually catching real problems
+    across re-runs without re-reading transcripts by hand. Deliberately a
+    plain string prefix, not a schema change to hard_fails/warnings itself --
+    every existing consumer (nova_coding_eval._format_gate_result(),
+    nova_orchestrator._log_ground_truth_gate()) keeps working unchanged, and
+    the tag is immediately readable in the generated eval report too, not
+    just machine-parseable by nova_guard_stats.py.
+    """
+    return [f"[{check_name}] {m}" for m in messages]
+
+
 def check_ground_truth_completion(
     diff: str, task_description: str, root: str, base_ref: str = "master", requirements: dict | None = None
 ) -> dict:
@@ -778,17 +794,26 @@ def check_ground_truth_completion(
     """
     empty_diff_reason = _check_nonzero_diff(diff)
     if empty_diff_reason:
-        return {"passed": False, "hard_fails": [empty_diff_reason], "warnings": []}
+        return {"passed": False, "hard_fails": _tag("nonzero_diff", [empty_diff_reason]), "warnings": []}
 
     if requirements is None:
         requirements = extract_task_requirements(task_description)
 
     hard_fails = []
-    hard_fails.extend(_check_syntax_valid(diff, root))
-    hard_fails.extend(_check_module_level_name_order(diff, root))
-    hard_fails.extend(_check_required_files_touched(diff, requirements["required_files"]))
-    hard_fails.extend(_check_forbidden_paths_untouched(diff, requirements["forbidden_files"]))
-    hard_fails.extend(_check_narrow_scope_not_exceeded(root, base_ref, requirements["narrow_scope_files"]))
-    warnings = _check_deliverables_present(diff, requirements["deliverables"])
+    hard_fails.extend(_tag("syntax_valid", _check_syntax_valid(diff, root)))
+    hard_fails.extend(_tag("module_level_name_order", _check_module_level_name_order(diff, root)))
+    hard_fails.extend(
+        _tag("required_files_touched", _check_required_files_touched(diff, requirements["required_files"]))
+    )
+    hard_fails.extend(
+        _tag("forbidden_paths_untouched", _check_forbidden_paths_untouched(diff, requirements["forbidden_files"]))
+    )
+    hard_fails.extend(
+        _tag(
+            "narrow_scope_not_exceeded",
+            _check_narrow_scope_not_exceeded(root, base_ref, requirements["narrow_scope_files"]),
+        )
+    )
+    warnings = _tag("deliverables_present", _check_deliverables_present(diff, requirements["deliverables"]))
 
     return {"passed": not hard_fails, "hard_fails": hard_fails, "warnings": warnings}

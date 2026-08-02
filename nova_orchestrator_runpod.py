@@ -360,21 +360,25 @@ def _find_duplicate_functions(source: str) -> list[str]:
 FILE_REPLACE_FALLBACK_THRESHOLD = 2
 
 
-def _maybe_suggest_write_file_fallback(content: str, path: str, failed_replace_counts: dict) -> str:
+def _maybe_suggest_write_file_fallback(content: str, path: str, failed_replace_counts: dict) -> tuple[str, bool]:
     """
     Appends a nudge toward write_file to `content` once `path` has
     accumulated FILE_REPLACE_FALLBACK_THRESHOLD or more failed file_replace
     attempts this task run -- see FILE_REPLACE_FALLBACK_THRESHOLD's own
-    comment for why. Returns `content` unchanged below that threshold.
+    comment for why. Returns `(content, False)` unchanged below that
+    threshold; the bool return (added for guard-firing attribution) tells a
+    caller whether the nudge was genuinely appended, since incrementing the
+    counter and this function being called at all don't by themselves mean
+    the guard fired.
     """
     count = failed_replace_counts.get(path, 0)
     if count < FILE_REPLACE_FALLBACK_THRESHOLD:
-        return content
+        return content, False
     return (
         f"{content}\n\nYou have now failed file_replace on '{path}' {count} time(s) in this "
         f"task. Stop guessing at old_str -- call write_file('{path}', ...) with the complete "
         f"corrected file contents instead."
-    )
+    ), True
 
 
 # Real observed loop (86bb72wdx, generalizing the 86bb728nj/B3 nudge above):
@@ -457,6 +461,26 @@ def _in_scope_basenames(requirements: dict | None) -> set | None:
     return names or None
 
 
+# Guard-firing attribution: every guard below has been iterated on blind all
+# week -- readable error text a human happens to notice while reading a
+# transcript, but no record anywhere of which specific guard actually fired
+# in a given run. These ids give each firing point a stable, greppable
+# identity so nova_guard_stats.py can tally which fixes are actually pulling
+# their weight across re-runs, instead of that being re-derived by hand every
+# time (see nova_guard_stats.py's own header for the full rationale).
+GUARD_REPEAT_FAILED_CALL = "repeat_failed_call"
+GUARD_FILE_ALLOWLIST = "file_allowlist"
+GUARD_READ_BEFORE_WRITE = "read_before_write"
+GUARD_REPEAT_READ = "repeat_read"
+GUARD_CONTENT_SYNTAX_INVALID = "content_syntax_invalid"
+GUARD_CONTENT_DUPLICATE_FUNCTION = "content_duplicate_function"
+GUARD_WRITE_FILE_NUDGE_MISSING_TARGET = "write_file_nudge_missing_target"
+GUARD_WRITE_FILE_NUDGE_THRESHOLD = "write_file_nudge_threshold"
+GUARD_NEAR_MISS_PARSE = "near_miss_parse"
+GUARD_GOAL_REANCHOR = "goal_reanchor"
+GUARD_SELF_VERIFY_NUDGE = "self_verify_nudge"
+
+
 def _execute_tool_guarded(
     name: str,
     args: dict,
@@ -467,6 +491,7 @@ def _execute_tool_guarded(
     failed_calls: set,
     failed_replace_counts: dict,
     in_scope_basenames: set | None = None,
+    guard_events: list | None = None,
 ) -> dict:
     """
     Wraps nova_orchestrator._execute_tool() (deferred import -- avoids
@@ -491,11 +516,19 @@ def _execute_tool_guarded(
     gated by the scope/read-before-write checks (run_command repeats can
     still legitimately fail the same way twice for a different reason, so
     only the failed-repeat check applies to it).
+
+    guard_events (default None, backward-compatible): a caller-owned list
+    this function appends {"guard": <GUARD_* id>, "detail": ...} to every
+    time one of the checks above actually fires -- see the GUARD_* constants'
+    own comment for why. None means "don't track" (a no-op guard).
     """
+    if guard_events is None:
+        guard_events = []
     key = _call_key(name, args)
     path = args.get("path", "")
 
     if key in failed_calls:
+        guard_events.append({"guard": GUARD_REPEAT_FAILED_CALL, "detail": f"{name} {path}"})
         content = (
             f"Refused: you already tried this exact {name} call and it failed. Repeating "
             f"it verbatim will fail again for the same reason. If you're editing content "
@@ -508,11 +541,14 @@ def _execute_tool_guarded(
             # same failing call, rather than varying old_str each time,
             # would never accumulate enough failures to trigger the nudge.
             failed_replace_counts[path] = failed_replace_counts.get(path, 0) + 1
-            content = _maybe_suggest_write_file_fallback(content, path, failed_replace_counts)
+            content, nudge_fired = _maybe_suggest_write_file_fallback(content, path, failed_replace_counts)
+            if nudge_fired:
+                guard_events.append({"guard": GUARD_WRITE_FILE_NUDGE_THRESHOLD, "detail": path})
         return {"content": content, "is_error": True}
 
     if name in ("write_file", "file_replace") and path and in_scope_basenames is not None:
         if os.path.basename(path) not in in_scope_basenames:
+            guard_events.append({"guard": GUARD_FILE_ALLOWLIST, "detail": path})
             return {
                 "content": (
                     f"Refused: '{path}' was not named in this task's spec as a file to create or "
@@ -525,6 +561,7 @@ def _execute_tool_guarded(
 
     if name in ("write_file", "file_replace"):
         if path and _worktree_has_file(root, path) and path not in read_paths:
+            guard_events.append({"guard": GUARD_READ_BEFORE_WRITE, "detail": path})
             return {
                 "content": (
                     f"Refused: '{path}' already exists and has not been read this session. "
@@ -534,6 +571,7 @@ def _execute_tool_guarded(
             }
 
     if name == "read_file" and path in read_paths:
+        guard_events.append({"guard": GUARD_REPEAT_READ, "detail": path})
         return {
             "content": (
                 f"You already read '{path}' earlier -- its contents have not "
@@ -555,12 +593,15 @@ def _execute_tool_guarded(
                 # against a path that doesn't exist -- nudge on this very
                 # first failure rather than waiting for
                 # FILE_REPLACE_FALLBACK_THRESHOLD to accumulate.
+                guard_events.append({"guard": GUARD_WRITE_FILE_NUDGE_MISSING_TARGET, "detail": path})
                 result = {**result, "content": _suggest_write_file_for_missing_target(result["content"], path)}
             else:
-                result = {
-                    **result,
-                    "content": _maybe_suggest_write_file_fallback(result["content"], path, failed_replace_counts),
-                }
+                nudge_content, nudge_fired = _maybe_suggest_write_file_fallback(
+                    result["content"], path, failed_replace_counts
+                )
+                if nudge_fired:
+                    guard_events.append({"guard": GUARD_WRITE_FILE_NUDGE_THRESHOLD, "detail": path})
+                result = {**result, "content": nudge_content}
     elif name == "file_replace" and not path.endswith(".py"):
         # Non-.py files skip the content-validity check below entirely (no
         # syntax/duplicate-function check applies), so this is the only
@@ -596,11 +637,13 @@ def _execute_tool_guarded(
         except OSError:
             new_source = None
 
+        guard_fired = None
         if new_source is not None:
             try:
                 ast.parse(new_source)
             except SyntaxError as e:
                 invalidity_reason = f"the file no longer parses as valid Python: {e}"
+                guard_fired = GUARD_CONTENT_SYNTAX_INVALID
             else:
                 duplicates = _find_duplicate_functions(new_source)
                 if duplicates:
@@ -608,8 +651,10 @@ def _execute_tool_guarded(
                         f"it has what looks like leftover duplicate function(s): {', '.join(duplicates)} "
                         f"-- file_replace likely left the old version behind next to a new, similar one"
                     )
+                    guard_fired = GUARD_CONTENT_DUPLICATE_FUNCTION
 
         if invalidity_reason:
+            guard_events.append({"guard": guard_fired, "detail": path})
             failed_calls.add(key)
             failed_replace_counts[path] = failed_replace_counts.get(path, 0) + 1
             content = (
@@ -617,7 +662,9 @@ def _execute_tool_guarded(
                 f"Re-read the file, and either fix the specific problem directly or replace the whole "
                 f"broken section with write_file before moving on."
             )
-            content = _maybe_suggest_write_file_fallback(content, path, failed_replace_counts)
+            content, nudge_fired = _maybe_suggest_write_file_fallback(content, path, failed_replace_counts)
+            if nudge_fired:
+                guard_events.append({"guard": GUARD_WRITE_FILE_NUDGE_THRESHOLD, "detail": path})
             return {"content": content, "is_error": True}
 
         # Only reached once the edit is confirmed syntax-valid and duplicate-
@@ -758,6 +805,32 @@ def _log_runpod_cost_summary(
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
+def _log_guard_events(slug: str, branch: str, task: str, final_status: str, guard_events: list) -> None:
+    """
+    Append one entry per task run to logs/guard_events_log.jsonl -- every
+    guard/nudge that fired anywhere in this run (see the GUARD_* constants
+    above), so nova_guard_stats.py can tally which fixes are actually
+    pulling their weight across re-runs without anyone re-deriving it by
+    hand from a transcript. Same JSONL-append, one-entry-per-task-run
+    pattern as _log_runpod_cost_summary()/nova_orchestrator._log_ground_
+    truth_gate() -- kept as its own log rather than folded into either,
+    since this is neither a cost record nor a gate verdict.
+    """
+    from nova_orchestrator import LOGS_DIR
+
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    entry = {
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "task_slug": slug,
+        "branch": branch,
+        "task": task,
+        "final_status": final_status,
+        "guard_events": guard_events,
+    }
+    with open(f"{LOGS_DIR}/guard_events_log.jsonl", "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
 # ── Context-window management ────────────────────────────────────
 
 # The real deployment ceiling for this endpoint (distinct from NUM_CTX above,
@@ -890,6 +963,13 @@ def run_via_runpod(
     verification_nudge_used = False
     total_cost_usd = 0.0
     total_execution_time_ms = 0
+    # Guard-firing attribution: accumulated across the whole run (like
+    # total_cost_usd above), not per-turn -- _log_agent_turn_runpod() below
+    # is called before this turn's own tool-dispatch loop runs, so a given
+    # turn's guard events don't exist yet at that point. Logged once at the
+    # end via _log_guard_events(), same "one summary entry per task run"
+    # precedent as _log_runpod_cost_summary()/_log_ground_truth_gate().
+    guard_events: list = []
 
     final_status = "incomplete"
     turn = 0
@@ -963,6 +1043,9 @@ def run_via_runpod(
                 # (not nudged-once like the checks below) since a parse
                 # failure is a mechanical problem with a mechanical fix, not
                 # a behavioral pattern that needs a single correction.
+                guard_events.append(
+                    {"guard": GUARD_NEAR_MISS_PARSE, "detail": f"turn {turn}, {len(near_misses)} block(s)"}
+                )
                 messages.append(
                     {
                         "role": "user",
@@ -985,6 +1068,7 @@ def run_via_runpod(
                 # (same "nudge once, don't force forever" instinct as the
                 # file_replace fallback nudge above).
                 verification_nudge_used = True
+                guard_events.append({"guard": GUARD_SELF_VERIFY_NUDGE, "detail": f"turn {turn}"})
                 messages.append(
                     {
                         "role": "user",
@@ -1015,6 +1099,7 @@ def run_via_runpod(
                 failed_calls,
                 failed_replace_counts,
                 in_scope_basenames,
+                guard_events,
             )
             if name in ("write_file", "file_replace") and not result.get("is_error", False):
                 edited_paths.add(args.get("path", ""))
@@ -1027,6 +1112,7 @@ def run_via_runpod(
             # tool-response message just added, not as a new message: the
             # pruning logic above depends on messages staying in strict
             # (assistant, user-tool-response) pairs.
+            guard_events.append({"guard": GUARD_GOAL_REANCHOR, "detail": f"turn {turn}"})
             messages[-1]["content"] += _goal_reanchor_note(task_description)
     else:
         final_status = "max_turns_reached"
@@ -1034,5 +1120,6 @@ def run_via_runpod(
     _log_runpod_cost_summary(
         slug, branch_name, task_description, final_status, turn, total_cost_usd, total_execution_time_ms
     )
+    _log_guard_events(slug, branch_name, task_description, final_status, guard_events)
 
     return final_status, turn
