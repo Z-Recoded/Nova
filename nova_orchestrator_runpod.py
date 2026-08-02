@@ -30,6 +30,8 @@ import os
 import re
 from datetime import datetime
 
+from vulture import Vulture
+
 import nova_remote_inference
 from nova_backend_profiles import RUNPOD_PROFILE
 
@@ -346,6 +348,28 @@ def _find_duplicate_functions(source: str) -> list[str]:
     return sorted(flagged)
 
 
+def _find_unreachable_code(path_on_disk: str) -> list[str]:
+    """
+    Real dead statements left after a return/break/continue/raise -- the C2
+    failure-registry entry, a different shape from _find_duplicate_functions()'s
+    whole-duplicate-function class and one that reproduced twice against the
+    real held-out eval even after that guard shipped (2026-07-29's tasks 4/6:
+    an old function's body pasted below a `return`, not re-defined as a whole
+    second function). Verified live before building this (86bb72wer): vulture
+    reports this exact defect as a distinct item.typ == "unreachable_code" at
+    a flat 100% confidence -- deliberately the ONLY item type read here.
+    Everything else vulture reports (unused function/variable/import, ~60%
+    confidence) needs whole-project call-graph context to be reliable and
+    would false-positive on nearly every function in a single freshly-edited
+    file, so it's ignored entirely. Needs a real on-disk path, not a source
+    string -- fine here, since the edit has already landed by the time this
+    post-dispatch check runs.
+    """
+    v = Vulture()
+    v.scavenge([path_on_disk])
+    return [item.get_report() for item in v.get_unused_code() if item.typ == "unreachable_code"]
+
+
 # Real observed loop (86bb728nj, found while auditing the 2026-08-01 held-out
 # eval): the model repeatedly re-attempts file_replace against the same path
 # after earlier attempts on that same path already failed, instead of
@@ -474,6 +498,7 @@ GUARD_READ_BEFORE_WRITE = "read_before_write"
 GUARD_REPEAT_READ = "repeat_read"
 GUARD_CONTENT_SYNTAX_INVALID = "content_syntax_invalid"
 GUARD_CONTENT_DUPLICATE_FUNCTION = "content_duplicate_function"
+GUARD_CONTENT_UNREACHABLE_CODE = "content_unreachable_code"
 GUARD_WRITE_FILE_NUDGE_MISSING_TARGET = "write_file_nudge_missing_target"
 GUARD_WRITE_FILE_NUDGE_THRESHOLD = "write_file_nudge_threshold"
 GUARD_NEAR_MISS_PARSE = "near_miss_parse"
@@ -652,6 +677,15 @@ def _execute_tool_guarded(
                         f"-- file_replace likely left the old version behind next to a new, similar one"
                     )
                     guard_fired = GUARD_CONTENT_DUPLICATE_FUNCTION
+                else:
+                    unreachable = _find_unreachable_code(os.path.join(root, path))
+                    if unreachable:
+                        invalidity_reason = (
+                            f"it has what looks like unreachable dead code: {'; '.join(unreachable)} "
+                            f"-- file_replace likely left old statements behind after a "
+                            f"return/break/continue/raise"
+                        )
+                        guard_fired = GUARD_CONTENT_UNREACHABLE_CODE
 
         if invalidity_reason:
             guard_events.append({"guard": guard_fired, "detail": path})
