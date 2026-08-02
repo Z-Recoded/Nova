@@ -584,6 +584,160 @@ def _check_module_level_name_order(diff: str, root: str) -> list[str]:
     return reasons
 
 
+class _EagerImportCollector(ast.NodeVisitor):
+    """
+    Collects the module names of every Import/ImportFrom statement that
+    executes at true import time -- module top level, class bodies, and the
+    body of if/while/try/for/with (all reached via the default
+    generic_visit, since none of those are overridden below) -- but never
+    descends into a FunctionDef/AsyncFunctionDef body, since a lazy import
+    inside a function only ever runs at call time, well after the module has
+    finished loading, and can never itself contribute to a real import-time
+    cycle. This is exactly the pattern this repo's own code already uses in
+    a couple of spots to break a potential cycle on purpose (e.g. nova_log.
+    _read_benchmark_entries()'s local import) -- deliberately not flagged.
+    """
+
+    def __init__(self) -> None:
+        self.modules: set[str] = set()
+
+    def visit_Import(self, node: ast.Import) -> None:
+        for alias in node.names:
+            self.modules.add(alias.name)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        if node.module and node.level == 0:
+            self.modules.add(node.module)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        pass  # lazy import inside a function body can't form a real import-time cycle
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        pass
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        pass  # a lambda body can't contain an import statement anyway, but stay consistent
+
+
+def _eager_imports(source: str) -> set[str]:
+    """
+    Real module names a source file imports at true import time only -- see
+    _EagerImportCollector's own docstring for exactly what "eager" means
+    here. Returns bare module names (e.g. "nova_benchmark", "os"), not
+    individual imported symbols -- only which OTHER MODULES this one
+    depends on at load time matters for cycle detection, not what it
+    imports from them. Relative imports (`from . import x`) are skipped --
+    this repo is a flat module layout with no packages to resolve them
+    against.
+    """
+    tree = ast.parse(source)
+    collector = _EagerImportCollector()
+    collector.visit(tree)
+    return collector.modules
+
+
+def _find_import_cycle(current: str, target: str, root: str, visited: set[str]) -> list[str] | None:
+    """
+    DFS following only eager (import-time) imports outward from `current`,
+    looking for a path that leads back to `target`. Returns the real chain
+    the moment one is found (e.g. ["nova_benchmark", "nova_query",
+    "nova_log"] when called with current="nova_benchmark",
+    target="nova_log"), or None if no such path exists.
+
+    `visited` accumulates every module name already explored in this one
+    DFS (mutated in place across recursive calls) so a module reachable via
+    more than one branch is only ever read and expanded once -- it is not a
+    record of the current path, which is instead reconstructed on the way
+    back up the recursion via each call's own return value.
+
+    Reads each candidate module's source directly from `root` and stops
+    following a name the moment there's no corresponding <name>.py on disk
+    -- stdlib/third-party imports can't recurse back to a local file, so
+    there's nothing further to explore down that branch. Deliberately
+    static, same reasoning as _check_module_level_name_order's own
+    docstring: never a real `import <module>` call, since several of this
+    repo's own modules construct a live Chroma HttpClient at module scope.
+    """
+    if current in visited:
+        return None
+    visited.add(current)
+
+    module_path = os.path.join(root, f"{current}.py")
+    if not os.path.isfile(module_path):
+        return None  # stdlib/third-party -- can't recurse back to a local file
+
+    try:
+        source = open(module_path, encoding="utf-8").read()
+        eager = _eager_imports(source)
+    except (OSError, SyntaxError):
+        return None
+
+    for imported in sorted(eager):
+        if imported == target:
+            return [current, target]
+        chain = _find_import_cycle(imported, target, root, visited)
+        if chain is not None:
+            return [current] + chain
+    return None
+
+
+def _check_module_level_circular_imports(diff: str, root: str) -> list[str]:
+    """
+    Hard-fail reasons, one per touched .py file whose current (post-edit)
+    top-level imports form a genuine import-time cycle back to itself --
+    e.g. nova_log importing nova_benchmark, which imports nova_query, which
+    imports back from nova_log. Every module in the chain reports valid
+    Python (ast.parse() succeeds) and every individual name is bound in
+    correct source order (_check_module_level_name_order sees nothing
+    wrong) -- this is a distinct defect class neither existing check can
+    see, since it only becomes visible once you follow imports ACROSS file
+    boundaries rather than within one file.
+
+    Built after this exact failure shape was found in a real held-out eval
+    (2026-08-02, task 6, Nova Log Benchmark view): the model added a
+    top-level `from nova_benchmark import BENCHMARK_LOG_PATH` to
+    nova_log.py, forming exactly this cycle -- and the gate false-passed it,
+    since neither check above has any cross-module concept. Claude's
+    original solution for the same task used a local (inside-function)
+    import specifically to avoid this cycle.
+
+    Only flags a cycle where every edge is eager (see _eager_imports /
+    _find_import_cycle) -- a cycle broken by even one local import anywhere
+    in the chain is a real, standard, safe pattern already used elsewhere in
+    this repo, not a bug. Reports at most one chain per touched file, to
+    avoid pile-on noise if multiple of its imports all happen to cycle back.
+    """
+    reasons = []
+    for path in _touched_files(diff):
+        if not path.endswith(".py"):
+            continue
+        full_path = os.path.join(root, path)
+        if not os.path.isfile(full_path):
+            continue
+        module_name = os.path.splitext(os.path.basename(path))[0]
+        try:
+            source = open(full_path, encoding="utf-8").read()
+            eager = _eager_imports(source)
+        except (OSError, SyntaxError):
+            continue  # unreadable or a real syntax error -- _check_syntax_valid already reports that case
+
+        for imported in sorted(eager):
+            if imported == module_name:
+                continue  # a direct self-import is a different (also broken) pattern -- not this check's concern
+            chain = _find_import_cycle(imported, module_name, root, {module_name})
+            if chain is not None:
+                reasons.append(
+                    f"'{path}' has a real module-level (eager) import cycle: "
+                    f"{' -> '.join([module_name] + chain)} -- this would very likely crash with "
+                    f'"ImportError: cannot import name ... from partially initialized module" '
+                    f"the instant '{path}' is imported. Consider a local (inside-function) import "
+                    f"to break the cycle, same pattern already used elsewhere in this repo (e.g. "
+                    f"nova_log._read_benchmark_entries())."
+                )
+                break
+    return reasons
+
+
 def _check_forbidden_paths_untouched(diff: str, forbidden_files: list[str]) -> list[str]:
     """
     Hard-fail reasons, one per file the task's own spec explicitly named as
@@ -802,6 +956,7 @@ def check_ground_truth_completion(
     hard_fails = []
     hard_fails.extend(_tag("syntax_valid", _check_syntax_valid(diff, root)))
     hard_fails.extend(_tag("module_level_name_order", _check_module_level_name_order(diff, root)))
+    hard_fails.extend(_tag("cross_module_circular_import", _check_module_level_circular_imports(diff, root)))
     hard_fails.extend(
         _tag("required_files_touched", _check_required_files_touched(diff, requirements["required_files"]))
     )
