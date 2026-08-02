@@ -211,31 +211,62 @@ _TOOLS_BLOCK_RE = re.compile(r"<tools>(.*?)(?:</tools>|\Z)", re.DOTALL)
 # ── Tool-call parsing ────────────────────────────────────────────
 
 
-def _parse_tool_json(raw: str):
+def _parse_one(raw: str):
     """
-    Fallback chain per vLLM PR #32931: single JSON object/array (tried both
-    strict and lenient -- a real observed failure mode is the model
-    embedding a literal newline inside a string value instead of a \\n
-    escape, which strict JSON rejects as an invalid control character),
-    else JSONL (one object per line).
+    Try, in order: strict JSON, lenient JSON, then Python's own literal
+    parser. ast.literal_eval recovers two real, verified defect classes
+    json.loads can never parse under any strictness setting: single-quoted
+    string values (valid Python, not valid JSON -- happens when a value
+    needs to contain a literal double-quote and the model switches
+    delimiter instead of escaping it, e.g. "new_str": 'CODING_AGENT_PREFIX =
+    "/code "...'), and trailing '# comment' text (valid Python comment
+    syntax, meaningless to JSON). Confirmed live 2026-08-02 against two real
+    captured near-miss bursts before this was built -- not a theoretical
+    fallback. Returns the parsed value, or None if every parser failed.
+    """
+    for parser in (
+        lambda s: json.loads(s, strict=True),
+        lambda s: json.loads(s, strict=False),
+        ast.literal_eval,
+    ):
+        try:
+            return parser(raw)
+        except (json.JSONDecodeError, ValueError, SyntaxError):
+            continue
+    return None
+
+
+def _parse_tool_json(raw: str) -> tuple[list[dict], list[str]]:
+    """
+    Returns (calls, failed_fragments) -- real bug found live 2026-08-02: the
+    previous JSONL-per-line fallback aborted the ENTIRE burst the instant
+    any single line failed to parse, discarding every other genuinely
+    well-formed call alongside it (verified against a real 4-line burst: 3
+    valid lines were lost because 1 line carried a trailing comment). This
+    now recovers whatever parses at each level -- only fragments that fail
+    every parser in _parse_one() (whole-block, then per-line) come back as
+    failed_fragments for the caller to flag as a near-miss.
     """
     raw = raw.strip()
-    for strict in (True, False):
-        try:
-            return json.loads(raw, strict=strict)
-        except json.JSONDecodeError:
-            continue
 
-    objects = []
+    whole = _parse_one(raw)
+    if isinstance(whole, dict):
+        return [whole], []
+    if isinstance(whole, list):
+        return [item for item in whole if isinstance(item, dict)], []
+
+    calls: list[dict] = []
+    failed: list[str] = []
     for line in raw.splitlines():
         line = line.strip()
         if not line:
             continue
-        try:
-            objects.append(json.loads(line))
-        except json.JSONDecodeError:
-            return None
-    return objects or None
+        parsed_line = _parse_one(line)
+        if isinstance(parsed_line, dict):
+            calls.append(parsed_line)
+        else:
+            failed.append(line)
+    return calls, failed
 
 
 def _parse_tool_calls(content: str) -> tuple[list[dict], list[str]]:
@@ -244,28 +275,23 @@ def _parse_tool_calls(content: str) -> tuple[list[dict], list[str]]:
     into tool-call dicts. Returns (calls, near_misses).
 
     near_misses (86bb71x1j, Level 3 -- lenient parsing with visible
-    near-misses) is the raw text of any <tools> block that produced zero
-    usable tool-call dicts. A <tools> block existing at all means the model
-    was clearly attempting a tool call -- previously a parse failure here
-    was silently dropped, indistinguishable from the model genuinely having
-    nothing left to do. That silence is the same shape as the E1/G2 false-
-    completion failure (a stopped turn misread as real completion), just
-    from a different root cause -- surfacing it lets the caller react
-    instead of falsely closing out the task.
+    near-misses) is the raw text of any fragment that produced zero usable
+    tool-call dicts, even after _parse_tool_json()'s full recovery chain. A
+    <tools> block existing at all means the model was clearly attempting a
+    tool call -- previously a parse failure here was silently dropped,
+    indistinguishable from the model genuinely having nothing left to do.
+    That silence is the same shape as the E1/G2 false-completion failure (a
+    stopped turn misread as real completion), just from a different root
+    cause -- surfacing it lets the caller react instead of falsely closing
+    out the task. A single block can now yield BOTH real calls and
+    near-misses at once (partial recovery), unlike before this fix.
     """
     calls: list[dict] = []
     near_misses: list[str] = []
     for raw_block in _TOOLS_BLOCK_RE.findall(content):
-        parsed = _parse_tool_json(raw_block)
-        block_calls: list[dict] = []
-        if isinstance(parsed, dict):
-            block_calls = [parsed]
-        elif isinstance(parsed, list):
-            block_calls = [item for item in parsed if isinstance(item, dict)]
-        if block_calls:
-            calls.extend(block_calls)
-        else:
-            near_misses.append(raw_block.strip())
+        block_calls, block_failed = _parse_tool_json(raw_block)
+        calls.extend(block_calls)
+        near_misses.extend(block_failed)
     return calls, near_misses
 
 
@@ -1033,6 +1059,18 @@ def run_via_runpod(
         content = response["message"]["content"]
         tool_calls, near_misses = _parse_tool_calls(content)
 
+        if near_misses:
+            # Logged unconditionally now (real fix, 2026-08-02): a burst can
+            # partially succeed since _parse_tool_json()'s recovery chain
+            # was hardened -- some fragments parse into real tool_calls,
+            # others still don't -- so this must fire even when tool_calls
+            # also has entries, not just when the whole turn came back
+            # empty (the retry-nudge message below still only fires in that
+            # narrower case).
+            guard_events.append(
+                {"guard": GUARD_NEAR_MISS_PARSE, "detail": f"turn {turn}, {len(near_misses)} fragment(s)"}
+            )
+
         total_cost_usd += response.get("cost_usd") or 0.0
         total_execution_time_ms += response.get("execution_time_ms") or 0
 
@@ -1076,10 +1114,9 @@ def run_via_runpod(
                 # from "no more tool calls, done." Re-shown every occurrence
                 # (not nudged-once like the checks below) since a parse
                 # failure is a mechanical problem with a mechanical fix, not
-                # a behavioral pattern that needs a single correction.
-                guard_events.append(
-                    {"guard": GUARD_NEAR_MISS_PARSE, "detail": f"turn {turn}, {len(near_misses)} block(s)"}
-                )
+                # a behavioral pattern that needs a single correction. Only
+                # reached here when tool_calls is ALSO empty -- guard-event
+                # logging itself already happened above regardless.
                 messages.append(
                     {
                         "role": "user",
