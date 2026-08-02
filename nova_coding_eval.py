@@ -19,6 +19,7 @@ from pathlib import Path
 
 import nova_orchestrator
 import nova_orchestrator_runpod
+from nova_completion_gate import check_ground_truth_completion, extract_task_requirements
 
 LOGS_DIR = nova_orchestrator.LOGS_DIR
 AGENT_LOG_PATH = nova_orchestrator.AGENT_LOG_PATH
@@ -217,6 +218,13 @@ def run_runpod_backend(task_description: str, base_ref: str) -> dict:
     system_prompt = nova_orchestrator_runpod.build_condensed_system_prompt()
     messages = [{"role": "user", "content": task_description}]
 
+    # Extracted once here (86bb72wd5) -- same "extract once, reuse for both
+    # the allowlist guard and the completion gate" discipline as
+    # nova_orchestrator.run_coding_task(). This script bypasses that
+    # function entirely (see this function's own docstring), so it has to
+    # do this extraction itself rather than inheriting it.
+    requirements = extract_task_requirements(task_description)
+
     started_at = datetime.now()
     final_status, turns_used = nova_orchestrator_runpod.run_via_runpod(
         system_prompt,
@@ -230,9 +238,24 @@ def run_runpod_backend(task_description: str, base_ref: str) -> dict:
         False,
         nova_orchestrator.NOVA_AGENT_MAX_TURNS,
         nova_orchestrator_runpod.CODING_AGENT_MAX_OUTPUT_TOKENS,
+        requirements,
     )
     elapsed_s = round((datetime.now() - started_at).total_seconds(), 1)
     diff = _git_diff_against_ref(root, base_ref)
+
+    # Ground-truth completion gate (86bb71x39) -- real gap found live
+    # 2026-08-01: this standalone eval script calls run_via_runpod()
+    # directly, bypassing nova_orchestrator.run_coding_task() entirely, so
+    # the gate that's supposed to catch exactly this eval's own false-
+    # completion failures (Task 3's empty-diff-reported-as-"completed")
+    # was never actually exercised by a single run of this harness. Uses
+    # base_ref (this task's real pre-merge commit) instead of the
+    # function's "master" default -- see check_ground_truth_completion()'s
+    # own docstring, which names this exact eval-harness case.
+    gate_result = check_ground_truth_completion(
+        diff, task_description, root, base_ref=base_ref, requirements=requirements
+    )
+    nova_orchestrator._log_ground_truth_gate(branch_name, task_description, gate_result)
 
     return {
         "worktree_path": root,
@@ -241,10 +264,29 @@ def run_runpod_backend(task_description: str, base_ref: str) -> dict:
         "turns_used": turns_used,
         "elapsed_s": elapsed_s,
         "diff": diff,
+        "gate_result": gate_result,
     }
 
 
+def _format_gate_result(gate_result: dict) -> str:
+    """
+    Plain-text rendering of a check_ground_truth_completion() result for the
+    report -- surfaced up front so a false "completed"/"max_turns_reached"
+    status string (Task 3's real 2026-08-01 failure: an empty diff reported
+    as "completed") can't hide from whoever reads this report next.
+    """
+    if gate_result["passed"]:
+        lines = ["PASSED"]
+    else:
+        lines = ["FAILED"] + [f"  - {reason}" for reason in gate_result["hard_fails"]]
+    if gate_result["warnings"]:
+        lines.append("Warnings:")
+        lines.extend(f"  - {w}" for w in gate_result["warnings"])
+    return "\n".join(lines)
+
+
 def _report_section(index: int, claude_side: dict, runpod_side: dict) -> str:
+    gate_text = _format_gate_result(runpod_side["gate_result"])
     return (
         f"## Task {index}: {claude_side['task_description'][:100]}\n\n"
         f"**Full task description:**\n```\n{claude_side['task_description']}\n```\n\n"
@@ -254,6 +296,7 @@ def _report_section(index: int, claude_side: dict, runpod_side: dict) -> str:
         f"{runpod_side['turns_used']} turns, {runpod_side['elapsed_s']}s)\n\n"
         f"Worktree: `{runpod_side['worktree_path']}`\n\n"
         f"```diff\n{runpod_side['diff']}\n```\n\n"
+        f"**Ground-truth completion gate:**\n```\n{gate_text}\n```\n\n"
         f"**Verdict:** [ ] PASS   [ ] FAIL\n\n"
         f"**Notes:**\n\n\n"
         f"---\n\n"

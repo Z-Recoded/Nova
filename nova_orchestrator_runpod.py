@@ -31,6 +31,7 @@ import re
 from datetime import datetime
 
 import nova_remote_inference
+from nova_backend_profiles import RUNPOD_PROFILE
 
 # ── Config ─────────────────────────────────────────────────────
 
@@ -235,16 +236,35 @@ def _parse_tool_json(raw: str):
     return objects or None
 
 
-def _parse_tool_calls(content: str) -> list[dict]:
-    """Extract every <tools>...</tools> block from a response and parse each into tool-call dicts."""
+def _parse_tool_calls(content: str) -> tuple[list[dict], list[str]]:
+    """
+    Extract every <tools>...</tools> block from a response and parse each
+    into tool-call dicts. Returns (calls, near_misses).
+
+    near_misses (86bb71x1j, Level 3 -- lenient parsing with visible
+    near-misses) is the raw text of any <tools> block that produced zero
+    usable tool-call dicts. A <tools> block existing at all means the model
+    was clearly attempting a tool call -- previously a parse failure here
+    was silently dropped, indistinguishable from the model genuinely having
+    nothing left to do. That silence is the same shape as the E1/G2 false-
+    completion failure (a stopped turn misread as real completion), just
+    from a different root cause -- surfacing it lets the caller react
+    instead of falsely closing out the task.
+    """
     calls: list[dict] = []
+    near_misses: list[str] = []
     for raw_block in _TOOLS_BLOCK_RE.findall(content):
         parsed = _parse_tool_json(raw_block)
+        block_calls: list[dict] = []
         if isinstance(parsed, dict):
-            calls.append(parsed)
+            block_calls = [parsed]
         elif isinstance(parsed, list):
-            calls.extend(item for item in parsed if isinstance(item, dict))
-    return calls
+            block_calls = [item for item in parsed if isinstance(item, dict)]
+        if block_calls:
+            calls.extend(block_calls)
+        else:
+            near_misses.append(raw_block.strip())
+    return calls, near_misses
 
 
 # ── Tool dispatch, guarded ───────────────────────────────────────
@@ -357,6 +377,86 @@ def _maybe_suggest_write_file_fallback(content: str, path: str, failed_replace_c
     )
 
 
+# Real observed loop (86bb72wdx, generalizing the 86bb728nj/B3 nudge above):
+# a SINGLE refused file_replace against a path that doesn't exist at all can
+# never be fixed by a better old_str guess, no matter how many times it's
+# retried -- there is nothing to match against. The 2026-07-27 held-out
+# eval's task 1 hit exactly this: one refused file_replace on a path that
+# didn't exist yet, then the model never tried write_file at all across the
+# rest of its budget -- seven unproductive `ls` calls and an unrelated
+# throwaway file instead. FILE_REPLACE_FALLBACK_THRESHOLD's nudge never
+# fired because the model never repeated the SAME failing call twice; it
+# just wandered off. Unlike that threshold (which stays at 2 for the
+# "file exists but old_str keeps not matching" case -- a real edit might
+# still be one better guess away there), a missing target file has no such
+# ambiguity, so this nudges on the very first occurrence.
+def _suggest_write_file_for_missing_target(content: str, path: str) -> str:
+    """Nudge toward write_file immediately when file_replace failed because `path` doesn't exist at all."""
+    return (
+        f"{content}\n\n'{path}' doesn't exist in this worktree yet -- file_replace can never "
+        f"succeed against a file that isn't there, no matter how old_str is reworded. Call "
+        f"write_file('{path}', ...) to create it instead."
+    )
+
+
+# Goal re-anchoring (86bb72wfm): as a run's context fills with tool-call
+# output, the original task statement -- still technically in context, never
+# dropped -- becomes relatively less salient than the accumulated turn-by-
+# turn detail around it. Real incident this targets: qwen3:8b, think=True,
+# drifted off the actual task after ~2 turns into a fabricated unrelated one
+# ("add .rst extension support"), then destructively overwrote a real file
+# in service of the hallucinated task. F1's prompt-only fix attempt for a
+# related problem (over-explaining instead of editing) didn't hold up even
+# after explicit "stay focused" wording, so this is deliberately structural
+# instead: the original task is re-injected verbatim on a fixed cadence,
+# independent of whether the model would think to re-read it on its own.
+GOAL_REANCHOR_INTERVAL_TURNS = 6
+
+
+def _goal_reanchor_note(task_description: str) -> str:
+    """Verbatim restatement of the original task, appended periodically so it stays salient."""
+    return (
+        f"\n\n<reminder>\nYour original task, restated in full (context has filled with tool "
+        f"output since it was last shown):\n{task_description}\n</reminder>"
+    )
+
+
+# Task-scoped file allowlist (86bb72wd5): the single most severe entry in
+# the failure registry (D1) was the model disregarding an explicit
+# "preserve all existing behavior, only touch X" instruction and rewriting
+# unrelated working code from scratch, deleting a live RAG pipeline in the
+# process. The ground-truth completion gate's narrow-scope check (see
+# nova_completion_gate._check_narrow_scope_not_exceeded) catches this
+# AFTER the fact, from the diff. This is the pre-action complement: refuse
+# a write attempt against a path the task's own spec never named at all,
+# before the damage happens, matching the same deny-before-action pattern
+# VS Code's agent sandboxing, OpenAI Codex's FileSystemSandboxPolicy, and
+# Claude Code's own sandboxed Bash tool all use.
+#
+# Deliberately file-EXISTENCE-scoped, not edit-SIZE-scoped: it stops a write
+# to a file the task never mentioned, but does not (and structurally
+# cannot, pre-action) limit how much of an explicitly-named file gets
+# rewritten -- that remains the post-hoc narrow-scope check's job. The two
+# are complementary, not duplicates.
+def _in_scope_basenames(requirements: dict | None) -> set | None:
+    """
+    Basenames of every file extract_task_requirements() found explicitly
+    named in the task spec (required_files + narrow_scope_files) -- the
+    declared write allowlist for this task. Returns None (meaning: no
+    allowlist enforced, fail open) when `requirements` is None or the task
+    didn't name any specific files at all -- same fail-open discipline as
+    extract_task_requirements() itself: an under-populated extraction
+    should silently skip this guard, not block otherwise-legitimate work on
+    a loosely-scoped task ("explore and fix the bug") that never named
+    files up front.
+    """
+    if not requirements:
+        return None
+    names = {os.path.basename(f.strip()) for f in requirements.get("required_files", []) if f.strip()}
+    names |= {os.path.basename(f.strip()) for f in requirements.get("narrow_scope_files", []) if f.strip()}
+    return names or None
+
+
 def _execute_tool_guarded(
     name: str,
     args: dict,
@@ -366,28 +466,31 @@ def _execute_tool_guarded(
     read_paths: set,
     failed_calls: set,
     failed_replace_counts: dict,
+    in_scope_basenames: set | None = None,
 ) -> dict:
     """
     Wraps nova_orchestrator._execute_tool() (deferred import -- avoids
     import-time circularity with nova_orchestrator.py lazily importing this
-    module) with four extra checks: refuse write_file/file_replace on a
-    path that already exists on disk but hasn't been read_file'd yet this
-    task run; refuse a second read_file on a path already read (closes a
-    real observed loop: the model re-reading an already-read file up to 8
-    times instead of proceeding to the edit); refuse an exact repeat of a
-    call that already failed (closes a second real observed loop: the model
-    retrying an identical failing file_replace 8 times in a row -- e.g.
-    targeting an old_str for a route in a module it never actually wrote --
-    instead of recognizing the missing step); and, once a path has failed
-    file_replace FILE_REPLACE_FALLBACK_THRESHOLD+ times (not necessarily via
-    an *exact* repeat -- a third real loop shape, 86bb728nj, where each
-    attempt targets a slightly different old_str against the same stuck
-    path), append a proactive write_file suggestion to the error content.
-    The first three checks return a synthetic is_error result rather than
-    dispatching -- list_files/run_command and edits to brand-new paths are
-    never gated by the first two (run_command repeats can still legitimately
-    fail the same way twice for a different reason, so only the
-    failed-repeat check applies to it).
+    module) with five extra checks: refuse write_file/file_replace on a path
+    outside the task's own declared file scope, when one was extracted
+    (86bb72wd5 -- see _in_scope_basenames()'s own comment); refuse
+    write_file/file_replace on a path that already exists on disk but
+    hasn't been read_file'd yet this task run; refuse a second read_file on
+    a path already read (closes a real observed loop: the model re-reading
+    an already-read file up to 8 times instead of proceeding to the edit);
+    refuse an exact repeat of a call that already failed (closes a second
+    real observed loop: the model retrying an identical failing file_replace
+    8 times in a row -- e.g. targeting an old_str for a route in a module it
+    never actually wrote -- instead of recognizing the missing step); and,
+    once a path has failed file_replace FILE_REPLACE_FALLBACK_THRESHOLD+
+    times (not necessarily via an *exact* repeat -- a third real loop shape,
+    86bb728nj, where each attempt targets a slightly different old_str
+    against the same stuck path), append a proactive write_file suggestion
+    to the error content. The first four checks return a synthetic is_error
+    result rather than dispatching -- list_files/run_command are never
+    gated by the scope/read-before-write checks (run_command repeats can
+    still legitimately fail the same way twice for a different reason, so
+    only the failed-repeat check applies to it).
     """
     key = _call_key(name, args)
     path = args.get("path", "")
@@ -407,6 +510,18 @@ def _execute_tool_guarded(
             failed_replace_counts[path] = failed_replace_counts.get(path, 0) + 1
             content = _maybe_suggest_write_file_fallback(content, path, failed_replace_counts)
         return {"content": content, "is_error": True}
+
+    if name in ("write_file", "file_replace") and path and in_scope_basenames is not None:
+        if os.path.basename(path) not in in_scope_basenames:
+            return {
+                "content": (
+                    f"Refused: '{path}' was not named in this task's spec as a file to create or "
+                    f"modify. This task is scoped to a specific set of files -- if you genuinely "
+                    f"need to touch a different file to complete it, explain why in your final "
+                    f"summary instead of editing it directly."
+                ),
+                "is_error": True,
+            }
 
     if name in ("write_file", "file_replace"):
         if path and _worktree_has_file(root, path) and path not in read_paths:
@@ -435,10 +550,17 @@ def _execute_tool_guarded(
         failed_calls.add(key)
         if name == "file_replace":
             failed_replace_counts[path] = failed_replace_counts.get(path, 0) + 1
-            result = {
-                **result,
-                "content": _maybe_suggest_write_file_fallback(result["content"], path, failed_replace_counts),
-            }
+            if not _worktree_has_file(root, path):
+                # 86bb72wdx: no old_str rewording can ever fix a file_replace
+                # against a path that doesn't exist -- nudge on this very
+                # first failure rather than waiting for
+                # FILE_REPLACE_FALLBACK_THRESHOLD to accumulate.
+                result = {**result, "content": _suggest_write_file_for_missing_target(result["content"], path)}
+            else:
+                result = {
+                    **result,
+                    "content": _maybe_suggest_write_file_fallback(result["content"], path, failed_replace_counts),
+                }
     elif name == "file_replace" and not path.endswith(".py"):
         # Non-.py files skip the content-validity check below entirely (no
         # syntax/duplicate-function check applies), so this is the only
@@ -539,6 +661,7 @@ def _log_agent_turn_runpod(
     skill_version: str | None,
     pruned_pairs: int = 0,
     cost_usd: float | None = None,
+    near_miss_count: int = 0,
 ) -> None:
     """
     Sibling to nova_orchestrator._log_agent_turn(), writing the identical
@@ -560,8 +683,21 @@ def _log_agent_turn_runpod(
     cost from nova_remote_inference.py's execution-time-based calculation
     (86bb4gy0y punch-list item #5) -- None if the call failed before a
     cost could be computed.
+
+    near_miss_count (default 0, backward-compatible; 86bb71x1j Level 3): how
+    many <tools> blocks this turn produced zero usable tool-call dicts --
+    see _parse_tool_calls()'s own docstring. stop_reason distinguishes this
+    case ("near_miss") from a genuine "end_turn" so a reader of this log
+    doesn't need to re-derive it from tool_calls being empty alone.
     """
     from nova_orchestrator import AGENT_LOG_PATH
+
+    if tool_calls:
+        stop_reason = "tool_use"
+    elif near_miss_count:
+        stop_reason = "near_miss"
+    else:
+        stop_reason = "end_turn"
 
     entry = {
         "timestamp": datetime.now().isoformat(timespec="seconds"),
@@ -571,15 +707,17 @@ def _log_agent_turn_runpod(
         "task": task,
         "skill_category": skill_category,
         "skill_version": skill_version,
-        "stop_reason": "tool_use" if tool_calls else "end_turn",
+        "stop_reason": stop_reason,
         "tool_calls": [{"name": c.get("name"), "input": c.get("arguments")} for c in tool_calls],
         "input_tokens": usage.get("prompt_eval_count"),
         "output_tokens": usage.get("eval_count"),
         "cache_creation_input_tokens": None,
         "cache_read_input_tokens": None,
         "model": nova_remote_inference.MODEL_NAME,
+        "backend_profile": RUNPOD_PROFILE.name,
         "pruned_pairs": pruned_pairs,
         "cost_usd": cost_usd,
+        "near_miss_count": near_miss_count,
     }
     with open(AGENT_LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -710,6 +848,7 @@ def run_via_runpod(
     budget_gate_enabled: bool,
     max_turns: int,
     max_output_tokens: int,
+    requirements: dict | None = None,
 ) -> tuple[str, int]:
     """
     Runs the turn loop via Nova's RunPod-hosted Qwen2.5-Coder-32B endpoint
@@ -717,8 +856,17 @@ def run_via_runpod(
     (final_status, turns_used) contract as run_via_langgraph(). No
     client/model params -- this endpoint has one deployed model and no SDK
     client object, unlike the Claude/LangGraph paths.
+
+    requirements (86bb72wd5, default None -- backward-compatible): the
+    extract_task_requirements() dict nova_orchestrator.run_coding_task()
+    computes once up front for this backend, reused here to build the
+    task-scoped file allowlist (_in_scope_basenames()) and passed through
+    unchanged to check_ground_truth_completion() at the end of the task, so
+    the extraction only ever runs once per task, not twice.
     """
     from nova_token_budget import get_budget_status
+
+    in_scope_basenames = _in_scope_basenames(requirements)
 
     # `messages` arrives as [{"role": "user", "content": task_description}]
     # (nova_orchestrator.py never includes a system-role entry -- Claude's
@@ -769,7 +917,7 @@ def run_via_runpod(
             break
 
         content = response["message"]["content"]
-        tool_calls = _parse_tool_calls(content)
+        tool_calls, near_misses = _parse_tool_calls(content)
 
         total_cost_usd += response.get("cost_usd") or 0.0
         total_execution_time_ms += response.get("execution_time_ms") or 0
@@ -786,6 +934,7 @@ def run_via_runpod(
             skill_version,
             pruned_pairs=pairs_pruned,
             cost_usd=response.get("cost_usd"),
+            near_miss_count=len(near_misses),
         )
 
         messages.append({"role": "assistant", "content": content})
@@ -802,6 +951,30 @@ def run_via_runpod(
             if eval_count is not None and eval_count >= max_output_tokens:
                 final_status = "stopped_max_output_tokens"
                 break
+
+            if near_misses:
+                # Lenient parsing / visible near-misses (86bb71x1j, Level 3):
+                # a <tools> block existed but didn't parse -- the model
+                # clearly attempted a tool call, so this is an unfinished
+                # turn, not genuine completion. Directly targets the E1/G2
+                # false-completion shape from a different angle: a
+                # malformed attempt must never be silently indistinguishable
+                # from "no more tool calls, done." Re-shown every occurrence
+                # (not nudged-once like the checks below) since a parse
+                # failure is a mechanical problem with a mechanical fix, not
+                # a behavioral pattern that needs a single correction.
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "<tool_response>\nYour last <tools> block did not parse as valid "
+                            "tool-call JSON, so no tool was actually called. Re-send it using "
+                            'EXACTLY this format:\n<tools>\n{"name": "...", "arguments": '
+                            "{...}}\n</tools>\nwith valid JSON inside the tags.\n</tool_response>"
+                        ),
+                    }
+                )
+                continue
 
             if edited_paths and not has_verified_edits and not verification_nudge_used:
                 # Self-verification nudge (86bb71x2a): the model edited
@@ -833,13 +1006,28 @@ def run_via_runpod(
             name = call.get("name", "")
             args = call.get("arguments", {}) or {}
             result = _execute_tool_guarded(
-                name, args, root, slug, task_description, read_paths, failed_calls, failed_replace_counts
+                name,
+                args,
+                root,
+                slug,
+                task_description,
+                read_paths,
+                failed_calls,
+                failed_replace_counts,
+                in_scope_basenames,
             )
             if name in ("write_file", "file_replace") and not result.get("is_error", False):
                 edited_paths.add(args.get("path", ""))
             if name == "run_command" and edited_paths:
                 has_verified_edits = True
             messages.append({"role": "user", "content": f"<tool_response>\n{result['content']}\n</tool_response>"})
+
+        if turn % GOAL_REANCHOR_INTERVAL_TURNS == 0:
+            # Goal re-anchoring (86bb72wfm) -- appended onto the last
+            # tool-response message just added, not as a new message: the
+            # pruning logic above depends on messages staying in strict
+            # (assistant, user-tool-response) pairs.
+            messages[-1]["content"] += _goal_reanchor_note(task_description)
     else:
         final_status = "max_turns_reached"
 

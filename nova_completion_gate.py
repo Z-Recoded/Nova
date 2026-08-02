@@ -387,7 +387,9 @@ def _check_deliverables_present(diff: str, deliverables: list[str]) -> list[str]
 # ── Entry point ────────────────────────────────────────────────
 
 
-def check_ground_truth_completion(diff: str, task_description: str, root: str, base_ref: str = "master") -> dict:
+def check_ground_truth_completion(
+    diff: str, task_description: str, root: str, base_ref: str = "master", requirements: dict | None = None
+) -> dict:
     """
     Runs every ground-truth check and returns {"passed": bool, "hard_fails":
     [...], "warnings": [...]}. "passed" is False if any hard-fail check
@@ -403,6 +405,13 @@ def check_ground_truth_completion(diff: str, task_description: str, root: str, b
     against a different base (e.g. a held-out eval harness using a
     historical task's real pre-merge commit).
 
+    requirements: pass a dict already produced by extract_task_requirements()
+    to skip re-extracting it here -- the RunPod backend's task-scoped file
+    allowlist guard (86bb72wd5) needs this exact extraction before the task
+    even starts, and re-running the same Claude call a second time at the
+    end of the same task would be a real, avoidable duplicate cost. None
+    (the default) preserves the original behavior: extract fresh here.
+
     An empty diff short-circuits immediately: there is no point extracting
     requirements or checking syntax/deliverables against a diff with
     nothing in it, and skipping the API call here means a genuinely
@@ -412,7 +421,8 @@ def check_ground_truth_completion(diff: str, task_description: str, root: str, b
     if empty_diff_reason:
         return {"passed": False, "hard_fails": [empty_diff_reason], "warnings": []}
 
-    requirements = extract_task_requirements(task_description)
+    if requirements is None:
+        requirements = extract_task_requirements(task_description)
 
     hard_fails = []
     hard_fails.extend(_check_syntax_valid(diff, root))

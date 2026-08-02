@@ -23,7 +23,8 @@ from pathlib import Path
 import anthropic
 from dotenv import load_dotenv
 
-from nova_completion_gate import check_ground_truth_completion
+from nova_backend_profiles import CLAUDE_PROFILE
+from nova_completion_gate import check_ground_truth_completion, extract_task_requirements
 from nova_config import (
     get_approval_gate_patterns,
     get_approval_gate_poll_interval_seconds,
@@ -453,6 +454,7 @@ def _log_agent_turn(
         "cache_creation_input_tokens": response.usage.cache_creation_input_tokens,
         "cache_read_input_tokens": response.usage.cache_read_input_tokens,
         "model": response.model,
+        "backend_profile": CLAUDE_PROFILE.name,
     }
     with open(AGENT_LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -488,6 +490,14 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
     slug = _slugify(task_description)
     worktree_path, branch_name = _create_worktree(slug)
     root = str(worktree_path)
+
+    # Extracted once, up front, only for the RunPod lane -- the Claude lane
+    # has never shown the scope-violation failure mode this backs (86bb72wd5),
+    # so it doesn't pay for an extra Claude API call it doesn't need. Reused
+    # both for the task-scoped file allowlist guard (below) and the
+    # ground-truth completion gate at the end of this function, so the
+    # extraction only ever runs once per task, not twice.
+    requirements = extract_task_requirements(task_description) if runpod_enabled else None
 
     if runpod_enabled:
         # The full system prompt (_build_system_prompt) bakes in CLAUDE.md
@@ -539,6 +549,7 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
             budget_gate_enabled,
             NOVA_AGENT_MAX_TURNS,
             CODING_AGENT_MAX_OUTPUT_TOKENS,
+            requirements,
         )
     elif is_framework_integration_enabled("langgraph_orchestration"):
         # Lazy import: langgraph is only ever imported when this flag is on,
@@ -637,7 +648,7 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
     # blocks the commit itself -- see nova_completion_gate.py's own header
     # for why, and CLAUDE.md Section 8 for the "Marvin reviews every diff
     # by hand" standing rule this design leans on.
-    gate_result = check_ground_truth_completion(diff, task_description, root)
+    gate_result = check_ground_truth_completion(diff, task_description, root, requirements=requirements)
     _log_ground_truth_gate(branch_name, task_description, gate_result)
 
     # RunPod/Qwen writes, Claude reviews (2026-07-27 review-split decision) --
