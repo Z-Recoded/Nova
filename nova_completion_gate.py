@@ -21,6 +21,7 @@
 # call, not a correctness judgment.
 
 import ast
+import builtins
 import json
 import os
 import re
@@ -225,6 +226,364 @@ def _check_syntax_valid(diff: str, root: str) -> list[str]:
     return reasons
 
 
+def _assignment_target_names(target: ast.expr) -> set[str]:
+    """Real names one assignment/for/with target binds -- attribute/subscript targets don't bind a new name."""
+    if isinstance(target, ast.Name):
+        return {target.id}
+    if isinstance(target, (ast.Tuple, ast.List)):
+        names: set[str] = set()
+        for elt in target.elts:
+            names |= _assignment_target_names(elt)
+        return names
+    if isinstance(target, ast.Starred):
+        return _assignment_target_names(target.value)
+    return set()
+
+
+def _names_bound_by_statement(stmt: ast.stmt) -> set[str]:
+    """
+    Names a single top-level statement adds to the module namespace once it
+    finishes executing. Deliberately conservative: statement kinds not
+    explicitly handled here (if/try/while/for-else, etc.) contribute no
+    names -- same accepted-gap philosophy as every other best-effort check
+    in this file (e.g. nova_tools._cd_targets_outside_root's own doc on
+    what it doesn't try to model). A name legitimately bound only inside a
+    top-level `if` block would be treated as unbound afterward by this
+    checker, a known, accepted false-positive risk -- this codebase doesn't
+    lean on that pattern today (verified against every real top-level .py
+    file in the repo before this check was wired in).
+    """
+    if isinstance(stmt, ast.Import):
+        return {alias.asname or alias.name.split(".")[0] for alias in stmt.names}
+    if isinstance(stmt, ast.ImportFrom):
+        return {alias.asname or alias.name for alias in stmt.names if alias.name != "*"}
+    if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return {stmt.name}
+    if isinstance(stmt, ast.Assign):
+        names: set[str] = set()
+        for target in stmt.targets:
+            names |= _assignment_target_names(target)
+        return names
+    if isinstance(stmt, ast.AnnAssign) and stmt.target is not None:
+        return _assignment_target_names(stmt.target)
+    if isinstance(stmt, (ast.For, ast.AsyncFor)):
+        return _assignment_target_names(stmt.target)
+    if isinstance(stmt, (ast.With, ast.AsyncWith)):
+        names = set()
+        for item in stmt.items:
+            if item.optional_vars is not None:
+                names |= _assignment_target_names(item.optional_vars)
+        return names
+    return set()
+
+
+class _TopLevelLoadNameCollector(ast.NodeVisitor):
+    """
+    Collects every ast.Name(ctx=Load) referenced within one top-level
+    statement's OWN immediate execution -- explicitly not descending into
+    nested function/lambda bodies, since those run later, at call time, by
+    which point the whole module has finished loading and a forward
+    reference to a name defined further down the file is completely
+    legitimate (the normal, common case, not a bug). A class body, unlike a
+    function body, DOES execute immediately when the ClassDef statement
+    runs, so it's walked normally; methods defined inside that class body
+    are themselves function bodies and are skipped the same way as any
+    other nested function.
+
+    Known, accepted scope limit: a function's own decorator expressions and
+    default-argument values technically evaluate at def-time too, but
+    aren't walked here -- narrowing this to the two real, observed bug
+    shapes (a module-level dict/expression statement referencing a name not
+    yet bound) rather than a fully exhaustive checker, matching this file's
+    established best-effort philosophy elsewhere.
+    """
+
+    def __init__(self) -> None:
+        self.names: set[str] = set()
+
+    def visit_Name(self, node: ast.Name) -> None:
+        if isinstance(node.ctx, ast.Load):
+            self.names.add(node.id)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        pass  # deferred execution -- don't descend
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        pass
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        pass
+
+    def _visit_comprehension(self, node) -> None:
+        """
+        List/set/dict comprehensions and generator expressions create their
+        own scope in Python 3 -- the loop variable(s) they bind (e.g. `src`
+        in `[src["path"] for src in SOURCES]`) are valid only within the
+        comprehension itself and never need to already exist outside it.
+        Real false positives found and fixed before this check was wired
+        in: 6 of this repo's own real files hit exactly this shape, most
+        commonly `[x[...] for x in SOME_LIST]` at module level.
+
+        The first generator's iterable is the one exception -- it evaluates
+        in the ENCLOSING scope (there'd be nothing to iterate otherwise),
+        so it's visited normally against the outer collector's own bound
+        names. Everything else (the element expression, any `if` filters,
+        and any later generators in a multi-`for` comprehension) is
+        collected separately and only flagged if it references something
+        neither comprehension-local nor already bound outside.
+        """
+        comp_bound: set[str] = set()
+        for index, generator in enumerate(node.generators):
+            if index == 0:
+                self.visit(generator.iter)
+            else:
+                nested = _TopLevelLoadNameCollector()
+                nested.visit(generator.iter)
+                self.names |= nested.names - comp_bound
+            comp_bound |= _assignment_target_names(generator.target)
+            for if_clause in generator.ifs:
+                nested = _TopLevelLoadNameCollector()
+                nested.visit(if_clause)
+                self.names |= nested.names - comp_bound
+
+        elt_nodes = [node.key, node.value] if isinstance(node, ast.DictComp) else [node.elt]
+        for elt in elt_nodes:
+            nested = _TopLevelLoadNameCollector()
+            nested.visit(elt)
+            self.names |= nested.names - comp_bound
+
+    visit_ListComp = _visit_comprehension
+    visit_SetComp = _visit_comprehension
+    visit_DictComp = _visit_comprehension
+    visit_GeneratorExp = _visit_comprehension
+
+
+# Known process-exit calls -- used only by _handler_terminates() below to
+# recognize the one real, common try/except shape found in this repo:
+# `except ...: print(...); sys.exit(1)`. A bare name (exit/quit, the
+# REPL/interactive builtins) or a `module.func` attribute call matching one
+# of these pairs is treated as "this path never falls through."
+_EXIT_CALL_NAMES = {"exit", "quit"}
+_EXIT_CALL_ATTRS = {("sys", "exit"), ("os", "_exit"), ("os", "abort")}
+
+
+def _statement_terminates_control_flow(stmt: ast.stmt) -> bool:
+    """
+    True if `stmt` unconditionally ends control flow (raises, returns,
+    breaks/continues, or calls a known process-exit function) rather than
+    falling through to whatever comes after it. Deliberately narrow -- not
+    a general reachability analyzer, just enough to recognize the one real
+    pattern this check needs (see _handler_terminates()'s own docstring).
+    """
+    if isinstance(stmt, (ast.Raise, ast.Return, ast.Break, ast.Continue)):
+        return True
+    if isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Call):
+        func = stmt.value.func
+        if isinstance(func, ast.Name) and func.id in _EXIT_CALL_NAMES:
+            return True
+        if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+            if (func.value.id, func.attr) in _EXIT_CALL_ATTRS:
+                return True
+    return False
+
+
+def _handler_terminates(handler: ast.ExceptHandler) -> bool:
+    """
+    True if an except handler's last statement always ends control flow
+    instead of falling through. Real, common pattern found and fixed
+    before this check was wired in: `try: capacity_report = f() except
+    (...): print(...); sys.exit(1)` -- the ONLY way code after the
+    try/except runs is via the try body succeeding, since the handler
+    always exits the process, so `capacity_report` is safe to treat as
+    bound afterward even though it was only assigned inside the try body.
+    """
+    if not handler.body:
+        return False
+    return _statement_terminates_control_flow(handler.body[-1])
+
+
+# Names always available in a module's namespace without an explicit
+# import/assignment -- Python builtins plus the standard module dunders
+# present in every module by default.
+_ALWAYS_BOUND_NAMES = frozenset(dir(builtins)) | {
+    "__name__",
+    "__file__",
+    "__doc__",
+    "__builtins__",
+    "__package__",
+    "__spec__",
+    "__loader__",
+}
+
+
+def _check_statement_sequence(statements: list[ast.stmt], bound: set[str], path: str) -> list[str]:
+    """
+    Checks one ordered sequence of statements (a module body, or the nested
+    body/orelse/handler/finalbody of a compound statement) against `bound`,
+    mutating it in place as each statement's own bindings land -- so a
+    later statement in the SAME sequence correctly sees names bound by an
+    earlier one.
+
+    Recurses into if/while/for/with/try so a very common real pattern --
+    `if __name__ == "__main__": parser = argparse.ArgumentParser(); args =
+    parser.parse_args()` -- is tracked correctly in order (an earlier line
+    inside the block legitimately binds a name a later line inside the SAME
+    block then uses). Real bug found and fixed before this check was ever
+    wired into the gate: treating a compound statement's whole body as one
+    opaque, unordered blob (rather than recursing into it as its own
+    sequence) produced 43 false positives across this repo's own real
+    files, every single one this exact if-__main__-block shape -- would
+    have made the gate cry wolf constantly, worse than not having the
+    check at all.
+
+    Nested bindings are checked against a COPY of `bound`, never merged
+    back into the caller's set afterward -- a conditional block might not
+    run at all, so anything it binds should not be assumed available to
+    code after the block ends. Conservative, matches Python's real "maybe
+    bound" semantics; this codebase doesn't lean on top-level conditional
+    imports today (verified in the same false-positive sweep above).
+    """
+    reasons: list[str] = []
+    for stmt in statements:
+        own_names = _TopLevelLoadNameCollector()
+        if isinstance(stmt, ast.If):
+            own_names.visit(stmt.test)
+        elif isinstance(stmt, ast.While):
+            own_names.visit(stmt.test)
+        elif isinstance(stmt, (ast.For, ast.AsyncFor)):
+            own_names.visit(stmt.iter)
+        elif isinstance(stmt, (ast.With, ast.AsyncWith)):
+            for item in stmt.items:
+                own_names.visit(item.context_expr)
+        elif isinstance(stmt, ast.Try):
+            pass  # nothing of its own to check before descending into body/handlers
+        elif isinstance(stmt, ast.ClassDef):
+            for base in stmt.bases:
+                own_names.visit(base)
+            for keyword in stmt.keywords:
+                own_names.visit(keyword.value)
+        else:
+            own_names.visit(stmt)
+
+        unbound = own_names.names - bound - _ALWAYS_BOUND_NAMES
+        for name in sorted(unbound):
+            reasons.append(
+                f"'{path}' line {stmt.lineno}: '{name}' is referenced before anything binds it in this "
+                f"file (or it's never bound at all) -- this would raise NameError the instant the module "
+                f"is imported, not just a style nit."
+            )
+
+        if isinstance(stmt, ast.If):
+            # Unlike every other compound statement here, an if/else where
+            # BOTH branches bind the same name is unconditionally safe to
+            # propagate outward -- every real execution path binds it. Real,
+            # common pattern found and fixed before this check was wired
+            # in: `if x: report = a() else: report = b()` then `print(
+            # report)` -- flagged as a false positive until this
+            # intersection logic was added. A bare `if` with no `else`
+            # stays fully conservative (nothing propagates), same as
+            # every other compound statement below -- the "didn't enter
+            # the block" path really might leave a name unbound.
+            body_bound = set(bound)
+            orelse_bound = set(bound)
+            reasons.extend(_check_statement_sequence(stmt.body, body_bound, path))
+            reasons.extend(_check_statement_sequence(stmt.orelse, orelse_bound, path))
+            if stmt.orelse:
+                guaranteed = (body_bound - bound) & (orelse_bound - bound)
+                bound |= guaranteed
+        elif isinstance(stmt, ast.While):
+            reasons.extend(_check_statement_sequence(stmt.body, set(bound), path))
+            reasons.extend(_check_statement_sequence(stmt.orelse, set(bound), path))
+        elif isinstance(stmt, (ast.For, ast.AsyncFor)):
+            nested_bound = set(bound) | _assignment_target_names(stmt.target)
+            reasons.extend(_check_statement_sequence(stmt.body, nested_bound, path))
+            reasons.extend(_check_statement_sequence(stmt.orelse, set(bound), path))
+        elif isinstance(stmt, (ast.With, ast.AsyncWith)):
+            nested_bound = set(bound)
+            for item in stmt.items:
+                if item.optional_vars is not None:
+                    nested_bound |= _assignment_target_names(item.optional_vars)
+            reasons.extend(_check_statement_sequence(stmt.body, nested_bound, path))
+        elif isinstance(stmt, ast.Try):
+            try_bound = set(bound)
+            reasons.extend(_check_statement_sequence(stmt.body, try_bound, path))
+            all_handlers_terminate = bool(stmt.handlers) and all(_handler_terminates(h) for h in stmt.handlers)
+            for handler in stmt.handlers:
+                handler_bound = set(bound)
+                if handler.name:
+                    handler_bound.add(handler.name)
+                reasons.extend(_check_statement_sequence(handler.body, handler_bound, path))
+            reasons.extend(_check_statement_sequence(stmt.orelse, set(bound), path))
+            reasons.extend(_check_statement_sequence(stmt.finalbody, set(bound), path))
+            if all_handlers_terminate:
+                bound |= try_bound - bound
+        elif isinstance(stmt, ast.ClassDef):
+            # A class body executes immediately, top to bottom, just like a
+            # module -- a method def'd earlier in the same class body is
+            # legitimately bound for a later statement in that same body
+            # (e.g. `visit_ListComp = _visit_comprehension` right after
+            # `def _visit_comprehension(...):`). Real false positive found
+            # in this very file before this branch was added. Only the
+            # class NAME itself (handled by _names_bound_by_statement)
+            # propagates outward -- attributes/methods stay class-local.
+            reasons.extend(_check_statement_sequence(stmt.body, set(bound), path))
+
+        bound |= _names_bound_by_statement(stmt)
+    return reasons
+
+
+def _check_module_level_name_order(diff: str, root: str) -> list[str]:
+    """
+    Hard-fail reasons, one per real NameError-class bug: a name referenced
+    before anything has bound it yet, purely from source order. Python
+    executes a module's top-level statements top-to-bottom -- referencing a
+    name before its binding statement has run is a real, 100%-reproducible
+    NameError the instant the module is imported, even though
+    ast.parse()/_check_syntax_valid() sees it as perfectly valid syntax
+    (neither of those execute or resolve names, only parse grammar).
+
+    Built after this exact failure shape was independently reproduced
+    TWICE in one real held-out eval run (2026-08-01): a dict value calling
+    a function imported on a later line, and a real `import time` line
+    mangled into a bare `time` expression statement referencing a name
+    never bound anywhere in the file at all. Neither is a syntax error, so
+    neither was ever caught before this check existed.
+
+    Deliberately static, never a real `import <module>` subprocess call:
+    several of this repo's own modules (nova_query.py, ingest.py,
+    graph_builder.py) construct a live Chroma HttpClient at module scope --
+    actually importing an arbitrary touched file could make a real,
+    network-dependent call as a side effect of a supposedly cheap,
+    deterministic completion check. This only ever inspects the module's
+    own AST, in source order, against names bound by everything earlier --
+    it never executes anything.
+
+    Known, accepted limitation: walrus-operator bindings (`if (n :=
+    f()) > 0:`) aren't modeled as bindings at all, so a name bound only via
+    `:=` and used afterward will be (incorrectly) flagged. Left unfixed
+    deliberately -- verified zero real files in this repo use that pattern
+    today (the same real-file sweep that shook out and fixed every other
+    false positive here found none), so chasing full correctness for a
+    pattern with no real evidence of use would be scope creep beyond what
+    this check actually needs to earn its keep.
+    """
+    reasons = []
+    for path in _touched_files(diff):
+        if not path.endswith(".py"):
+            continue
+        full_path = os.path.join(root, path)
+        if not os.path.isfile(full_path):
+            continue
+        try:
+            source = open(full_path, encoding="utf-8").read()
+            tree = ast.parse(source)
+        except (OSError, SyntaxError):
+            continue  # unreadable or a real syntax error -- _check_syntax_valid already reports that case
+
+        reasons.extend(_check_statement_sequence(tree.body, set(), path))
+    return reasons
+
+
 def _check_forbidden_paths_untouched(diff: str, forbidden_files: list[str]) -> list[str]:
     """
     Hard-fail reasons, one per file the task's own spec explicitly named as
@@ -426,6 +785,7 @@ def check_ground_truth_completion(
 
     hard_fails = []
     hard_fails.extend(_check_syntax_valid(diff, root))
+    hard_fails.extend(_check_module_level_name_order(diff, root))
     hard_fails.extend(_check_required_files_touched(diff, requirements["required_files"]))
     hard_fails.extend(_check_forbidden_paths_untouched(diff, requirements["forbidden_files"]))
     hard_fails.extend(_check_narrow_scope_not_exceeded(root, base_ref, requirements["narrow_scope_files"]))
