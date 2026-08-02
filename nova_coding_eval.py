@@ -17,6 +17,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
+import nova_guard_stats
 import nova_orchestrator
 import nova_orchestrator_runpod
 from nova_completion_gate import check_ground_truth_completion, extract_task_requirements
@@ -311,6 +312,7 @@ def generate_report() -> str:
     """
     tasks = select_held_out_tasks()
     sections = []
+    run_branches = set()
     for i, entry in enumerate(tasks, start=1):
         claude_side = _reconstruct_claude_result(entry)
         base_ref = f"{claude_side['commit']}^"
@@ -319,6 +321,7 @@ def generate_report() -> str:
         print(
             f"  -> status={runpod_side['status']} turns={runpod_side['turns_used']} elapsed={runpod_side['elapsed_s']}s"
         )
+        run_branches.add(runpod_side["branch"])
 
         # Seeds real coding_review_log.jsonl data on every eval run, through
         # the exact same review path production dispatch will eventually use
@@ -334,6 +337,15 @@ def generate_report() -> str:
 
         sections.append(_report_section(i, claude_side, runpod_side))
 
+    # Guard-firing attribution (Marvin's ask, 2026-08-02) -- scoped to just
+    # this run's own branches (run_branches), not the full historical log,
+    # so this report answers "what fired THIS run" without older re-runs'
+    # counts bleeding in. See nova_guard_stats.py's own header for why a
+    # branch-prefix filter alone can't do this (every coding-agent task
+    # shares the same "nova-agent/" prefix).
+    guard_summary = nova_guard_stats.guard_firing_summary(branches=run_branches)
+    guard_summary_text = nova_guard_stats.format_guard_firing_summary(guard_summary)
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     os.makedirs(LOGS_DIR, exist_ok=True)
     output_path = os.path.join(LOGS_DIR, f"coding_eval_report_{timestamp}.md")
@@ -341,6 +353,12 @@ def generate_report() -> str:
         f.write("# Coding-Agent Eval Report -- RunPod/Qwen2.5-Coder-32B vs. Claude (original)\n\n")
         f.write(f"Generated: {datetime.now().isoformat(timespec='seconds')}\n\n")
         f.write("".join(sections))
+        f.write("## Guard/Gate Firing Summary\n\n")
+        f.write(
+            "Which guards and completion-gate checks actually fired across this run's tasks -- "
+            "see nova_guard_stats.py to re-run this against the full historical log.\n\n"
+        )
+        f.write(f"```\n{guard_summary_text}\n```\n")
 
     return output_path
 
