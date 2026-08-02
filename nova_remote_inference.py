@@ -84,10 +84,19 @@ RUNSYNC_TIMEOUT_SECONDS = 90
 HTTP_REQUEST_TIMEOUT_SECONDS = 100
 
 # Poll loop bounds, for jobs that don't finish inline within /runsync's own
-# wait. Confirmed live: real cold-start delay was ~30s on a quiet endpoint --
-# 180s leaves real headroom above that, not a tight guess.
+# wait. Originally 180s, based on one observed cold-start of ~30s on a quiet
+# endpoint. Real gap found 2026-08-02: this endpoint is configured
+# workersMin=0/workersMax=1 (confirmed via `nova_runpod_endpoint_deploy.py
+# status gwhpxqmae68fgr`) -- it scales to zero whenever idle, so EVERY
+# request after an idle gap pays a full cold start (reloading the 32B AWQ
+# model onto a fresh GPU instance), not just the first one, and that one
+# ~30s sample was never a real distribution. Two real held-out-eval tasks
+# hit the old 180s ceiling the same night; raised to 300s to tolerate a
+# slower cold start without paying for a continuously-warm worker
+# (workersMin=1 would eliminate this entirely but costs real GPU-idle
+# dollars -- a deliberate choice not made here).
 POLL_INTERVAL_SECONDS = 2.0
-POLL_MAX_TOTAL_SECONDS = 180
+POLL_MAX_TOTAL_SECONDS = 300
 
 TERMINAL_STATUSES = {"COMPLETED", "FAILED", "CANCELLED", "TIMED_OUT"}
 
