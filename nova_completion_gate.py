@@ -781,6 +781,82 @@ def _check_module_level_circular_imports(diff: str, root: str) -> list[str]:
     return reasons
 
 
+def _name_referenced_elsewhere(tree: ast.AST, import_stmt: ast.stmt, name: str) -> bool:
+    """
+    True if `name` is Name-referenced (Load context) anywhere in `tree`
+    outside `import_stmt` itself. Deliberately a whole-file, best-effort
+    scan rather than anything scope-aware -- covers both a direct call
+    (`run_coding_task(...)`) and attribute access off an `import os`-style
+    binding (`os.path`, whose AST shape is an Attribute wrapping a
+    Name(id="os")) with the same simple check.
+    """
+    for node in ast.walk(tree):
+        if node is import_stmt:
+            continue
+        if isinstance(node, ast.Name) and node.id == name and isinstance(node.ctx, ast.Load):
+            return True
+    return False
+
+
+def _check_unused_new_imports(diff: str, root: str) -> list[str]:
+    """
+    Soft-flag warnings, one per newly ADDED import whose bound name is never
+    referenced anywhere else in its file's current (post-edit) source.
+
+    Built after a real false-pass (2026-08-02 held-out eval, task 3): the
+    model's entire nova_query.py diff was a single new import line (`from
+    nova_orchestrator import run_coding_task`) -- the actual integration the
+    task's spec majority asked for was never written, and every hard-fail
+    check in this module structurally couldn't see it, since the diff was
+    non-empty, syntactically valid, correctly ordered, and the required file
+    WAS touched.
+
+    Deliberately a WARNING, not a hard fail -- this is a narrow, mechanical
+    proxy for "the model may have started but not finished a piece of
+    work," not a reliable signal on its own. It only catches the specific
+    tell this incident left behind (a dead import), not the general case of
+    a model writing a plausible-looking call that does nothing -- closing
+    that fully would mean judging whether the diff's content fulfills the
+    task's intent, exactly the LLM-judge-reading-a-trajectory pattern this
+    whole module exists to avoid trusting (see this module's own header).
+
+    Only checks imports that are themselves part of an ADDED line in the
+    diff -- a pre-existing unused import elsewhere in the file is a
+    style/legacy-code question, not evidence about this task.
+    """
+    added_lines = {
+        line[1:].strip() for line in diff.splitlines() if line.startswith("+") and not line.startswith("+++")
+    }
+    reasons = []
+    for path in _touched_files(diff):
+        if not path.endswith(".py"):
+            continue
+        full_path = os.path.join(root, path)
+        if not os.path.isfile(full_path):
+            continue
+        try:
+            source = open(full_path, encoding="utf-8").read()
+            tree = ast.parse(source)
+        except (OSError, SyntaxError):
+            continue  # unreadable or a real syntax error -- _check_syntax_valid already reports that case
+
+        for stmt in ast.walk(tree):
+            if not isinstance(stmt, (ast.Import, ast.ImportFrom)):
+                continue
+            segment = ast.get_source_segment(source, stmt)
+            if segment is None or segment.strip() not in added_lines:
+                continue  # not a newly added import -- pre-existing, not this task's concern
+
+            for bound_name in sorted(_names_bound_by_statement(stmt)):
+                if bound_name == "*" or _name_referenced_elsewhere(tree, stmt, bound_name):
+                    continue
+                reasons.append(
+                    f"'{path}' newly imports '{bound_name}' (line {stmt.lineno}) but never references it "
+                    f"anywhere else in the file -- possible sign of unfinished work, not just dead code."
+                )
+    return reasons
+
+
 def _check_forbidden_paths_untouched(diff: str, forbidden_files: list[str]) -> list[str]:
     """
     Hard-fail reasons, one per file the task's own spec explicitly named as
@@ -1013,5 +1089,6 @@ def check_ground_truth_completion(
         )
     )
     warnings = _tag("deliverables_present", _check_deliverables_present(diff, requirements["deliverables"]))
+    warnings.extend(_tag("unused_new_import", _check_unused_new_imports(diff, root)))
 
     return {"passed": not hard_fails, "hard_fails": hard_fails, "warnings": warnings}
