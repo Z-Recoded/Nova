@@ -795,6 +795,133 @@ def _check_module_level_circular_imports(diff: str, root: str) -> list[str]:
     return reasons
 
 
+def _eager_bound_names(statements: list[ast.stmt]) -> set[str]:
+    """
+    Every name bound at module level by this statement sequence, or by any
+    nested if/while/for/with/try body inside it (all execute immediately,
+    same "eager" scope concept as _EagerImportCollector) -- but never
+    descends into a function/class body, since a name a class only binds on
+    itself (an attribute or method) isn't a bare module-level name a `from
+    module import X` statement could ever resolve to; only the class's own
+    name (already returned by _names_bound_by_statement for the ClassDef
+    statement itself) matters for that.
+
+    Deliberately lenient, unlike _check_module_level_name_order's ordering
+    logic: a name bound only inside one branch of a conditional still
+    counts as "exists somewhere in this module." This check's job is
+    catching a definitely-missing export (something no code path ever
+    binds), not verifying a guaranteed one.
+    """
+    names: set[str] = set()
+    for stmt in statements:
+        names |= _names_bound_by_statement(stmt)
+        if isinstance(stmt, (ast.If, ast.While)):
+            names |= _eager_bound_names(stmt.body)
+            names |= _eager_bound_names(stmt.orelse)
+        elif isinstance(stmt, (ast.For, ast.AsyncFor)):
+            names |= _eager_bound_names(stmt.body)
+            names |= _eager_bound_names(stmt.orelse)
+        elif isinstance(stmt, (ast.With, ast.AsyncWith)):
+            names |= _eager_bound_names(stmt.body)
+        elif isinstance(stmt, ast.Try):
+            names |= _eager_bound_names(stmt.body)
+            for handler in stmt.handlers:
+                names |= _eager_bound_names(handler.body)
+            names |= _eager_bound_names(stmt.orelse)
+            names |= _eager_bound_names(stmt.finalbody)
+    return names
+
+
+def _local_module_file(root: str, dotted_module: str) -> str | None:
+    """
+    Real file path for a local dotted module name (e.g.
+    "browser_hands.harness.cdp_connect" -> ".../browser_hands/harness/
+    cdp_connect.py"), or None if no such file exists locally. Checks a
+    flat <module>.py first (the common case in this repo), falling back to
+    a package's <module>/__init__.py -- this repo has exactly one real
+    nested package (browser_hands/, per CLAUDE.md), so both shapes need
+    handling, not just the flat one the other cross-module checks assume.
+    """
+    parts = dotted_module.split(".")
+    flat_path = os.path.join(root, *parts) + ".py"
+    if os.path.isfile(flat_path):
+        return flat_path
+    init_path = os.path.join(root, *parts, "__init__.py")
+    if os.path.isfile(init_path):
+        return init_path
+    return None
+
+
+def _check_cross_module_missing_exports(diff: str, root: str) -> list[str]:
+    """
+    Hard-fail reasons, one per touched .py file with a `from <local_module>
+    import <name>` statement where <name> isn't actually bound anywhere in
+    <local_module>'s CURRENT (post-edit) source -- a distinct failure class
+    from both existing cross-module/single-file checks:
+    _check_module_level_circular_imports catches an eager IMPORT CYCLE;
+    _check_module_level_name_order only looks at ordering WITHIN one file.
+    Neither can see "the thing being imported simply isn't there anymore."
+
+    Built after a real held-out eval incident (2026-08-02, task 6, Nova Log
+    Benchmark view): a rewritten nova_log.py stopped defining
+    DEFAULT_RECENT_QUERIES_LIMIT at all, but nova_api.py's diff still
+    imported it -- a real ImportError the instant nova_api.py loads,
+    invisible to every other check since none of them verify an imported
+    name actually exists in the module it claims to come from.
+
+    Reads the target module's CURRENT worktree state, so a diff that
+    touches both the importer and the exporter together is handled
+    correctly (if the exporter's new version does define the name, nothing
+    is flagged). Only resolves imports pointing at a real local module
+    (_local_module_file returns a path) -- a third-party/stdlib import
+    missing a name would be that package's own bug, not this repo's, and
+    this check has no way to inspect an installed dependency's source
+    anyway. Star imports and relative imports are skipped -- a star import
+    can't be verified without executing the module, and this repo's flat
+    layout doesn't use relative imports.
+    """
+    reasons = []
+    for path in _touched_files(diff):
+        if not path.endswith(".py"):
+            continue
+        full_path = os.path.join(root, path)
+        if not os.path.isfile(full_path):
+            continue
+        try:
+            source = open(full_path, encoding="utf-8").read()
+            tree = ast.parse(source)
+        except (OSError, SyntaxError):
+            continue  # unreadable or a real syntax error -- _check_syntax_valid already reports that case
+
+        for stmt in ast.walk(tree):
+            if not isinstance(stmt, ast.ImportFrom):
+                continue
+            if not stmt.module or stmt.level != 0:
+                continue  # relative import -- nothing to resolve against a flat layout
+            target_path = _local_module_file(root, stmt.module)
+            if target_path is None:
+                continue  # not a local module -- stdlib/third-party, not this check's concern
+
+            try:
+                target_source = open(target_path, encoding="utf-8").read()
+                target_tree = ast.parse(target_source)
+            except (OSError, SyntaxError):
+                continue  # target itself unreadable/broken -- _check_syntax_valid already reports that
+
+            exported_names = _eager_bound_names(target_tree.body)
+            for alias in stmt.names:
+                if alias.name == "*":
+                    continue  # star import -- can't verify without executing the module
+                if alias.name not in exported_names:
+                    reasons.append(
+                        f"'{path}' imports '{alias.name}' from '{stmt.module}', but '{stmt.module}.py' "
+                        f"doesn't define '{alias.name}' anywhere -- this would raise "
+                        f"\"ImportError: cannot import name '{alias.name}' from '{stmt.module}'\" "
+                        f"the instant '{path}' is imported."
+                    )
+    return reasons
+
+
 def _name_referenced_elsewhere(tree: ast.AST, import_stmt: ast.stmt, name: str) -> bool:
     """
     True if `name` is Name-referenced (Load context) anywhere in `tree`
@@ -1090,6 +1217,7 @@ def check_ground_truth_completion(
     hard_fails.extend(_tag("syntax_valid", _check_syntax_valid(diff, root)))
     hard_fails.extend(_tag("module_level_name_order", _check_module_level_name_order(diff, root)))
     hard_fails.extend(_tag("cross_module_circular_import", _check_module_level_circular_imports(diff, root)))
+    hard_fails.extend(_tag("cross_module_missing_export", _check_cross_module_missing_exports(diff, root)))
     hard_fails.extend(
         _tag("required_files_touched", _check_required_files_touched(diff, requirements["required_files"], root))
     )
