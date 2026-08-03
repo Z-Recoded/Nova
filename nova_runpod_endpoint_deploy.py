@@ -115,7 +115,7 @@ def create_template(
     name: str,
     image_name: str,
     model_repo_id: str,
-    quantization: str,
+    quantization: str | None,
     max_model_len: int,
     gpu_memory_utilization: float,
     container_disk_gb: int,
@@ -124,19 +124,30 @@ def create_template(
     POST /templates -- creates the Docker image + env var bundle an endpoint
     references. isServerless=True marks this as a serverless template (not a
     Pod template) -- confirmed required against docs.runpod.io's template schema.
+
+    quantization=None omits the QUANTIZATION env var entirely rather than
+    passing an empty/placeholder string -- needed to deploy an unquantized
+    (bf16) checkpoint, e.g. the pre-AWQ merged fine-tune
+    (zrecoded/nova-qwen-coder-32b-dpo-merged): vLLM auto-detects "no
+    quantization" from the checkpoint's own config.json when the
+    `--quantization` flag isn't passed at all, but errors if given a
+    placeholder value that doesn't match any real quantization method.
     """
+    env = {
+        "MODEL_NAME": model_repo_id,
+        "HF_TOKEN": _resolve_hf_token(),
+        "MAX_MODEL_LEN": str(max_model_len),
+        "GPU_MEMORY_UTILIZATION": str(gpu_memory_utilization),
+    }
+    if quantization:
+        env["QUANTIZATION"] = quantization
+
     payload = {
         "name": name,
         "imageName": image_name,
         "isServerless": True,
         "containerDiskInGb": container_disk_gb,
-        "env": {
-            "MODEL_NAME": model_repo_id,
-            "HF_TOKEN": _resolve_hf_token(),
-            "QUANTIZATION": quantization,
-            "MAX_MODEL_LEN": str(max_model_len),
-            "GPU_MEMORY_UTILIZATION": str(gpu_memory_utilization),
-        },
+        "env": env,
     }
     response = requests.post(f"{RUNPOD_REST_BASE_URL}/templates", headers=_headers(), json=payload, timeout=30)
     response.raise_for_status()
@@ -193,11 +204,12 @@ def delete_endpoint(endpoint_id: str) -> None:
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
 def _cmd_deploy(args: argparse.Namespace) -> None:
+    quantization = None if args.quantization.lower() == "none" else args.quantization
     template = create_template(
         name=f"{args.name}-template",
         image_name=args.image,
         model_repo_id=args.model_repo_id,
-        quantization=args.quantization,
+        quantization=quantization,
         max_model_len=args.max_model_len,
         gpu_memory_utilization=args.gpu_memory_utilization,
         container_disk_gb=args.container_disk_gb,
