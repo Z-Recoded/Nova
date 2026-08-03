@@ -53,6 +53,7 @@ DEFAULT_CONFIG = {
         "skill_injection": False,
         "remote_gpu_inference": False,
         "runpod_coding_agent": False,
+        "devstral_coding_agent": False,
         "coding_review_pass": False,
     },
     "model_routing": {
@@ -302,6 +303,12 @@ FLAG_REGISTRY: dict[str, FlagMeta] = {
     "runpod_coding_agent": {
         "path": ["framework_integrations", "runpod_coding_agent"],
         "label": "RunPod Qwen2.5-Coder Task Runner",
+        "category": "scaffolding",
+        "aero_only": True,
+    },
+    "devstral_coding_agent": {
+        "path": ["framework_integrations", "devstral_coding_agent"],
+        "label": "RunPod Devstral Task Runner",
         "category": "scaffolding",
         "aero_only": True,
     },

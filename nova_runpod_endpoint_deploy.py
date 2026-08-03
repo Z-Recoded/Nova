@@ -119,6 +119,7 @@ def create_template(
     max_model_len: int,
     gpu_memory_utilization: float,
     container_disk_gb: int,
+    extra_env: dict[str, str] | None = None,
 ) -> dict:
     """
     POST /templates -- creates the Docker image + env var bundle an endpoint
@@ -132,6 +133,17 @@ def create_template(
     quantization" from the checkpoint's own config.json when the
     `--quantization` flag isn't passed at all, but errors if given a
     placeholder value that doesn't match any real quantization method.
+
+    extra_env passes through arbitrary additional env vars unchanged --
+    confirmed via runpod-workers/worker-vllm's own README that any env var
+    matching a valid vLLM AsyncEngineArgs field name (uppercased) is applied
+    automatically, so this needs no special-casing per model. Needed for a
+    model requiring flags this script doesn't otherwise expose, e.g.
+    Devstral's Mistral-native checkpoint format
+    (TOKENIZER_MODE/CONFIG_FORMAT/LOAD_FORMAT=mistral) and native
+    tool-calling (TOOL_CALL_PARSER=mistral, ENABLE_AUTO_TOOL_CHOICE=true).
+    Applied after the explicit keys below so an explicit --extra-env can
+    override one of them if a future caller ever needs to.
     """
     env = {
         "MODEL_NAME": model_repo_id,
@@ -141,6 +153,8 @@ def create_template(
     }
     if quantization:
         env["QUANTIZATION"] = quantization
+    if extra_env:
+        env.update(extra_env)
 
     payload = {
         "name": name,
@@ -203,6 +217,17 @@ def delete_endpoint(endpoint_id: str) -> None:
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
+def _parse_extra_env(pairs: list[str] | None) -> dict[str, str]:
+    """Turns repeated --extra-env KEY=VALUE args into a dict. Fails loudly on a malformed pair."""
+    extra_env = {}
+    for pair in pairs or []:
+        if "=" not in pair:
+            raise ValueError(f"--extra-env expects KEY=VALUE, got: {pair!r}")
+        key, value = pair.split("=", 1)
+        extra_env[key] = value
+    return extra_env
+
+
 def _cmd_deploy(args: argparse.Namespace) -> None:
     quantization = None if args.quantization.lower() == "none" else args.quantization
     template = create_template(
@@ -213,6 +238,7 @@ def _cmd_deploy(args: argparse.Namespace) -> None:
         max_model_len=args.max_model_len,
         gpu_memory_utilization=args.gpu_memory_utilization,
         container_disk_gb=args.container_disk_gb,
+        extra_env=_parse_extra_env(args.extra_env),
     )
     endpoint = create_endpoint(
         name=args.name,
@@ -262,6 +288,12 @@ if __name__ == "__main__":
     deploy_parser.add_argument("--workers-max", type=int, default=DEFAULT_WORKERS_MAX)
     deploy_parser.add_argument("--idle-timeout-seconds", type=int, default=DEFAULT_IDLE_TIMEOUT_SECONDS)
     deploy_parser.add_argument("--container-disk-gb", type=int, default=DEFAULT_CONTAINER_DISK_GB)
+    deploy_parser.add_argument(
+        "--extra-env",
+        action="append",
+        metavar="KEY=VALUE",
+        help="Additional template env var, repeatable (e.g. --extra-env TOOL_CALL_PARSER=mistral).",
+    )
     deploy_parser.set_defaults(func=_cmd_deploy)
 
     status_parser = subparsers.add_parser("status", help="Show an endpoint's current state.")

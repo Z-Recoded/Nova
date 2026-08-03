@@ -60,3 +60,18 @@ RUNPOD_PROFILE = BackendProfile(
         "SELF_VERIFICATION_PROMPT",
     ),
 )
+
+# Real native tool-calling, confirmed live 2026-08-03 against vLLM's
+# `mistral` tool-call parser -- unlike RUNPOD_PROFILE above, no prompted
+# tool-call-format instructions are needed at all (see
+# nova_orchestrator_devstral.build_devstral_system_prompt()'s own comment).
+DEVSTRAL_PROFILE = BackendProfile(
+    name="devstral_small_2507",
+    tool_call_format="native_openai_tool_use",
+    completion_signal="finish_reason_stop",
+    edit_format="file_replace_search_replace_or_write_file",
+    extra_system_prompt_fragments=(
+        "READ_BEFORE_WRITE_GUARD_PROMPT",
+        "SELF_VERIFICATION_PROMPT",
+    ),
+)
