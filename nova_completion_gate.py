@@ -102,6 +102,19 @@ def extract_task_requirements(task_description: str) -> dict:
     there), an under-populated requirement list is the safe direction here
     -- it silently skips a check rather than raising a false alarm off a
     malformed extraction.
+
+    temperature=0 -- real bug found 2026-08-02: two held-out eval runs
+    against the IDENTICAL task text and an IDENTICAL model diff (the RunPod
+    backend never touched launch_openwebui.ps1 either time) got two
+    different gate verdicts, because this call's default temperature let the
+    extraction itself vary run to run -- one run's required_files included
+    launch_openwebui.ps1, the other's didn't, so the same real unfixed
+    defect was caught once and silently missed once. This is a mechanical
+    extraction task, not creative work, so temperature=0 is the correct
+    setting, not just a tuning choice. Reduces but does not fully guarantee
+    determinism (a known Claude API characteristic at any temperature) --
+    still meaningfully better than the unset default, which had no reason
+    to be anything but the API's default (unspecified, effectively 1.0).
     """
     empty_result = {
         "required_files": [],
@@ -119,6 +132,7 @@ def extract_task_requirements(task_description: str) -> dict:
         message = client.messages.create(
             model=EXTRACTION_MODEL,
             max_tokens=EXTRACTION_MAX_TOKENS,
+            temperature=0,
             system=EXTRACTION_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": task_description}],
         )
