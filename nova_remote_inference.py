@@ -50,15 +50,16 @@ load_dotenv(dotenv_path=Path(__file__).parent / ".env")
 # a response -- the endpoint has exactly one model deployed, there's no
 # per-request model selection.
 #
-# TEMPORARY, 2026-08-01: pointed at the new AWQ-quantized fine-tune
-# (zrecoded/nova-qwen-coder-32b-awq, endpoint gwhpxqmae68fgr) for
-# nova_coding_eval.py's held-out re-eval only. Rollback to the stock model
-# is exactly these two lines -- revert to:
-#   MODEL_NAME = "Qwen/Qwen2.5-Coder-32B-Instruct-AWQ"
-#   RUNPOD_ENDPOINT_ID = "2ldulpirwqz1vp"
-# Keep this pointed at the new endpoint only if the eval clears a real pass
-# bar against Claude's baseline (Phase 3.5 swap-trigger framing, CLAUDE.md)
-# -- not on a vibe.
+# 2026-08-02: tested the unquantized bf16 merged fine-tune
+# (zrecoded/nova-qwen-coder-32b-dpo-merged, endpoint mlelod0lpc3rxg) against
+# the same 6-task held-out eval, to isolate whether AWQ quantization itself
+# was the coding-agent quality bottleneck. Real result: 3/6 clean passes
+# (vs. AWQ's typical 1/6) but also one severe, catastrophic scope-violating
+# rewrite (task 6) worse than anything the AWQ model produced -- deleted
+# live functions, fabricated fake config, introduced an undefined
+# cross-module import. Net: does not clearly clear a pass bar against
+# Claude's baseline, so reverted to the AWQ production endpoint per the
+# standing "only keep it if it clearly clears the bar" rule.
 MODEL_NAME = "zrecoded/nova-qwen-coder-32b-awq"
 
 RUNPOD_ENDPOINT_ID = "gwhpxqmae68fgr"
