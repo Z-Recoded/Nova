@@ -34,6 +34,8 @@ from vulture import Vulture
 
 import nova_remote_inference
 from nova_backend_profiles import RUNPOD_PROFILE
+from nova_config import is_framework_integration_enabled
+from nova_langfuse_client import log_turn
 
 # ── Config ─────────────────────────────────────────────────────
 
@@ -1001,6 +1003,17 @@ def run_via_runpod(
 
     in_scope_basenames = _in_scope_basenames(requirements)
 
+    # Resolved once per task run, not per turn -- matches this loop's own
+    # budget_gate_enabled parameter convention. When on, every real call
+    # this turn loop makes routes through nova_remote_inference.
+    # chat_with_logprobs() (the openai_route passthrough) instead of the
+    # raw-schema chat(), so log_turn() below has real per-token logprobs to
+    # report -- see chat_with_logprobs()'s own docstring for why the raw
+    # schema can't supply them at all (a real, confirmed finding, not an
+    # assumption). Off by default, so this endpoint's existing production
+    # request shape is unchanged unless tracing is actually turned on.
+    langfuse_tracing_enabled = is_framework_integration_enabled("langfuse_tracing")
+
     # `messages` arrives as [{"role": "user", "content": task_description}]
     # (nova_orchestrator.py never includes a system-role entry -- Claude's
     # system prompt is passed via a separate `system=` kwarg instead). This
@@ -1049,7 +1062,10 @@ def run_via_runpod(
             final_status = "stopped_context_overflow"
             break
 
-        response = nova_remote_inference.chat(messages, num_ctx=NUM_CTX, max_tokens=max_output_tokens)
+        if langfuse_tracing_enabled:
+            response = nova_remote_inference.chat_with_logprobs(messages, max_tokens=max_output_tokens)
+        else:
+            response = nova_remote_inference.chat(messages, num_ctx=NUM_CTX, max_tokens=max_output_tokens)
         if response is None:
             # Infra/network failure, not a model stop condition -- a distinct
             # string so a report reader can tell the two apart.
@@ -1087,6 +1103,18 @@ def run_via_runpod(
             pruned_pairs=pairs_pruned,
             cost_usd=response.get("cost_usd"),
             near_miss_count=len(near_misses),
+        )
+        log_turn(
+            branch_name,
+            turn,
+            RUNPOD_PROFILE.name,
+            nova_remote_inference.MODEL_NAME,
+            content,
+            tool_calls,
+            response.get("prompt_eval_count"),
+            response.get("eval_count"),
+            logprobs=response.get("logprobs"),
+            cost_usd=response.get("cost_usd"),
         )
 
         messages.append({"role": "assistant", "content": content})

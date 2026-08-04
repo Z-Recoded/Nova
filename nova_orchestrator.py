@@ -32,6 +32,7 @@ from nova_config import (
     is_framework_integration_enabled,
     is_pre_action_approval_gate_enabled,
 )
+from nova_langfuse_client import log_turn
 from nova_notify import send_notification
 from nova_skills import get_skill_version, load_skill
 from nova_state import get_state, write_state
@@ -629,6 +630,25 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
             )
 
             _log_agent_turn(slug, branch_name, turn, task_description, response, skill_category, skill_version)
+            text_content = "".join(block.text for block in response.content if block.type == "text")
+            tool_calls_for_trace = [
+                {"name": block.name, "input": block.input} for block in response.content if block.type == "tool_use"
+            ]
+            # logprobs always None here -- Claude's API exposes no
+            # token-level logprobs, unlike the self-hosted vLLM backends
+            # (see log_turn()'s own docstring). cost_usd also None -- this
+            # lane tracks spend via nova_token_budget's token-based budget
+            # model (record_usage() below), not a per-call dollar figure.
+            log_turn(
+                branch_name,
+                turn,
+                CLAUDE_PROFILE.name,
+                response.model,
+                text_content,
+                tool_calls_for_trace,
+                response.usage.input_tokens,
+                response.usage.output_tokens,
+            )
             if budget_gate_enabled:
                 record_usage(response.usage)
 

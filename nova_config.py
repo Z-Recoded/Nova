@@ -55,6 +55,7 @@ DEFAULT_CONFIG = {
         "runpod_coding_agent": False,
         "devstral_coding_agent": False,
         "coding_review_pass": False,
+        "langfuse_tracing": False,
     },
     "model_routing": {
         "enabled": False,
@@ -311,6 +312,12 @@ FLAG_REGISTRY: dict[str, FlagMeta] = {
         "label": "RunPod Devstral Task Runner",
         "category": "scaffolding",
         "aero_only": True,
+    },
+    "langfuse_tracing": {
+        "path": ["framework_integrations", "langfuse_tracing"],
+        "label": "Langfuse Turn-Loop Tracing",
+        "category": "scaffolding",
+        "aero_only": False,
     },
     "coding_review_pass_enabled": {
         "path": ["framework_integrations", "coding_review_pass"],

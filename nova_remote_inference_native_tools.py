@@ -116,13 +116,20 @@ def _extract_native_response(response_json: dict) -> dict | None:
     {"content": str | None, "tool_calls": [{"id", "name", "arguments": dict}],
     "finish_reason": str | None, "prompt_eval_count": int | None,
     "eval_count": int | None, "execution_time_ms": int | None,
-    "delay_time_ms": int | None, "cost_usd": float | None}.
+    "delay_time_ms": int | None, "cost_usd": float | None,
+    "logprobs": list[dict] | None}.
 
     Each tool call's "arguments" field arrives as a JSON-encoded string per
     the OpenAI function-calling spec (confirmed live: '{"path": "notes.txt"}')
     -- parsed here into a real dict so callers never have to re-parse it.
     Logs loudly and returns None on any shape mismatch, same discipline as
     nova_remote_inference._extract_answer().
+
+    "logprobs" (added for Observability Initiative Phase 1, 86bb7pawp) is a
+    real per-token list of {"token": str, "logprob": float} pairs pulled from
+    choice.logprobs.content[], or None if the caller didn't request logprobs
+    -- same standard OpenAI-compatible shape confirmed live against this
+    endpoint's own tool-calling responses.
     """
     try:
         result = response_json["output"][0]
@@ -139,6 +146,12 @@ def _extract_native_response(response_json: dict) -> dict | None:
         ]
         usage = result.get("usage", {})
         execution_time_ms = response_json.get("executionTime")
+
+        logprobs_content = (choice.get("logprobs") or {}).get("content")
+        logprobs = None
+        if logprobs_content:
+            logprobs = [{"token": entry["token"], "logprob": entry["logprob"]} for entry in logprobs_content]
+
         return {
             "content": message.get("content"),
             "tool_calls": tool_calls,
@@ -148,6 +161,7 @@ def _extract_native_response(response_json: dict) -> dict | None:
             "execution_time_ms": execution_time_ms,
             "delay_time_ms": response_json.get("delayTime"),
             "cost_usd": _calculate_cost_usd(execution_time_ms),
+            "logprobs": logprobs,
         }
     except (KeyError, IndexError, TypeError, json.JSONDecodeError) as e:
         print(
@@ -165,6 +179,8 @@ def chat_with_tools(
     tools: list[dict],
     max_tokens: int,
     tool_choice: str = "auto",
+    logprobs: bool = False,
+    top_logprobs: int | None = None,
 ) -> dict | None:
     """
     Send a chat-completion request with real native tool-calling to the
@@ -175,6 +191,13 @@ def chat_with_tools(
     contract, though this is a structurally distinct function with a
     structurally distinct return shape (real tool_calls, not a single
     content string), not a drop-in replacement for it.
+
+    logprobs/top_logprobs (added for Observability Initiative Phase 1,
+    86bb7pawp): standard OpenAI-compatible request params, default off so
+    every existing caller's behavior/payload is unchanged. top_logprobs is
+    only added to the payload when logprobs=True and a value is given --
+    vLLM's OpenAI-compatible route rejects top_logprobs without logprobs
+    set, so this avoids ever sending an invalid combination.
     """
     if not RUNPOD_API_KEY:
         print("[nova_remote_inference_native_tools] RUNPOD_API_KEY not set -- skipping remote call")
@@ -184,17 +207,23 @@ def chat_with_tools(
         "Authorization": f"Bearer {RUNPOD_API_KEY}",
         "Content-Type": "application/json",
     }
+    openai_input = {
+        "model": MODEL_NAME,
+        "messages": messages,
+        "tools": tools,
+        "tool_choice": tool_choice,
+        "max_tokens": max_tokens,
+        "temperature": SAMPLING_TEMPERATURE,
+    }
+    if logprobs:
+        openai_input["logprobs"] = True
+        if top_logprobs is not None:
+            openai_input["top_logprobs"] = top_logprobs
+
     payload = {
         "input": {
             "openai_route": "/v1/chat/completions",
-            "openai_input": {
-                "model": MODEL_NAME,
-                "messages": messages,
-                "tools": tools,
-                "tool_choice": tool_choice,
-                "max_tokens": max_tokens,
-                "temperature": SAMPLING_TEMPERATURE,
-            },
+            "openai_input": openai_input,
         }
     }
 

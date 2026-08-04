@@ -34,6 +34,8 @@ from datetime import datetime
 
 import nova_remote_inference_native_tools as native_inference
 from nova_backend_profiles import DEVSTRAL_PROFILE
+from nova_config import is_framework_integration_enabled
+from nova_langfuse_client import log_turn
 from nova_orchestrator_runpod import (
     CODING_AGENT_CONTEXT_WINDOW_TOKENS,
     CONTEXT_SAFETY_MARGIN_TOKENS,
@@ -245,6 +247,11 @@ def run_via_devstral(
     ]
     tools = native_inference.build_tool_schema()
 
+    # Resolved once per task run -- see nova_orchestrator_runpod.
+    # run_via_runpod()'s identical flag, whose docstring explains why this
+    # needs to be requested per-call rather than assumed always-on.
+    langfuse_tracing_enabled = is_framework_integration_enabled("langfuse_tracing")
+
     read_paths: set = set()
     failed_calls: set = set()
     failed_replace_counts: dict = {}
@@ -268,7 +275,13 @@ def run_via_devstral(
             final_status = "stopped_context_overflow"
             break
 
-        response = native_inference.chat_with_tools(messages, tools, max_tokens=max_output_tokens)
+        response = native_inference.chat_with_tools(
+            messages,
+            tools,
+            max_tokens=max_output_tokens,
+            logprobs=langfuse_tracing_enabled,
+            top_logprobs=1 if langfuse_tracing_enabled else None,
+        )
         if response is None:
             final_status = "stopped_devstral_call_failed"
             break
@@ -291,6 +304,18 @@ def run_via_devstral(
             skill_category,
             skill_version,
             pruned_pairs=pairs_pruned,
+            cost_usd=response.get("cost_usd"),
+        )
+        log_turn(
+            branch_name,
+            turn,
+            DEVSTRAL_PROFILE.name,
+            native_inference.MODEL_NAME,
+            content,
+            tool_calls,
+            response.get("prompt_eval_count"),
+            response.get("eval_count"),
+            logprobs=response.get("logprobs"),
             cost_usd=response.get("cost_usd"),
         )
 

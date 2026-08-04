@@ -231,6 +231,156 @@ def chat(messages: list[dict], num_ctx: int, max_tokens: int = MAX_OUTPUT_TOKENS
     return None
 
 
+def _extract_answer_with_logprobs(response_json: dict) -> dict | None:
+    """
+    Same shape as _extract_answer(), plus an additive "logprobs" key: a real
+    per-token list of {"token": str, "logprob": float} pairs, or None if the
+    response has none.
+
+    A SEPARATE function rather than a branch inside _extract_answer(),
+    because it parses a structurally different response envelope. Real,
+    confirmed finding (2026-08-03, Observability Phase 1): RunPod worker-
+    vllm's raw /runsync schema (the one _extract_answer() parses) silently
+    IGNORES a `sampling_params.logprobs` request -- a real live call with
+    `logprobs: 1` set came back with zero logprobs data anywhere, despite
+    RunPod's own generic docs implying otherwise. The openai_route/
+    openai_input passthrough (same mechanism nova_remote_inference_native_
+    tools.py already uses for Devstral's native tool-calling) DOES return
+    real per-token logprobs, in the standard OpenAI shape:
+    choice.logprobs.content[] = [{"token", "logprob", "bytes", "top_logprobs"}, ...].
+    So chat_with_logprobs() below sends the request via that passthrough
+    instead, and this function parses ITS response shape, not the raw
+    schema's.
+    """
+    try:
+        result = response_json["output"][0]
+        choice = result["choices"][0]
+        message = choice["message"]
+        answer_text = message.get("content") or ""
+        usage = result.get("usage", {})
+        execution_time_ms = response_json.get("executionTime")
+
+        logprobs_content = (choice.get("logprobs") or {}).get("content")
+        logprobs = None
+        if logprobs_content:
+            logprobs = [{"token": entry["token"], "logprob": entry["logprob"]} for entry in logprobs_content]
+
+        return {
+            "message": {"content": answer_text},
+            "prompt_eval_count": usage.get("prompt_tokens"),
+            "eval_count": usage.get("completion_tokens"),
+            "execution_time_ms": execution_time_ms,
+            "delay_time_ms": response_json.get("delayTime"),
+            "cost_usd": _calculate_cost_usd(execution_time_ms),
+            "logprobs": logprobs,
+        }
+    except (KeyError, IndexError, TypeError) as e:
+        print(
+            f"[nova_remote_inference] UNEXPECTED RESPONSE SHAPE (openai_route) -- schema "
+            f"assumption may be wrong: {e} -- raw response: {response_json}"
+        )
+        return None
+
+
+def chat_with_logprobs(messages: list[dict], max_tokens: int = MAX_OUTPUT_TOKENS, top_logprobs: int = 1) -> dict | None:
+    """
+    Same purpose as chat() -- send Nova's own RunPod-hosted Qwen model a
+    chat-completion request and return an ollama.chat()-shaped dict, or
+    None on any failure -- but via the openai_route/openai_input
+    passthrough instead of the raw /runsync schema, specifically so the
+    response carries real per-token logprobs (see _extract_answer_with_
+    logprobs()'s docstring for why the raw schema can't).
+
+    Deliberately a SEPARATE function from chat(), not a `logprobs` param
+    added to it: chat() is nova_query.py's production RAG-path call, and
+    this project's own convention (nova_remote_inference_native_tools.py's
+    header comment) is a new function/module for a structurally different
+    request schema, not a branch inside an existing one with a real
+    downstream dependency. Only Nova's coding sub-agent's RunPod backend
+    (Observability Initiative Phase 1) calls this -- nova_query.py is
+    untouched.
+    """
+    if not RUNPOD_API_KEY:
+        print("[nova_remote_inference] RUNPOD_API_KEY not set -- skipping remote call")
+        return None
+
+    headers = {
+        "Authorization": f"Bearer {RUNPOD_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "input": {
+            "openai_route": "/v1/chat/completions",
+            "openai_input": {
+                "model": MODEL_NAME,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": SAMPLING_TEMPERATURE,
+                "logprobs": True,
+                "top_logprobs": top_logprobs,
+            },
+        }
+    }
+
+    try:
+        response = requests.post(
+            RUNPOD_RUNSYNC_URL,
+            headers=headers,
+            json=payload,
+            timeout=HTTP_REQUEST_TIMEOUT_SECONDS,
+        )
+    except requests.RequestException as e:
+        print(f"[nova_remote_inference] request to RunPod (openai_route) failed: {e}")
+        return None
+
+    if response.status_code != 200:
+        print(f"[nova_remote_inference] RunPod (openai_route) returned {response.status_code}: {response.text[:500]}")
+        return None
+
+    data = response.json()
+    status = data.get("status")
+
+    if status == "COMPLETED":
+        return _extract_answer_with_logprobs(data)
+
+    if status in ("IN_QUEUE", "IN_PROGRESS"):
+        return _poll_until_terminal_with_logprobs(data["id"], headers)
+
+    print(f"[nova_remote_inference] unexpected initial status (openai_route) {status!r}: {data}")
+    return None
+
+
+def _poll_until_terminal_with_logprobs(job_id: str, headers: dict) -> dict | None:
+    """Same as _poll_until_terminal(), but for chat_with_logprobs()'s openai_route response shape."""
+    status_url = RUNPOD_STATUS_URL_TEMPLATE.format(job_id=job_id)
+    start_time = time.monotonic()
+
+    while time.monotonic() - start_time < POLL_MAX_TOTAL_SECONDS:
+        time.sleep(POLL_INTERVAL_SECONDS)
+        try:
+            response = requests.get(status_url, headers=headers, timeout=HTTP_REQUEST_TIMEOUT_SECONDS)
+        except requests.RequestException as e:
+            print(f"[nova_remote_inference] poll request (openai_route) failed: {e}")
+            return None
+
+        if response.status_code != 200:
+            print(f"[nova_remote_inference] poll (openai_route) returned {response.status_code}: {response.text[:500]}")
+            return None
+
+        data = response.json()
+        status = data.get("status")
+
+        if status == "COMPLETED":
+            return _extract_answer_with_logprobs(data)
+        if status in TERMINAL_STATUSES:
+            print(f"[nova_remote_inference] job ended with non-success status (openai_route) {status!r}: {data}")
+            return None
+        # else: still IN_QUEUE / IN_PROGRESS, keep polling
+
+    print(f"[nova_remote_inference] poll (openai_route) timed out after {POLL_MAX_TOTAL_SECONDS}s for job {job_id}")
+    return None
+
+
 def _poll_until_terminal(job_id: str, headers: dict) -> dict | None:
     """
     Poll RunPod's /status/{id} endpoint until the job reaches a terminal
