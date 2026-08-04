@@ -19,6 +19,7 @@ from pathlib import Path
 
 import nova_guard_stats
 import nova_orchestrator
+import nova_orchestrator_devstral
 import nova_orchestrator_runpod
 from nova_completion_gate import check_ground_truth_completion, extract_task_requirements
 
@@ -269,6 +270,57 @@ def run_runpod_backend(task_description: str, base_ref: str) -> dict:
     }
 
 
+def run_devstral_backend(task_description: str, base_ref: str) -> dict:
+    """
+    Runs one task through the Devstral backend (nova_orchestrator_devstral,
+    real native tool-calling) directly -- same bypass-the-flag-dispatch
+    rationale and same return shape as run_runpod_backend(), so
+    generate_report() can drive either backend through identical
+    task-selection/gate-check/report-formatting logic (see its own
+    `backend_fn` parameter).
+    """
+    slug = nova_orchestrator._slugify(task_description)
+    worktree_path, branch_name = _create_worktree_at(slug, base_ref)
+    root = str(worktree_path)
+    system_prompt = nova_orchestrator_devstral.build_devstral_system_prompt()
+    messages = [{"role": "user", "content": task_description}]
+
+    requirements = extract_task_requirements(task_description)
+
+    started_at = datetime.now()
+    final_status, turns_used = nova_orchestrator_devstral.run_via_devstral(
+        system_prompt,
+        messages,
+        root,
+        slug,
+        branch_name,
+        task_description,
+        None,
+        None,
+        False,
+        nova_orchestrator.NOVA_AGENT_MAX_TURNS,
+        nova_orchestrator_devstral.CODING_AGENT_MAX_OUTPUT_TOKENS,
+        requirements,
+    )
+    elapsed_s = round((datetime.now() - started_at).total_seconds(), 1)
+    diff = _git_diff_against_ref(root, base_ref)
+
+    gate_result = check_ground_truth_completion(
+        diff, task_description, root, base_ref=base_ref, requirements=requirements
+    )
+    nova_orchestrator._log_ground_truth_gate(branch_name, task_description, gate_result)
+
+    return {
+        "worktree_path": root,
+        "branch": branch_name,
+        "status": final_status,
+        "turns_used": turns_used,
+        "elapsed_s": elapsed_s,
+        "diff": diff,
+        "gate_result": gate_result,
+    }
+
+
 def _format_gate_result(gate_result: dict) -> str:
     """
     Plain-text rendering of a check_ground_truth_completion() result for the
@@ -286,17 +338,17 @@ def _format_gate_result(gate_result: dict) -> str:
     return "\n".join(lines)
 
 
-def _report_section(index: int, claude_side: dict, runpod_side: dict) -> str:
-    gate_text = _format_gate_result(runpod_side["gate_result"])
+def _report_section(index: int, claude_side: dict, backend_side: dict, backend_label: str) -> str:
+    gate_text = _format_gate_result(backend_side["gate_result"])
     return (
         f"## Task {index}: {claude_side['task_description'][:100]}\n\n"
         f"**Full task description:**\n```\n{claude_side['task_description']}\n```\n\n"
         f"### Claude (original, merged as `{claude_side['commit']}`, {claude_side['turns_used']} turns)\n\n"
         f"```diff\n{claude_side['diff']}\n```\n\n"
-        f"### RunPod / Qwen2.5-Coder-32B (status: `{runpod_side['status']}`, "
-        f"{runpod_side['turns_used']} turns, {runpod_side['elapsed_s']}s)\n\n"
-        f"Worktree: `{runpod_side['worktree_path']}`\n\n"
-        f"```diff\n{runpod_side['diff']}\n```\n\n"
+        f"### {backend_label} (status: `{backend_side['status']}`, "
+        f"{backend_side['turns_used']} turns, {backend_side['elapsed_s']}s)\n\n"
+        f"Worktree: `{backend_side['worktree_path']}`\n\n"
+        f"```diff\n{backend_side['diff']}\n```\n\n"
         f"**Ground-truth completion gate:**\n```\n{gate_text}\n```\n\n"
         f"**Verdict:** [ ] PASS   [ ] FAIL\n\n"
         f"**Notes:**\n\n\n"
@@ -304,11 +356,26 @@ def _report_section(index: int, claude_side: dict, runpod_side: dict) -> str:
     )
 
 
-def generate_report() -> str:
+def generate_report(
+    backend_fn=run_runpod_backend,
+    backend_label: str = "RunPod / Qwen2.5-Coder-32B",
+    report_tag: str = "",
+) -> str:
     """
-    Runs the full held-out set and writes one timestamped Markdown report
+    Runs the full held-out set through `backend_fn` (same (task_description,
+    base_ref) -> result-dict shape as run_runpod_backend()/
+    run_devstral_backend()) and writes one timestamped Markdown report
     (never overwritten). No automated scoring -- Marvin fills in a
     pass/fail verdict per task by hand.
+
+    backend_fn/backend_label/report_tag default to the original RunPod/Qwen
+    comparison for backward compatibility -- pass
+    backend_fn=run_devstral_backend, backend_label="RunPod / Devstral-
+    Small-2507", report_tag="_devstral" to run the identical held-out
+    comparison against the Devstral backend instead. All task-selection,
+    gate-check, and guard/gate-summary logic below is shared unchanged
+    between backends -- only which function actually executes each task
+    differs.
     """
     tasks = select_held_out_tasks()
     sections = []
@@ -316,12 +383,16 @@ def generate_report() -> str:
     for i, entry in enumerate(tasks, start=1):
         claude_side = _reconstruct_claude_result(entry)
         base_ref = f"{claude_side['commit']}^"
-        print(f"[{i}/{len(tasks)}] Running via RunPod (base {base_ref}): {claude_side['task_description'][:70]}...")
-        runpod_side = run_runpod_backend(claude_side["task_description"], base_ref)
         print(
-            f"  -> status={runpod_side['status']} turns={runpod_side['turns_used']} elapsed={runpod_side['elapsed_s']}s"
+            f"[{i}/{len(tasks)}] Running via {backend_label} (base {base_ref}): "
+            f"{claude_side['task_description'][:70]}..."
         )
-        run_branches.add(runpod_side["branch"])
+        backend_side = backend_fn(claude_side["task_description"], base_ref)
+        print(
+            f"  -> status={backend_side['status']} turns={backend_side['turns_used']} "
+            f"elapsed={backend_side['elapsed_s']}s"
+        )
+        run_branches.add(backend_side["branch"])
 
         # Seeds real coding_review_log.jsonl data on every eval run, through
         # the exact same review path production dispatch will eventually use
@@ -330,12 +401,12 @@ def generate_report() -> str:
         # production dispatch-time call inside run_coding_task(), and this
         # standalone research script's whole point here is to produce review
         # data regardless of whether that flag is on.
-        review = nova_orchestrator._review_coding_diff(runpod_side["diff"], claude_side["task_description"])
+        review = nova_orchestrator._review_coding_diff(backend_side["diff"], claude_side["task_description"])
         nova_orchestrator._log_coding_review(
-            runpod_side["branch"], claude_side["task_description"], runpod_side["diff"], review
+            backend_side["branch"], claude_side["task_description"], backend_side["diff"], review
         )
 
-        sections.append(_report_section(i, claude_side, runpod_side))
+        sections.append(_report_section(i, claude_side, backend_side, backend_label))
 
     # Guard-firing attribution (Marvin's ask, 2026-08-02) -- scoped to just
     # this run's own branches (run_branches), not the full historical log,
@@ -348,9 +419,9 @@ def generate_report() -> str:
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     os.makedirs(LOGS_DIR, exist_ok=True)
-    output_path = os.path.join(LOGS_DIR, f"coding_eval_report_{timestamp}.md")
+    output_path = os.path.join(LOGS_DIR, f"coding_eval_report_{timestamp}{report_tag}.md")
     with open(output_path, "w", encoding="utf-8") as f:
-        f.write("# Coding-Agent Eval Report -- RunPod/Qwen2.5-Coder-32B vs. Claude (original)\n\n")
+        f.write(f"# Coding-Agent Eval Report -- {backend_label} vs. Claude (original)\n\n")
         f.write(f"Generated: {datetime.now().isoformat(timespec='seconds')}\n\n")
         f.write("".join(sections))
         f.write("## Guard/Gate Firing Summary\n\n")

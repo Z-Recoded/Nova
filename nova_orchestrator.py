@@ -473,11 +473,12 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
     CLAUDE.md alone. No effect if the flag is off or category is None.
     """
     runpod_enabled = is_framework_integration_enabled("runpod_coding_agent")
+    devstral_enabled = is_framework_integration_enabled("devstral_coding_agent")
     client = None
-    if not runpod_enabled:
-        # The RunPod backend has no Anthropic SDK client and doesn't need
-        # ANTHROPIC_API_KEY at all -- only construct/require it for the
-        # Claude-backed paths (inline loop or LangGraph).
+    if not runpod_enabled and not devstral_enabled:
+        # Neither RunPod backend has an Anthropic SDK client and neither
+        # needs ANTHROPIC_API_KEY at all -- only construct/require it for
+        # the Claude-backed paths (inline loop or LangGraph).
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
             raise OSError(
@@ -491,22 +492,26 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
     worktree_path, branch_name = _create_worktree(slug)
     root = str(worktree_path)
 
-    # Extracted once, up front, only for the RunPod lane -- the Claude lane
-    # has never shown the scope-violation failure mode this backs (86bb72wd5),
-    # so it doesn't pay for an extra Claude API call it doesn't need. Reused
-    # both for the task-scoped file allowlist guard (below) and the
-    # ground-truth completion gate at the end of this function, so the
-    # extraction only ever runs once per task, not twice.
-    requirements = extract_task_requirements(task_description) if runpod_enabled else None
+    # Extracted once, up front, only for the RunPod-family lanes -- the
+    # Claude lane has never shown the scope-violation failure mode this
+    # backs (86bb72wd5), so it doesn't pay for an extra Claude API call it
+    # doesn't need. Reused both for the task-scoped file allowlist guard
+    # (below) and the ground-truth completion gate at the end of this
+    # function, so the extraction only ever runs once per task, not twice.
+    requirements = extract_task_requirements(task_description) if (runpod_enabled or devstral_enabled) else None
 
-    if runpod_enabled:
+    if runpod_enabled or devstral_enabled:
         # The full system prompt (_build_system_prompt) bakes in CLAUDE.md
         # verbatim -- ~14.5K tokens on its own, real bug found live: this
         # left too little of the RunPod endpoint's 32768-token context
         # window for actual task work, hard-failing on anything beyond a
-        # couple of turns. A condensed, RunPod-specific standards summary
-        # replaces it for this backend only -- the Claude/LangGraph paths
-        # are untouched.
+        # couple of turns. A condensed, RunPod-family standards summary
+        # replaces it for these backends only -- the Claude/LangGraph paths
+        # are untouched. run_via_devstral() actually builds its own system
+        # prompt internally (native tool-calling needs no prompted <tools>
+        # format instructions -- see build_devstral_system_prompt()'s own
+        # comment), so this value is discarded on that path; computed the
+        # same cheap way regardless rather than adding a third branch here.
         from nova_orchestrator_runpod import build_condensed_system_prompt
 
         system_prompt = build_condensed_system_prompt()
@@ -530,14 +535,35 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
     turns_used = 0
 
     if runpod_enabled:
-        # Lazy import, same rationale as the langgraph branch below: this
-        # module (and nova_remote_inference) is only ever imported when the
-        # flag is on. RunPod and LangGraph are mutually exclusive alternate
-        # backends, not stackable -- checked first since it needs no
-        # Anthropic client at all (client is None on this path).
+        # Lazy import, same rationale as the langgraph/devstral branches
+        # below: this module (and nova_remote_inference) is only ever
+        # imported when the flag is on. All three of RunPod/Devstral/
+        # LangGraph are mutually exclusive alternate backends, not
+        # stackable -- checked first since it needs no Anthropic client at
+        # all (client is None on this path).
         from nova_orchestrator_runpod import CODING_AGENT_MAX_OUTPUT_TOKENS, run_via_runpod
 
         final_status, turns_used = run_via_runpod(
+            system_prompt,
+            messages,
+            root,
+            slug,
+            branch_name,
+            task_description,
+            skill_category,
+            skill_version,
+            budget_gate_enabled,
+            NOVA_AGENT_MAX_TURNS,
+            CODING_AGENT_MAX_OUTPUT_TOKENS,
+            requirements,
+        )
+    elif devstral_enabled:
+        # Lazy import, same rationale as the runpod branch above -- this
+        # module (and nova_remote_inference_native_tools) is only ever
+        # imported when this flag is on.
+        from nova_orchestrator_devstral import CODING_AGENT_MAX_OUTPUT_TOKENS, run_via_devstral
+
+        final_status, turns_used = run_via_devstral(
             system_prompt,
             messages,
             root,
