@@ -35,7 +35,7 @@ from vulture import Vulture
 import nova_remote_inference
 from nova_backend_profiles import RUNPOD_PROFILE
 from nova_config import is_framework_integration_enabled
-from nova_langfuse_client import log_turn
+from nova_langfuse_client import log_guard_events, log_turn
 
 # ── Config ─────────────────────────────────────────────────────
 
@@ -891,6 +891,11 @@ def _log_guard_events(slug: str, branch: str, task: str, final_status: str, guar
     }
     with open(f"{LOGS_DIR}/guard_events_log.jsonl", "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    # Observability Phase 2 (86bb7pazm) -- additive, tags the same events
+    # onto Langfuse keyed to the real failure registry. Fails open on its
+    # own; never disturbs the JSONL write above.
+    log_guard_events(branch, final_status, guard_events)
 
 
 # ── Context-window management ────────────────────────────────────

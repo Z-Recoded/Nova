@@ -32,7 +32,7 @@ from nova_config import (
     is_framework_integration_enabled,
     is_pre_action_approval_gate_enabled,
 )
-from nova_langfuse_client import log_turn
+from nova_langfuse_client import log_gate_result, log_turn
 from nova_notify import send_notification
 from nova_skills import get_skill_version, load_skill
 from nova_state import get_state, write_state
@@ -874,6 +874,11 @@ def _log_ground_truth_gate(branch: str, task_description: str, gate_result: dict
     }
     with open(GROUND_TRUTH_GATE_LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    # Observability Phase 2 (86bb7pazm) -- additive, tags the same result
+    # onto Langfuse keyed to the real failure registry. Fails open on its
+    # own; never disturbs the JSONL write above.
+    log_gate_result(branch, gate_result)
 
 
 def record_task_outcome(branch: str, outcome: str, note: str = "") -> None:

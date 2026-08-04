@@ -23,6 +23,7 @@
 #   nova-env\\Scripts\\python nova_langfuse_client.py
 
 import os
+import re
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -181,6 +182,173 @@ def log_turn(
     except Exception as e:
         # Broad except deliberately -- see docstring's fail-open discipline.
         print(f"[nova_langfuse_client] log_turn() failed, continuing without tracing: {e}")
+
+
+# ── Observability Phase 2 (86bb7pazm) -- guard/gate signal -> failure registry ──
+#
+# Maps the coding sub-agent's existing guard/gate identifiers onto the real
+# 19-entry A1-G2 failure-mode taxonomy (reference_coding_agent_failure_
+# registry.md). Explicitly NOT new detection logic -- every signal mapped
+# here already fires and already lands in guard_events_log.jsonl/ground_
+# truth_gate_log.jsonl; this only makes it queryable in Langfuse against a
+# real failure category instead of requiring a hand grep across JSONL files.
+#
+# Codes with no current guard/check at all (C3, C5, D2, F1) simply never
+# get a score here -- correct behavior, not a gap (future guard-engineering
+# work, out of Phase 2's scope). G1/G2 are meta/harness-level and already
+# resolved; nothing to tag per-task.
+
+GUARD_TO_REGISTRY_CODE = {
+    "read_before_write": "A1",
+    "repeat_read": "A2",
+    "repeat_failed_call": "B1",
+    "write_file_nudge_missing_target": "B2",  # the "wrong tool, redirect" nudge
+    "write_file_nudge_threshold": "B3",
+    "self_verify_nudge": "B4",
+    "content_duplicate_function": "C1",
+    "content_unreachable_code": "C2",
+    "content_syntax_invalid": "C4",
+    "file_allowlist": "D1",  # partial signal -- see D1's own registry note
+    "goal_reanchor": "F2",
+}
+# near_miss_parse deliberately unmapped: a tool-call-FORMAT parsing artifact
+# of the prompted <tools> backend, not one of the A-G model-behavior failure
+# modes.
+
+FINAL_STATUS_TO_REGISTRY_CODE = {
+    "stopped_max_output_tokens": "E2",
+}
+
+GATE_CHECK_TO_REGISTRY_CODE = {
+    "nonzero_diff": "E1",
+    "required_files_touched": "E1",
+    "deliverables_present": "E1",
+    "unused_new_import": "E1",  # built specifically for E1's "half-done, one trace left" shape
+    "syntax_valid": "C4",
+    "module_level_name_order": "C4",  # NameError-at-import-time; closest existing slot to "won't import"
+    "cross_module_circular_import": "C4",
+    "cross_module_missing_export": "C4",
+    "forbidden_paths_untouched": "D1",  # built directly from D1's own registry "worth considering" note
+    "narrow_scope_not_exceeded": "D1",  # the specific check that WOULD catch the real D1 incident
+}
+
+# nova_completion_gate._tag()'s exact format: "[check_name] rest of message"
+# -- same pattern nova_guard_stats.py's own _GATE_TAG_RE already uses. Kept
+# as a local copy rather than a cross-module import for one regex.
+_GATE_TAG_RE = re.compile(r"^\[(\w+)\] ")
+
+
+def log_guard_events(branch_name: str, final_status: str, guard_events: list[dict]) -> None:
+    """
+    Tag each guard/nudge firing from one coding-agent run onto that task's
+    Langfuse trace as a "guard_fire" score, keyed to the real A1-G2 failure
+    registry code (or "unmapped:<guard_id>" for a guard with no registry
+    slot yet). Also emits one more guard_fire score if final_status itself
+    maps via FINAL_STATUS_TO_REGISTRY_CODE (covers E2, which never shows up
+    inside guard_events since it's a whole-run outcome, not a per-turn
+    nudge).
+
+    Called from _log_guard_events() right alongside its existing
+    guard_events_log.jsonl write -- additive only, that JSONL file stays
+    the source nova_guard_stats.py already reads.
+
+    Fails open and NEVER raises -- same discipline as log_turn(). No-ops
+    silently if langfuse_tracing is off or credentials aren't configured.
+    """
+    if not is_framework_integration_enabled("langfuse_tracing"):
+        return
+
+    client = get_client()
+    if client is None:
+        return
+
+    try:
+        trace_id = client.create_trace_id(seed=branch_name)
+
+        for event in guard_events:
+            guard_id = event.get("guard", "")
+            detail = event.get("detail", "")
+            registry_code = GUARD_TO_REGISTRY_CODE.get(guard_id, f"unmapped:{guard_id}")
+            client.create_score(
+                name="guard_fire",
+                value=registry_code,
+                trace_id=trace_id,
+                data_type="CATEGORICAL",
+                comment=f"{guard_id}: {detail}",
+                metadata={"guard_id": guard_id, "detail": detail},
+            )
+
+        status_code = FINAL_STATUS_TO_REGISTRY_CODE.get(final_status)
+        if status_code:
+            client.create_score(
+                name="guard_fire",
+                value=status_code,
+                trace_id=trace_id,
+                data_type="CATEGORICAL",
+                comment=f"final_status: {final_status}",
+                metadata={"guard_id": final_status, "detail": "final_status"},
+            )
+
+        client.flush()
+    except Exception as e:
+        # Broad except deliberately -- see docstring's fail-open discipline.
+        print(f"[nova_langfuse_client] log_guard_events() failed, continuing without tracing: {e}")
+
+
+def log_gate_result(branch_name: str, gate_result: dict) -> None:
+    """
+    Tag one ground-truth completion gate result onto that task's Langfuse
+    trace: one "gate_hard_fail"/"gate_warning" score per tagged message
+    (parsed via _GATE_TAG_RE, keyed to the real A1-G2 failure registry code
+    via GATE_CHECK_TO_REGISTRY_CODE, or "unmapped:<check_name>" for a check
+    with no registry slot yet), plus one summary "gate_passed" boolean
+    score.
+
+    Called from _log_ground_truth_gate() right alongside its existing
+    ground_truth_gate_log.jsonl write -- additive only, that JSONL file
+    stays the source of record.
+
+    Fails open and NEVER raises -- same discipline as log_turn(). No-ops
+    silently if langfuse_tracing is off or credentials aren't configured.
+    """
+    if not is_framework_integration_enabled("langfuse_tracing"):
+        return
+
+    client = get_client()
+    if client is None:
+        return
+
+    try:
+        trace_id = client.create_trace_id(seed=branch_name)
+
+        for score_name, messages in (
+            ("gate_hard_fail", gate_result.get("hard_fails", [])),
+            ("gate_warning", gate_result.get("warnings", [])),
+        ):
+            for message in messages:
+                match = _GATE_TAG_RE.match(message)
+                check_name = match.group(1) if match else "(untagged)"
+                registry_code = GATE_CHECK_TO_REGISTRY_CODE.get(check_name, f"unmapped:{check_name}")
+                client.create_score(
+                    name=score_name,
+                    value=registry_code,
+                    trace_id=trace_id,
+                    data_type="CATEGORICAL",
+                    comment=message,
+                    metadata={"check_name": check_name},
+                )
+
+        client.create_score(
+            name="gate_passed",
+            value=bool(gate_result.get("passed", False)),
+            trace_id=trace_id,
+            data_type="BOOLEAN",
+        )
+
+        client.flush()
+    except Exception as e:
+        # Broad except deliberately -- see docstring's fail-open discipline.
+        print(f"[nova_langfuse_client] log_gate_result() failed, continuing without tracing: {e}")
 
 
 if __name__ == "__main__":
