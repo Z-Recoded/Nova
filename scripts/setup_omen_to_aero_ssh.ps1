@@ -42,6 +42,13 @@
 # GitHub PR for a dispatched task from the Omen-hosted Controller. Run
 # this again after pulling that change; the first four steps are
 # unchanged and will just report "already done."
+#
+# 2026-08-05 update: added the sixth ("diff", read-only) key -- backs the
+# Observability dashboard's cross-machine "View diff" coverage
+# (86bb7pb6t follow-up). Unlike worktree-pr, this one runs git DIRECTLY
+# (confirmed live this session that a forced Omen-to-Aero SSH command can
+# run git.exe successfully -- see ssh_read_aero_diff.ps1's own docstring),
+# so it doesn't depend on nova_api.py actually running on the Aero.
 
 $ErrorActionPreference = "Stop"
 
@@ -180,9 +187,29 @@ if ($worktreePrKey -match '<PASTE_PUBKEY_HERE>') {
     }
 }
 
-Write-Output "9. Restarting sshd to pick up all changes..."
+Write-Output "10. Installing the sixth key (read-only, direct git -- diff)..."
+Write-Output "    Opt-in, same shape as the worktree-pr key above, but this one runs git DIRECTLY"
+Write-Output "    (ssh_read_aero_diff.ps1) rather than relaying through nova_api.py -- confirmed"
+Write-Output "    live (86bb7pb6t follow-up) that a forced Omen-to-Aero SSH command CAN run"
+Write-Output "    git.exe successfully (same mechanism the worktrees key already uses), so this"
+Write-Output "    one doesn't need nova_api.py to be running locally on the Aero at all, unlike"
+Write-Output "    the worktree-pr key. Backs nova_diff_link._remote_diff_from_aero() (86bb7pb6t)."
+$diffKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_read_aero_diff.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFW+vj68VvRvxrc0sU1XEvbXBT4iOaa5G2GgcpZV7tL4 omen-to-aero-diff-readonly'
+$content = Get-Content $keysFile
+if ($content -notcontains $diffKey) {
+    $content += $diffKey
+    Set-Content -Path $keysFile -Value $content -Encoding ascii
+    icacls.exe $keysFile /inheritance:r | Out-Null
+    icacls.exe $keysFile /grant "Administrators:F" | Out-Null
+    icacls.exe $keysFile /grant "SYSTEM:F" | Out-Null
+    Write-Output "    Installed."
+} else {
+    Write-Output "    Already installed."
+}
+
+Write-Output "11. Restarting sshd to pick up all changes..."
 Restart-Service sshd
-Write-Output "   Done."
+Write-Output "    Done."
 
 Write-Output ""
 Write-Output "Setup complete. Verify from the Omen with:"
@@ -191,4 +218,5 @@ Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_worktrees marvi@100.122.
 Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_trainingdata marvi@100.122.229.23 "ignored"'
 Write-Output '  echo {"kind":"blend_flag","index":0,"expected_timestamp":"...","correction":"test"} | ssh -i ~/.ssh/aero_keys/id_ed25519_aero_trainingflags_write marvi@100.122.229.23 "ignored"'
 Write-Output '  echo {"branch":"nova-dispatch-00000000"} | ssh -i ~/.ssh/aero_keys/id_ed25519_aero_worktree_pr marvi@100.122.229.23 "ignored"'
+Write-Output '  echo {"branch":"nova-dispatch-00000000"} | ssh -i ~/.ssh/aero_keys/id_ed25519_aero_diff marvi@100.122.229.23 "ignored"'
 Write-Output "(the command argument is ignored either way -- every key always runs its forced script)"

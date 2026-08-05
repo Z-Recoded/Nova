@@ -265,8 +265,8 @@
     "semantic_hash": "969b2a89980f6f877f6316ca7c89f51e"
   },
   "CLAUDE.md": {
-    "mtime": 1785897691.8218458,
-    "ast_hash": "cb68c42142062154ede700aeb61561f4",
+    "mtime": 1785899201.7802155,
+    "ast_hash": "34e183b9760299c158c2662118e9e34d",
     "semantic_hash": ""
   },
   "NOVA_STATUS.md": {
@@ -445,8 +445,8 @@
     "semantic_hash": ""
   },
   "scripts/setup_omen_to_aero_ssh.ps1": {
-    "mtime": 1785103219.9630833,
-    "ast_hash": "e9c75001781a1c7f291c13dbbe2017fd",
+    "mtime": 1785899069.6364195,
+    "ast_hash": "1ec4c405df389748a2880632bd974589",
     "semantic_hash": ""
   },
   "scripts/ssh_patch_training_flags.ps1": {
@@ -595,18 +595,23 @@
     "semantic_hash": ""
   },
   "nova_observability_dashboard.html": {
-    "mtime": 1785897320.811512,
-    "ast_hash": "479598645b68f76ac57c7389795b06af",
+    "mtime": 1785899283.575545,
+    "ast_hash": "4dd0bbcc01a65d7e5ea26a8174e693bf",
     "semantic_hash": ""
   },
   "nova_diff_link.py": {
-    "mtime": 1785897485.3049629,
-    "ast_hash": "480f270ad8d89377c5fd2c51206fa2e6",
+    "mtime": 1785899119.1457074,
+    "ast_hash": "d0f5af42cc35b5a034180740f79b95dc",
     "semantic_hash": ""
   },
   "screenshots/oracle_details.png": {
     "mtime": 1785896737.5199537,
     "ast_hash": "596b70b8dce98bd26e902870c4ff811f",
+    "semantic_hash": ""
+  },
+  "scripts/ssh_read_aero_diff.ps1": {
+    "mtime": 1785899037.1503892,
+    "ast_hash": "5566f5176375abb78d1f15900227409c",
     "semantic_hash": ""
   }
 }

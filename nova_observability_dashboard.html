@@ -682,6 +682,18 @@
     // never re-fetches.
     const diffCache = new Map();
 
+    // A real, empty diff (a branch that genuinely made zero changes -- the
+    // exact "E1: false completed report" shape this whole dashboard exists
+    // to catch) is a legitimate result, not a loading glitch -- render it
+    // as an explicit message rather than a blank <pre> block a reader
+    // could mistake for something not having loaded.
+    function diffBody(diffText) {
+      if (diffText === '') {
+        return '<div class="diff-unavailable">No changes (empty diff).</div>';
+      }
+      return '<pre>' + escapeHtml(diffText) + '</pre>';
+    }
+
     function renderDiffPanel(branch, data) {
       const panel = document.getElementById('diff-panel');
       const header = '<div class="diff-branch">' + escapeHtml(branch) + '</div>';
@@ -689,7 +701,12 @@
         panel.innerHTML = header +
           '<a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener">View compare on GitHub &rarr;</a>';
       } else if (data.status === 'local_diff') {
-        panel.innerHTML = header + '<pre>' + escapeHtml(data.diff_text) + '</pre>';
+        panel.innerHTML = header + diffBody(data.diff_text);
+      } else if (data.status === 'remote_diff') {
+        const machineLabel = data.machine === 'omen' ? 'Omen' : data.machine === 'aero' ? 'Aero' : data.machine;
+        panel.innerHTML = header +
+          '<div class="diff-branch">Diff (fetched from the ' + escapeHtml(machineLabel) + ')</div>' +
+          diffBody(data.diff_text);
       } else {
         panel.innerHTML = header +
           '<div class="diff-unavailable">' + escapeHtml(data.reason || 'Diff not available.') + '</div>';
