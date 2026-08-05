@@ -105,6 +105,38 @@
   table.data-table td { color: #e6e6e6; }
   table.data-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
 
+  .diff-btn {
+    background: none;
+    border: 1px solid #3a3e48;
+    color: #9ab8e6;
+    border-radius: 4px;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+  .diff-btn:hover { background: #23272f; }
+  #diff-panel {
+    display: none;
+    margin-top: 0.75rem;
+    background: #14161c;
+    border: 1px solid #2a2e38;
+    border-radius: 6px;
+    padding: 0.75rem;
+  }
+  #diff-panel.visible { display: block; }
+  #diff-panel .diff-branch { color: #999; font-size: 0.78rem; margin-bottom: 0.5rem; }
+  #diff-panel a { color: #6ea8e6; }
+  #diff-panel pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.78rem;
+    color: #ccc;
+    max-height: 400px;
+    overflow-y: auto;
+    margin: 0;
+  }
+  #diff-panel .diff-unavailable { color: #888; font-size: 0.85rem; }
+
   .planned {
     background: #1b1e26;
     border: 1px dashed #3a3e48;
@@ -168,6 +200,7 @@
       <summary>Table view (accessible fallback — same data as the chart)</summary>
       <table class="data-table" id="uncertainty-table"></table>
     </details>
+    <div id="diff-panel"></div>
   </div>
 
   <div class="planned">
@@ -620,16 +653,78 @@
       const table = document.getElementById('uncertainty-table');
       const rows = points.map((p) => `
         <tr>
-          <td>${p.branch}</td>
-          <td>${p.turn}</td>
+          <td>${escapeHtml(p.branch)}</td>
+          <td>${escapeHtml(p.turn)}</td>
           <td class="num">${p.logprob_mean.toFixed(3)}</td>
           <td class="num">${p.logprob_min === null || p.logprob_min === undefined ? '—' : p.logprob_min.toFixed(3)}</td>
-          <td>${p.backend_profile || '—'}</td>
-          <td>${OUTCOME_LABEL[p.outcome_bucket] || p.outcome_bucket}</td>
+          <td>${escapeHtml(p.backend_profile || '—')}</td>
+          <td>${escapeHtml(OUTCOME_LABEL[p.outcome_bucket] || p.outcome_bucket)}</td>
+          <td><button class="diff-btn" data-branch="${escapeHtml(p.branch)}">View diff</button></td>
         </tr>
       `).join('');
-      table.innerHTML = `<thead><tr><th>Branch</th><th>Turn</th><th>Logprob mean</th><th>Logprob min</th><th>Backend</th><th>Outcome</th></tr></thead><tbody>${rows}</tbody>`;
+      table.innerHTML = `<thead><tr><th>Branch</th><th>Turn</th><th>Logprob mean</th><th>Logprob min</th><th>Backend</th><th>Outcome</th><th>Diff</th></tr></thead><tbody>${rows}</tbody>`;
     }
+
+    // ── Diff linking (86bb7pb6t) ───────────────────────────────
+    // Untrusted-text discipline: branch names go through escapeHtml() when
+    // placed in the DOM as text/attributes above; diff text (real file
+    // content, not just an identifier) goes through it too before ever
+    // landing inside a <pre> block.
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // One shared panel below the table, not a per-row expansion --
+    // simpler and just as functional: shows whichever branch was most
+    // recently clicked. Cached per branch so re-clicking the same row
+    // never re-fetches.
+    const diffCache = new Map();
+
+    function renderDiffPanel(branch, data) {
+      const panel = document.getElementById('diff-panel');
+      const header = '<div class="diff-branch">' + escapeHtml(branch) + '</div>';
+      if (data.status === 'github') {
+        panel.innerHTML = header +
+          '<a href="' + escapeHtml(data.url) + '" target="_blank" rel="noopener">View compare on GitHub &rarr;</a>';
+      } else if (data.status === 'local_diff') {
+        panel.innerHTML = header + '<pre>' + escapeHtml(data.diff_text) + '</pre>';
+      } else {
+        panel.innerHTML = header +
+          '<div class="diff-unavailable">' + escapeHtml(data.reason || 'Diff not available.') + '</div>';
+      }
+    }
+
+    async function viewDiff(branch) {
+      const panel = document.getElementById('diff-panel');
+      panel.classList.add('visible');
+
+      if (diffCache.has(branch)) {
+        renderDiffPanel(branch, diffCache.get(branch));
+        return;
+      }
+
+      panel.innerHTML = '<div class="diff-branch">' + escapeHtml(branch) + '</div><div class="diff-unavailable">Loading…</div>';
+      try {
+        const res = await fetch('/observability/diff?branch=' + encodeURIComponent(branch));
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const data = await res.json();
+        diffCache.set(branch, data);
+        renderDiffPanel(branch, data);
+      } catch (err) {
+        panel.innerHTML = '<div class="diff-branch">' + escapeHtml(branch) + '</div>' +
+          '<div class="diff-unavailable">Could not load diff: ' + escapeHtml(err.message) + '</div>';
+      }
+    }
+
+    // Delegated listener on the stable <table> element -- survives
+    // renderUncertaintyTable() replacing tbody/thead via innerHTML, so
+    // this only needs to be wired once, not re-attached per render.
+    document.getElementById('uncertainty-table').addEventListener('click', (e) => {
+      const button = e.target.closest('.diff-btn');
+      if (button) viewDiff(button.dataset.branch);
+    });
 
     loadFrequency();
     loadPerModel();

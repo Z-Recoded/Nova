@@ -67,6 +67,7 @@ from ingest import run_ingestion
 from nova_agent_log_status import get_combined_status
 from nova_clickup_client import add_comment, add_tag, remove_tag
 from nova_config import FLAG_REGISTRY, get_flag_registry_values, set_flag_value
+from nova_diff_link import get_diff_link
 from nova_embedding_viz import build_embedding_viz_data
 from nova_headroom import get_headroom_report
 from nova_log import (
@@ -1768,6 +1769,19 @@ def observability_uncertainty(
     fail-open and never raises (same contract as nova_langfuse_client.log_turn()).
     """
     return uncertainty_vs_outcome(days=days)
+
+
+@app.get("/observability/diff")
+def observability_diff_route(branch: str = Query(..., description="Branch to look up a diff/PR link for")):
+    """
+    Lazy, on-demand diff/PR-link lookup for one branch (86bb7pb6t). Not
+    folded into /observability/uncertainty's response — that route can
+    return up to 500 points, and eagerly resolving a diff for each on page
+    load would mean up to 500 git calls for data nobody asked to see yet.
+    Not wrapped in try/except: get_diff_link() is itself fail-open and
+    never raises (same contract as uncertainty_vs_outcome()).
+    """
+    return get_diff_link(branch)
 
 
 @app.get("/observability")
