@@ -37,6 +37,22 @@
     cursor: pointer;
   }
   .help-btn:hover { background: #343945; }
+  .title-actions { display: flex; gap: 0.5rem; align-items: flex-start; flex: 0 0 auto; }
+  .nav-link-btn {
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.75rem;
+    border-radius: 999px;
+    background: #2a2e38;
+    color: #e6e6e6;
+    border: 1px solid #3a3e48;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .nav-link-btn:hover { background: #343945; }
   .help-panel {
     background: #1b1e26;
     border: 1px solid #2a2e38;
@@ -611,11 +627,15 @@
       <h1>Nova Controller</h1>
       <p class="subtitle">One feed: escalations, tier proposals, dispatch outcomes, and labeling — swipe or tap.</p>
     </div>
-    <button id="help-toggle" class="help-btn" aria-label="Help">?</button>
+    <div class="title-actions">
+      <a class="nav-link-btn" href="/observability" aria-label="Observability dashboard">Trends</a>
+      <button id="help-toggle" class="help-btn" aria-label="Help">?</button>
+    </div>
   </div>
 
   <div id="help-panel" class="help-panel" style="display:none">
     <h2 class="section-heading" style="margin-top:0">What am I looking at?</h2>
+    <p><b>Trends</b> button (top right) — opens the Observability dashboard (<code>/observability</code>): failure-type frequency over time, per-model comparison, and uncertainty vs. outcome. A separate page, not part of this Feed — trend data doesn't fit the Feed's chronological-events design, so it stays a click away instead of living in it.</p>
     <p><b>Switches panel</b> — Nova's important flags, grouped by category. Bright green = on, dim = off. Tap to toggle. <b>Auto-Dispatch Loop</b> (the old "Board Watch") is whether the headless dispatch loop is allowed to run unattended right now.</p>
     <p><b>Stories rail</b> — real counts from the last 24 hours. <i>Dispatches</i> = how many times the loop <i>attempted</i> to run something (successful or not, not "tasks completed"). <i>Merged</i>/<i>discarded</i> = how many of those you've since reviewed and decided on.</p>
     <p><b>Feed filters</b> — the chips/search/date row above the Feed. Chips toggle which card types show (tap "All" to reset to everything); the search box matches against a card's task name/ID; the date dropdown hides anything older than the chosen window. Purely a local display filter — it never changes what data gets fetched or re-ranks anything, and resets if you reload the page.</p>

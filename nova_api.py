@@ -34,6 +34,10 @@
 #   POST /dispatch-abort            → kill the currently-running cron-fired dispatch (token-gated)
 #   POST /worktree-pr               → push a dispatch branch + open a draft GitHub PR (token-gated)
 #   POST /worktree-discard          → delete a dispatch worktree+branch outright (token-gated)
+#   GET  /observability             → Observability trend dashboard (HTML, 86bb7pb20)
+#   GET  /observability/failure-frequency → failure-type frequency over time (JSON)
+#   GET  /observability/per-model   → per-model guard/gate/outcome comparison (JSON)
+#   GET  /observability/uncertainty → logprob uncertainty vs. outcome bucket, from Langfuse (JSON)
 #
 # Run:
 #   cd C:/Nova
@@ -71,6 +75,11 @@ from nova_log import (
     compute_health_summary,
     get_benchmark_runs,
     get_recent_queries,
+)
+from nova_observability_dashboard import (
+    failure_frequency_over_time,
+    per_model_comparison,
+    uncertainty_vs_outcome,
 )
 from nova_omen_dispatch import resume_headless_task
 from nova_orchestrator import run_coding_task
@@ -1718,3 +1727,50 @@ def embedding_viz_data(
 def embedding_viz_page():
     """Serve the Embedding-Space Visualization page — static HTML/JS, fetches /embedding-viz/data."""
     return FileResponse(EMBEDDING_VIZ_HTML_PATH, media_type="text/html")
+
+
+# ── Observability Dashboard (86bb7pb20, Observability Phase 3) ──
+
+# Same GRAPH_PATH-class fix as NOVA_LOG_HTML_PATH/EMBEDDING_VIZ_HTML_PATH
+# above — resolved relative to this script's own location.
+OBSERVABILITY_HTML_PATH = os.path.join(os.path.dirname(__file__), "nova_observability_dashboard.html")
+
+
+@app.get("/observability/failure-frequency")
+def observability_failure_frequency(
+    branch_prefix: str | None = Query(None, description="Only count branches starting with this prefix"),
+):
+    """JSON data backing the failure-frequency-over-time section — real A1-G2 registry-code fires by date."""
+    try:
+        return failure_frequency_over_time(branch_prefix=branch_prefix)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.get("/observability/per-model")
+def observability_per_model(
+    branch_prefix: str | None = Query(None, description="Only count branches starting with this prefix"),
+):
+    """JSON data backing the per-model-comparison section — local JSONL joined to agent_log.jsonl's model field."""
+    try:
+        return per_model_comparison(branch_prefix=branch_prefix)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.get("/observability/uncertainty")
+def observability_uncertainty(
+    days: int = Query(30, ge=1, le=365, description="How many days of Langfuse trace history to read"),
+):
+    """
+    JSON data backing the uncertainty-vs-outcome section — Langfuse Cloud
+    only. Not wrapped in try/except: uncertainty_vs_outcome() is itself
+    fail-open and never raises (same contract as nova_langfuse_client.log_turn()).
+    """
+    return uncertainty_vs_outcome(days=days)
+
+
+@app.get("/observability")
+def observability_page():
+    """Serve the Observability trend dashboard — static HTML/JS, fetches the three /observability/* routes above."""
+    return FileResponse(OBSERVABILITY_HTML_PATH, media_type="text/html")

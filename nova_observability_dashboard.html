@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nova — Observability Dashboard</title>
+<style>
+  body {
+    font-family: -apple-system, Segoe UI, sans-serif;
+    background: #111318;
+    color: #e6e6e6;
+    max-width: 1100px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+  p.subtitle { color: #888; margin-top: 0; margin-bottom: 1.5rem; }
+  #error { color: #e06060; }
+
+  .title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+  .nav-link-btn {
+    flex: 0 0 auto;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.75rem;
+    border-radius: 999px;
+    background: #2a2e38;
+    color: #e6e6e6;
+    border: 1px solid #3a3e48;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .nav-link-btn:hover { background: #343945; }
+
+  .panel {
+    background: #1b1e26;
+    border: 1px solid #2a2e38;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .panel h2 { font-size: 1rem; color: #ddd; margin-top: 0; }
+  .panel .caption { color: #888; font-size: 0.8rem; margin-top: 0.5rem; }
+  .panel .empty-state { color: #888; font-size: 0.85rem; padding: 1rem 0; }
+
+  svg.chart { display: block; width: 100%; height: auto; }
+  .mark { cursor: pointer; }
+  .mark-hit-target { fill: transparent; }
+  text.axis-label { fill: #898781; font-size: 11px; }
+  text.axis-label.muted-ink { fill: #666; }
+  line.gridline { stroke: #2a2e38; stroke-width: 1; }
+  line.baseline { stroke: #3a3e48; stroke-width: 1; }
+
+  #tooltip {
+    position: fixed;
+    display: none;
+    background: #1b1e26;
+    border: 1px solid #2a2e38;
+    border-radius: 6px;
+    padding: 0.5rem 0.65rem;
+    font-size: 0.78rem;
+    max-width: 280px;
+    pointer-events: none;
+    z-index: 10;
+  }
+  #tooltip .t-value { font-weight: 600; color: #fff; margin-bottom: 0.15rem; }
+  #tooltip .t-label { color: #999; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    margin-top: 0.75rem;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    color: #ccc;
+  }
+  .legend-swatch { width: 10px; height: 10px; flex-shrink: 0; border-radius: 2px; }
+
+  details.table-view { margin-top: 0.75rem; }
+  details.table-view summary {
+    cursor: pointer;
+    color: #999;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+  }
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+  table.data-table th,
+  table.data-table td {
+    text-align: left;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid #2a2e38;
+  }
+  table.data-table th { color: #999; font-weight: 600; }
+  table.data-table td { color: #e6e6e6; }
+  table.data-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .planned {
+    background: #1b1e26;
+    border: 1px dashed #3a3e48;
+    border-radius: 8px;
+    padding: 1rem;
+    color: #888;
+    margin-top: 1rem;
+  }
+  .planned h2 { font-size: 1rem; color: #aaa; margin-top: 0; }
+  .planned ul { padding-left: 1.2rem; margin: 0; }
+  .planned li { margin-bottom: 0.5rem; font-size: 0.9rem; }
+  .planned li b { color: #bbb; }
+</style>
+</head>
+<body>
+  <div class="title-row">
+    <div>
+      <h1>Nova — Observability Dashboard</h1>
+      <p class="subtitle">Trend visualization on top of the coding sub-agent's guard/gate signal and Langfuse tracing (86bb7pb20).</p>
+    </div>
+    <a class="nav-link-btn" href="/controller" aria-label="Back to the Nova Controller feed">&larr; Feed</a>
+  </div>
+
+  <div id="error"></div>
+
+  <div class="panel">
+    <h2>Failure-type frequency over time</h2>
+    <svg class="chart" id="freq-chart" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="legend" id="freq-legend"></div>
+    <div class="caption" id="freq-caption"></div>
+    <details class="table-view">
+      <summary>Table view (accessible fallback — same data as the chart)</summary>
+      <table class="data-table" id="freq-table"></table>
+    </details>
+  </div>
+
+  <div class="panel">
+    <h2>Per-model comparison</h2>
+    <svg class="chart" id="model-runs-chart" viewBox="0 0 900 160" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="caption">Task runs considered, per model.</div>
+    <svg class="chart" id="model-pass-chart" viewBox="0 0 900 160" preserveAspectRatio="xMidYMid meet" style="margin-top: 1rem;"></svg>
+    <div class="caption">Ground-truth completion gate pass rate, per model.</div>
+    <svg class="chart" id="model-outcome-chart" viewBox="0 0 900 200" preserveAspectRatio="xMidYMid meet" style="margin-top: 1rem;"></svg>
+    <div class="legend" id="outcome-legend"></div>
+    <div class="caption">Outcome-bucket breakdown per model (see the Legend section below for what each bucket means).</div>
+    <details class="table-view">
+      <summary>Table view (accessible fallback — same data as the charts)</summary>
+      <table class="data-table" id="model-table"></table>
+    </details>
+  </div>
+
+  <div class="panel">
+    <h2>Uncertainty vs. outcome</h2>
+    <div id="uncertainty-empty" class="empty-state" style="display: none;"></div>
+    <svg class="chart" id="uncertainty-chart" viewBox="0 0 900 320" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="caption">
+      Each point is one real coding-agent turn's mean per-token logprob (Langfuse Cloud only — this data is never
+      persisted locally). Rows are the same outcome buckets as the per-model chart above.
+    </div>
+    <details class="table-view">
+      <summary>Table view (accessible fallback — same data as the chart)</summary>
+      <table class="data-table" id="uncertainty-table"></table>
+    </details>
+  </div>
+
+  <div class="planned">
+    <h2>Legend — how to read this page</h2>
+    <ul>
+      <li><b>Registry code</b> — the A1-G2 coding-agent failure taxonomy (Observability Phase 2). Each guard/gate check maps to one code; a code with no current guard never appears here (not a gap in this page, a gap in guard coverage).</li>
+      <li><b>clean_completion</b> — the ground-truth completion gate passed and the run's own harness signal was a genuine single-shot finish.</li>
+      <li><b>partial</b> — the gate passed but the run didn't cleanly finish (e.g. hit its turn limit) — real work happened, but not a clean pass.</li>
+      <li><b>not_attempted</b> — the gate failed specifically because the diff was empty — no real change was made.</li>
+      <li><b>catastrophic</b> — the gate failed on a severe check (scope violation or a syntax-breaking edit), or the run itself broke (budget halt, context overflow, an infra call failure).</li>
+      <li><b>unknown</b> — no completion-gate record exists for this branch at all.</li>
+      <li><b>Note:</b> the uncertainty panel only has data once real coding-agent traffic has run with the <code>langfuse_tracing</code> flag on — it's off by default, so this panel may show few points most of the time.</li>
+    </ul>
+  </div>
+
+  <div id="tooltip"></div>
+
+  <script>
+    // ── Palette ────────────────────────────────────────────────
+    // Reuses nova_embedding_viz.html's exact validated categorical hue set
+    // (dataviz skill's dark-mode default) and order, for visual consistency
+    // across Nova's own dashboards.
+    const CATEGORICAL_HUES = ['#3987e5', '#199e70', '#c98500', '#008300', '#9085e9', '#e66767', '#d55181', '#d95926'];
+    const SEQUENTIAL_BLUE = '#3987e5';
+
+    // Status palette (dataviz skill's reserved good/warning/serious/critical
+    // set) -- a genuine fit here since outcome buckets ARE a severity signal,
+    // not an arbitrary identity category. "unknown" reuses embedding-viz's
+    // own muted "Other" gray rather than inventing a 5th status color.
+    const OUTCOME_ORDER = ['clean_completion', 'partial', 'not_attempted', 'catastrophic', 'unknown'];
+    const OUTCOME_COLOR = {
+      clean_completion: '#0ca30c',
+      partial: '#fab219',
+      not_attempted: '#ec835a',
+      catastrophic: '#d03b3b',
+      unknown: '#5a5f6b',
+    };
+    const OUTCOME_LABEL = {
+      clean_completion: 'Clean completion',
+      partial: 'Partial',
+      not_attempted: 'Not attempted',
+      catastrophic: 'Catastrophic',
+      unknown: 'Unknown',
+    };
+
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const BAR_MAX_THICKNESS = 24;
+    const SEGMENT_GAP = 2;
+
+    function el(tag, attrs) {
+      const node = document.createElementNS(svgNS, tag);
+      for (const [k, v] of Object.entries(attrs || {})) node.setAttribute(k, v);
+      return node;
+    }
+
+    function colorForCode(code, codes) {
+      const idx = codes.indexOf(code);
+      return CATEGORICAL_HUES[idx % CATEGORICAL_HUES.length];
+    }
+
+    // ── Tooltip (shared across all three charts) ──────────────
+    function showTooltip(evt, valueText, labelText) {
+      const tooltip = document.getElementById('tooltip');
+      tooltip.innerHTML = '';
+      const value = document.createElement('div');
+      value.className = 't-value';
+      value.textContent = valueText;
+      tooltip.appendChild(value);
+      const label = document.createElement('div');
+      label.className = 't-label';
+      label.textContent = labelText;
+      tooltip.appendChild(label);
+      tooltip.style.display = 'block';
+      positionTooltip(evt);
+    }
+    function positionTooltip(evt) {
+      const tooltip = document.getElementById('tooltip');
+      const x = evt.clientX !== undefined ? evt.clientX : 100;
+      const y = evt.clientY !== undefined ? evt.clientY : 100;
+      tooltip.style.left = Math.min(x + 14, window.innerWidth - 300) + 'px';
+      tooltip.style.top = Math.min(y + 14, window.innerHeight - 100) + 'px';
+    }
+    function hideTooltip() {
+      document.getElementById('tooltip').style.display = 'none';
+    }
+    function wireHover(node, valueText, labelText) {
+      node.addEventListener('mouseenter', (e) => showTooltip(e, valueText, labelText));
+      node.addEventListener('mousemove', positionTooltip);
+      node.addEventListener('mouseleave', hideTooltip);
+      node.setAttribute('tabindex', '0');
+      node.addEventListener('focus', (e) => showTooltip(e, valueText, labelText));
+      node.addEventListener('blur', hideTooltip);
+    }
+
+    // ── Section 1: Failure-type frequency over time ───────────
+    async function loadFrequency() {
+      try {
+        const res = await fetch('/observability/failure-frequency');
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const data = await res.json();
+        renderFrequencyChart(data);
+        renderFrequencyLegend(data.codes);
+        renderFrequencyTable(data);
+        const caption = document.getElementById('freq-caption');
+        caption.textContent = data.unmapped_count
+          ? data.unmapped_count + ' guard/gate firing(s) have no registry-code mapping yet (e.g. tool-call-format parsing artifacts) and are not shown above.'
+          : 'Every real guard/gate firing maps to a registry code.';
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not load failure-frequency data: ' + err.message;
+      }
+    }
+
+    function renderFrequencyChart(data) {
+      const svg = document.getElementById('freq-chart');
+      svg.innerHTML = '';
+      const { dates, codes, series } = data;
+      if (!dates.length) return;
+
+      const width = 900, height = 420;
+      const padLeft = 40, padRight = 20, padTop = 10, padBottom = 30;
+      const plotWidth = width - padLeft - padRight;
+      const plotHeight = height - padTop - padBottom;
+
+      const totals = dates.map((_, i) => codes.reduce((sum, code) => sum + series[code][i], 0));
+      const maxTotal = Math.max(1, ...totals);
+
+      const slot = plotWidth / dates.length;
+      const barWidth = Math.min(BAR_MAX_THICKNESS, slot * 0.6);
+
+      // Gridlines + y-axis ticks (0, mid, max), rounded to clean numbers.
+      const ticks = [0, Math.round(maxTotal / 2), maxTotal];
+      ticks.forEach((tick) => {
+        const y = padTop + plotHeight - (tick / maxTotal) * plotHeight;
+        svg.appendChild(el('line', { class: 'gridline', x1: padLeft, x2: width - padRight, y1: y, y2: y }));
+        const label = el('text', { class: 'axis-label', x: padLeft - 8, y: y + 4, 'text-anchor': 'end' });
+        label.textContent = tick;
+        svg.appendChild(label);
+      });
+      svg.appendChild(el('line', { class: 'baseline', x1: padLeft, x2: width - padRight, y1: padTop + plotHeight, y2: padTop + plotHeight }));
+
+      dates.forEach((date, i) => {
+        const cx = padLeft + slot * i + slot / 2;
+        let cumulativeY = padTop + plotHeight;
+
+        codes.forEach((code, codeIdx) => {
+          const value = series[code][i];
+          if (!value) return;
+          const segHeight = (value / maxTotal) * plotHeight;
+          const isTopSegment = codes.slice(codeIdx + 1).every((c) => series[c][i] === 0);
+          const y = cumulativeY - segHeight;
+          const drawHeight = Math.max(1, segHeight - (isTopSegment ? 0 : SEGMENT_GAP));
+
+          const group = el('g', { class: 'mark' });
+          const rect = el('rect', {
+            x: cx - barWidth / 2,
+            y,
+            width: barWidth,
+            height: drawHeight,
+            fill: colorForCode(code, codes),
+          });
+          if (isTopSegment) {
+            rect.setAttribute('rx', 4);
+          }
+          group.appendChild(rect);
+          wireHover(group, value + ' fire(s)', code + ' on ' + date);
+          svg.appendChild(group);
+
+          cumulativeY -= segHeight;
+        });
+
+        // x-axis date label -- thin out if too many dates to avoid overlap.
+        if (dates.length <= 14 || i % Math.ceil(dates.length / 14) === 0) {
+          const label = el('text', { class: 'axis-label', x: cx, y: height - padBottom + 16, 'text-anchor': 'middle' });
+          label.textContent = date.slice(5); // MM-DD -- year is implied, keeps labels short
+          svg.appendChild(label);
+        }
+      });
+    }
+
+    function renderFrequencyLegend(codes) {
+      const legend = document.getElementById('freq-legend');
+      legend.innerHTML = '';
+      codes.forEach((code) => {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        const swatch = document.createElement('span');
+        swatch.className = 'legend-swatch';
+        swatch.style.background = colorForCode(code, codes);
+        item.appendChild(swatch);
+        const label = document.createElement('span');
+        label.textContent = code;
+        item.appendChild(label);
+        legend.appendChild(item);
+      });
+    }
+
+    function renderFrequencyTable(data) {
+      const table = document.getElementById('freq-table');
+      const headRow = ['Date', ...data.codes].map((c) => `<th>${c}</th>`).join('');
+      const bodyRows = data.dates.map((date, i) => {
+        const cells = data.codes.map((code) => `<td class="num">${data.series[code][i]}</td>`).join('');
+        return `<tr><td>${date}</td>${cells}</tr>`;
+      }).join('');
+      table.innerHTML = `<thead><tr>${headRow}</tr></thead><tbody>${bodyRows}</tbody>`;
+    }
+
+    // ── Section 2: Per-model comparison ────────────────────────
+    let modelData = null;
+
+    async function loadPerModel() {
+      try {
+        const res = await fetch('/observability/per-model');
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        modelData = (await res.json()).models;
+        renderModelRunsChart(modelData);
+        renderModelPassChart(modelData);
+        renderModelOutcomeChart(modelData);
+        renderOutcomeLegend();
+        renderModelTable(modelData);
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not load per-model data: ' + err.message;
+      }
+    }
+
+    function modelNames() {
+      return Object.keys(modelData).sort((a, b) => modelData[b].runs - modelData[a].runs);
+    }
+
+    // Shared horizontal-bar renderer for the run-count and pass-rate charts
+    // -- one hue (sequential blue), one bar per model, one axis (the value).
+    function renderHorizontalBarChart(svgId, values, formatValue, maxValue) {
+      const svg = document.getElementById(svgId);
+      svg.innerHTML = '';
+      const names = modelNames();
+      if (!names.length) return;
+
+      const width = 900, height = 160;
+      const padLeft = 260, padRight = 60, padTop = 10;
+      const rowHeight = (height - padTop * 2) / names.length;
+      const barThickness = Math.min(BAR_MAX_THICKNESS, rowHeight * 0.6);
+      const plotWidth = width - padLeft - padRight;
+
+      names.forEach((name, i) => {
+        const value = values[name];
+        const cy = padTop + rowHeight * i + rowHeight / 2;
+        const barLen = maxValue ? (value / maxValue) * plotWidth : 0;
+
+        const nameLabel = el('text', { class: 'axis-label', x: padLeft - 12, y: cy + 4, 'text-anchor': 'end' });
+        nameLabel.textContent = name;
+        svg.appendChild(nameLabel);
+
+        const group = el('g', { class: 'mark' });
+        const rect = el('rect', {
+          x: padLeft,
+          y: cy - barThickness / 2,
+          width: Math.max(1, barLen),
+          height: barThickness,
+          rx: 4,
+          fill: SEQUENTIAL_BLUE,
+        });
+        group.appendChild(rect);
+        wireHover(group, formatValue(value), name);
+        svg.appendChild(group);
+
+        const valueLabel = el('text', { class: 'axis-label', x: padLeft + barLen + 8, y: cy + 4 });
+        valueLabel.textContent = formatValue(value);
+        svg.appendChild(valueLabel);
+      });
+    }
+
+    function renderModelRunsChart(models) {
+      const values = {};
+      let max = 1;
+      for (const [name, stats] of Object.entries(models)) {
+        values[name] = stats.runs;
+        max = Math.max(max, stats.runs);
+      }
+      renderHorizontalBarChart('model-runs-chart', values, (v) => String(v), max);
+    }
+
+    function renderModelPassChart(models) {
+      const values = {};
+      for (const [name, stats] of Object.entries(models)) {
+        values[name] = stats.gate_pass_rate === null ? 0 : stats.gate_pass_rate;
+      }
+      renderHorizontalBarChart('model-pass-chart', values, (v) => Math.round(v * 100) + '%', 1);
+    }
+
+    function renderModelOutcomeChart(models) {
+      const svg = document.getElementById('model-outcome-chart');
+      svg.innerHTML = '';
+      const names = modelNames();
+      if (!names.length) return;
+
+      const width = 900, height = 200;
+      const padLeft = 260, padRight = 60, padTop = 10;
+      const rowHeight = (height - padTop * 2) / names.length;
+      const barThickness = Math.min(BAR_MAX_THICKNESS, rowHeight * 0.6);
+      const plotWidth = width - padLeft - padRight;
+
+      names.forEach((name, i) => {
+        const buckets = models[name].outcome_buckets;
+        const total = Object.values(buckets).reduce((a, b) => a + b, 0) || 1;
+        const cy = padTop + rowHeight * i + rowHeight / 2;
+
+        const nameLabel = el('text', { class: 'axis-label', x: padLeft - 12, y: cy + 4, 'text-anchor': 'end' });
+        nameLabel.textContent = name;
+        svg.appendChild(nameLabel);
+
+        let cx = padLeft;
+        OUTCOME_ORDER.forEach((bucket, idx) => {
+          const count = buckets[bucket] || 0;
+          if (!count) return;
+          const segWidth = (count / total) * plotWidth;
+          const isLastSegment = OUTCOME_ORDER.slice(idx + 1).every((b) => !buckets[b]);
+          const drawWidth = Math.max(1, segWidth - (isLastSegment ? 0 : SEGMENT_GAP));
+
+          const group = el('g', { class: 'mark' });
+          const rect = el('rect', {
+            x: cx,
+            y: cy - barThickness / 2,
+            width: drawWidth,
+            height: barThickness,
+            fill: OUTCOME_COLOR[bucket],
+          });
+          if (idx === 0) rect.setAttribute('rx', 4);
+          group.appendChild(rect);
+          wireHover(group, count + ' run(s)', OUTCOME_LABEL[bucket] + ' — ' + name);
+          svg.appendChild(group);
+
+          cx += segWidth;
+        });
+      });
+    }
+
+    function renderOutcomeLegend() {
+      const legend = document.getElementById('outcome-legend');
+      legend.innerHTML = '';
+      OUTCOME_ORDER.forEach((bucket) => {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        const swatch = document.createElement('span');
+        swatch.className = 'legend-swatch';
+        swatch.style.background = OUTCOME_COLOR[bucket];
+        item.appendChild(swatch);
+        const label = document.createElement('span');
+        label.textContent = OUTCOME_LABEL[bucket];
+        item.appendChild(label);
+        legend.appendChild(item);
+      });
+    }
+
+    function renderModelTable(models) {
+      const table = document.getElementById('model-table');
+      const rows = modelNames().map((name) => {
+        const stats = models[name];
+        const passRate = stats.gate_pass_rate === null ? '—' : Math.round(stats.gate_pass_rate * 100) + '%';
+        const codes = Object.entries(stats.registry_code_fires).sort((a, b) => b[1] - a[1])
+          .map(([code, count]) => `${code}: ${count}`).join(', ') || '—';
+        return `<tr><td>${name}</td><td class="num">${stats.runs}</td><td class="num">${passRate}</td><td>${codes}</td></tr>`;
+      }).join('');
+      table.innerHTML = `<thead><tr><th>Model</th><th>Runs</th><th>Gate pass rate</th><th>Registry-code fires</th></tr></thead><tbody>${rows}</tbody>`;
+    }
+
+    // ── Section 3: Uncertainty vs. outcome ─────────────────────
+    async function loadUncertainty() {
+      try {
+        const res = await fetch('/observability/uncertainty');
+        if (!res.ok) throw new Error('Request failed: ' + res.status);
+        const data = await res.json();
+        const emptyState = document.getElementById('uncertainty-empty');
+        const svg = document.getElementById('uncertainty-chart');
+        if (!data.available) {
+          emptyState.textContent = data.reason || 'Uncertainty data is not available right now.';
+          emptyState.style.display = 'block';
+          svg.style.display = 'none';
+        } else if (!data.points.length) {
+          emptyState.textContent = 'No real Langfuse trace data in the selected window yet.';
+          emptyState.style.display = 'block';
+          svg.style.display = 'none';
+        } else {
+          emptyState.style.display = 'none';
+          svg.style.display = 'block';
+          renderUncertaintyChart(data.points);
+        }
+        renderUncertaintyTable(data.points || []);
+      } catch (err) {
+        document.getElementById('error').textContent = 'Could not load uncertainty data: ' + err.message;
+      }
+    }
+
+    function renderUncertaintyChart(points) {
+      const svg = document.getElementById('uncertainty-chart');
+      svg.innerHTML = '';
+
+      const width = 900, height = 320;
+      const padLeft = 140, padRight = 30, padTop = 20, padBottom = 40;
+      const plotWidth = width - padLeft - padRight;
+      const plotHeight = height - padTop - padBottom;
+
+      const values = points.map((p) => p.logprob_mean);
+      const minX = Math.min(...values, -2);
+      const maxX = Math.max(...values, 0);
+
+      function scaleX(v) {
+        return padLeft + (v - minX) / (maxX - minX || 1) * plotWidth;
+      }
+
+      // x-axis ticks (logprob_mean, 0 = fully confident, more negative = less confident)
+      const ticks = [minX, (minX + maxX) / 2, maxX];
+      ticks.forEach((t) => {
+        const x = scaleX(t);
+        svg.appendChild(el('line', { class: 'gridline', x1: x, x2: x, y1: padTop, y2: padTop + plotHeight }));
+        const label = el('text', { class: 'axis-label', x, y: height - padBottom + 16, 'text-anchor': 'middle' });
+        label.textContent = t.toFixed(1);
+        svg.appendChild(label);
+      });
+      const xAxisTitle = el('text', { class: 'axis-label', x: padLeft + plotWidth / 2, y: height - 4, 'text-anchor': 'middle' });
+      xAxisTitle.textContent = 'Mean per-token logprob (higher = more confident)';
+      svg.appendChild(xAxisTitle);
+
+      const rowHeight = plotHeight / OUTCOME_ORDER.length;
+      OUTCOME_ORDER.forEach((bucket, i) => {
+        const cy = padTop + rowHeight * i + rowHeight / 2;
+        const label = el('text', { class: 'axis-label', x: padLeft - 12, y: cy + 4, 'text-anchor': 'end' });
+        label.textContent = OUTCOME_LABEL[bucket];
+        svg.appendChild(label);
+        svg.appendChild(el('line', { class: 'gridline', x1: padLeft, x2: width - padRight, y1: cy, y2: cy }));
+      });
+
+      // Deterministic jitter (seeded by index, not Math.random) so re-renders don't shuffle points.
+      points.forEach((point, i) => {
+        const bucketIdx = OUTCOME_ORDER.indexOf(point.outcome_bucket);
+        if (bucketIdx === -1) return;
+        const cx = scaleX(point.logprob_mean);
+        const jitter = ((i * 37) % 100) / 100 - 0.5; // deterministic pseudo-random in [-0.5, 0.5)
+        const cy = padTop + rowHeight * bucketIdx + rowHeight / 2 + jitter * rowHeight * 0.5;
+
+        const group = el('g', { class: 'mark' });
+        const dot = el('circle', { cx, cy, r: 5, fill: OUTCOME_COLOR[point.outcome_bucket], stroke: '#1b1e26', 'stroke-width': 2 });
+        group.appendChild(dot);
+        const hitTarget = el('circle', { cx, cy, r: 12, class: 'mark-hit-target' });
+        group.appendChild(hitTarget);
+        wireHover(group, point.logprob_mean.toFixed(3), point.branch + ' (' + point.turn + ', ' + (point.backend_profile || 'unknown backend') + ')');
+        svg.appendChild(group);
+      });
+    }
+
+    function renderUncertaintyTable(points) {
+      const table = document.getElementById('uncertainty-table');
+      const rows = points.map((p) => `
+        <tr>
+          <td>${p.branch}</td>
+          <td>${p.turn}</td>
+          <td class="num">${p.logprob_mean.toFixed(3)}</td>
+          <td class="num">${p.logprob_min === null || p.logprob_min === undefined ? '—' : p.logprob_min.toFixed(3)}</td>
+          <td>${p.backend_profile || '—'}</td>
+          <td>${OUTCOME_LABEL[p.outcome_bucket] || p.outcome_bucket}</td>
+        </tr>
+      `).join('');
+      table.innerHTML = `<thead><tr><th>Branch</th><th>Turn</th><th>Logprob mean</th><th>Logprob min</th><th>Backend</th><th>Outcome</th></tr></thead><tbody>${rows}</tbody>`;
+    }
+
+    loadFrequency();
+    loadPerModel();
+    loadUncertainty();
+  </script>
+</body>
+</html>
