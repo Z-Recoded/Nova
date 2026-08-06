@@ -1,6 +1,50 @@
 {
   "ready": [
     {
+      "id": "86bb7quk1",
+      "name": "Stand up Gitea/Forgejo for self-hosted git hosting + diff viewing"
+    },
+    {
+      "id": "86bb7quga",
+      "name": "Stand up MLflow (minimal) for training-run and eval-score tracking"
+    },
+    {
+      "id": "86bb7qudh",
+      "name": "Stand up self-hosted Laminar for agent session replay / real-time trace playback"
+    },
+    {
+      "id": "86bb7pawp",
+      "name": "Observability Phase 1: Instrument turn loop (reasoning + tool calls + token uncertainty)"
+    },
+    {
+      "id": "86bb7pamh",
+      "name": "Nova Observability Initiative \u2014 Langfuse tracing, agent oversight, and failure diagnosis"
+    },
+    {
+      "id": "86bb77vk6",
+      "name": "Completion gate misses cross-module circular imports (found live in 86bb71a0f re-eval, task 6)"
+    },
+    {
+      "id": "86bb73bjz",
+      "name": "Screen BF16/FP8 vs AWQ INT4 on held-out eval before committing to AWQ as production format"
+    },
+    {
+      "id": "86bb72wfy",
+      "name": "Test tool_choice=\"required\" to stop over-explaining (verify against known Qwen3+reasoning parser bug)"
+    },
+    {
+      "id": "86bb71a15",
+      "name": "Verify aero_only scoping on framework_integrations.runpod_coding_agent is policy, not a hard dependency"
+    },
+    {
+      "id": "86bb6ruqb",
+      "name": "Research: Directed/targeted audio output channel (parametric & beamforming speakers)"
+    },
+    {
+      "id": "86bb639k9",
+      "name": "\ud83d\udccc Reference: Task Planning Standard v1.0"
+    },
+    {
       "id": "86bb53hmk",
       "name": "Fix latent ThinkingBlock bug in nova_task_queue.propose_tier()"
     },
@@ -386,6 +430,42 @@
     }
   ],
   "in_progress": [
+    {
+      "id": "86bb72wfm",
+      "name": "Add goal re-anchoring -- periodically re-inject original task statement to counter drift"
+    },
+    {
+      "id": "86bb72wdx",
+      "name": "Generalize tool-refusal guidance to suggest the correct next action on any refusal"
+    },
+    {
+      "id": "86bb72wd5",
+      "name": "Add task-scoped file allowlist guard (prevent scope violations, not just detect them)"
+    },
+    {
+      "id": "86bb72gpa",
+      "name": "Coding agent runs its own verification repeatedly but never fixes the bug it finds"
+    },
+    {
+      "id": "86bb728nj",
+      "name": "RunPod coding agent re-issues already-successful edits, burns full 25-turn budget without progressing"
+    },
+    {
+      "id": "86bb71x39",
+      "name": "Add ground-truth completion gate independent of model self-report (harness-level, not LLM-judge)"
+    },
+    {
+      "id": "86bb71x2a",
+      "name": "Give coding sub-agent self-verification in its own environment before declaring task complete"
+    },
+    {
+      "id": "86bb71x1j",
+      "name": "Design auto-configuring harness: detect and align tool-call/completion conventions per model backend"
+    },
+    {
+      "id": "86bb71a0f",
+      "name": "Re-run nova_coding_eval.py held-out suite against redeployed Qwen endpoint"
+    },
     {
       "id": "86bb4gy0y",
       "name": "Build Qwen-writes / Claude-reviews coding pipeline (Phase 3.5 refinement)"
