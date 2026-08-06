@@ -17,9 +17,9 @@
     "token_budget_governor": false,
     "skill_injection": false,
     "remote_gpu_inference": false,
-    "runpod_coding_agent": true,
+    "runpod_coding_agent": false,
     "devstral_coding_agent": false,
-    "coding_review_pass": true,
+    "coding_review_pass": false,
     "langfuse_tracing": false,
     "laminar_tracing": false
   },
