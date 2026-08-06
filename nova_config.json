@@ -20,8 +20,8 @@
     "runpod_coding_agent": false,
     "devstral_coding_agent": false,
     "coding_review_pass": false,
-    "langfuse_tracing": false,
-    "laminar_tracing": false
+    "langfuse_tracing": true,
+    "laminar_tracing": true
   },
   "token_budget": {
     "session_ceiling": 100000,
