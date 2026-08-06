@@ -1,6 +1,6 @@
 {
   "classical_augments": {
-    "enabled": false,
+    "enabled": true,
     "astar_retrieval": false,
     "dp_context_packing": false,
     "priority_queue_routing": false,
