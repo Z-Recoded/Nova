@@ -1,6 +1,6 @@
 {
   "classical_augments": {
-    "enabled": true,
+    "enabled": false,
     "astar_retrieval": false,
     "dp_context_packing": false,
     "priority_queue_routing": false,
@@ -12,7 +12,7 @@
   },
   "framework_integrations": {
     "langgraph_orchestration": false,
-    "openhands_coding_agent": false,
+    "openhands_coding_agent": true,
     "visual_retrieval": false,
     "token_budget_governor": false,
     "skill_injection": false,
