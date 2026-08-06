@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-08-05 23:49 UTC
+Last updated: 2026-08-06 04:35 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,36 +8,16 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- NEW -> ready: 86bb7quk1 (Stand up Gitea/Forgejo for self-hosted git hosting + diff viewing)
-- NEW -> ready: 86bb7quga (Stand up MLflow (minimal) for training-run and eval-score tracking)
-- NEW -> ready: 86bb7qudh (Stand up self-hosted Laminar for agent session replay / real-time trace playback)
-- NEW -> ready: 86bb7pawp (Observability Phase 1: Instrument turn loop (reasoning + tool calls + token uncertainty))
-- NEW -> ready: 86bb7pamh (Nova Observability Initiative — Langfuse tracing, agent oversight, and failure diagnosis)
-- NEW -> ready: 86bb77vk6 (Completion gate misses cross-module circular imports (found live in 86bb71a0f re-eval, task 6))
-- NEW -> ready: 86bb73bjz (Screen BF16/FP8 vs AWQ INT4 on held-out eval before committing to AWQ as production format)
-- NEW -> ready: 86bb72wfy (Test tool_choice="required" to stop over-explaining (verify against known Qwen3+reasoning parser bug))
-- NEW -> ready: 86bb71a15 (Verify aero_only scoping on framework_integrations.runpod_coding_agent is policy, not a hard dependency)
-- NEW -> ready: 86bb6ruqb (Research: Directed/targeted audio output channel (parametric & beamforming speakers))
-- NEW -> ready: 86bb639k9 (📌 Reference: Task Planning Standard v1.0)
-- NEW -> in_progress: 86bb72wfm (Add goal re-anchoring -- periodically re-inject original task statement to counter drift)
-- NEW -> in_progress: 86bb72wdx (Generalize tool-refusal guidance to suggest the correct next action on any refusal)
-- NEW -> in_progress: 86bb72wd5 (Add task-scoped file allowlist guard (prevent scope violations, not just detect them))
-- NEW -> in_progress: 86bb72gpa (Coding agent runs its own verification repeatedly but never fixes the bug it finds)
-- NEW -> in_progress: 86bb728nj (RunPod coding agent re-issues already-successful edits, burns full 25-turn budget without progressing)
-- NEW -> in_progress: 86bb71x39 (Add ground-truth completion gate independent of model self-report (harness-level, not LLM-judge))
-- NEW -> in_progress: 86bb71x2a (Give coding sub-agent self-verification in its own environment before declaring task complete)
-- NEW -> in_progress: 86bb71x1j (Design auto-configuring harness: detect and align tool-call/completion conventions per model backend)
-- NEW -> in_progress: 86bb71a0f (Re-run nova_coding_eval.py held-out suite against redeployed Qwen endpoint)
+- in_progress -> complete/removed: 86bb72wfm (Add goal re-anchoring -- periodically re-inject original task statement to counter drift)
+- in_progress -> complete/removed: 86bb72wd5 (Add task-scoped file allowlist guard (prevent scope violations, not just detect them))
+- in_progress -> complete/removed: 86bb71x2a (Give coding sub-agent self-verification in its own environment before declaring task complete)
 
-## In progress (13)
+## In progress (10)
 
-- 86bb72wfm  Add goal re-anchoring -- periodically re-inject original task statement to counter drift
 - 86bb72wdx  Generalize tool-refusal guidance to suggest the correct next action on any refusal
-- 86bb72wd5  Add task-scoped file allowlist guard (prevent scope violations, not just detect them)
 - 86bb72gpa  Coding agent runs its own verification repeatedly but never fixes the bug it finds
 - 86bb728nj  RunPod coding agent re-issues already-successful edits, burns full 25-turn budget without progressing
 - 86bb71x39  Add ground-truth completion gate independent of model self-report (harness-level, not LLM-judge)
-- 86bb71x2a  Give coding sub-agent self-verification in its own environment before declaring task complete
 - 86bb71x1j  Design auto-configuring harness: detect and align tool-call/completion conventions per model backend
 - 86bb71a0f  Re-run nova_coding_eval.py held-out suite against redeployed Qwen endpoint
 - 86bb4gy0y  Build Qwen-writes / Claude-reviews coding pipeline (Phase 3.5 refinement)
@@ -59,11 +39,8 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (107)
+## Ready (104)
 
-- 86bb7quk1  Stand up Gitea/Forgejo for self-hosted git hosting + diff viewing
-- 86bb7quga  Stand up MLflow (minimal) for training-run and eval-score tracking
-- 86bb7qudh  Stand up self-hosted Laminar for agent session replay / real-time trace playback
 - 86bb7pawp  Observability Phase 1: Instrument turn loop (reasoning + tool calls + token uncertainty)
 - 86bb7pamh  Nova Observability Initiative — Langfuse tracing, agent oversight, and failure diagnosis
 - 86bb77vk6  Completion gate misses cross-module circular imports (found live in 86bb71a0f re-eval, task 6)
