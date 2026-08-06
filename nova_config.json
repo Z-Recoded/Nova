@@ -44,7 +44,7 @@
     "default_model": "llama3.2"
   },
   "scheduled_dispatch": {
-    "review_backpressure_enabled": false,
+    "review_backpressure_enabled": true,
     "max_unreviewed_dispatches": 3,
     "sandboxed_dispatch_enabled": false
   },
