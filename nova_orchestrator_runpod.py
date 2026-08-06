@@ -34,10 +34,12 @@ from vulture import Vulture
 
 import nova_remote_inference
 from nova_backend_profiles import RUNPOD_PROFILE
+from nova_completion_gate import check_ground_truth_completion
 from nova_config import is_framework_integration_enabled
 from nova_laminar_client import log_guard_events as laminar_log_guard_events
 from nova_laminar_client import log_turn as laminar_log_turn
 from nova_langfuse_client import log_guard_events, log_turn
+from nova_orchestrator import _git_diff_against_master
 
 # ── Config ─────────────────────────────────────────────────────
 
@@ -1043,7 +1045,6 @@ def run_via_runpod(
     failed_calls: set = set()
     failed_replace_counts: dict = {}
     edited_paths: set = set()
-    has_verified_edits = False
     verification_nudge_used = False
     total_cost_usd = 0.0
     total_execution_time_ms = 0
@@ -1183,29 +1184,47 @@ def run_via_runpod(
                 )
                 continue
 
-            if edited_paths and not has_verified_edits and not verification_nudge_used:
-                # Self-verification nudge (86bb71x2a): the model edited
-                # files but never ran any check on them before trying to
-                # stop. Give it exactly one more turn to verify rather than
-                # accepting the stop immediately -- deliberately only once,
-                # so an ignored nudge doesn't burn the whole turn budget
-                # (same "nudge once, don't force forever" instinct as the
-                # file_replace fallback nudge above).
-                verification_nudge_used = True
-                guard_events.append({"guard": GUARD_SELF_VERIFY_NUDGE, "detail": f"turn {turn}"})
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": (
-                            "<tool_response>\nBefore finishing: you edited "
-                            f"{len(edited_paths)} file(s) this task but haven't run any "
-                            "check on them yet. Verify your work now (e.g. a syntax check "
-                            "via run_command, or re-reading an edited file) before your "
-                            "final summary.\n</tool_response>"
-                        ),
-                    }
+            if edited_paths and not verification_nudge_used:
+                # Self-verification nudge (86bb71x2a), strengthened 2026-08-06: the
+                # old condition just checked whether the model ran ANY command after
+                # editing -- real bug found investigating why this almost never fired
+                # (1 of 53 real runs) while 63.5% of un-nudged runs still failed an
+                # incompleteness check anyway: a single unrelated syntax check already
+                # satisfied the old condition, letting real incompleteness (missing
+                # required files, dead imports, empty diff) sail through uncaught.
+                # Reuses the exact same check the final gate runs
+                # (check_ground_truth_completion(), nova_completion_gate.py) against
+                # the real diff-so-far -- whatever this catches is guaranteed to
+                # matter at the end too, and costs nothing extra since `requirements`
+                # is already extracted once and passed through, not re-extracted here.
+                diff_so_far = _git_diff_against_master(root)
+                gate_result = check_ground_truth_completion(
+                    diff_so_far, task_description, root, requirements=requirements
                 )
-                continue
+                real_issues = gate_result["hard_fails"] + gate_result["warnings"]
+
+                if real_issues:
+                    # Give it exactly one more turn to address the SPECIFIC real
+                    # issues found -- deliberately only once, so an ignored nudge
+                    # doesn't burn the whole turn budget (same "nudge once, don't
+                    # force forever" instinct as the file_replace fallback nudge
+                    # above).
+                    verification_nudge_used = True
+                    guard_events.append(
+                        {"guard": GUARD_SELF_VERIFY_NUDGE, "detail": f"turn {turn}: {'; '.join(real_issues)}"}
+                    )
+                    issues_text = "\n".join(f"- {issue}" for issue in real_issues)
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": (
+                                "<tool_response>\nBefore finishing: a completeness check found "
+                                f"real issues with your work so far:\n{issues_text}\nAddress "
+                                "these specifically before your final summary.\n</tool_response>"
+                            ),
+                        }
+                    )
+                    continue
 
             final_status = "completed"
             break
@@ -1227,8 +1246,6 @@ def run_via_runpod(
             )
             if name in ("write_file", "file_replace") and not result.get("is_error", False):
                 edited_paths.add(args.get("path", ""))
-            if name == "run_command" and edited_paths:
-                has_verified_edits = True
             messages.append({"role": "user", "content": f"<tool_response>\n{result['content']}\n</tool_response>"})
 
         if turn % GOAL_REANCHOR_INTERVAL_TURNS == 0:

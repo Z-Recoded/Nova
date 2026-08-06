@@ -34,9 +34,11 @@ from datetime import datetime
 
 import nova_remote_inference_native_tools as native_inference
 from nova_backend_profiles import DEVSTRAL_PROFILE
+from nova_completion_gate import check_ground_truth_completion
 from nova_config import is_framework_integration_enabled
 from nova_laminar_client import log_turn as laminar_log_turn
 from nova_langfuse_client import log_turn
+from nova_orchestrator import _git_diff_against_master
 from nova_orchestrator_runpod import (
     CODING_AGENT_CONTEXT_WINDOW_TOKENS,
     CONTEXT_SAFETY_MARGIN_TOKENS,
@@ -257,7 +259,6 @@ def run_via_devstral(
     failed_calls: set = set()
     failed_replace_counts: dict = {}
     edited_paths: set = set()
-    has_verified_edits = False
     verification_nudge_used = False
     total_cost_usd = 0.0
     total_execution_time_ms = 0
@@ -355,22 +356,36 @@ def run_via_devstral(
                 final_status = "stopped_max_output_tokens"
                 break
 
-            if edited_paths and not has_verified_edits and not verification_nudge_used:
-                verification_nudge_used = True
-                guard_events.append({"guard": GUARD_SELF_VERIFY_NUDGE, "detail": f"turn {turn}"})
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": (
-                            "Before finishing: you edited "
-                            f"{len(edited_paths)} file(s) this task but haven't run any "
-                            "check on them yet. Verify your work now (e.g. a syntax check "
-                            "via run_command, or re-reading an edited file) before your "
-                            "final summary."
-                        ),
-                    }
+            if edited_paths and not verification_nudge_used:
+                # Self-verification nudge (86bb71x2a), strengthened 2026-08-06 -- see
+                # nova_orchestrator_runpod.py's own version of this block for the full
+                # rationale (real bug found: the old "ran any command" condition let
+                # real incompleteness sail through uncaught, 1 of 53 real runs ever
+                # triggered it). Same fix here: reuse the exact same completeness
+                # check the final gate runs, against the real diff-so-far.
+                diff_so_far = _git_diff_against_master(root)
+                gate_result = check_ground_truth_completion(
+                    diff_so_far, task_description, root, requirements=requirements
                 )
-                continue
+                real_issues = gate_result["hard_fails"] + gate_result["warnings"]
+
+                if real_issues:
+                    verification_nudge_used = True
+                    guard_events.append(
+                        {"guard": GUARD_SELF_VERIFY_NUDGE, "detail": f"turn {turn}: {'; '.join(real_issues)}"}
+                    )
+                    issues_text = "\n".join(f"- {issue}" for issue in real_issues)
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": (
+                                "Before finishing: a completeness check found real issues "
+                                f"with your work so far:\n{issues_text}\nAddress these "
+                                "specifically before your final summary."
+                            ),
+                        }
+                    )
+                    continue
 
             final_status = "completed"
             break
@@ -392,8 +407,6 @@ def run_via_devstral(
             )
             if name in ("write_file", "file_replace") and not result.get("is_error", False):
                 edited_paths.add(args.get("path", ""))
-            if name == "run_command" and edited_paths:
-                has_verified_edits = True
             messages.append({"role": "tool", "tool_call_id": call["id"], "content": result["content"]})
 
         if turn % GOAL_REANCHOR_INTERVAL_TURNS == 0:
