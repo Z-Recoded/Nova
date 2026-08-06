@@ -12,7 +12,7 @@
   },
   "framework_integrations": {
     "langgraph_orchestration": false,
-    "openhands_coding_agent": true,
+    "openhands_coding_agent": false,
     "visual_retrieval": false,
     "token_budget_governor": false,
     "skill_injection": false,
