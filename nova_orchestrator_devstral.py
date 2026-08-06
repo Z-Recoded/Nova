@@ -35,6 +35,7 @@ from datetime import datetime
 import nova_remote_inference_native_tools as native_inference
 from nova_backend_profiles import DEVSTRAL_PROFILE
 from nova_config import is_framework_integration_enabled
+from nova_laminar_client import log_turn as laminar_log_turn
 from nova_langfuse_client import log_turn
 from nova_orchestrator_runpod import (
     CODING_AGENT_CONTEXT_WINDOW_TOKENS,
@@ -307,6 +308,20 @@ def run_via_devstral(
             cost_usd=response.get("cost_usd"),
         )
         log_turn(
+            branch_name,
+            turn,
+            DEVSTRAL_PROFILE.name,
+            native_inference.MODEL_NAME,
+            content,
+            tool_calls,
+            response.get("prompt_eval_count"),
+            response.get("eval_count"),
+            logprobs=response.get("logprobs"),
+            cost_usd=response.get("cost_usd"),
+        )
+        # 86bb7qudh: additive alongside Langfuse, same normalized data, same
+        # fail-open discipline -- see nova_laminar_client.log_turn()'s docstring.
+        laminar_log_turn(
             branch_name,
             turn,
             DEVSTRAL_PROFILE.name,

@@ -42,6 +42,7 @@
 import argparse
 import json
 import os
+from datetime import UTC, datetime
 
 from datasets import Dataset, concatenate_datasets, load_dataset
 
@@ -95,6 +96,17 @@ SAVE_TOTAL_LIMIT = 3
 # rented A100 pod can be stopped right after training instead of waiting on
 # a slow pod-to-home transfer for a ~64GB checkpoint. See nova_hf_upload.py.
 HF_HUB_REPO_ID = "zrecoded/nova-qwen-coder-32b-sft-merged"
+
+# 86bb7quga: this pod has no Tailscale access to the Omen's MLflow server, and
+# importing the `mlflow` client package here risks the exact real dependency
+# conflict already hit and fixed once (mlflow's install chain fought
+# transformers/datasets pins unsloth needs). Writing a small local JSON
+# instead -- no network call, no new pod dependency -- that rides along for
+# free inside the same directory upload_merged_to_hub() already uploads.
+# nova_mlflow_ingest.py (run from the Aero, which has both `mlflow` and
+# Tailscale) reads this back and logs the real run into MLflow after the pod
+# has already stopped.
+MLFLOW_METADATA_FILENAME = "mlflow_run_metadata.json"
 
 
 # ── Example loading ─────────────────────────────────────────────────────────────
@@ -256,8 +268,42 @@ def export_merged(model, tokenizer) -> None:
     print(f"Merged model exported to {SFT_MERGED_OUTPUT_DIR} (merged_16bit safetensors, not GGUF)")
 
 
+# ── MLflow metadata (86bb7quga) ─────────────────────────────────────────────────
+def _write_mlflow_metadata(output_dir: str, train_result, started_at: datetime) -> None:
+    """
+    Write a small local JSON summarizing this real run's real hyperparameters
+    and metrics, for nova_mlflow_ingest.py to pick up later from the Aero.
+    train_result is TRL/HF Trainer's own TrainOutput -- .metrics already
+    aggregates real values (train_loss, train_runtime, etc.), no separate
+    log_history parsing needed for the SFT stage.
+    """
+    metadata = {
+        "run_name": f"sft_full_{started_at.strftime('%Y-%m-%d')}",
+        "stage": "sft",
+        "hf_repo_id": HF_HUB_REPO_ID,
+        "started_at": started_at.isoformat(),
+        "finished_at": datetime.now(UTC).isoformat(),
+        "params": {
+            "base_model": BASE_MODEL_NAME,
+            "lora_rank": LORA_RANK,
+            "lora_alpha": LORA_ALPHA,
+            "learning_rate": LEARNING_RATE,
+            "batch_size": BATCH_SIZE,
+            "grad_accum_steps": GRAD_ACCUM_STEPS,
+            "num_epochs": NUM_EPOCHS,
+            "sft_subset_size": SFT_SUBSET_SIZE,
+        },
+        "metrics": dict(train_result.metrics),
+    }
+    metadata_path = os.path.join(output_dir, MLFLOW_METADATA_FILENAME)
+    with open(metadata_path, "w", encoding="utf-8") as f:
+        json.dump(metadata, f, indent=2)
+    print(f"Wrote MLflow metadata to {metadata_path} (will upload alongside the merged checkpoint)")
+
+
 # ── Main ─────────────────────────────────────────────────────────────────────────
 def run(dry_run: bool) -> None:
+    run_started_at = datetime.now(UTC)
     print(f"Loading up to {SFT_SUBSET_SIZE} example(s) from {KODCODE_DATASET_ID} ({KODCODE_SPLIT} split)...")
     kodcode_examples = load_sft_examples()
     print(f"Loaded {len(kodcode_examples)} KodCode-V1 example(s).")
@@ -289,7 +335,7 @@ def run(dry_run: bool) -> None:
         print(
             f"Found an existing checkpoint in {SFT_ADAPTER_OUTPUT_DIR} — resuming instead of restarting from scratch."
         )
-    trainer.train(resume_from_checkpoint=resume)
+    train_result = trainer.train(resume_from_checkpoint=resume)
 
     if dry_run:
         print("Dry run complete — pipeline validated, no adapter saved.")
@@ -298,6 +344,7 @@ def run(dry_run: bool) -> None:
     trainer.save_model(SFT_ADAPTER_OUTPUT_DIR)
     print(f"Adapter saved to {SFT_ADAPTER_OUTPUT_DIR}")
     export_merged(model, tokenizer)
+    _write_mlflow_metadata(SFT_MERGED_OUTPUT_DIR, train_result, run_started_at)
     upload_merged_to_hub(SFT_MERGED_OUTPUT_DIR, HF_HUB_REPO_ID)
 
 

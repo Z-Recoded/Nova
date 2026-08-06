@@ -32,6 +32,8 @@ from nova_config import (
     is_framework_integration_enabled,
     is_pre_action_approval_gate_enabled,
 )
+from nova_laminar_client import log_gate_result as laminar_log_gate_result
+from nova_laminar_client import log_turn as laminar_log_turn
 from nova_langfuse_client import log_gate_result, log_turn
 from nova_notify import send_notification
 from nova_skills import get_skill_version, load_skill
@@ -649,6 +651,19 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
                 response.usage.input_tokens,
                 response.usage.output_tokens,
             )
+            # 86bb7qudh: additive alongside the Langfuse call above, same
+            # normalized data, same fail-open discipline -- see
+            # nova_laminar_client.log_turn()'s own docstring.
+            laminar_log_turn(
+                branch_name,
+                turn,
+                CLAUDE_PROFILE.name,
+                response.model,
+                text_content,
+                tool_calls_for_trace,
+                response.usage.input_tokens,
+                response.usage.output_tokens,
+            )
             if budget_gate_enabled:
                 record_usage(response.usage)
 
@@ -879,6 +894,9 @@ def _log_ground_truth_gate(branch: str, task_description: str, gate_result: dict
     # onto Langfuse keyed to the real failure registry. Fails open on its
     # own; never disturbs the JSONL write above.
     log_gate_result(branch, gate_result)
+    # 86bb7qudh: additive alongside Langfuse, same data, same fail-open
+    # discipline -- see nova_laminar_client.log_gate_result()'s docstring.
+    laminar_log_gate_result(branch, gate_result)
 
 
 def record_task_outcome(branch: str, outcome: str, note: str = "") -> None:

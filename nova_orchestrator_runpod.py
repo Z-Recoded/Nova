@@ -35,6 +35,8 @@ from vulture import Vulture
 import nova_remote_inference
 from nova_backend_profiles import RUNPOD_PROFILE
 from nova_config import is_framework_integration_enabled
+from nova_laminar_client import log_guard_events as laminar_log_guard_events
+from nova_laminar_client import log_turn as laminar_log_turn
 from nova_langfuse_client import log_guard_events, log_turn
 
 # ── Config ─────────────────────────────────────────────────────
@@ -896,6 +898,10 @@ def _log_guard_events(slug: str, branch: str, task: str, final_status: str, guar
     # onto Langfuse keyed to the real failure registry. Fails open on its
     # own; never disturbs the JSONL write above.
     log_guard_events(branch, final_status, guard_events)
+    # 86bb7qudh: additive alongside Langfuse, same data, same fail-open
+    # discipline -- see nova_laminar_client.log_guard_events()'s docstring.
+    # Covers both the RunPod and Devstral backends, same as the Langfuse call.
+    laminar_log_guard_events(branch, final_status, guard_events)
 
 
 # ── Context-window management ────────────────────────────────────
@@ -1110,6 +1116,20 @@ def run_via_runpod(
             near_miss_count=len(near_misses),
         )
         log_turn(
+            branch_name,
+            turn,
+            RUNPOD_PROFILE.name,
+            nova_remote_inference.MODEL_NAME,
+            content,
+            tool_calls,
+            response.get("prompt_eval_count"),
+            response.get("eval_count"),
+            logprobs=response.get("logprobs"),
+            cost_usd=response.get("cost_usd"),
+        )
+        # 86bb7qudh: additive alongside Langfuse, same normalized data, same
+        # fail-open discipline -- see nova_laminar_client.log_turn()'s docstring.
+        laminar_log_turn(
             branch_name,
             turn,
             RUNPOD_PROFILE.name,

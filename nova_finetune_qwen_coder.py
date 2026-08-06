@@ -37,6 +37,7 @@
 import argparse
 import json
 import os
+from datetime import UTC, datetime
 
 from datasets import Dataset
 
@@ -81,6 +82,13 @@ MERGED_OUTPUT_DIR = "finetune_output/qwen-coder-32b-dpo-merged"
 # rented A100 pod can be stopped right after training instead of waiting on
 # a slow pod-to-home transfer for a ~64GB checkpoint. See nova_hf_upload.py.
 HF_HUB_REPO_ID = "zrecoded/nova-qwen-coder-32b-dpo-merged"
+
+# 86bb7quga: same reasoning as nova_finetune_qwen_coder_sft.py's own comment --
+# no Tailscale access to the Omen's MLflow server from this pod, and no
+# `mlflow` import here to avoid repeating the real transformers/datasets
+# conflict already hit once installing mlflow's client locally. Small local
+# JSON instead, rides along with the existing HF Hub upload.
+MLFLOW_METADATA_FILENAME = "mlflow_run_metadata.json"
 
 
 def _resolve_base_model_name() -> str:
@@ -253,8 +261,64 @@ def export_merged(model, tokenizer) -> None:
     print(f"Merged model exported to {MERGED_OUTPUT_DIR} (merged_16bit safetensors, not GGUF)")
 
 
+# ── MLflow metadata (86bb7quga) ─────────────────────────────────────────────────
+def _first_and_last(log_history: list[dict], key: str) -> tuple[float | None, float | None]:
+    """
+    Scan TRL's own per-step log_history for the first and last entry that
+    logged `key` -- DPOTrainer logs 'loss' and 'rewards/accuracies' during
+    training via logging_steps, but neither lands in trainer.train()'s own
+    aggregated .metrics the way train_loss does for the SFT stage. Returns
+    (None, None) if the key never appeared (e.g. a dry run too short to log).
+    """
+    values = [entry[key] for entry in log_history if key in entry]
+    if not values:
+        return None, None
+    return values[0], values[-1]
+
+
+def _write_mlflow_metadata(output_dir: str, trainer, num_pairs: int, started_at: datetime) -> None:
+    """
+    Write a small local JSON summarizing this real run's real hyperparameters
+    and metrics, for nova_mlflow_ingest.py to pick up later from the Aero.
+    """
+    loss_start, loss_end = _first_and_last(trainer.state.log_history, "loss")
+    reward_acc_start, reward_acc_end = _first_and_last(trainer.state.log_history, "rewards/accuracies")
+
+    metrics = {}
+    if loss_start is not None:
+        metrics["loss_start"] = loss_start
+        metrics["loss_end"] = loss_end
+    if reward_acc_end is not None:
+        metrics["reward_accuracy"] = reward_acc_end
+
+    metadata = {
+        "run_name": f"dpo_full_{started_at.strftime('%Y-%m-%d')}",
+        "stage": "dpo",
+        "hf_repo_id": HF_HUB_REPO_ID,
+        "started_at": started_at.isoformat(),
+        "finished_at": datetime.now(UTC).isoformat(),
+        "params": {
+            "base_model": BASE_MODEL_NAME,
+            "lora_rank": LORA_RANK,
+            "lora_alpha": LORA_ALPHA,
+            "learning_rate": LEARNING_RATE,
+            "batch_size": BATCH_SIZE,
+            "grad_accum_steps": GRAD_ACCUM_STEPS,
+            "num_epochs": NUM_EPOCHS,
+            "dpo_beta": DPO_BETA,
+            "num_corrected_pairs": num_pairs,
+        },
+        "metrics": metrics,
+    }
+    metadata_path = os.path.join(output_dir, MLFLOW_METADATA_FILENAME)
+    with open(metadata_path, "w", encoding="utf-8") as f:
+        json.dump(metadata, f, indent=2)
+    print(f"Wrote MLflow metadata to {metadata_path} (will upload alongside the merged checkpoint)")
+
+
 # ── Main ─────────────────────────────────────────────────────────────────────────
 def run(dry_run: bool) -> None:
+    run_started_at = datetime.now(UTC)
     pairs = load_dpo_pairs(CODING_REVIEW_LOG_PATH)
     print(f"Loaded {len(pairs)} corrected DPO pair(s) from {CODING_REVIEW_LOG_PATH}.")
 
@@ -291,6 +355,7 @@ def run(dry_run: bool) -> None:
     trainer.save_model(ADAPTER_OUTPUT_DIR)
     print(f"Adapter saved to {ADAPTER_OUTPUT_DIR}")
     export_merged(model, tokenizer)
+    _write_mlflow_metadata(MERGED_OUTPUT_DIR, trainer, len(pairs), run_started_at)
     upload_merged_to_hub(MERGED_OUTPUT_DIR, HF_HUB_REPO_ID)
 
 
