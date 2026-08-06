@@ -9,7 +9,7 @@
 
 import json
 import os
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 
 class FlagMeta(TypedDict):
@@ -17,6 +17,11 @@ class FlagMeta(TypedDict):
     label: str
     category: str
     aero_only: bool
+    # Both optional, absent = no constraint. Real, code-confirmed relationships
+    # only -- see is_flag_toggle_allowed()'s own docstring for how these gate
+    # the Controller switches panel.
+    disabled_unless: NotRequired[list[str]]
+    disabled_if_any_on: NotRequired[list[str]]
 
 
 # ── Config ─────────────────────────────────────────────────────
@@ -295,6 +300,11 @@ FLAG_REGISTRY: dict[str, FlagMeta] = {
         "label": "LangGraph Task Runner",
         "category": "scaffolding",
         "aero_only": True,
+        # nova_orchestrator.py's own if/elif chain (line ~540): runpod beats
+        # devstral beats langgraph beats the default Claude loop. Turning this
+        # on while either of the other two is already on has zero effect --
+        # real, code-confirmed mutual exclusion, not a guess.
+        "disabled_if_any_on": ["runpod_coding_agent", "devstral_coding_agent"],
     },
     "openhands_coding_agent": {
         "path": ["framework_integrations", "openhands_coding_agent"],
@@ -313,6 +323,9 @@ FLAG_REGISTRY: dict[str, FlagMeta] = {
         "label": "RunPod Devstral Task Runner",
         "category": "scaffolding",
         "aero_only": True,
+        # Same mutual-exclusion group as langgraph_orchestration -- runpod
+        # wins over devstral in nova_orchestrator.py's real precedence chain.
+        "disabled_if_any_on": ["runpod_coding_agent"],
     },
     "langfuse_tracing": {
         "path": ["framework_integrations", "langfuse_tracing"],
@@ -331,6 +344,10 @@ FLAG_REGISTRY: dict[str, FlagMeta] = {
         "label": "Coding Review Pass (Claude reviews RunPod diffs)",
         "category": "scaffolding",
         "aero_only": True,
+        # nova_orchestrator.py:720 -- this flag only ever does anything when
+        # runpod_coding_agent is also on. A real, code-confirmed dependency,
+        # not a guess.
+        "disabled_unless": ["runpod_coding_agent"],
     },
     "push_notifications_enabled": {
         "path": ["push_notifications", "enabled"],
@@ -362,6 +379,10 @@ def get_flag_registry_values() -> dict:
     Current value of every registered flag, keyed by flag_key — backs
     GET /flags. Reads via load_config() (already hot/uncached), so this
     always reflects the file's real current state, never a stale copy.
+    disabled_unless/disabled_if_any_on ride along so the Controller's
+    switches panel can compute each flag's toggle-ability client-side
+    without a second round-trip — see is_flag_toggle_allowed()'s docstring
+    for what these mean.
     """
     config = load_config()
     return {
@@ -370,9 +391,51 @@ def get_flag_registry_values() -> dict:
             "label": meta["label"],
             "category": meta["category"],
             "aero_only": meta["aero_only"],
+            "disabled_unless": meta.get("disabled_unless", []),
+            "disabled_if_any_on": meta.get("disabled_if_any_on", []),
         }
         for key, meta in FLAG_REGISTRY.items()
     }
+
+
+def is_flag_toggle_allowed(flag_key: str, new_value: bool, current_values: dict[str, bool]) -> tuple[bool, str | None]:
+    """
+    True (allowed, None) if turning flag_key to new_value is a sensible
+    change; False (blocked, reason) otherwise. Turning a flag OFF is always
+    allowed regardless of other state — a switch should never refuse to be
+    turned off, and nothing here should ever auto-flip a switch a human
+    didn't touch themselves (Marvin's own call, 86bb-controller-guards).
+
+    Turning a flag ON is blocked when:
+    - its disabled_unless names another flag that's currently off (a real
+      dependency — e.g. coding_review_pass_enabled only does anything when
+      runpod_coding_agent is also on, nova_orchestrator.py:720), or
+    - its disabled_if_any_on names another flag that's currently on (a real
+      mutual exclusion — e.g. devstral_coding_agent/langgraph_orchestration
+      are alternate backends runpod_coding_agent takes precedence over,
+      nova_orchestrator.py's own if/elif chain).
+
+    current_values is keyed the same way get_flag_registry_values() returns
+    (flag_key -> bool), so callers on both the server (nova_api.py's
+    set_flag()) and conceptually the client (nova_controller.html reads the
+    same /flags payload) reason about the same shape.
+    """
+    if not new_value:
+        return True, None
+
+    meta = FLAG_REGISTRY.get(flag_key, {})
+
+    for required_key in meta.get("disabled_unless", []):
+        if not current_values.get(required_key, False):
+            required_label = FLAG_REGISTRY.get(required_key, {}).get("label", required_key)
+            return False, f"Requires '{required_label}' to be on first"
+
+    for blocker_key in meta.get("disabled_if_any_on", []):
+        if current_values.get(blocker_key, False):
+            blocker_label = FLAG_REGISTRY.get(blocker_key, {}).get("label", blocker_key)
+            return False, f"Disabled while '{blocker_label}' is on (mutually exclusive backends)"
+
+    return True, None
 
 
 def set_flag_value(flag_key: str, value: bool) -> dict:
