@@ -107,19 +107,26 @@ if (-not $tailscaleIp) {
     }
 }
 
-Write-Output "5. Installing the three read-only, command-restricted keys..."
+Write-Output "5. Installing the four read-only, command-restricted keys..."
 $keysDir = "C:\ProgramData\ssh"
 $keysFile = Join-Path $keysDir "administrators_authorized_keys"
 
 $agentLogKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_read_agent_log.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINYwrlkDv4uEgNbLPuQKiNl2Iu84hJIumRucCi/mVLaN omen-to-aero-agentlog-readonly'
 $worktreesKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_read_worktrees.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINk1t+7xbCyLgOa+Y2i7Tp1PSkZUiaKAurysPbG/sa51 omen-to-aero-worktrees-readonly'
 $trainingDataKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_read_training_flags.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINbdhHC/7txt15uh3BTTe5ZkLvd+3IxG/bVB9gudtrkd omen-to-aero-trainingdata-readonly'
+# 2026-08-06 addition -- backs the /observability/per-model and
+# /observability/failure-frequency cross-machine fix (nova_observability_status.py).
+# Same auto-installed, read-only class as the three above -- just reads
+# guard_events_log.jsonl/ground_truth_gate_log.jsonl, bundled into one JSON
+# response (see ssh_read_observability_logs.ps1).
+$observabilityLogsKey = 'command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Nova\scripts\ssh_read_observability_logs.ps1",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHa+LqduVmRz16JApQXeUNJpefj6w9bqEgh+9N8ZWrq/ omen-to-aero-observabilitylogs-readonly'
 
 $content = @()
 if (Test-Path $keysFile) { $content = Get-Content $keysFile }
 if ($content -notcontains $agentLogKey) { $content += $agentLogKey }
 if ($content -notcontains $worktreesKey) { $content += $worktreesKey }
 if ($content -notcontains $trainingDataKey) { $content += $trainingDataKey }
+if ($content -notcontains $observabilityLogsKey) { $content += $observabilityLogsKey }
 Set-Content -Path $keysFile -Value $content -Encoding ascii
 
 # Required by Windows OpenSSH: administrators_authorized_keys must be
@@ -216,6 +223,7 @@ Write-Output "Setup complete. Verify from the Omen with:"
 Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_agentlog marvi@100.122.229.23 "ignored"'
 Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_worktrees marvi@100.122.229.23 "ignored"'
 Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_trainingdata marvi@100.122.229.23 "ignored"'
+Write-Output '  ssh -i ~/.ssh/aero_keys/id_ed25519_aero_observabilitylogs marvi@100.122.229.23 "ignored"'
 Write-Output '  echo {"kind":"blend_flag","index":0,"expected_timestamp":"...","correction":"test"} | ssh -i ~/.ssh/aero_keys/id_ed25519_aero_trainingflags_write marvi@100.122.229.23 "ignored"'
 Write-Output '  echo {"branch":"nova-dispatch-00000000"} | ssh -i ~/.ssh/aero_keys/id_ed25519_aero_worktree_pr marvi@100.122.229.23 "ignored"'
 Write-Output '  echo {"branch":"nova-dispatch-00000000"} | ssh -i ~/.ssh/aero_keys/id_ed25519_aero_diff marvi@100.122.229.23 "ignored"'

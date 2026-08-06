@@ -175,6 +175,7 @@
 
   <div class="panel">
     <h2>Per-model comparison</h2>
+    <div class="caption" id="model-view-caption"></div>
     <svg class="chart" id="model-runs-chart" viewBox="0 0 900 160" preserveAspectRatio="xMidYMid meet"></svg>
     <div class="caption">Task runs considered, per model.</div>
     <svg class="chart" id="model-pass-chart" viewBox="0 0 900 160" preserveAspectRatio="xMidYMid meet" style="margin-top: 1rem;"></svg>
@@ -308,6 +309,16 @@
         caption.textContent = data.unmapped_count
           ? data.unmapped_count + ' guard/gate firing(s) have no registry-code mapping yet (e.g. tool-call-format parsing artifacts) and are not shown above.'
           : 'Every real guard/gate firing maps to a registry code.';
+        // Cross-machine combined data (nova_observability_status.py, 86bb7pb20
+        // follow-up) -- "combined" is the normal case; omen_only/aero_only
+        // still happen live whenever the other machine can't be reached right
+        // now (e.g. asleep), same convention as the Controller's own
+        // training-data-status widget.
+        if (data.view === 'omen_only') {
+          caption.textContent += ' Omen-hosted data only, the Aero could not be reached right now.';
+        } else if (data.view === 'aero_only') {
+          caption.textContent += ' Aero-hosted data only, the Omen could not be reached right now.';
+        }
       } catch (err) {
         document.getElementById('error').textContent = 'Could not load failure-frequency data: ' + err.message;
       }
@@ -414,12 +425,22 @@
       try {
         const res = await fetch('/observability/per-model');
         if (!res.ok) throw new Error('Request failed: ' + res.status);
-        modelData = (await res.json()).models;
+        const payload = await res.json();
+        modelData = payload.models;
         renderModelRunsChart(modelData);
         renderModelPassChart(modelData);
         renderModelOutcomeChart(modelData);
         renderOutcomeLegend();
         renderModelTable(modelData);
+        // Same cross-machine view caveat as the frequency section above.
+        const viewCaption = document.getElementById('model-view-caption');
+        if (payload.view === 'omen_only') {
+          viewCaption.textContent = 'Omen-hosted data only, the Aero could not be reached right now.';
+        } else if (payload.view === 'aero_only') {
+          viewCaption.textContent = 'Aero-hosted data only, the Omen could not be reached right now.';
+        } else {
+          viewCaption.textContent = '';
+        }
       } catch (err) {
         document.getElementById('error').textContent = 'Could not load per-model data: ' + err.message;
       }

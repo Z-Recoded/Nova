@@ -27,20 +27,14 @@
 import datetime
 import os
 
-from nova_guard_stats import (
-    _GATE_TAG_RE,
-    GROUND_TRUTH_GATE_LOG_PATH,
-    GUARD_EVENTS_LOG_PATH,
-    LOGS_DIR,
-    _included,
-    _parse_jsonl,
-)
+from nova_guard_stats import _GATE_TAG_RE, LOGS_DIR, _included, _parse_jsonl
 from nova_langfuse_client import (
     FINAL_STATUS_TO_REGISTRY_CODE,
     GATE_CHECK_TO_REGISTRY_CODE,
     GUARD_TO_REGISTRY_CODE,
     get_client,
 )
+from nova_observability_status import get_combined_observability_data
 
 AGENT_LOG_PATH = os.path.join(LOGS_DIR, "agent_log.jsonl")
 TASK_OUTCOMES_LOG_PATH = os.path.join(LOGS_DIR, "agent_task_outcomes.jsonl")
@@ -81,13 +75,20 @@ def _latest_entry_by_branch(entries: list[dict]) -> dict[str, dict]:
     return latest
 
 
-def _branch_to_model_map() -> dict[str, str]:
+def _branch_to_model_map(agent_log_entries: list[dict]) -> dict[str, str]:
     """
-    Each branch's model, from its first logged turn in agent_log.jsonl — a
-    branch's backend never changes mid-run, so the first turn is enough.
+    Each branch's model, from its first logged turn in the given agent_log
+    entries — a branch's backend never changes mid-run, so the first turn
+    is enough. Takes entries as a parameter (rather than reading
+    AGENT_LOG_PATH itself) so callers can pass in cross-machine combined
+    data (nova_observability_status.get_combined_observability_data()) —
+    real bug found 2026-08-06: the Omen's own agent_log.jsonl has only 137
+    lines vs. the Aero's 4,765, since almost all real coding-agent activity
+    happens on the Aero, so a local-only read here silently missed most of
+    it whenever served from the Omen.
     """
     mapping: dict[str, str] = {}
-    for entry in _parse_jsonl(AGENT_LOG_PATH):
+    for entry in agent_log_entries:
         branch = entry.get("branch")
         if branch and branch not in mapping:
             mapping[branch] = entry.get("model") or "(unknown model)"
@@ -110,20 +111,21 @@ def _task_outcomes_by_branch() -> dict[str, dict]:
 def failure_frequency_over_time(branch_prefix: str | None = None) -> dict:
     """
     Real A1-G2 registry-code fires, bucketed by date, from
-    guard_events_log.jsonl and ground_truth_gate_log.jsonl. Maps each real
-    firing to its registry code via the same dicts Phase 2 already built
-    (GUARD_TO_REGISTRY_CODE / GATE_CHECK_TO_REGISTRY_CODE /
+    guard_events_log.jsonl and ground_truth_gate_log.jsonl — cross-machine
+    combined (nova_observability_status.get_combined_observability_data()),
+    not local-only. Real bug found 2026-08-06: both files don't even exist
+    on the Omen, so a route served from there was silently showing nothing.
+    Maps each real firing to its registry code via the same dicts Phase 2
+    already built (GUARD_TO_REGISTRY_CODE / GATE_CHECK_TO_REGISTRY_CODE /
     FINAL_STATUS_TO_REGISTRY_CODE) — not new detection logic, just a time
     dimension on top of signal that already exists.
 
-    Returns {"dates": [...], "codes": [...], "series": {code: [count_per_date, ...]}, "unmapped_count": N}.
+    Returns {"dates": [...], "codes": [...], "series": {code: [count_per_date, ...]},
+    "unmapped_count": N, "view": "combined"|"omen_only"|"aero_only"}.
     """
-    guard_entries = [
-        e for e in _parse_jsonl(GUARD_EVENTS_LOG_PATH) if _included(e.get("branch", ""), branch_prefix, None)
-    ]
-    gate_entries = [
-        e for e in _parse_jsonl(GROUND_TRUTH_GATE_LOG_PATH) if _included(e.get("branch", ""), branch_prefix, None)
-    ]
+    combined = get_combined_observability_data()
+    guard_entries = [e for e in combined["guard_entries"] if _included(e.get("branch", ""), branch_prefix, None)]
+    gate_entries = [e for e in combined["gate_entries"] if _included(e.get("branch", ""), branch_prefix, None)]
 
     counts: dict[str, dict[str, int]] = {}
     unmapped_count = 0
@@ -157,7 +159,13 @@ def failure_frequency_over_time(branch_prefix: str | None = None) -> dict:
     dates = sorted(counts.keys())
     codes = sorted({code for day_counts in counts.values() for code in day_counts})
     series = {code: [counts.get(date, {}).get(code, 0) for date in dates] for code in codes}
-    return {"dates": dates, "codes": codes, "series": series, "unmapped_count": unmapped_count}
+    return {
+        "dates": dates,
+        "codes": codes,
+        "series": series,
+        "unmapped_count": unmapped_count,
+        "view": combined["view"],
+    }
 
 
 def classify_outcome_bucket(gate_entry: dict | None, guard_entry: dict | None, task_outcome: dict | None) -> str:
@@ -202,15 +210,15 @@ def classify_outcome_bucket(gate_entry: dict | None, guard_entry: dict | None, t
     return "partial"
 
 
-def classify_outcomes_for_all_branches(branch_prefix: str | None = None) -> dict[str, str]:
-    """branch -> its classify_outcome_bucket() result, for every branch with at least a gate or guard entry."""
-    gate_entries = [
-        e for e in _parse_jsonl(GROUND_TRUTH_GATE_LOG_PATH) if _included(e.get("branch", ""), branch_prefix, None)
-    ]
-    guard_entries = [
-        e for e in _parse_jsonl(GUARD_EVENTS_LOG_PATH) if _included(e.get("branch", ""), branch_prefix, None)
-    ]
-
+def classify_outcomes_for_all_branches(gate_entries: list[dict], guard_entries: list[dict]) -> dict[str, str]:
+    """
+    branch -> its classify_outcome_bucket() result, for every branch with at
+    least a gate or guard entry. Takes already-fetched, already-filtered
+    entries as parameters (rather than reading the JSONL files itself) so
+    a caller that already fetched cross-machine combined data
+    (nova_observability_status.get_combined_observability_data()) doesn't
+    trigger a second, redundant SSH round-trip just to classify outcomes.
+    """
     gate_by_branch = _latest_entry_by_branch(gate_entries)
     guard_by_branch = _latest_entry_by_branch(guard_entries)
     outcomes_by_branch = _task_outcomes_by_branch()
@@ -234,19 +242,26 @@ def per_model_comparison(branch_prefix: str | None = None) -> dict:
     never carry model directly. A branch with no matching agent_log.jsonl
     entry lands under "(unknown model)" rather than being dropped.
 
+    Cross-machine combined (nova_observability_status.
+    get_combined_observability_data()), not local-only — real bug found
+    2026-08-06: guard_events_log.jsonl/ground_truth_gate_log.jsonl don't
+    exist on the Omen at all, and its agent_log.jsonl has only 137 lines
+    vs. the Aero's 4,765, so this route was silently returning {"models":
+    {}} whenever served from the Omen. Fetched once here and passed down
+    to _branch_to_model_map()/classify_outcomes_for_all_branches() rather
+    than each independently re-fetching (one SSH round-trip, not three).
+
     Returns {"models": {model: {"runs": N, "gate_passed": N, "gate_total": N,
     "gate_pass_rate": float | None, "registry_code_fires": {code: N},
-    "outcome_buckets": {bucket: N}}}}.
+    "outcome_buckets": {bucket: N}}}, "view": "combined"|"omen_only"|"aero_only"}.
     """
-    branch_model = _branch_to_model_map()
-    outcome_by_branch = classify_outcomes_for_all_branches(branch_prefix)
+    combined = get_combined_observability_data()
+    gate_entries = [e for e in combined["gate_entries"] if _included(e.get("branch", ""), branch_prefix, None)]
+    guard_entries = [e for e in combined["guard_entries"] if _included(e.get("branch", ""), branch_prefix, None)]
 
-    gate_entries = [
-        e for e in _parse_jsonl(GROUND_TRUTH_GATE_LOG_PATH) if _included(e.get("branch", ""), branch_prefix, None)
-    ]
-    guard_entries = [
-        e for e in _parse_jsonl(GUARD_EVENTS_LOG_PATH) if _included(e.get("branch", ""), branch_prefix, None)
-    ]
+    branch_model = _branch_to_model_map(combined["agent_log_entries"])
+    outcome_by_branch = classify_outcomes_for_all_branches(gate_entries, guard_entries)
+
     gate_by_branch = _latest_entry_by_branch(gate_entries)
     guard_by_branch = _latest_entry_by_branch(guard_entries)
 
@@ -287,18 +302,20 @@ def per_model_comparison(branch_prefix: str | None = None) -> dict:
             model_stats["gate_passed"] / model_stats["gate_total"] if model_stats["gate_total"] else None
         )
 
-    return {"models": models}
+    return {"models": models, "view": combined["view"]}
 
 
 def uncertainty_vs_outcome(days: int = UNCERTAINTY_DEFAULT_WINDOW_DAYS) -> dict:
     """
     Real per-token uncertainty (Langfuse-only — agent_log.jsonl never
     persists logprobs locally) cross-referenced against each generation's
-    real outcome bucket. The outcome bucket is computed LOCALLY via
-    classify_outcomes_for_all_branches(), not from Langfuse's own
-    guard_fire/gate_passed scores — local gate/guard JSONL is the more
-    complete source, available for every real run regardless of whether
-    langfuse_tracing happened to be on for it.
+    real outcome bucket. The outcome bucket is computed via
+    classify_outcomes_for_all_branches() over cross-machine combined gate/
+    guard data (nova_observability_status.get_combined_observability_data(),
+    real bug found 2026-08-06 — see per_model_comparison()'s own docstring),
+    not from Langfuse's own guard_fire/gate_passed scores — local gate/guard
+    JSONL is the more complete source, available for every real run
+    regardless of whether langfuse_tracing happened to be on for it.
 
     Gates on credentials being configured, NOT on the langfuse_tracing
     write-flag — that flag only governs whether NEW traces get written.
@@ -315,7 +332,8 @@ def uncertainty_vs_outcome(days: int = UNCERTAINTY_DEFAULT_WINDOW_DAYS) -> dict:
         return {"available": False, "reason": "Langfuse credentials not configured", "points": []}
 
     try:
-        outcome_by_branch = classify_outcomes_for_all_branches()
+        combined = get_combined_observability_data()
+        outcome_by_branch = classify_outcomes_for_all_branches(combined["gate_entries"], combined["guard_entries"])
         cutoff = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=days)
 
         points = []
