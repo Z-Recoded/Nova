@@ -807,6 +807,32 @@
 
     let latestFlags = {}; // key -> flag object from the last successful /flags fetch
 
+    // Mirrors nova_config.is_flag_toggle_allowed()'s ON-side logic exactly
+    // (only ever called when flag.value is already false, matching that
+    // function's own "turning OFF is always allowed" rule) -- disabled_unless
+    // /disabled_if_any_on ride along on every flag object from GET /flags
+    // (nova_config.get_flag_registry_values()), so no second round-trip is
+    // needed to compute this. Returns a human-readable reason, or null if
+    // the flag is free to turn on. The real server-side enforcement in
+    // nova_api.py's set_flag() is what actually matters for correctness --
+    // this is purely to gray out the button and explain why, matching this
+    // codebase's "don't just trust the client" discipline (the server call
+    // would 400 anyway if this check were ever bypassed).
+    function blockedToggleOnReason(flag, flags) {
+      for (const requiredKey of flag.disabled_unless || []) {
+        if (!flags[requiredKey] || !flags[requiredKey].value) {
+          const requiredLabel = flags[requiredKey] ? flags[requiredKey].label : requiredKey;
+          return `Requires '${requiredLabel}' to be on first`;
+        }
+      }
+      for (const blockerKey of flag.disabled_if_any_on || []) {
+        if (flags[blockerKey] && flags[blockerKey].value) {
+          return `Disabled while '${flags[blockerKey].label}' is on (mutually exclusive backends)`;
+        }
+      }
+      return null;
+    }
+
     function renderSwitchesPanel(flags) {
       const panel = document.getElementById('switches-panel');
       panel.innerHTML = '';
@@ -840,12 +866,30 @@
             caption.textContent = 'Changes the Omen\'s copy now; the Aero needs a manual push + pull to see it';
             text.appendChild(caption);
           }
+
+          // Turning a flag OFF is always allowed -- only turning ON can be
+          // blocked, and only while it's currently off (a flag that's
+          // already on, even if a conflicting one appeared since, can still
+          // be turned off by hand). Real, code-confirmed relationships only
+          // -- see nova_config.py's is_flag_toggle_allowed() docstring.
+          const blockedReason = !flag.value ? blockedToggleOnReason(flag, flags) : null;
+          if (blockedReason) {
+            const caption = document.createElement('div');
+            caption.className = 'switch-row-caption';
+            caption.textContent = blockedReason;
+            text.appendChild(caption);
+          }
           row.appendChild(text);
 
           const btn = document.createElement('button');
           btn.className = 'watch-btn ' + (flag.value ? 'on' : 'off');
           btn.textContent = flag.value ? 'ON' : 'OFF';
-          btn.addEventListener('click', () => toggleFlag(key));
+          if (blockedReason) {
+            btn.disabled = true;
+            btn.title = blockedReason;
+          } else {
+            btn.addEventListener('click', () => toggleFlag(key));
+          }
           row.appendChild(btn);
 
           panel.appendChild(row);

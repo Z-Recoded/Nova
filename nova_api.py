@@ -66,7 +66,7 @@ from graph_builder import (
 from ingest import run_ingestion
 from nova_agent_log_status import get_combined_status
 from nova_clickup_client import add_comment, add_tag, remove_tag
-from nova_config import FLAG_REGISTRY, get_flag_registry_values, set_flag_value
+from nova_config import FLAG_REGISTRY, get_flag_registry_values, is_flag_toggle_allowed, set_flag_value
 from nova_diff_link import get_diff_link
 from nova_embedding_viz import build_embedding_viz_data
 from nova_headroom import get_headroom_report
@@ -734,6 +734,15 @@ def set_flag(
 
     if flag_key not in FLAG_REGISTRY:
         raise HTTPException(status_code=404, detail=f"'{flag_key}' is not a registered flag")
+
+    # Same guard the Controller's own switches panel computes client-side --
+    # enforced here too rather than trusted from the caller, same "don't just
+    # trust the client" discipline as nova_diff_link.py's forced scripts
+    # re-validating branch names instead of relying on the caller alone.
+    current_values = {key: meta["value"] for key, meta in get_flag_registry_values().items()}
+    allowed, reason = is_flag_toggle_allowed(flag_key, req.value, current_values)
+    if not allowed:
+        raise HTTPException(status_code=400, detail=reason)
 
     try:
         set_flag_value(flag_key, req.value)
