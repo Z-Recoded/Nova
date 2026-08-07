@@ -75,3 +75,23 @@ DEVSTRAL_PROFILE = BackendProfile(
         "SELF_VERIFICATION_PROMPT",
     ),
 )
+
+# Real native tool-calling via vLLM's own `qwen3_coder` tool-call parser
+# (distinct from RUNPOD_PROFILE's Qwen2.5-Coder, which has no reliable
+# native parser and needs the prompted format instead) -- confirmed live
+# 2026-08-06 against the deployed endpoint (Qwen/Qwen3-Coder-Next-FP8) that
+# a real tools-bearing request returns a correctly-populated tool_calls
+# array. Same shape as DEVSTRAL_PROFILE for that reason -- this is Nova's
+# 3rd backend, the trigger point this file's own header named for revisiting
+# whether hand-written profiles still make sense (Level 2 auto-probing is
+# still not built; this one was still cheap to hand-write).
+QWEN3_CODER_NEXT_PROFILE = BackendProfile(
+    name="qwen3_coder_next_80b_a3b",
+    tool_call_format="native_openai_tool_use",
+    completion_signal="finish_reason_stop",
+    edit_format="file_replace_search_replace_or_write_file",
+    extra_system_prompt_fragments=(
+        "READ_BEFORE_WRITE_GUARD_PROMPT",
+        "SELF_VERIFICATION_PROMPT",
+    ),
+)

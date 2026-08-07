@@ -20,6 +20,7 @@ from pathlib import Path
 import nova_guard_stats
 import nova_orchestrator
 import nova_orchestrator_devstral
+import nova_orchestrator_qwen3
 import nova_orchestrator_runpod
 from nova_completion_gate import check_ground_truth_completion, extract_task_requirements
 
@@ -300,6 +301,58 @@ def run_devstral_backend(task_description: str, base_ref: str) -> dict:
         False,
         nova_orchestrator.NOVA_AGENT_MAX_TURNS,
         nova_orchestrator_devstral.CODING_AGENT_MAX_OUTPUT_TOKENS,
+        requirements,
+    )
+    elapsed_s = round((datetime.now() - started_at).total_seconds(), 1)
+    diff = _git_diff_against_ref(root, base_ref)
+
+    gate_result = check_ground_truth_completion(
+        diff, task_description, root, base_ref=base_ref, requirements=requirements
+    )
+    nova_orchestrator._log_ground_truth_gate(branch_name, task_description, gate_result)
+
+    return {
+        "worktree_path": root,
+        "branch": branch_name,
+        "status": final_status,
+        "turns_used": turns_used,
+        "elapsed_s": elapsed_s,
+        "diff": diff,
+        "gate_result": gate_result,
+    }
+
+
+def run_qwen3_backend(task_description: str, base_ref: str) -> dict:
+    """
+    Runs one task through the Qwen3-Coder-Next backend
+    (nova_orchestrator_qwen3, real native tool-calling via vLLM's
+    qwen3_coder parser) directly -- same bypass-the-flag-dispatch rationale
+    and same return shape as run_runpod_backend()/run_devstral_backend(),
+    so generate_report() can drive any of the three backends through
+    identical task-selection/gate-check/report-formatting logic (see its
+    own `backend_fn` parameter).
+    """
+    slug = nova_orchestrator._slugify(task_description)
+    worktree_path, branch_name = _create_worktree_at(slug, base_ref)
+    root = str(worktree_path)
+    system_prompt = nova_orchestrator_qwen3.build_qwen3_system_prompt()
+    messages = [{"role": "user", "content": task_description}]
+
+    requirements = extract_task_requirements(task_description)
+
+    started_at = datetime.now()
+    final_status, turns_used = nova_orchestrator_qwen3.run_via_qwen3(
+        system_prompt,
+        messages,
+        root,
+        slug,
+        branch_name,
+        task_description,
+        None,
+        None,
+        False,
+        nova_orchestrator.NOVA_AGENT_MAX_TURNS,
+        nova_orchestrator_qwen3.CODING_AGENT_MAX_OUTPUT_TOKENS,
         requirements,
     )
     elapsed_s = round((datetime.now() - started_at).total_seconds(), 1)

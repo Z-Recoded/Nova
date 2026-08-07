@@ -19,6 +19,7 @@
     "remote_gpu_inference": false,
     "runpod_coding_agent": false,
     "devstral_coding_agent": false,
+    "qwen3_coder_next_coding_agent": false,
     "coding_review_pass": false,
     "langfuse_tracing": true,
     "laminar_tracing": true

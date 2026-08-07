@@ -59,6 +59,7 @@ DEFAULT_CONFIG = {
         "remote_gpu_inference": False,
         "runpod_coding_agent": False,
         "devstral_coding_agent": False,
+        "qwen3_coder_next_coding_agent": False,
         "coding_review_pass": False,
         "langfuse_tracing": False,
         "laminar_tracing": False,
@@ -301,10 +302,11 @@ FLAG_REGISTRY: dict[str, FlagMeta] = {
         "category": "scaffolding",
         "aero_only": True,
         # nova_orchestrator.py's own if/elif chain (line ~540): runpod beats
-        # devstral beats langgraph beats the default Claude loop. Turning this
-        # on while either of the other two is already on has zero effect --
-        # real, code-confirmed mutual exclusion, not a guess.
-        "disabled_if_any_on": ["runpod_coding_agent", "devstral_coding_agent"],
+        # devstral beats qwen3-coder-next beats langgraph beats the default
+        # Claude loop. Turning this on while any of the other three is
+        # already on has zero effect -- real, code-confirmed mutual
+        # exclusion, not a guess.
+        "disabled_if_any_on": ["runpod_coding_agent", "devstral_coding_agent", "qwen3_coder_next_coding_agent"],
     },
     "openhands_coding_agent": {
         "path": ["framework_integrations", "openhands_coding_agent"],
@@ -326,6 +328,15 @@ FLAG_REGISTRY: dict[str, FlagMeta] = {
         # Same mutual-exclusion group as langgraph_orchestration -- runpod
         # wins over devstral in nova_orchestrator.py's real precedence chain.
         "disabled_if_any_on": ["runpod_coding_agent"],
+    },
+    "qwen3_coder_next_coding_agent": {
+        "path": ["framework_integrations", "qwen3_coder_next_coding_agent"],
+        "label": "RunPod Qwen3-Coder-Next Task Runner",
+        "category": "scaffolding",
+        "aero_only": True,
+        # Same mutual-exclusion group -- runpod and devstral both outrank
+        # this backend in nova_orchestrator.py's real precedence chain.
+        "disabled_if_any_on": ["runpod_coding_agent", "devstral_coding_agent"],
     },
     "langfuse_tracing": {
         "path": ["framework_integrations", "langfuse_tracing"],
