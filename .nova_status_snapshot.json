@@ -1,6 +1,10 @@
 {
   "ready": [
     {
+      "id": "86bbaudpz",
+      "name": "Context-overflow pre-check under-catches on code-heavy prompts (char-based token estimate too coarse)"
+    },
+    {
       "id": "86bbaph6w",
       "name": "Spec: Local compute sizing & multi-GPU build plan (Nova central node)"
     },
