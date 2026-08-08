@@ -26,6 +26,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import anthropic
@@ -62,6 +63,14 @@ EXTRACTION_MAX_TOKENS = 1024
 # closes that gap from here instead.
 POWERSHELL_EXE = "powershell.exe"
 POWERSHELL_SYNTAX_CHECK_TIMEOUT_SECONDS = 15
+
+# Ruff-based lint check (see _check_lint_clean() below). Invoked as
+# `sys.executable -m ruff` rather than a hardcoded `ruff`/`ruff.exe` path --
+# ruff is a pinned pip dependency (requirements.txt), not a system tool like
+# powershell.exe above, so resolving it through the same interpreter this
+# module is already running under is portable across Aero/Omen without
+# assuming a binary is on PATH.
+RUFF_CHECK_TIMEOUT_SECONDS = 20
 
 EXTRACTION_SYSTEM_PROMPT = (
     "You extract structured requirements from a software task description. "
@@ -380,6 +389,73 @@ def _check_powershell_syntax_valid(diff: str, root: str) -> list[str]:
         error = _powershell_parse_error(full_path)
         if error:
             reasons.append(f"'{path}' does not parse as valid PowerShell: {error}")
+    return reasons
+
+
+def _ruff_violations(full_path: str) -> list[str] | None:
+    """
+    Runs `ruff check` against `full_path` and returns one formatted string
+    per violation ("CODE: message (line N)"), or None if ruff couldn't be
+    run at all (not installed, timeout, any subprocess error) -- fails open,
+    same accepted-gap philosophy as _powershell_parse_error() above. An
+    empty list (as opposed to None) means ruff ran successfully and found
+    nothing.
+    """
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "ruff", "check", "--output-format=json", full_path],
+            capture_output=True,
+            text=True,
+            timeout=RUFF_CHECK_TIMEOUT_SECONDS,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return None
+    try:
+        violations = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError:
+        return None
+    return [f"{v.get('code')}: {v.get('message')} (line {v.get('location', {}).get('row')})" for v in violations]
+
+
+def _check_lint_clean(diff: str, root: str) -> list[str]:
+    """
+    Hard-fail reasons, one per touched .py file that ruff flags real lint
+    issues on in its current (post-edit) worktree state -- the "test/lint
+    pass, where a suite exists for the repo" check from 86bb71x39's original
+    list. This repo has no pytest suite, but it does have a real, already-
+    wired lint tool (ruff, pyproject.toml's [tool.ruff], enforced by the
+    pre-commit hook in .pre-commit-config.yaml) -- this check runs that same
+    tool earlier, at gate time.
+
+    Deliberately checks the whole current file, not just diff-added lines
+    (same approach as _check_syntax_valid()/_check_powershell_syntax_valid()
+    above, no new diff-to-line-number mapping machinery): this repo is
+    already ruff-clean by its own stated discipline (every accepted
+    exception gets an individual `# noqa`, per pyproject.toml's own
+    comment), so a real violation on a touched file today is attributable to
+    this diff, not preexisting drift.
+
+    Also closes a real ordering gap: check_ground_truth_completion() runs
+    *before* nova_orchestrator._commit_worktree_changes()'s `git commit`,
+    which does go through pre-commit's ruff hook (never bypassed with
+    --no-verify) -- so today the gate could say "passed" on code pre-commit
+    would actually reject or reformat. This gives the gate the same signal,
+    earlier, instead of a task looking "complete" right up until the commit
+    step surprises it.
+    """
+    reasons = []
+    for path in _touched_files(diff):
+        if not path.endswith(".py"):
+            continue
+        full_path = os.path.join(root, path)
+        if not os.path.isfile(full_path):
+            continue
+        violations = _ruff_violations(full_path)
+        if violations:
+            summary = "; ".join(violations[:5])
+            if len(violations) > 5:
+                summary += f"; and {len(violations) - 5} more"
+            reasons.append(f"'{path}' has unresolved ruff lint issues: {summary}")
     return reasons
 
 
@@ -1238,6 +1314,61 @@ def _check_narrow_scope_not_exceeded(root: str, base_ref: str, narrow_scope_file
     return reasons
 
 
+# Soft-signal threshold for _check_unexpected_deletions() below -- unlike
+# NARROW_SCOPE_CHANGE_RATIO_THRESHOLD above (a fraction of the file's own
+# size, only applied to files the task explicitly named as narrow-scope),
+# this applies to files the task's spec never mentioned at all, so there is
+# no "original size" baseline to take a ratio against. An absolute line
+# count is a rougher signal, which is acceptable here since this check is a
+# warning for human/Claude review, not a hard fail -- occasional over- or
+# under-flagging is a fine trade for a soft signal.
+UNEXPECTED_DELETION_LINE_THRESHOLD = 20
+
+
+def _check_unexpected_deletions(root: str, base_ref: str, requirements: dict) -> list[str]:
+    """
+    Soft-flag warnings for files that lost a large number of lines -- or
+    were deleted outright -- without being named anywhere in the task's own
+    spec (extract_task_requirements()'s required_files/narrow_scope_files).
+    This is the "unexpected-deletion flag" from 86bb71x39's original check
+    list, deliberately built as a warning rather than a hard fail (the
+    ticket's own wording: "soft signal for human/Claude review, not
+    auto-fail") -- a legitimate broad refactor can look mechanically
+    identical to an accidental deletion, so this surfaces the fact rather
+    than blocking on it.
+
+    Distinct from _check_narrow_scope_not_exceeded() above: that check only
+    fires for files the task explicitly marked for a small edit. A big
+    deletion in a file the task never named at all -- required, narrow-
+    scope, or otherwise -- is a different, more surprising shape that check
+    doesn't cover.
+
+    An outright deletion (the file existed at base_ref, is gone from the
+    worktree now) is always flagged regardless of whether it was named --
+    even an in-scope file being deleted entirely is worth a human glance.
+    """
+    stats = _diff_numstat(root, base_ref)
+    named_files = {
+        os.path.basename(f.strip())
+        for f in requirements.get("required_files", []) + requirements.get("narrow_scope_files", [])
+        if f.strip()
+    }
+    warnings = []
+    for path, (_added, removed) in stats.items():
+        full_path = os.path.join(root, path)
+        if not os.path.isfile(full_path):
+            warnings.append(f"'{path}' was deleted outright ({removed} line(s) removed).")
+            continue
+        if os.path.basename(path) in named_files:
+            continue  # task's own spec said this file could change -- not "unexpected"
+        if removed >= UNEXPECTED_DELETION_LINE_THRESHOLD:
+            warnings.append(
+                f"'{path}' had {removed} line(s) removed but was never named in the task spec -- "
+                f"verify this deletion was intended."
+            )
+    return warnings
+
+
 def _check_deliverables_present(diff: str, deliverables: list[str]) -> list[str]:
     """
     Soft-flag warnings, one per named deliverable (extract_task_requirements()'s
@@ -1316,6 +1447,7 @@ def check_ground_truth_completion(
     hard_fails = []
     hard_fails.extend(_tag("syntax_valid", _check_syntax_valid(diff, root)))
     hard_fails.extend(_tag("powershell_syntax_valid", _check_powershell_syntax_valid(diff, root)))
+    hard_fails.extend(_tag("lint_clean", _check_lint_clean(diff, root)))
     hard_fails.extend(_tag("module_level_name_order", _check_module_level_name_order(diff, root)))
     hard_fails.extend(_tag("cross_module_circular_import", _check_module_level_circular_imports(diff, root)))
     hard_fails.extend(_tag("cross_module_missing_export", _check_cross_module_missing_exports(diff, root)))
@@ -1333,5 +1465,6 @@ def check_ground_truth_completion(
     )
     warnings = _tag("deliverables_present", _check_deliverables_present(diff, requirements["deliverables"]))
     warnings.extend(_tag("unused_new_import", _check_unused_new_imports(diff, root)))
+    warnings.extend(_tag("unexpected_deletion", _check_unexpected_deletions(root, base_ref, requirements)))
 
     return {"passed": not hard_fails, "hard_fails": hard_fails, "warnings": warnings}
