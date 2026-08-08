@@ -1,26 +1,30 @@
 # Nova Board Status Digest
 
-Last updated: 2026-08-08 16:30 UTC
+Last updated: 2026-08-08 16:46 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
 falls back to querying ClickUp directly if it looks stale.
 
+## This session
+
+- Board cleanup: moved 86bara3tj and 86baeyg3q from in-progress -> to do (real remaining work, but stale/paused, not obsolete).
+- Reframed 86bb71a0f (re-run held-out eval) as a standing condition on 86bb4gy0y rather than a recurring ticket -- closed 86bb71a0f, moved the pass-bar condition into a comment on 86bb4gy0y.
+
 ## Changed since last digest
 
-- No category changes since last digest.
+- in_progress -> ready: 86bara3tj (Spec + Build: Chunk visualization tool — RAG retrieval audit)
+- in_progress -> ready: 86baeyg3q (Voice interface (Whisper + Piper))
+- in_progress -> complete/removed: 86bb71a0f (Re-run nova_coding_eval.py held-out suite against redeployed Qwen endpoint)
 
-## In progress (9)
+## In progress (6)
 
 - 86bb72wdx  Generalize tool-refusal guidance to suggest the correct next action on any refusal
 - 86bb72gpa  Coding agent runs its own verification repeatedly but never fixes the bug it finds
 - 86bb728nj  RunPod coding agent re-issues already-successful edits, burns full 25-turn budget without progressing
 - 86bb71x39  Add ground-truth completion gate independent of model self-report (harness-level, not LLM-judge)
 - 86bb71x1j  Design auto-configuring harness: detect and align tool-call/completion conventions per model backend
-- 86bb71a0f  Re-run nova_coding_eval.py held-out suite against redeployed Qwen endpoint
-- 86bara3tj  Spec + Build: Chunk visualization tool — RAG retrieval audit
 - 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
-- 86baeyg3q  Voice interface (Whisper + Piper)
 
 ## Blocked (11)
 
@@ -36,7 +40,7 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (105)
+## Ready (107)
 
 - 86bbaph6w  Spec: Local compute sizing & multi-GPU build plan (Nova central node)
 - 86bb7pawp  Observability Phase 1: Instrument turn loop (reasoning + tool calls + token uncertainty)
@@ -130,6 +134,7 @@ falls back to querying ClickUp directly if it looks stale.
 - 86barby7m  Build Nova Art Practice Companion module (5 phases)
 - 86bara3uj  Spec: Proactive memory — surface connections on ingest
 - 86bara3u1  Spec: Temporal awareness layer
+- 86bara3tj  Spec + Build: Chunk visualization tool — RAG retrieval audit
 - 86bara3pp  Pixel RAG layer — visual retrieval path (CLIP + ColPali)
 - 86bafvrff  Brute force trail depth test — establish λ and parallel work nominal rates
 - 86bafvrek  Implement two-tier memory decay in nova_memory_store.py
@@ -141,5 +146,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86baf72n5  MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)
 - 86baf4eah  Hosted inference fallback (Groq / Together.ai / Fireworks)
 - 86baf4e29  Dockerize Nova services
+- 86baeyg3q  Voice interface (Whisper + Piper)
 - 86baeyg1h  First fine-tune pass (Unsloth + DPO → GGUF → Ollama)
 - 86baeyfua  Link-aware ingestion upgrade (Option B)

@@ -369,6 +369,10 @@
       "name": "Spec: Temporal awareness layer"
     },
     {
+      "id": "86bara3tj",
+      "name": "Spec + Build: Chunk visualization tool \u2014 RAG retrieval audit"
+    },
+    {
       "id": "86bara3pp",
       "name": "Pixel RAG layer \u2014 visual retrieval path (CLIP + ColPali)"
     },
@@ -413,6 +417,10 @@
       "name": "Dockerize Nova services"
     },
     {
+      "id": "86baeyg3q",
+      "name": "Voice interface (Whisper + Piper)"
+    },
+    {
       "id": "86baeyg1h",
       "name": "First fine-tune pass (Unsloth + DPO \u2192 GGUF \u2192 Ollama)"
     },
@@ -443,20 +451,8 @@
       "name": "Design auto-configuring harness: detect and align tool-call/completion conventions per model backend"
     },
     {
-      "id": "86bb71a0f",
-      "name": "Re-run nova_coding_eval.py held-out suite against redeployed Qwen endpoint"
-    },
-    {
-      "id": "86bara3tj",
-      "name": "Spec + Build: Chunk visualization tool \u2014 RAG retrieval audit"
-    },
-    {
       "id": "86baf4e70",
       "name": "RunPod/Vast.ai \u2014 cloud GPU for fine-tune runs"
-    },
-    {
-      "id": "86baeyg3q",
-      "name": "Voice interface (Whisper + Piper)"
     }
   ],
   "blocked": [
