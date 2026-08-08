@@ -28,10 +28,15 @@
 # are rewritten for the real message shape (mirroring Devstral's own split,
 # not reimplementing it independently).
 #
-# CODING_AGENT_CONTEXT_WINDOW_TOKENS is kept at the same 32768 the other two
-# backends use, deliberately -- this model natively supports far more, but
-# raising it here would confound nova_coding_eval.py's apples-to-apples
-# comparison against the other two backends' historical results.
+# QWEN3_CODING_AGENT_CONTEXT_WINDOW_TOKENS (below) used to just reuse
+# nova_orchestrator_runpod.CODING_AGENT_CONTEXT_WINDOW_TOKENS (32768, the
+# other two backends' shared budget), deliberately, so nova_coding_eval.py's
+# comparison stayed apples-to-apples against their historical results. That
+# controlled comparison is done (2026-08-08: this backend survived 2-3x more
+# turns than the 32B backend under the identical 32768 cap before hitting
+# it, but still completed 0/6 -- see the coding-agent-context-budget project
+# memory) -- this backend now runs against its own real, larger deployed
+# endpoint instead, a deliberate next experiment, not a bug.
 
 import json
 from datetime import datetime
@@ -44,7 +49,6 @@ from nova_laminar_client import log_turn as laminar_log_turn
 from nova_langfuse_client import log_turn
 from nova_orchestrator import _git_diff_against_master
 from nova_orchestrator_runpod import (
-    CODING_AGENT_CONTEXT_WINDOW_TOKENS,
     CONTEXT_SAFETY_MARGIN_TOKENS,
     GOAL_REANCHOR_INTERVAL_TURNS,
     GUARD_GOAL_REANCHOR,
@@ -66,6 +70,15 @@ from nova_orchestrator_runpod import (
 # A single write_file tool call can carry a whole file's contents -- same
 # reasoning as nova_orchestrator_runpod.CODING_AGENT_MAX_OUTPUT_TOKENS.
 CODING_AGENT_MAX_OUTPUT_TOKENS = 8192
+
+# This backend's own real deployed context window -- see the comment above
+# this module's imports for why this is no longer borrowed from
+# nova_orchestrator_runpod.CODING_AGENT_CONTEXT_WINDOW_TOKENS. Must match
+# nova_remote_inference_qwen3_native_tools.RUNPOD_ENDPOINT_ID's actual
+# deployed MAX_MODEL_LEN -- update both together if the endpoint changes
+# again (e.g. a future step up toward this model's real native max,
+# 262144, once the 2026-08-08 startup failure at that size is understood).
+QWEN3_CODING_AGENT_CONTEXT_WINDOW_TOKENS = 65536
 
 
 def build_qwen3_system_prompt() -> str:
@@ -136,10 +149,10 @@ def _log_agent_turn_qwen3(
 
 # ── Context-window management ────────────────────────────────────
 
-# Reuses CODING_AGENT_CONTEXT_WINDOW_TOKENS (32768, same context window the
-# eval harness assumes for an apples-to-apples turn budget) and
-# CONTEXT_SAFETY_MARGIN_TOKENS from nova_orchestrator_runpod, but needs its
-# own estimation/pruning logic below: native tool-calling messages don't
+# Uses this module's own QWEN3_CODING_AGENT_CONTEXT_WINDOW_TOKENS (see its
+# own comment above) and CONTEXT_SAFETY_MARGIN_TOKENS imported from
+# nova_orchestrator_runpod, but needs its own estimation/pruning logic
+# below: native tool-calling messages don't
 # have a uniform "one string content field" shape (an assistant message
 # that called tools has content=None plus a separate tool_calls list), and
 # a single turn can append more than one tool-role message (one per tool
@@ -190,7 +203,7 @@ def _prune_history_if_needed(messages: list[dict], max_output_tokens: int) -> in
     _message_groups()'s own docstring for why a fixed stride doesn't work
     here). Returns the number of groups pruned.
     """
-    budget = CODING_AGENT_CONTEXT_WINDOW_TOKENS - max_output_tokens - CONTEXT_SAFETY_MARGIN_TOKENS
+    budget = QWEN3_CODING_AGENT_CONTEXT_WINDOW_TOKENS - max_output_tokens - CONTEXT_SAFETY_MARGIN_TOKENS
     pruned = 0
 
     while _estimate_message_list_tokens(messages) > budget:
@@ -277,7 +290,7 @@ def run_via_qwen3(
             break
 
         pairs_pruned = _prune_history_if_needed(messages, max_output_tokens)
-        remaining_budget = CODING_AGENT_CONTEXT_WINDOW_TOKENS - max_output_tokens - CONTEXT_SAFETY_MARGIN_TOKENS
+        remaining_budget = QWEN3_CODING_AGENT_CONTEXT_WINDOW_TOKENS - max_output_tokens - CONTEXT_SAFETY_MARGIN_TOKENS
         if _estimate_message_list_tokens(messages) > remaining_budget:
             final_status = "stopped_context_overflow"
             break

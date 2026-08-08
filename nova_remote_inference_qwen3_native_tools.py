@@ -15,11 +15,14 @@
 # the model/endpoint identity and the cold-start-derived timing constants
 # differ.
 #
-# Confirmed live 2026-08-06 against this exact endpoint (id=yz6cnhzgd73nre,
-# single H200): a plain completion request returned a correct answer with
-# no OOM; a real `tools`-bearing request returned a correctly-populated
-# `tool_calls` array (finish_reason="tool_calls", correct function name,
-# valid JSON-string arguments) -- not just an HTTP 200.
+# Confirmed live 2026-08-06 against the original 32768-context endpoint
+# (id=yz6cnhzgd73nre, single H200): a plain completion request returned a
+# correct answer with no OOM; a real `tools`-bearing request returned a
+# correctly-populated `tool_calls` array (finish_reason="tool_calls",
+# correct function name, valid JSON-string arguments) -- not just an HTTP
+# 200. Re-confirmed live 2026-08-08 against the current 65536-context
+# endpoint (id=yhnxgzd0lkarbc, see RUNPOD_ENDPOINT_ID's own comment) with
+# the same real tool-calling check.
 #
 # Run standalone for a sanity check:
 #   nova-env\\Scripts\\python nova_remote_inference_qwen3_native_tools.py
@@ -37,7 +40,18 @@ load_dotenv(dotenv_path=Path(__file__).parent / ".env")
 # ── Config ─────────────────────────────────────────────────────
 MODEL_NAME = "Qwen/Qwen3-Coder-Next-FP8"
 
-RUNPOD_ENDPOINT_ID = "yz6cnhzgd73nre"
+# 2026-08-08: swapped from the original 32768-context endpoint
+# (yz6cnhzgd73nre, left running/untouched -- rollback is just reverting this
+# constant) to a new endpoint deployed at 65536 -- 2x the shared 32768 every
+# RunPod coding-agent backend used before, chosen as a conservative step up
+# rather than this model's real native max (262144), after that full-size
+# attempt's worker failed to ever come online (stuck IN_QUEUE 25+ minutes,
+# no worker picked up the job -- a real startup/memory problem at that
+# extreme a context length that this project doesn't yet understand the
+# exact cause of). This 65536 endpoint verified healthy live: worker came up
+# in a normal ~502s cold start, then answered a real tool-calling sanity
+# check correctly.
+RUNPOD_ENDPOINT_ID = "yhnxgzd0lkarbc"
 RUNPOD_BASE_URL = f"https://api.runpod.ai/v2/{RUNPOD_ENDPOINT_ID}"
 RUNPOD_RUNSYNC_URL = f"{RUNPOD_BASE_URL}/runsync"
 RUNPOD_STATUS_URL_TEMPLATE = f"{RUNPOD_BASE_URL}/status/{{job_id}}"
@@ -49,13 +63,15 @@ SAMPLING_TEMPERATURE = 0.0  # deterministic, matching this project's other gener
 RUNSYNC_TIMEOUT_SECONDS = 90
 HTTP_REQUEST_TIMEOUT_SECONDS = 100
 
-# Real cold start observed live on this exact endpoint (2026-08-06 smoke
-# test, first-ever call): 1005s -- an ~80GB FP8 checkpoint, real margin
-# above that, not copied from the Devstral adapter's 600s (that endpoint's
-# checkpoint is meaningfully smaller). Once warm, the same endpoint
-# answered a second (tool-calling) call in 1.5s total (delayTime=63ms) --
-# scale-to-zero cost is a real one-time-per-idle-gap cost, not a
-# per-request one.
+# Real cold start observed live on the original 32768-context endpoint
+# (2026-08-06 smoke test, first-ever call): 1005s -- an ~80GB FP8
+# checkpoint, real margin above that, not copied from the Devstral
+# adapter's 600s (that endpoint's checkpoint is meaningfully smaller). Once
+# warm, the same endpoint answered a second (tool-calling) call in 1.5s
+# total (delayTime=63ms) -- scale-to-zero cost is a real one-time-per-
+# idle-gap cost, not a per-request one. The current 65536-context endpoint's
+# own first-ever cold start (2026-08-08) was faster, ~502s -- still
+# comfortably inside this file's timeout margin below.
 POLL_INTERVAL_SECONDS = 10.0
 POLL_MAX_TOTAL_SECONDS = 1500
 
