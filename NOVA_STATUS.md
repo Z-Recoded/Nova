@@ -1,26 +1,20 @@
 # Nova Board Status Digest
 
-Last updated: 2026-08-08 17:43 UTC
+Last updated: 2026-08-08 21:34 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
 falls back to querying ClickUp directly if it looks stale.
 
-## This session
-
-- Closed 86barqztk/86barqzy8 -- both were Marvins actual job work (PiSignage/website audits) mixed into Nova board by mistake, not Nova scope.
-
 ## Changed since last digest
 
-- ready -> complete/removed: 86barqzy8 (Fold website audit pipeline into Browser Hands adapter structure)
-- ready -> complete/removed: 86barqztk (Build PiSignage health-check browser adapter (screenshot + drift detection))
+- in_progress -> complete/removed: 86bb72wdx (Generalize tool-refusal guidance to suggest the correct next action on any refusal)
+- in_progress -> complete/removed: 86bb71x39 (Add ground-truth completion gate independent of model self-report (harness-level, not LLM-judge))
 
-## In progress (6)
+## In progress (4)
 
-- 86bb72wdx  Generalize tool-refusal guidance to suggest the correct next action on any refusal
 - 86bb72gpa  Coding agent runs its own verification repeatedly but never fixes the bug it finds
 - 86bb728nj  RunPod coding agent re-issues already-successful edits, burns full 25-turn budget without progressing
-- 86bb71x39  Add ground-truth completion gate independent of model self-report (harness-level, not LLM-judge)
 - 86bb71x1j  Design auto-configuring harness: detect and align tool-call/completion conventions per model backend
 - 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
 
