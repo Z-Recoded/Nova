@@ -146,7 +146,7 @@ def _run_single_golden_query(entry: dict, model: str, think: bool = None) -> dic
     latency_ms = int((time.perf_counter() - start) * 1000)
 
     actual_category = result["category"]
-    blend_detected = detect_blending(result["chunks"], actual_category)
+    blend_detected = detect_blending(result["chunks"], actual_category, character_filtered=result["character_filtered"])
 
     return {
         "query": query,

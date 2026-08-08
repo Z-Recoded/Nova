@@ -17,12 +17,21 @@ MD_PATH = f"{LOGS_DIR}/training_review.md"
 
 
 # ── Detection ──────────────────────────────────────────────────
-def detect_blending(chunks: list[dict], category: str) -> bool:
+def detect_blending(chunks: list[dict], category: str, character_filtered: bool) -> bool:
     """
     Return True when a fiction query pulled chunks from more than one
     character file — the primary signal of cross-character blending.
+
+    Only meaningful when the query actually named a specific character
+    (character_filtered=True) — that's the case where touching more than
+    one file is a real contamination signal. A generic fiction query with
+    no named character (e.g. "tell me a story") legitimately falls back to
+    broader, unfiltered retrieval and normally touches multiple files —
+    flagging that as a blend produced 51 near-duplicate false-positive
+    "corrections" for the single query "tell me a story" before this fix
+    (found + cleaned 2026-08-08).
     """
-    if category != "fiction":
+    if category != "fiction" or not character_filtered:
         return False
     filenames = {c["metadata"].get("filename", "unknown") for c in chunks}
     return len(filenames) > 1

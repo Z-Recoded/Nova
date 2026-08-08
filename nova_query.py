@@ -291,6 +291,11 @@ def ask(
     n_results = 3 if route_result.category == "fiction" else route_result.n_results
 
     retrieval_start = time.perf_counter()
+    # Whether the query named a specific character (Null, Fatale, ...) — the
+    # only case where detect_blending() below should treat multi-file
+    # retrieval as a real contamination signal, not just normal broad
+    # retrieval for a generic prompt like "tell me a story".
+    character_filtered = False
     if route_result.category == "fiction":
         # Don't expand with history — prior character names corrupt the retrieval query
         retrieval_query = query
@@ -302,6 +307,7 @@ def ask(
             if re.search(rf"\b{re.escape(name)}\b", q_lower):
                 char_filter = {"filename": {"$eq": filename}}
                 break
+        character_filtered = char_filter is not None
         # Use graph-scoped retrieval; char_filter is merged inside retrieve_with_graph.
         # A hard character filter ($eq) overrides budget scoping for precision.
         if char_filter:
@@ -368,7 +374,7 @@ def ask(
     answer = response["message"]["content"]
 
     # Log blending inconsistencies as training material
-    blend_detected = detect_blending(chunks, route_result.category)
+    blend_detected = detect_blending(chunks, route_result.category, character_filtered=character_filtered)
     if blend_detected:
         log_blend(query, answer, chunks, route_result.category)
     sources = list({c["metadata"].get("filename", "unknown") for c in chunks})
@@ -403,6 +409,7 @@ def ask(
         "sources": sources,
         "chunks": chunks,
         "category": route_result.category,
+        "character_filtered": character_filtered,
     }
 
 
