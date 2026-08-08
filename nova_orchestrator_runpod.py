@@ -30,6 +30,7 @@ import os
 import re
 from datetime import datetime
 
+from transformers import AutoTokenizer
 from vulture import Vulture
 
 import nova_remote_inference
@@ -915,19 +916,54 @@ def _log_guard_events(slug: str, branch: str, task: str, final_status: str, guar
 # file; finally given a real name here.
 CODING_AGENT_CONTEXT_WINDOW_TOKENS = 32768
 
-# No live tokenizer call is available for this endpoint without an extra
-# round trip -- this is a standard, documented rough approximation for
-# English/code-mixed content, not exact tiktoken-level precision.
-CHARS_PER_TOKEN_ESTIMATE = 4
+# Real, exact-tokenization fix for a bug found live in the 2026-08-08
+# held-out eval (86bbaudpz): the previous char/4 heuristic under-counted
+# real tokens on code-heavy content badly enough to eat this whole safety
+# margin on its own -- 4 of 6 eval tasks hit a real RunPod 400 at the exact
+# same 24577-real-token figure despite different tasks/turn counts, ~2000
+# tokens (this margin's own size) over the estimate's 22576-token budget.
+#
+# Public base tokenizer, not nova_remote_inference.MODEL_NAME's private
+# fine-tuned/AWQ-quantized repo (zrecoded/nova-qwen-coder-32b-awq) -- neither
+# fine-tuning nor AWQ quantization changes a model's vocab/BPE merges, so
+# this tokenizes identically to what's actually deployed, without needing an
+# HF auth token in this per-turn hot path just to read a private repo's
+# tokenizer files. transformers/tokenizers are already real project
+# dependencies (requirements.txt), so this adds no new one -- same pattern
+# nova_quantize_qwen_coder_awq.py already uses (AutoTokenizer.from_pretrained).
+#
+# Devstral (nova_orchestrator_devstral.py) and Qwen3-Coder-Next
+# (nova_orchestrator_qwen3.py) both import _estimate_tokens() from here
+# rather than duplicating it, so they inherit this fix too. Not a perfect
+# match for Devstral's own real tokenizer, but both are code-oriented BPE
+# tokenizers of similar density -- still a strict improvement over the flat
+# char/4 heuristic, not a regression.
+TOKENIZER_MODEL_NAME = "Qwen/Qwen2.5-Coder-32B-Instruct"
 
-# Buffer against the char-based estimate's real slop on code-heavy content --
-# comfortably larger than the estimate's typical error margin at this scale.
+# Buffer against this estimate's remaining slop (chat-template/role-marker
+# overhead tokens added at serialization time, not captured by summing
+# per-message token counts) -- comfortably larger than that residual error,
+# even though the bulk of the previous gap is now closed by real tokenization.
 CONTEXT_SAFETY_MARGIN_TOKENS = 2000
+
+_tokenizer = None
+
+
+def _get_tokenizer():
+    """
+    Lazily load and cache the real tokenizer (see TOKENIZER_MODEL_NAME's own
+    comment) -- avoids paying the load cost more than once per process, and
+    avoids it entirely for any run that never calls _estimate_tokens().
+    """
+    global _tokenizer
+    if _tokenizer is None:
+        _tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_MODEL_NAME)
+    return _tokenizer
 
 
 def _estimate_tokens(text: str) -> int:
-    """Rough, cheap token-count estimate -- see CHARS_PER_TOKEN_ESTIMATE's own comment."""
-    return len(text) // CHARS_PER_TOKEN_ESTIMATE
+    """Real token count via the deployed model's own tokenizer -- see TOKENIZER_MODEL_NAME's own comment."""
+    return len(_get_tokenizer().encode(text))
 
 
 def _estimate_message_list_tokens(messages: list[dict]) -> int:
@@ -940,6 +976,29 @@ def _estimate_message_list_tokens(messages: list[dict]) -> int:
     return sum(_estimate_tokens(message["content"]) for message in messages)
 
 
+def _oldest_turn_end(messages: list[dict]) -> int:
+    """
+    Index just past the oldest turn still in history -- messages[2:end] is
+    that turn's assistant message plus every consecutive user-role
+    tool-response message that follows it.
+
+    A turn is NOT always exactly one assistant + one user message: a turn
+    that issues more than one tool call in a single burst appends one
+    user-role tool_response per call (see run_via_runpod()'s `for call in
+    tool_calls:` loop), so the oldest turn can span more than 2 messages.
+    Real bug found live 2026-08-08, exposed once _estimate_tokens() started
+    reporting real token counts (86bbaudpz) instead of an under-counting
+    heuristic that had rarely made pruning actually engage in practice: the
+    previous fixed `del messages[2:4]` broke role alternation -- and could
+    IndexError outright -- the first time a multi-tool-call turn needed to
+    be pruned.
+    """
+    end = 3
+    while end < len(messages) and messages[end]["role"] != "assistant":
+        end += 1
+    return end
+
+
 def _prune_history_if_needed(messages: list[dict], max_output_tokens: int) -> int:
     """
     Proactively drop the oldest turn history from `messages` in place, so a
@@ -948,37 +1007,43 @@ def _prune_history_if_needed(messages: list[dict], max_output_tokens: int) -> in
     held-out eval hit mid-task (project_qwen3_coding_spike_result.md).
 
     messages[0] (the system prompt) and messages[1] (the original task) are
-    never touched. From index 2 onward, messages are always built as strict
-    (assistant, user-tool-response) pairs by run_via_runpod()'s own loop --
-    removing whole pairs from the front preserves role alternation exactly,
+    never touched. From index 2 onward, whole turns are removed from the
+    front via _oldest_turn_end() (see its own docstring for why a turn isn't
+    always exactly 2 messages) -- this preserves role alternation exactly,
     with no placeholder-message insertion needed. Stops once the estimated
     total fits under CODING_AGENT_CONTEXT_WINDOW_TOKENS minus the reserved
-    output budget and safety margin, or once only one pair remains (pruning
+    output budget and safety margin, or once only one turn remains (pruning
     can't help a single turn that's too large on its own -- the caller
     checks for that case separately).
 
-    If any pairs were pruned, prepends an honest note to the new earliest
-    remaining pair's user-role (tool-response) content, so the model knows
-    history was trimmed rather than silently losing context -- never the
-    assistant-role message, which would put words in the model's own past
-    turn that it never actually said. Returns the number of pairs pruned
-    (0 if none were needed).
+    If any turns were pruned, prepends an honest note to the new earliest
+    remaining turn's first user-role (tool-response) message, so the model
+    knows history was trimmed rather than silently losing context -- never
+    the assistant-role message, which would put words in the model's own
+    past turn that it never actually said. Returns the number of turns
+    pruned (0 if none were needed).
     """
     budget = CODING_AGENT_CONTEXT_WINDOW_TOKENS - max_output_tokens - CONTEXT_SAFETY_MARGIN_TOKENS
-    pairs_pruned = 0
+    turns_pruned = 0
 
     while _estimate_message_list_tokens(messages) > budget and len(messages) > 4:
-        del messages[2:4]
-        pairs_pruned += 1
+        oldest_turn_end = _oldest_turn_end(messages)
+        if oldest_turn_end >= len(messages):
+            # The oldest "turn" IS the only turn left -- nothing to prune
+            # without removing the most recent turn too, which pruning must
+            # never do.
+            break
+        del messages[2:oldest_turn_end]
+        turns_pruned += 1
 
-    if pairs_pruned:
-        # messages[2] is the earliest remaining pair's assistant turn,
-        # messages[3] is its user-role tool-response -- the note belongs on
-        # the latter.
-        note = f"[Note: {pairs_pruned} earlier turn(s) of tool output were removed to fit the context window.]\n\n"
+    if turns_pruned:
+        # messages[2] is the earliest remaining turn's assistant message,
+        # messages[3] is its first user-role tool-response -- the note
+        # belongs on the latter.
+        note = f"[Note: {turns_pruned} earlier turn(s) of tool output were removed to fit the context window.]\n\n"
         messages[3]["content"] = note + messages[3]["content"]
 
-    return pairs_pruned
+    return turns_pruned
 
 
 # ── Entry point used by nova_orchestrator.py ─────────────────────
