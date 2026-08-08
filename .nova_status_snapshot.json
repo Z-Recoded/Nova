@@ -341,14 +341,6 @@
       "name": "Build subscription-audit browser adapter (login-gated, proves CDP session-reuse at scale)"
     },
     {
-      "id": "86barqzy8",
-      "name": "Fold website audit pipeline into Browser Hands adapter structure"
-    },
-    {
-      "id": "86barqztk",
-      "name": "Build PiSignage health-check browser adapter (screenshot + drift detection)"
-    },
-    {
       "id": "86bargufp",
       "name": "Evaluate Hermes 3 vs Qwen3 8B for Nova's agentic reasoning lane"
     },

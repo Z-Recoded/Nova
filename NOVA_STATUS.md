@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-08-08 16:46 UTC
+Last updated: 2026-08-08 17:43 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,14 +8,12 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## This session
 
-- Board cleanup: moved 86bara3tj and 86baeyg3q from in-progress -> to do (real remaining work, but stale/paused, not obsolete).
-- Reframed 86bb71a0f (re-run held-out eval) as a standing condition on 86bb4gy0y rather than a recurring ticket -- closed 86bb71a0f, moved the pass-bar condition into a comment on 86bb4gy0y.
+- Closed 86barqztk/86barqzy8 -- both were Marvins actual job work (PiSignage/website audits) mixed into Nova board by mistake, not Nova scope.
 
 ## Changed since last digest
 
-- in_progress -> ready: 86bara3tj (Spec + Build: Chunk visualization tool — RAG retrieval audit)
-- in_progress -> ready: 86baeyg3q (Voice interface (Whisper + Piper))
-- in_progress -> complete/removed: 86bb71a0f (Re-run nova_coding_eval.py held-out suite against redeployed Qwen endpoint)
+- ready -> complete/removed: 86barqzy8 (Fold website audit pipeline into Browser Hands adapter structure)
+- ready -> complete/removed: 86barqztk (Build PiSignage health-check browser adapter (screenshot + drift detection))
 
 ## In progress (6)
 
@@ -40,7 +38,7 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (107)
+## Ready (105)
 
 - 86bbaph6w  Spec: Local compute sizing & multi-GPU build plan (Nova central node)
 - 86bb7pawp  Observability Phase 1: Instrument turn loop (reasoning + tool calls + token uncertainty)
@@ -127,8 +125,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86barue4h  Creative domain node — nova_state_creative.py adapter
 - 86barr06e  Conform Base44 export script to Browser Hands adapter contract
 - 86barr02x  Build subscription-audit browser adapter (login-gated, proves CDP session-reuse at scale)
-- 86barqzy8  Fold website audit pipeline into Browser Hands adapter structure
-- 86barqztk  Build PiSignage health-check browser adapter (screenshot + drift detection)
 - 86bargufp  Evaluate Hermes 3 vs Qwen3 8B for Nova's agentic reasoning lane
 - 86bargucp  Evaluate + integrate n8n for domain adapter refresh and alert routing
 - 86barby7m  Build Nova Art Practice Companion module (5 phases)
