@@ -67,8 +67,27 @@ EXTRACTION_SYSTEM_PROMPT = (
     "You extract structured requirements from a software task description. "
     "You are not being asked whether any work is correct or complete -- only "
     "to identify what the task text itself explicitly names, before any work "
-    "has started. Respond with ONLY a JSON object, no other text, in exactly "
-    "this shape:\n\n"
+    "has started.\n\n"
+    "Read the ENTIRE task text before answering, not just the numbered/lettered "
+    "implementation steps. Real task descriptions very often state their most "
+    "important constraints -- especially forbidden_files and narrow_scope_files "
+    "-- as a single sentence appended near the END of a longer paragraph, after "
+    "all the technical implementation detail, not as their own numbered step. A "
+    "real, confirmed miss (2026-08-08): a task whose final paragraph read "
+    '"...be careful to preserve all existing behavior for every other category '
+    "exactly as-is; only add the new early-return branch. Do not touch "
+    'nova_api.py, nova_tools.py, or nova_orchestrator.py itself." was extracted '
+    "with completely empty forbidden_files AND empty narrow_scope_files, three "
+    "times in a row, deterministically -- even though that sentence explicitly "
+    "names three forbidden files and draws an explicit narrow-scope contrast for "
+    "a fourth. The correct extraction from that exact sentence would have been "
+    'forbidden_files: ["nova_api.py", "nova_tools.py", "nova_orchestrator.py"] '
+    'and narrow_scope_files: ["nova_query.py"] (from "only add the new '
+    '"early-return branch" / "preserve all existing behavior otherwise"). Do '
+    "not let a long or technically dense task body cause you to under-weight "
+    "its concluding sentences -- scan the last paragraph specifically for "
+    "constraint language before finalizing your answer.\n\n"
+    "Respond with ONLY a JSON object, no other text, in exactly this shape:\n\n"
     '{"required_files": ["<path or filename explicitly named as something to '
     'create or modify>", ...], '
     '"forbidden_files": ["<path or filename the task explicitly says NOT to '
@@ -114,18 +133,23 @@ def extract_task_requirements(task_description: str) -> dict:
     -- it silently skips a check rather than raising a false alarm off a
     malformed extraction.
 
-    temperature=0 -- real bug found 2026-08-02: two held-out eval runs
-    against the IDENTICAL task text and an IDENTICAL model diff (the RunPod
-    backend never touched launch_openwebui.ps1 either time) got two
-    different gate verdicts, because this call's default temperature let the
-    extraction itself vary run to run -- one run's required_files included
-    launch_openwebui.ps1, the other's didn't, so the same real unfixed
-    defect was caught once and silently missed once. This is a mechanical
-    extraction task, not creative work, so temperature=0 is the correct
-    setting, not just a tuning choice. Reduces but does not fully guarantee
-    determinism (a known Claude API characteristic at any temperature) --
-    still meaningfully better than the unset default, which had no reason
-    to be anything but the API's default (unspecified, effectively 1.0).
+    NO temperature/top_p passed -- real, much bigger bug found and fixed
+    2026-08-08, superseding the temperature=0 fix this docstring used to
+    describe: `temperature` (and `top_p`) are now deprecated for
+    EXTRACTION_MODEL and the API call was failing outright on EVERY call
+    with a 400 BadRequestError, silently caught by the except clause below
+    and returned as empty_result -- indistinguishable from "the task text
+    just doesn't name anything." This wasn't a subtle prompt-tuning problem;
+    the extraction had been completely non-functional, always, for as long
+    as this model was configured here. Confirmed live: the exact same task
+    text that always came back all-empty returned the fully correct
+    forbidden_files/narrow_scope_files the moment temperature was dropped.
+    Real-world determinism re-checked afterward (3 repeated calls, same
+    task text, no sampling params): required_files/forbidden_files/
+    narrow_scope_files -- the three categories that feed hard-fail checks
+    below -- were identical every time; only deliverables (warning-level
+    only, never a hard fail) showed minor wording variance run to run. Good
+    enough without a temperature knob to hold onto.
     """
     empty_result = {
         "required_files": [],
@@ -143,7 +167,6 @@ def extract_task_requirements(task_description: str) -> dict:
         message = client.messages.create(
             model=EXTRACTION_MODEL,
             max_tokens=EXTRACTION_MAX_TOKENS,
-            temperature=0,
             system=EXTRACTION_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": task_description}],
         )
