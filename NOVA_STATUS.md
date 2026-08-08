@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-08-08 22:52 UTC
+Last updated: 2026-08-08 23:59 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,7 +8,7 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- NEW -> ready: 86bbaury4 (Re-deploy Qwen3-Coder-Next endpoint with its real context window (controlled 32K comparison done))
+- No category changes since last digest.
 
 ## In progress (4)
 
