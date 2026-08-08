@@ -52,6 +52,17 @@ EXTRACTION_MODEL = "claude-sonnet-5"
 # Sized well above that risk, not just the expected output length.
 EXTRACTION_MAX_TOKENS = 1024
 
+# Host-side PowerShell syntax check (see _check_powershell_syntax_valid()
+# below). This gate runs unsandboxed in the orchestrator's own trusted
+# process, unlike a coding task's own run_command calls -- confirmed live
+# (2026-08-08) that run_command has no path to a real PowerShell interpreter
+# at all (its restricted PATH excludes system directories, and the
+# 2026-07-24 outside-root-argument guard blocks an absolute-path fallback
+# too), so a model task can never self-verify .ps1 output today. This check
+# closes that gap from here instead.
+POWERSHELL_EXE = "powershell.exe"
+POWERSHELL_SYNTAX_CHECK_TIMEOUT_SECONDS = 15
+
 EXTRACTION_SYSTEM_PROMPT = (
     "You extract structured requirements from a software task description. "
     "You are not being asked whether any work is correct or complete -- only "
@@ -280,6 +291,72 @@ def _check_syntax_valid(diff: str, root: str) -> list[str]:
             ast.parse(source)
         except SyntaxError as e:
             reasons.append(f"'{path}' does not parse as valid Python: {e}")
+    return reasons
+
+
+def _powershell_literal_string(value: str) -> str:
+    """
+    Escape `value` as a PowerShell single-quoted string literal (double any
+    embedded single quotes). Single-quoted literals do no interpolation at
+    all in PowerShell, so this is safe against injection from a diff's own
+    file paths -- unlike a double-quoted string, which would need $/`
+    escaping too.
+    """
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _powershell_parse_error(full_path: str) -> str | None:
+    """
+    Runs PSParser.Tokenize() (parse-only -- never executes the script)
+    against `full_path` via a real, unsandboxed powershell.exe subprocess.
+    Returns the joined parse-error text if the file doesn't parse, None if
+    it parses clean. Also returns None -- fails open, doesn't block the gate
+    -- if powershell.exe isn't available on this host or the call times out,
+    same accepted-gap philosophy every other check in this file already uses
+    when it can't get a confident answer.
+    """
+    ps_path = _powershell_literal_string(full_path)
+    script = (
+        "$parseErrors = $null; "
+        f"[void][System.Management.Automation.PSParser]::Tokenize((Get-Content -Raw -LiteralPath {ps_path}), "
+        "[ref]$parseErrors); "
+        "$parseErrors | ForEach-Object { Write-Output $_.Message }"
+    )
+    try:
+        result = subprocess.run(
+            [POWERSHELL_EXE, "-NoProfile", "-NonInteractive", "-Command", script],
+            capture_output=True,
+            text=True,
+            timeout=POWERSHELL_SYNTAX_CHECK_TIMEOUT_SECONDS,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return None
+    output = result.stdout.strip()
+    return output or None
+
+
+def _check_powershell_syntax_valid(diff: str, root: str) -> list[str]:
+    """
+    Hard-fail reasons, one per touched .ps1 file that doesn't parse as valid
+    PowerShell in its current (post-edit) worktree state -- the PowerShell
+    analog of _check_syntax_valid() above. Skips files the diff touched but
+    that no longer exist on disk (a straight deletion) and non-.ps1 files
+    entirely. Only catches real syntax/corruption defects (e.g. Devstral's
+    "corrupted PowerShell" finding, 2026-08-03) -- a logic bug in
+    syntactically valid PowerShell, like an inverted if/else, is out of
+    scope for this check by design, same as _check_syntax_valid() not
+    catching a Python logic bug either.
+    """
+    reasons = []
+    for path in _touched_files(diff):
+        if not path.endswith(".ps1"):
+            continue
+        full_path = os.path.join(root, path)
+        if not os.path.isfile(full_path):
+            continue
+        error = _powershell_parse_error(full_path)
+        if error:
+            reasons.append(f"'{path}' does not parse as valid PowerShell: {error}")
     return reasons
 
 
@@ -1215,6 +1292,7 @@ def check_ground_truth_completion(
 
     hard_fails = []
     hard_fails.extend(_tag("syntax_valid", _check_syntax_valid(diff, root)))
+    hard_fails.extend(_tag("powershell_syntax_valid", _check_powershell_syntax_valid(diff, root)))
     hard_fails.extend(_tag("module_level_name_order", _check_module_level_name_order(diff, root)))
     hard_fails.extend(_tag("cross_module_circular_import", _check_module_level_circular_imports(diff, root)))
     hard_fails.extend(_tag("cross_module_missing_export", _check_cross_module_missing_exports(diff, root)))
