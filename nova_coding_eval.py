@@ -11,6 +11,7 @@
 # Run standalone:
 #   nova-env\\Scripts\\python nova_coding_eval.py
 
+import argparse
 import json
 import os
 import subprocess
@@ -22,6 +23,9 @@ import nova_orchestrator
 import nova_orchestrator_devstral
 import nova_orchestrator_qwen3
 import nova_orchestrator_runpod
+import nova_remote_inference
+import nova_remote_inference_native_tools
+import nova_remote_inference_qwen3_native_tools
 from nova_completion_gate import check_ground_truth_completion, extract_task_requirements
 
 LOGS_DIR = nova_orchestrator.LOGS_DIR
@@ -487,6 +491,42 @@ def generate_report(
     return output_path
 
 
+# Real (backend_fn, backend_label, report_tag) per --backend choice below.
+# backend_label always names the exact deployed model checkpoint (pulled
+# from each backend's own real MODEL_NAME, not a hand-typed string that
+# could drift out of sync) -- Marvin's standing ask (2026-08-08) is that
+# whichever model an eval run actually tested is never left ambiguous.
+BACKEND_CHOICES = {
+    "runpod": (
+        run_runpod_backend,
+        f"RunPod / Qwen2.5-Coder-32B fine-tune ({nova_remote_inference.MODEL_NAME})",
+        "",
+    ),
+    "devstral": (
+        run_devstral_backend,
+        f"RunPod / Devstral ({nova_remote_inference_native_tools.MODEL_NAME})",
+        "_devstral",
+    ),
+    "qwen3": (
+        run_qwen3_backend,
+        f"RunPod / Qwen3-Coder-Next-80B-A3B ({nova_remote_inference_qwen3_native_tools.MODEL_NAME})",
+        "_qwen3",
+    ),
+}
+
+
 if __name__ == "__main__":
-    path = generate_report()
+    parser = argparse.ArgumentParser(description="Run the held-out coding-agent eval against one backend.")
+    parser.add_argument(
+        "--backend",
+        choices=sorted(BACKEND_CHOICES),
+        default="runpod",
+        help="Which backend to test (default: runpod, the Qwen2.5-Coder-32B fine-tune).",
+    )
+    args = parser.parse_args()
+
+    backend_fn, backend_label, report_tag = BACKEND_CHOICES[args.backend]
+    print(f"Backend under test: {backend_label}")
+
+    path = generate_report(backend_fn=backend_fn, backend_label=backend_label, report_tag=report_tag)
     print(f"\nReport written to: {path}")
