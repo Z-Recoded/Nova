@@ -1,6 +1,10 @@
 {
   "ready": [
     {
+      "id": "86bbaph6w",
+      "name": "Spec: Local compute sizing & multi-GPU build plan (Nova central node)"
+    },
+    {
       "id": "86bb7pawp",
       "name": "Observability Phase 1: Instrument turn loop (reasoning + tool calls + token uncertainty)"
     },
@@ -443,10 +447,6 @@
       "name": "Re-run nova_coding_eval.py held-out suite against redeployed Qwen endpoint"
     },
     {
-      "id": "86bb4gy0y",
-      "name": "Build Qwen-writes / Claude-reviews coding pipeline (Phase 3.5 refinement)"
-    },
-    {
       "id": "86bara3tj",
       "name": "Spec + Build: Chunk visualization tool \u2014 RAG retrieval audit"
     },
@@ -461,8 +461,8 @@
   ],
   "blocked": [
     {
-      "id": "86bax8bb5",
-      "name": "Capability\u2013understanding differential scorer (Nova vs. Marvin)"
+      "id": "86bb4gy0y",
+      "name": "Build Qwen-writes / Claude-reviews coding pipeline (Phase 3.5 refinement)"
     },
     {
       "id": "86bawjyj8",

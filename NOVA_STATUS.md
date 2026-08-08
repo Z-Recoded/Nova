@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-08-06 04:35 UTC
+Last updated: 2026-08-08 16:30 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,11 +8,9 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- in_progress -> complete/removed: 86bb72wfm (Add goal re-anchoring -- periodically re-inject original task statement to counter drift)
-- in_progress -> complete/removed: 86bb72wd5 (Add task-scoped file allowlist guard (prevent scope violations, not just detect them))
-- in_progress -> complete/removed: 86bb71x2a (Give coding sub-agent self-verification in its own environment before declaring task complete)
+- No category changes since last digest.
 
-## In progress (10)
+## In progress (9)
 
 - 86bb72wdx  Generalize tool-refusal guidance to suggest the correct next action on any refusal
 - 86bb72gpa  Coding agent runs its own verification repeatedly but never fixes the bug it finds
@@ -20,14 +18,13 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bb71x39  Add ground-truth completion gate independent of model self-report (harness-level, not LLM-judge)
 - 86bb71x1j  Design auto-configuring harness: detect and align tool-call/completion conventions per model backend
 - 86bb71a0f  Re-run nova_coding_eval.py held-out suite against redeployed Qwen endpoint
-- 86bb4gy0y  Build Qwen-writes / Claude-reviews coding pipeline (Phase 3.5 refinement)
 - 86bara3tj  Spec + Build: Chunk visualization tool — RAG retrieval audit
 - 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
 - 86baeyg3q  Voice interface (Whisper + Piper)
 
 ## Blocked (11)
 
-- 86bax8bb5  Capability–understanding differential scorer (Nova vs. Marvin)
+- 86bb4gy0y  Build Qwen-writes / Claude-reviews coding pipeline (Phase 3.5 refinement)
 - 86bawjyj8  Spec: Subagent escalation ladder + "travel to" central command console
 - 86bauwkvq  Token Budget Governor — remaining scope (Haiku routing, queue concurrency, push notifications, auto ClickUp updates)
 - 86barue80  Games domain node — nova_state_games.py adapter
@@ -39,8 +36,9 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (104)
+## Ready (105)
 
+- 86bbaph6w  Spec: Local compute sizing & multi-GPU build plan (Nova central node)
 - 86bb7pawp  Observability Phase 1: Instrument turn loop (reasoning + tool calls + token uncertainty)
 - 86bb7pamh  Nova Observability Initiative — Langfuse tracing, agent oversight, and failure diagnosis
 - 86bb77vk6  Completion gate misses cross-module circular imports (found live in 86bb71a0f re-eval, task 6)

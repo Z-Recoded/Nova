@@ -77,12 +77,13 @@ def cmd_help(args, parser, sub_map) -> int:
 
 def cmd_ready(args) -> int:
     tasks = client.list_board_tasks()
+    cache = {t["id"]: t for t in tasks}
     ready_tasks = []
     for task in tasks:
         status = task["status"]["status"]
         if status in ("in progress", "complete"):
             continue
-        if not client.get_unresolved_blockers(task["id"]):
+        if not client.get_unresolved_blockers(task["id"], task=task, cache=cache):
             ready_tasks.append(task)
 
     if not ready_tasks:
@@ -135,15 +136,17 @@ def cmd_check(args) -> int:
 
 
 def cmd_audit(args) -> int:
+    tasks = client.list_board_tasks()
+    cache = {t["id"]: t for t in tasks}
     mismatches = []
-    for task in client.list_board_tasks():
+    for task in tasks:
         status = task["status"]["status"]
         if status == "in progress":
-            ok, reason = client.qualifies_as_in_progress(task["id"])
+            ok, reason = client.qualifies_as_in_progress(task["id"], task=task, cache=cache)
             if not ok:
                 mismatches.append((task, f"marked in progress but {reason}"))
         elif status == "blocked":
-            if not client.get_unresolved_blockers(task["id"]):
+            if not client.get_unresolved_blockers(task["id"], task=task, cache=cache):
                 mismatches.append((task, "marked blocked but has zero unresolved dependencies"))
 
     if not mismatches:

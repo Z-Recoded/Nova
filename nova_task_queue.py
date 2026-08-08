@@ -76,13 +76,15 @@ def get_ready_tasks() -> list[dict]:
     description is long enough to be real scope, not a placeholder.
     """
     ready = []
-    for task in list_board_tasks():
+    tasks = list_board_tasks()
+    cache = {t["id"]: t for t in tasks}
+    for task in tasks:
         if task["status"]["status"] != READY_STATUS:
             continue
         description = task.get("description") or ""
         if len(description.strip()) < MIN_SCOPE_CHARS:
             continue
-        if get_unresolved_blockers(task["id"]):
+        if get_unresolved_blockers(task["id"], task=task, cache=cache):
             continue
         ready.append(
             {

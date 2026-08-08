@@ -33,7 +33,9 @@ def _categorize_board() -> dict:
     that overlap is itself a signal worth seeing, not a bug to hide.
     """
     in_progress, blocked, ready = [], [], []
-    for task in client.list_board_tasks():
+    tasks = client.list_board_tasks()
+    cache = {t["id"]: t for t in tasks}
+    for task in tasks:
         status = task["status"]["status"]
         if status == "complete":
             continue
@@ -44,7 +46,7 @@ def _categorize_board() -> dict:
         elif status == "blocked":
             blocked.append(entry)
 
-        if status != "in progress" and not client.get_unresolved_blockers(task["id"]):
+        if status != "in progress" and not client.get_unresolved_blockers(task["id"], task=task, cache=cache):
             ready.append(entry)
 
     return {"ready": ready, "in_progress": in_progress, "blocked": blocked}

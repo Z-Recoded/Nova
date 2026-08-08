@@ -157,6 +157,23 @@ def remove_tag(task_id: str, tag_name: str) -> dict:
 # ── House rules (Task Dependency & Status Discipline v1.0) ─────
 
 
+def _cached_get_task(task_id: str, cache: dict[str, dict] | None) -> dict:
+    """
+    Fetches a task, reusing `cache` (an id -> task dict the caller owns)
+    instead of always hitting the API. A full board scan (audit/ready/the
+    status digest) walks every task's blockers, and without a cache the same
+    task gets re-fetched dozens of times over — this is what tripped a real
+    ClickUp 429 rate limit during a routine digest run (2026-08-08). Pass
+    cache=None for a one-off single-task lookup where there's nothing to share.
+    """
+    if cache is not None and task_id in cache:
+        return cache[task_id]
+    task = get_task(task_id)
+    if cache is not None:
+        cache[task_id] = task
+    return task
+
+
 def _own_blockers(task: dict) -> list[dict]:
     """
     Filters a task's raw `dependencies` field down to entries where this
@@ -167,29 +184,41 @@ def _own_blockers(task: dict) -> list[dict]:
     return [d for d in task.get("dependencies", []) if d.get("task_id") == task_id]
 
 
-def get_unresolved_blockers(task_id: str) -> list[dict]:
+def get_unresolved_blockers(task_id: str, task: dict | None = None, cache: dict[str, dict] | None = None) -> list[dict]:
     """
     This task's own blockers that aren't complete yet. An empty list means
     the task is unblocked right now — this is the pure readiness check,
     deliberately separate from qualifies_as_in_progress() below, which also
     factors in staleness (only relevant for a task already IN "in progress").
+
+    `task`: pass the task dict directly if the caller already has it (e.g.
+    from list_board_tasks()) to skip a redundant fetch. `cache`: an id -> task
+    dict shared across many calls in the same board scan, so a blocker
+    referenced by several tasks is only fetched once — see _cached_get_task().
     """
-    task = get_task(task_id)
+    if task is None:
+        task = _cached_get_task(task_id, cache)
     unresolved = []
     for dep in _own_blockers(task):
-        blocker = get_task(dep["depends_on"])
+        blocker = _cached_get_task(dep["depends_on"], cache)
         if blocker["status"]["status"] != "complete":
             unresolved.append({"id": blocker["id"], "name": blocker["name"], "status": blocker["status"]["status"]})
     return unresolved
 
 
-def get_dependency_chain(task_id: str) -> list[dict]:
+def get_dependency_chain(task_id: str, cache: dict[str, dict] | None = None) -> list[dict]:
     """
     Walks this task's own blockers recursively, stopping at a blocker that's
     complete or has no further unresolved blockers of its own. Answers "why
     is this actually stuck" in one call instead of manual multi-task tracing.
     Returns a flat list of {id, name, status} in blocker order.
+
+    Uses a local cache (or the caller's, if given) even for a single call —
+    a blocker can be reached both as another task's dependency and later as
+    its own frontier entry, so caching avoids fetching it twice within one walk.
     """
+    if cache is None:
+        cache = {}
     chain = []
     seen = set()
     frontier = [task_id]
@@ -200,12 +229,12 @@ def get_dependency_chain(task_id: str) -> list[dict]:
             continue
         seen.add(current_id)
 
-        current = get_task(current_id)
+        current = _cached_get_task(current_id, cache)
         for dep in _own_blockers(current):
             blocker_id = dep["depends_on"]
             if blocker_id in seen:
                 continue
-            blocker = get_task(blocker_id)
+            blocker = _cached_get_task(blocker_id, cache)
             blocker_status = blocker["status"]["status"]
             chain.append({"id": blocker_id, "name": blocker["name"], "status": blocker_status})
             if blocker_status != "complete":
@@ -214,16 +243,23 @@ def get_dependency_chain(task_id: str) -> list[dict]:
     return chain
 
 
-def qualifies_as_in_progress(task_id: str) -> tuple[bool, str]:
+def qualifies_as_in_progress(
+    task_id: str, task: dict | None = None, cache: dict[str, dict] | None = None
+) -> tuple[bool, str]:
     """
     House rule: "in progress" means zero unresolved dependencies AND real
     activity within STALE_DAYS_THRESHOLD days. Returns (True, "") if the
     task's current status is earned, or (False, reason) naming the specific
     blocker or the staleness that breaks it.
-    """
-    task = get_task(task_id)
 
-    unresolved = get_unresolved_blockers(task_id)
+    `task`/`cache`: same meaning as get_unresolved_blockers() — pass both
+    through from a board-wide scan to avoid re-fetching this task and its
+    blockers from scratch.
+    """
+    if task is None:
+        task = _cached_get_task(task_id, cache)
+
+    unresolved = get_unresolved_blockers(task_id, task=task, cache=cache)
     if unresolved:
         blocker = unresolved[0]
         return False, f"blocked by {blocker['id']} ({blocker['name']})"
@@ -242,10 +278,12 @@ def find_stale_in_progress() -> list[dict]:
     that no longer qualifies under the house rule, with its reason.
     """
     stale = []
-    for task in list_board_tasks():
+    tasks = list_board_tasks()
+    cache = {t["id"]: t for t in tasks}
+    for task in tasks:
         if task["status"]["status"] != "in progress":
             continue
-        ok, reason = qualifies_as_in_progress(task["id"])
+        ok, reason = qualifies_as_in_progress(task["id"], task=task, cache=cache)
         if not ok:
             stale.append({"id": task["id"], "name": task["name"], "reason": reason})
     return stale
