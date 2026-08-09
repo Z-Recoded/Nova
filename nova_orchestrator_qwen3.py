@@ -76,9 +76,12 @@ CODING_AGENT_MAX_OUTPUT_TOKENS = 8192
 # nova_orchestrator_runpod.CODING_AGENT_CONTEXT_WINDOW_TOKENS. Must match
 # nova_remote_inference_qwen3_native_tools.RUNPOD_ENDPOINT_ID's actual
 # deployed MAX_MODEL_LEN -- update both together if the endpoint changes
-# again (e.g. a future step up toward this model's real native max,
-# 262144, once the 2026-08-08 startup failure at that size is understood).
-QWEN3_CODING_AGENT_CONTEXT_WINDOW_TOKENS = 65536
+# again. This is now this model's real native max (see
+# nova_remote_inference_qwen3_native_tools.RUNPOD_ENDPOINT_ID's own comment
+# for the full story of the 2026-08-08 startup failure at this exact size,
+# root-caused to a JIT-compilation memory spike and fixed via
+# GDN_PREFILL_BACKEND=triton -- not a genuine capacity ceiling).
+QWEN3_CODING_AGENT_CONTEXT_WINDOW_TOKENS = 262144
 
 
 def build_qwen3_system_prompt() -> str:

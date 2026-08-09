@@ -20,9 +20,10 @@
 # correct answer with no OOM; a real `tools`-bearing request returned a
 # correctly-populated `tool_calls` array (finish_reason="tool_calls",
 # correct function name, valid JSON-string arguments) -- not just an HTTP
-# 200. Re-confirmed live 2026-08-08 against the current 65536-context
-# endpoint (id=yhnxgzd0lkarbc, see RUNPOD_ENDPOINT_ID's own comment) with
-# the same real tool-calling check.
+# 200. Re-confirmed live 2026-08-08 against the 65536-context endpoint
+# (id=yhnxgzd0lkarbc) and again against the current 262144-context endpoint
+# (id=fgscktsg0vw6bj, see RUNPOD_ENDPOINT_ID's own comment) with the same
+# real tool-calling check.
 #
 # Run standalone for a sanity check:
 #   nova-env\\Scripts\\python nova_remote_inference_qwen3_native_tools.py
@@ -40,18 +41,28 @@ load_dotenv(dotenv_path=Path(__file__).parent / ".env")
 # ── Config ─────────────────────────────────────────────────────
 MODEL_NAME = "Qwen/Qwen3-Coder-Next-FP8"
 
-# 2026-08-08: swapped from the original 32768-context endpoint
-# (yz6cnhzgd73nre, left running/untouched -- rollback is just reverting this
-# constant) to a new endpoint deployed at 65536 -- 2x the shared 32768 every
-# RunPod coding-agent backend used before, chosen as a conservative step up
-# rather than this model's real native max (262144), after that full-size
-# attempt's worker failed to ever come online (stuck IN_QUEUE 25+ minutes,
-# no worker picked up the job -- a real startup/memory problem at that
-# extreme a context length that this project doesn't yet understand the
-# exact cause of). This 65536 endpoint verified healthy live: worker came up
-# in a normal ~502s cold start, then answered a real tool-calling sanity
-# check correctly.
-RUNPOD_ENDPOINT_ID = "yhnxgzd0lkarbc"
+# 2026-08-08: swapped again, this time to this model's real native max
+# (262144), after root-causing the earlier failed attempt at this same
+# size. History: original endpoint (yz6cnhzgd73nre) ran at the shared 32768
+# every RunPod coding-agent backend used; a 65536 step-up endpoint
+# (yhnxgzd0lkarbc) verified healthy and ran a real held-out eval; a first
+# attempt at the full 262144 native max (endpoint aka7m2z58n0vfj, deleted)
+# never brought a worker online -- downloaded worker logs showed the real
+# cause: `unhealthy container: 1 problems: triggered memory limits (OOM)`
+# during CUDA graph capture, plus FlashInfer's JIT-compiled GDN prefill
+# kernel build getting SIGKILL'd (ninja exit code 137) -- NOT a genuine GPU
+# VRAM or host RAM shortfall (the same log showed 16.78 GiB of KV cache
+# headroom and ~1900 GiB of free host RAM at the time) but a container
+# memory-limit hit during the JIT-compile/graph-capture step specifically,
+# whose transient memory footprint scales with max_model_len far beyond
+# steady-state inference for this hybrid linear-attention/MoE architecture.
+# The log's own warning named the fix: `Set --gdn-prefill-backend triton to
+# skip JIT`. This endpoint (fgscktsg0vw6bj) was deployed with
+# GDN_PREFILL_BACKEND=triton and confirmed healthy live -- normal ~469s
+# cold start, correct real tool-calling response. Real conclusion: the
+# earlier failure was a fixable deployment/JIT-compilation quirk on this
+# specific exotic architecture, not a genuine capacity ceiling.
+RUNPOD_ENDPOINT_ID = "fgscktsg0vw6bj"
 RUNPOD_BASE_URL = f"https://api.runpod.ai/v2/{RUNPOD_ENDPOINT_ID}"
 RUNPOD_RUNSYNC_URL = f"{RUNPOD_BASE_URL}/runsync"
 RUNPOD_STATUS_URL_TEMPLATE = f"{RUNPOD_BASE_URL}/status/{{job_id}}"
@@ -69,9 +80,13 @@ HTTP_REQUEST_TIMEOUT_SECONDS = 100
 # adapter's 600s (that endpoint's checkpoint is meaningfully smaller). Once
 # warm, the same endpoint answered a second (tool-calling) call in 1.5s
 # total (delayTime=63ms) -- scale-to-zero cost is a real one-time-per-
-# idle-gap cost, not a per-request one. The current 65536-context endpoint's
-# own first-ever cold start (2026-08-08) was faster, ~502s -- still
-# comfortably inside this file's timeout margin below.
+# idle-gap cost, not a per-request one. The 65536-context endpoint's own
+# first-ever cold start (2026-08-08) was faster, ~502s. The current
+# 262144-context endpoint's first-ever cold start (2026-08-08, with the
+# GDN_PREFILL_BACKEND=triton fix) was ~469s -- still comfortably inside
+# this file's timeout margin below despite the much larger context length,
+# since the fix specifically targets the compile-time cost that scaled
+# with max_model_len, not the base weight-loading time.
 POLL_INTERVAL_SECONDS = 10.0
 POLL_MAX_TOTAL_SECONDS = 1500
 
