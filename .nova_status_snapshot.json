@@ -1,10 +1,6 @@
 {
   "ready": [
     {
-      "id": "86bbaury4",
-      "name": "Re-deploy Qwen3-Coder-Next endpoint with its real context window (controlled 32K comparison done)"
-    },
-    {
       "id": "86bbaph6w",
       "name": "Spec: Local compute sizing & multi-GPU build plan (Nova central node)"
     },

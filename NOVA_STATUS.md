@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-08-08 23:59 UTC
+Last updated: 2026-08-09 01:27 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,7 +8,7 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- No category changes since last digest.
+- ready -> complete/removed: 86bbaury4 (Re-deploy Qwen3-Coder-Next endpoint with its real context window (controlled 32K comparison done))
 
 ## In progress (4)
 
@@ -31,9 +31,8 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (106)
+## Ready (105)
 
-- 86bbaury4  Re-deploy Qwen3-Coder-Next endpoint with its real context window (controlled 32K comparison done)
 - 86bbaph6w  Spec: Local compute sizing & multi-GPU build plan (Nova central node)
 - 86bb7pawp  Observability Phase 1: Instrument turn loop (reasoning + tool calls + token uncertainty)
 - 86bb7pamh  Nova Observability Initiative — Langfuse tracing, agent oversight, and failure diagnosis
