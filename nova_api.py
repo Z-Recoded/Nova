@@ -1213,6 +1213,31 @@ TOOL_CALL_LOG_PATH = os.path.join(os.path.dirname(__file__), "logs", "tool_call_
 
 DEFAULT_LABEL_QUEUE_LIMIT = 50  # keep the page light -- there are 1700+ tool-call entries total
 
+# Same duplicated golden-query check as nova_corrector.py -- keeps
+# nova_benchmark.py's synthetic benchmark queries out of the human
+# judge-pass queue entirely, not just out of the correction pipeline (found
+# live 2026-08-11: 11 already-corrected "tell me a story" duplicates were
+# sitting in dpo_verify, one swipe away from being confirmed as real
+# training data). Duplicated rather than imported for the same reason
+# nova_corrector.py doesn't import nova_benchmark.GOLDEN_QUERIES directly.
+GOLDEN_QUERY_STRINGS = {
+    "who am i",
+    "tell me about null",
+    "who is fatale",
+    "tell me a story",
+    "tell me about the mood garden project",
+    "what's my trading strategy",
+    "how does nova_query.py work",
+    "what's a good way to stay productive",
+}
+
+
+def _is_golden_duplicate(entry: dict) -> bool:
+    """True if a training_flags.jsonl entry's query exactly matches one of nova_benchmark.py's GOLDEN_QUERIES."""
+    messages = entry.get("messages") or []
+    query = messages[0].get("content", "") if messages else ""
+    return query.strip().lower() in GOLDEN_QUERY_STRINGS
+
 
 def _read_jsonl_file(path: str) -> list[dict]:
     """Shared JSONL reader — same silently-skip-malformed-lines convention as nova_scheduled_dispatch._read_jsonl()."""
@@ -1468,7 +1493,7 @@ def get_label_queue(limit: int = DEFAULT_LABEL_QUEUE_LIMIT):
         for origin, origin_entries in by_origin.items()
         if origin in ("aero", "omen")
         for i, e in enumerate(origin_entries)
-        if e.get("correction") == ""
+        if e.get("correction") == "" and not _is_golden_duplicate(e)
     ]
     # dpo_verify: already-corrected pairs awaiting the "is this correction
     # actually good" judge-pass (86bax4akx's verification-status scope item)
@@ -1479,7 +1504,7 @@ def get_label_queue(limit: int = DEFAULT_LABEL_QUEUE_LIMIT):
         for origin, origin_entries in by_origin.items()
         if origin in ("aero", "omen")
         for i, e in enumerate(origin_entries)
-        if e.get("correction") and not e.get("verification_status")
+        if e.get("correction") and not e.get("verification_status") and not _is_golden_duplicate(e)
     ]
 
     def _newest(entries: list[dict]) -> list[dict]:

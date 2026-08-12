@@ -38,6 +38,31 @@ JSONL_PATH = os.path.join(_SCRIPT_DIR, "logs", "training_flags.jsonl")
 SECOND_BRAIN = r"C:\Users\marvi\OneDrive\Documents\Second Brain"
 CLAUDE_MODEL = "claude-sonnet-4-6"
 
+# nova_benchmark.py's GOLDEN_QUERIES are synthetic queries run repeatedly for
+# the base-model swap-trigger benchmark, not real questions Marvin asked --
+# spending a real Claude API call correcting a duplicate of the same
+# synthetic query is pure waste (11 identical "tell me a story" duplicates
+# were corrected before this check existed, found live 2026-08-11).
+# Duplicated here rather than imported from nova_benchmark.py to avoid
+# pulling in its nova_query import, which connects to Chroma at import time
+# -- this script has no other Chroma dependency and shouldn't start needing
+# the Omen to be reachable just to run.
+GOLDEN_QUERY_STRINGS = {
+    "who am i",
+    "tell me about null",
+    "who is fatale",
+    "tell me a story",
+    "tell me about the mood garden project",
+    "what's my trading strategy",
+    "how does nova_query.py work",
+    "what's a good way to stay productive",
+}
+
+
+def _is_golden_duplicate(query: str) -> bool:
+    """True if query exactly matches (case/whitespace-insensitive) one of nova_benchmark.py's GOLDEN_QUERIES."""
+    return query.strip().lower() in GOLDEN_QUERY_STRINGS
+
 
 # ── File lookup ────────────────────────────────────────────────
 def find_character_file(filename: str) -> str | None:
@@ -138,7 +163,13 @@ def save_entries(entries: list[dict]) -> None:
 # ── Main ───────────────────────────────────────────────────────
 def run(dry_run: bool = False) -> None:
     entries = load_entries()
-    pending = [e for e in entries if not e.get("correction")]
+    uncorrected = [e for e in entries if not e.get("correction")]
+    duplicates = [e for e in uncorrected if _is_golden_duplicate(e["messages"][0]["content"])]
+    pending = [e for e in uncorrected if e not in duplicates]
+
+    if duplicates:
+        entry_word = "entry" if len(duplicates) == 1 else "entries"
+        print(f"Skipping {len(duplicates)} golden-benchmark duplicate {entry_word} (not real questions).")
 
     if not pending:
         print("No uncorrected entries found.")
@@ -156,6 +187,8 @@ def run(dry_run: bool = False) -> None:
     corrected = 0
     for entry in entries:
         if entry.get("correction"):
+            continue
+        if _is_golden_duplicate(entry["messages"][0]["content"]):
             continue
 
         query = entry["messages"][0]["content"]
