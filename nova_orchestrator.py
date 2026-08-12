@@ -923,7 +923,7 @@ def _log_ground_truth_gate(branch: str, task_description: str, gate_result: dict
     laminar_log_gate_result(branch, gate_result)
 
 
-def record_task_outcome(branch: str, outcome: str, note: str = "") -> None:
+def record_task_outcome(branch: str, outcome: str, note: str = "", pool: str = "held_out") -> None:
     """
     Record whether a coding-agent branch was merged, discarded, or stopped
     itself on a budget halt. This is the missing link between raw per-turn
@@ -932,9 +932,27 @@ def record_task_outcome(branch: str, outcome: str, note: str = "") -> None:
     hit a harness bug or was simply discarded, just from agent_log.jsonl
     alone. Call "merged"/"discarded" by hand after each review decision;
     "budget_halt" is called automatically by run_coding_task() itself.
+
+    `pool` (86bbcfv8d, 2026-08-12): which eval/training pool a "merged"
+    branch belongs to -- "held_out" (default), "dev_set", or "excluded".
+    Defaults to "held_out", not "dev_set" -- a real merge silently becoming
+    fair game for gate-tuning or DPO training data (nova_coding_dataset_
+    curator.py's _merged_native_branches()) is exactly the leakage this
+    default change exists to stop. Promoting a branch into the dev set is a
+    deliberate, explicit call (record_task_outcome(branch, "merged",
+    pool="dev_set", note="why it's being spent")) made later, never
+    automatic. This file is append-only, never edited in place, so a branch
+    can have more than one line -- readers must take the LATEST pool value
+    per branch. The 8 real merges recorded before this field existed have
+    no `pool` key at all; every reader must treat a missing field as the
+    already-fully-enumerated legacy dev set (nova_coding_eval.py's
+    DEV_SET_BRANCH_COMMITS + ALREADY_SPIKE_TESTED_BRANCHES cover all 8) --
+    never as a live default or an unlabeled third bucket.
     """
     if outcome not in ("merged", "discarded", "budget_halt"):
         raise ValueError(f"outcome must be 'merged', 'discarded', or 'budget_halt', got '{outcome}'")
+    if pool not in ("held_out", "dev_set", "excluded"):
+        raise ValueError(f"pool must be 'held_out', 'dev_set', or 'excluded', got '{pool}'")
 
     os.makedirs(LOGS_DIR, exist_ok=True)
     entry = {
@@ -942,6 +960,7 @@ def record_task_outcome(branch: str, outcome: str, note: str = "") -> None:
         "branch": branch,
         "outcome": outcome,
         "note": note,
+        "pool": pool,
     }
     with open(TASK_OUTCOMES_LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")

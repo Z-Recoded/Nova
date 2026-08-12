@@ -131,20 +131,45 @@ def _merged_pr_branches() -> set[str]:
 def _merged_native_branches() -> set[str]:
     """
     Branches nova_orchestrator.py's own record_task_outcome() marked
-    "merged" in agent_task_outcomes.jsonl -- the native-loop equivalent of
-    a merged PR, since those branches are merged by hand outside GitHub.
+    "merged" in agent_task_outcomes.jsonl AND whose latest pool is
+    "dev_set" -- the native-loop equivalent of a merged PR, since those
+    branches are merged by hand outside GitHub.
+
+    Pool-filtered (86bbcfv8d, 2026-08-12): record_task_outcome()'s `pool`
+    field defaults new merges to "held_out", not "dev_set" -- before this
+    filter, EVERY merged branch was fair game for DPO training data
+    regardless of pool, which is exactly the training-data leakage Eval
+    Harness Initiative 1 exists to stop (a held-out task used to train a
+    model can no longer test whether that model generalizes to it). This
+    file is append-only, so a branch can have more than one line -- takes
+    the LATEST entry per branch, in file order, since a later line can
+    promote a branch into the dev set. The 8 real merges recorded before
+    the `pool` field existed have no `pool` key at all; those are the
+    already-fully-enumerated legacy dev set (nova_coding_eval.py's
+    DEV_SET_BRANCH_COMMITS + ALREADY_SPIKE_TESTED_BRANCHES cover all 8) and
+    are treated as dev_set here -- never as a live default for anything
+    written going forward.
     """
     if not TASK_OUTCOMES_PATH.exists():
         return set()
-    merged = set()
+    latest_by_branch: dict[str, dict] = {}
     with open(TASK_OUTCOMES_PATH, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
             entry = json.loads(line)
-            if entry.get("outcome") == "merged" and entry.get("branch"):
-                merged.add(entry["branch"])
+            branch = entry.get("branch")
+            if branch:
+                latest_by_branch[branch] = entry  # last line wins, file is append-only
+
+    merged = set()
+    for branch, entry in latest_by_branch.items():
+        if entry.get("outcome") != "merged":
+            continue
+        pool = entry.get("pool")  # missing key == legacy entry, predates this field
+        if pool in (None, "dev_set"):
+            merged.add(branch)
     return merged
 
 

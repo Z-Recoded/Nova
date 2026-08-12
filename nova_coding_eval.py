@@ -1,5 +1,5 @@
 # nova_coding_eval.py
-# Held-out comparison-report generator for the coding-agent brain swap
+# Dev-set comparison-report generator for the coding-agent brain swap
 # (Phase 2 of the RunPod/Qwen2.5-Coder-32B coding-agent eval). Re-runs a
 # fixed set of real historical merged tasks through the RunPod-backed
 # coding agent (nova_orchestrator_runpod.py) and produces a side-by-side
@@ -7,6 +7,12 @@
 # pass/fail. Matches Nova's standing discipline that a human always judges
 # a worktree diff before it's trusted (nova_orchestrator.py never
 # auto-merges).
+#
+# This is the DEV set -- these 6 tasks have already been used repeatedly to
+# tune completion gates and generate DPO corrections, so they're safe to
+# keep iterating against but cannot tell you whether a gate generalizes.
+# For the genuinely held-out pool (never used to tune anything), see
+# nova_eval_held_out.py.
 #
 # Run standalone:
 #   nova-env\\Scripts\\python nova_coding_eval.py
@@ -33,7 +39,7 @@ AGENT_LOG_PATH = nova_orchestrator.AGENT_LOG_PATH
 TASK_OUTCOMES_LOG_PATH = nova_orchestrator.TASK_OUTCOMES_LOG_PATH
 NOVA_REPO_ROOT = nova_orchestrator.NOVA_REPO_ROOT
 
-# Non-representative smoke-test/infra-bug notes -- excluded from the held-out pool.
+# Non-representative smoke-test/infra-bug notes -- excluded from the dev-set pool.
 SMOKE_TEST_DENYLIST_SUBSTRINGS = [
     "Smoke test for",
     "pre-fix max_tokens",
@@ -59,7 +65,7 @@ ALREADY_SPIKE_TESTED_BRANCHES = {
 # alone is provably ambiguous for this repo (3 separate commits share the
 # SOURCES-comment subject line), so this map is the source of truth for
 # these 6 tasks rather than a re-derived grep each run.
-HELD_OUT_BRANCH_COMMITS = {
+DEV_SET_BRANCH_COMMITS = {
     "nova-agent/build-nova-s-self-monitoring-resource-he-20260705-151642": "c516cca",
     "nova-agent/make-start-nova-ps1-and-launch-openwebui-20260705-160541": "07365bd",
     "nova-agent/add-router-integration-so-a-coding-task--20260705-173104": "2ad8960",
@@ -68,7 +74,11 @@ HELD_OUT_BRANCH_COMMITS = {
     "nova-agent/add-the-nova-log-benchmark-view-step-3-o-20260705-214035": "1c278e4",
 }
 
-EXPECTED_HELD_OUT_COUNT = 6
+# Frozen forever, not just today's count -- all 8 real merges this repo has
+# ever produced are already fully accounted for between this dev set and
+# ALREADY_SPIKE_TESTED_BRANCHES (verified 2026-08-12), so a new real merge
+# should never land here. See nova_eval_held_out.py for where new merges go.
+EXPECTED_DEV_SET_COUNT = 6
 
 
 def _load_outcomes() -> list[dict]:
@@ -77,11 +87,11 @@ def _load_outcomes() -> list[dict]:
         return [json.loads(line) for line in f if line.strip()]
 
 
-def select_held_out_tasks() -> list[dict]:
+def select_dev_set_tasks() -> list[dict]:
     """
     Real merged tasks, excluding non-representative smoke-test/bug entries
     and anything already directly spike-tested against this model today.
-    Asserts exactly EXPECTED_HELD_OUT_COUNT tasks -- a silent count drift
+    Asserts exactly EXPECTED_DEV_SET_COUNT tasks -- a silent count drift
     here is exactly the kind of bug this harness exists to prevent.
     """
     selected = []
@@ -94,21 +104,21 @@ def select_held_out_tasks() -> list[dict]:
             continue
         selected.append(entry)
 
-    if len(selected) != EXPECTED_HELD_OUT_COUNT:
+    if len(selected) != EXPECTED_DEV_SET_COUNT:
         raise RuntimeError(
-            f"Expected {EXPECTED_HELD_OUT_COUNT} held-out tasks, got {len(selected)}: "
+            f"Expected {EXPECTED_DEV_SET_COUNT} dev-set tasks, got {len(selected)}: "
             f"{[e['branch'] for e in selected]}. logs/agent_task_outcomes.jsonl may have "
             f"changed since this harness's exclusion lists were last verified -- update "
-            f"ALREADY_SPIKE_TESTED_BRANCHES/HELD_OUT_BRANCH_COMMITS before proceeding."
+            f"ALREADY_SPIKE_TESTED_BRANCHES/DEV_SET_BRANCH_COMMITS before proceeding."
         )
     return selected
 
 
 def _find_merge_commit(branch: str) -> str:
-    """Hand-verified map lookup -- see HELD_OUT_BRANCH_COMMITS's own comment above."""
-    commit = HELD_OUT_BRANCH_COMMITS.get(branch)
+    """Hand-verified map lookup -- see DEV_SET_BRANCH_COMMITS's own comment above."""
+    commit = DEV_SET_BRANCH_COMMITS.get(branch)
     if not commit:
-        raise RuntimeError(f"No verified commit mapping for branch {branch!r} -- add it to HELD_OUT_BRANCH_COMMITS.")
+        raise RuntimeError(f"No verified commit mapping for branch {branch!r} -- add it to DEV_SET_BRANCH_COMMITS.")
     return commit
 
 
@@ -142,7 +152,7 @@ def _load_agent_log_entries_for_branch(branch: str) -> list[dict]:
 def _reconstruct_claude_result(entry: dict) -> dict:
     """
     Real diff (git show) + task description/turn count reconstructed from
-    agent_log.jsonl for this branch. All 6 held-out tasks are "merged" --
+    agent_log.jsonl for this branch. All 6 dev-set tasks are "merged" --
     the discarded/budget_halt case (no surviving diff, transcript-only
     reconstruction) isn't needed for this specific set.
     """
@@ -419,11 +429,12 @@ def generate_report(
     report_tag: str = "",
 ) -> str:
     """
-    Runs the full held-out set through `backend_fn` (same (task_description,
-    base_ref) -> result-dict shape as run_runpod_backend()/
-    run_devstral_backend()) and writes one timestamped Markdown report
-    (never overwritten). No automated scoring -- Marvin fills in a
-    pass/fail verdict per task by hand.
+    Runs the full dev set (gate-tuning-safe tasks -- see nova_eval_held_out.py
+    for the genuinely held-out pool) through `backend_fn` (same
+    (task_description, base_ref) -> result-dict shape as
+    run_runpod_backend()/run_devstral_backend()) and writes one timestamped
+    Markdown report (never overwritten). No automated scoring -- Marvin fills
+    in a pass/fail verdict per task by hand.
 
     backend_fn/backend_label/report_tag default to the original RunPod/Qwen
     comparison for backward compatibility -- pass
@@ -434,7 +445,7 @@ def generate_report(
     between backends -- only which function actually executes each task
     differs.
     """
-    tasks = select_held_out_tasks()
+    tasks = select_dev_set_tasks()
     sections = []
     run_branches = set()
     for i, entry in enumerate(tasks, start=1):
@@ -516,7 +527,7 @@ BACKEND_CHOICES = {
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run the held-out coding-agent eval against one backend.")
+    parser = argparse.ArgumentParser(description="Run the dev-set coding-agent eval against one backend.")
     parser.add_argument(
         "--backend",
         choices=sorted(BACKEND_CHOICES),
