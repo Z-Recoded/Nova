@@ -145,9 +145,18 @@ def _list_non_merge_commit_shas() -> list[str]:
 
 
 def _changed_files(commit_sha: str) -> list[str]:
-    """Real file paths touched by one commit."""
+    """
+    Real file paths touched by one commit, excluding graphify-out/ via git
+    pathspec. Real finding, live: a commit can be genuinely valuable (real
+    code changes) while ALSO bundling a graphify regeneration alongside it
+    -- excluding only from _is_non_code_only's all-or-nothing check isn't
+    enough, since the noise still balloons the diff itself past the model's
+    1M-token limit (confirmed live: several real commits 400'd with "prompt
+    is too long," up to 2.86M tokens, entirely from graphify-out/ content).
+    Excluding the path here keeps the real signal and drops the noise.
+    """
     result = subprocess.run(
-        ["git", "show", "--name-only", "--format=", commit_sha],
+        ["git", "show", "--name-only", "--format=", commit_sha, "--", ".", ":!graphify-out"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -159,9 +168,9 @@ def _changed_files(commit_sha: str) -> list[str]:
 
 
 def _diff_line_count(commit_sha: str) -> int:
-    """Total insertions + deletions for one commit, from --shortstat."""
+    """Total insertions + deletions for one commit, from --shortstat, excluding graphify-out/."""
     result = subprocess.run(
-        ["git", "show", "--shortstat", "--format=", commit_sha],
+        ["git", "show", "--shortstat", "--format=", commit_sha, "--", ".", ":!graphify-out"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -179,9 +188,9 @@ def _diff_line_count(commit_sha: str) -> int:
 
 
 def _get_full_diff(commit_sha: str) -> str:
-    """The real unified diff for one commit."""
+    """The real unified diff for one commit, excluding graphify-out/ (see _changed_files)."""
     result = subprocess.run(
-        ["git", "show", "--format=", commit_sha],
+        ["git", "show", "--format=", commit_sha, "--", ".", ":!graphify-out"],
         cwd=REPO_ROOT,
         encoding="utf-8",
         errors="replace",
