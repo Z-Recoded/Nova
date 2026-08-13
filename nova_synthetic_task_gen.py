@@ -102,8 +102,15 @@ NON_CODE_ONLY_PATHS = {
     ".nova_status_snapshot.json",
     "NOVA_BUILD_LOG.md",
     "CLAUDE.md",
+    ".gitignore",
 }
-NON_CODE_ONLY_DIR_PREFIXES = ("screenshots/",)
+# graphify-out/ added 2026-08-12 after a real live finding: a single
+# graphify-regeneration commit (128 files, almost all machine-generated AST
+# caches under graphify-out/cache/) was 63% of this script's entire curated
+# diff content by character count in its first real 60-row batch -- low
+# training value (not hand-written code-editing signal) and disproportionate
+# API cost for its own back-translation call.
+NON_CODE_ONLY_DIR_PREFIXES = ("screenshots/", "graphify-out/")
 
 # Filters out near-empty commits (a one-line typo fix, a whitespace-only
 # change) without discarding genuinely small real fixes -- chosen loosely,
