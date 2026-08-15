@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-08-15 01:09 UTC
+Last updated: 2026-08-15 02:05 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,18 +8,7 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- NEW -> ready: 86bbch9cy (Coding specialist: explore structure-aware (AST-level) action primitives)
-- NEW -> ready: 86bbch9ak (Coding specialist: define verifiable task template (narrow scope + objective check))
-- NEW -> ready: 86bbch988 (Coding specialist: edit-format test plan (whole-file vs. search/replace vs. unified diff))
-- NEW -> ready: 86bbch95y (Coding specialist: design constrained action-space interface (ACI))
-- NEW -> ready: 86bbcfvay (Eval Harness — Initiative 5: per-specialist vetting harness)
-- NEW -> ready: 86bbcfvak (Eval Harness — Initiative 4: guardrail — verifier stays inference-time only)
-- NEW -> ready: 86bbcfva4 (Eval Harness — Initiative 3: add inference-time verifier)
-- NEW -> ready: 86bbcfv9d (Eval Harness — Initiative 2: audit existing gates individually)
-- NEW -> ready: 86bbcfpd1 (Nova Training Pipeline — Phase 5: hybrid verification at inference time)
-- NEW -> ready: 86bbcfpck (Nova Training Pipeline — Phase 4: DPO difficulty filtering)
-- NEW -> ready: 86bbcfpbg (Nova Training Pipeline — Phase 2: grounded execution-based refinement (per module))
-- NEW -> in_progress: 86bbcfpap (Nova Training Pipeline — Phase 1: bulk execution-free distillation from Claude)
+- No category changes since last digest.
 
 ## In progress (5)
 
