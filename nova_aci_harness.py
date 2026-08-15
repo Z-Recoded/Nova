@@ -34,6 +34,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 import ollama
@@ -57,6 +58,11 @@ HISTORY_KEEP_RECENT = 8
 CORPUS_ROOT = Path(__file__).parent / "data" / "coding_specialist_eval" / "exercism_subset"
 
 TEST_TIMEOUT_SECONDS = 30
+
+# Real per-exercise telemetry, one JSON line per run -- same JSONL-append
+# convention as agent_log.jsonl/coding_review_log.jsonl. logs/ is
+# gitignored, matching every other real telemetry file in this project.
+RESULTS_LOG_PATH = Path(__file__).parent / "logs" / "aci_harness_log.jsonl"
 
 SYSTEM_PROMPT = """You are editing Python code inside a working directory to complete a task.
 You interact with the directory ONLY through the following commands -- you have no direct
@@ -305,6 +311,8 @@ def run_exercise(slug: str, verbose: bool = False) -> dict:
 
         final_status = "max_turns_reached"
         turns_used = 0
+        parse_method_counts = {"json": 0, "python": 0, "repaired": 0}
+        parse_failures = 0
 
         for turn in range(1, MAX_TURNS + 1):
             turns_used = turn
@@ -319,10 +327,13 @@ def run_exercise(slug: str, verbose: bool = False) -> dict:
 
             call, parse_error = _parse_tool_call(raw_content)
             if call is None:
+                parse_failures += 1
                 messages.append({"role": "user", "content": f"ERROR: {parse_error}"})
                 if verbose:
                     print(f"--- turn {turn}: parse failed ({parse_error}) ---")
                 continue
+
+            parse_method_counts[call.get("_parse_method", "json")] += 1
 
             if call.get("tool") == "done":
                 final_status = "completed"
@@ -336,28 +347,127 @@ def run_exercise(slug: str, verbose: bool = False) -> dict:
 
         test_passed, test_output = _run_real_tests(working_copy, slug)
 
-        return {
+        result = {
+            "timestamp": datetime.now().isoformat(timespec="seconds"),
             "slug": slug,
             "turns_used": turns_used,
             "final_status": final_status,
             "test_passed": test_passed,
             "test_output": test_output,
+            "parse_method_counts": parse_method_counts,
+            "parse_failures": parse_failures,
         }
+        _log_result(result)
+        return result
+
+
+def _log_result(result: dict) -> None:
+    """
+    Appends one real run's result to RESULTS_LOG_PATH. test_output is
+    dropped from the logged copy -- verbose, not needed for analysis.
+    """
+    RESULTS_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    entry = {k: v for k, v in result.items() if k != "test_output"}
+    with open(RESULTS_LOG_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+def run_all_exercises(verbose: bool = False, repeats: int = 1) -> list[dict]:
+    """
+    Runs every real vendored exercise under CORPUS_ROOT through
+    run_exercise(), `repeats` times each, in slug-sorted order (not
+    difficulty order -- a fixed, reproducible order across runs matters
+    more here than grouping by difficulty, which SELECTED_EXERCISES in
+    nova_pull_exercism_corpus.py already records separately for anyone
+    cross-referencing results by tier). NOTICE.md (the corpus's own
+    attribution file, not an exercise) is skipped.
+
+    Real motivation for `repeats` (2026-08-15): a single-pass run showed
+    the exact same exercise (bob) pass 26/26 once and fail completely the
+    next time, with identical code -- Ollama's default sampling is not
+    deterministic, so any single pass/fail per exercise is a noisy
+    one-sample estimate, not a trustworthy result. Repeating turns each
+    exercise's outcome into a real rate (nova_aci_stats.py computes this
+    from the accumulated log) instead of a coin-flip.
+    """
+    slugs = sorted(p.name for p in CORPUS_ROOT.iterdir() if p.is_dir())
+    results = []
+    total_runs = len(slugs) * repeats
+    run_number = 0
+    for slug in slugs:
+        for rep in range(1, repeats + 1):
+            run_number += 1
+            print(f"\n[{run_number}/{total_runs}] Running {slug} (rep {rep}/{repeats})...")
+            result = run_exercise(slug, verbose=verbose)
+            status = "PASS" if result["test_passed"] else "FAIL"
+            print(f"  -> {status} ({result['final_status']}, {result['turns_used']} turn(s))")
+            results.append(result)
+    return results
+
+
+def _print_summary(results: list[dict]) -> None:
+    """
+    Real aggregate numbers from a run_all_exercises() batch -- per-exercise
+    pass RATE (not just a single pass/fail) when repeats > 1, plus overall
+    totals and parse-method breakdown.
+    """
+    total = len(results)
+    passed = sum(1 for r in results if r["test_passed"])
+    totals = {"json": 0, "python": 0, "repaired": 0}
+    total_parse_failures = 0
+    for r in results:
+        for method, count in r["parse_method_counts"].items():
+            totals[method] += count
+        total_parse_failures += r["parse_failures"]
+
+    print(f"\n=== Summary: {passed}/{total} runs passed ===")
+
+    by_slug: dict[str, list[dict]] = {}
+    for r in results:
+        by_slug.setdefault(r["slug"], []).append(r)
+    for slug in sorted(by_slug):
+        runs = by_slug[slug]
+        slug_passed = sum(1 for r in runs if r["test_passed"])
+        print(f"  {slug:<24} {slug_passed}/{len(runs)} passed")
+
+    print("\nParse method totals across all successful tool calls:")
+    print(f"  json (strict, first try): {totals['json']}")
+    print(f"  python (ast.literal_eval fallback): {totals['python']}")
+    print(f"  repaired (targeted fix): {totals['repaired']}")
+    print(f"  total parse failures (no tier recovered it): {total_parse_failures}")
 
 
 if __name__ == "__main__":
     if sys.platform == "win32":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-    parser = argparse.ArgumentParser(description="Run one vendored exercise through Qwen2.5-Coder-7B via the ACI.")
+    parser = argparse.ArgumentParser(
+        description="Run one or all vendored exercises through Qwen2.5-Coder-7B via the ACI."
+    )
     parser.add_argument(
-        "slug", help="Exercise slug, e.g. 'bob' (must exist under data/coding_specialist_eval/exercism_subset/)"
+        "slug",
+        nargs="?",
+        help="Exercise slug, e.g. 'bob' (must exist under the vendored exercise corpus). Omit with --all.",
+    )
+    parser.add_argument("--all", action="store_true", help="Run every vendored exercise, not just one.")
+    parser.add_argument(
+        "--repeat",
+        type=int,
+        default=1,
+        metavar="N",
+        help="With --all: run each exercise N times, for a real pass rate instead of one noisy sample.",
     )
     parser.add_argument("--verbose", action="store_true", help="Print each turn's raw model output and tool result.")
     args = parser.parse_args()
 
-    result = run_exercise(args.slug, verbose=args.verbose)
-    print(f"\n=== {result['slug']} ===")
-    print(f"Status: {result['final_status']} ({result['turns_used']} turn(s) used)")
-    print(f"Tests passed: {result['test_passed']}")
-    print(f"\n--- Test output ---\n{result['test_output']}")
+    if args.all:
+        results = run_all_exercises(verbose=args.verbose, repeats=args.repeat)
+        _print_summary(results)
+    elif args.slug:
+        result = run_exercise(args.slug, verbose=args.verbose)
+        print(f"\n=== {result['slug']} ===")
+        print(f"Status: {result['final_status']} ({result['turns_used']} turn(s) used)")
+        print(f"Tests passed: {result['test_passed']}")
+        print(f"\n--- Test output ---\n{result['test_output']}")
+    else:
+        parser.error("Provide a slug or use --all.")
