@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-08-15 02:05 UTC
+Last updated: 2026-08-15 03:20 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
