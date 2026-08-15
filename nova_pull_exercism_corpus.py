@@ -95,10 +95,32 @@ def _fetch_full_repo_tree() -> list[str]:
     return [entry["path"] for entry in tree["tree"] if entry["type"] == "blob"]
 
 
+# Real subdirectory types found under every one of these exercises (checked
+# live across all 30, not assumed): .docs/ and .meta/, which the plan
+# accounted for -- but also .approaches/ (multiple worked ALTERNATE solutions
+# with full explanations) and .articles/ (deep-dive content, including a full
+# working benchmark solution). Excluded deliberately: these carry real
+# solution code well beyond the single .meta/example.py the plan named as
+# "never shown to the model," and add nothing this harness needs (no
+# .docs/.meta = extraneous). Found live on the first real fetch: raindrops
+# alone pulled 29 files instead of the ~5-6 expected -- 98 of 311 total files
+# across the corpus (~31%) were .approaches/.articles content before this fix.
+EXCLUDED_SUBDIR_PREFIXES = (".approaches/", ".articles/")
+
+
 def _list_exercise_files(slug: str, full_tree: list[str]) -> list[str]:
-    """Filters the already-fetched full repo tree down to just the files under one exercise's directory."""
+    """
+    Filters the already-fetched full repo tree down to just the files this
+    corpus actually needs under one exercise's directory -- .docs/ and
+    .meta/ only, excluding EXCLUDED_SUBDIR_PREFIXES.
+    """
     prefix = f"exercises/practice/{slug}/"
-    return [path for path in full_tree if path.startswith(prefix)]
+    matched = [path for path in full_tree if path.startswith(prefix)]
+    return [
+        path
+        for path in matched
+        if not any(path[len(prefix) :].startswith(excluded) for excluded in EXCLUDED_SUBDIR_PREFIXES)
+    ]
 
 
 def _download_file(repo_path: str, local_path: str) -> None:

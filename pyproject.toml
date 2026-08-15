@@ -9,6 +9,16 @@
 line-length = 120
 target-version = "py313"
 
+# Real incident, 2026-08-15: the pre-commit ruff/ruff-format hooks reformatted
+# 49 files and auto-fixed 17 lint issues in the vendored Exercism exercise
+# corpus (86bbch988/86bbch95y) before this exclude existed -- silently
+# rewriting third-party reference solutions and test files that are supposed
+# to stay byte-identical to a pinned upstream commit for reproducibility.
+# graphify-out/** below uses per-file-ignores (rule suppression only, doesn't
+# stop reformatting); this needs full exclusion from file discovery, which
+# top-level `exclude` provides for both lint and format.
+exclude = ["data/coding_specialist_eval/exercism_subset"]
+
 [tool.ruff.lint]
 # E/F: pycodestyle + pyflakes (ruff's own baseline). I: import sorting,
 # replacing isort per the security-hygiene-tooling design doc. UP: pyupgrade,
@@ -45,7 +55,7 @@ ignore_missing_imports = true
 follow_imports = "silent"
 
 [tool.bandit]
-exclude_dirs = ["graphify-out", "nova-env", ".git"]
+exclude_dirs = ["graphify-out", "nova-env", ".git", "data/coding_specialist_eval/exercism_subset"]
 # Skipped test IDs -- every one documented, not silently dropped. Without
 # these, the pre-commit hook would fail on every single commit going
 # forward, since these findings are pervasive across the existing codebase

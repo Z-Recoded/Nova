@@ -40,8 +40,17 @@ drive-download-20260702T030658Z-3-001.zip
 # Install media (3.4GB Ubuntu ISO for the Omen setup), not project source
 tooling/
 
-# Downloaded/curated external training data (large, not project source)
-data/
+# Downloaded/curated external training data (large, not project source).
+# data/* (not a bare data/) plus an explicit negation below -- git can't
+# re-include a path under a parent directory that's itself ignored, so
+# coding_specialist_eval/ needs data/ ignored one level down, not wholesale.
+data/*
+# Exception: the vendored Exercism exercise corpus (86bbch988/86bbch95y) --
+# small (995K), static, third-party, MIT-licensed, and needs to stay
+# byte-identical across every future comparison run, unlike the rest of
+# data/, which is Nova's own regenerable training output. See
+# docs/coding-specialist-exercise-corpus-plan.md.
+!data/coding_specialist_eval/
 
 # Downloaded Piper TTS voice models (binary model artifacts, not project source)
 voice_models/

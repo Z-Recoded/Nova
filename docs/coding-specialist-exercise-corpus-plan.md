@@ -86,12 +86,13 @@ The real selected list (also embedded in `nova_pull_exercism_corpus.py`'s
 9: pov
 ```
 
-## Exercise structure (confirmed live against a real exercise)
+## Exercise structure (confirmed live — corrected after the real fetch)
 
-Each exercise directory contains:
+Each exercise directory contains, and this corpus vendors:
 
-- `.docs/instructions.md` — the natural-language task description (what the
-  model is given)
+- `.docs/instructions.md` (+ `introduction.md`/`instructions.append.md` on
+  some exercises) — the natural-language task description (what the model is
+  given)
 - `.meta/example.py` — the real reference solution — **never shown to the
   model**, used only for our own sanity-checking that a task is genuinely
   solvable
@@ -100,6 +101,20 @@ Each exercise directory contains:
 - `<slug>_test.py` — the real objective check (unit tests define success,
   same "objective, runnable check" pattern `86bbch9ak`'s own task template
   wants to standardize on)
+
+**Real correction found on the first actual fetch (2026-08-15):** newer
+Exercism exercises also carry `.approaches/` (multiple worked *alternate*
+solutions with full explanations) and `.articles/` (deep-dive content,
+including a complete working benchmark solution) — neither anticipated when
+this plan was first written. `raindrops` alone pulled 29 files instead of
+the ~5-6 expected; 98 of 311 total files across the first real fetch (~31%)
+were this unplanned content. This is a real leakage risk, not just bloat —
+`.approaches/*/snippet.txt` and `.articles/*/code/*.py` contain working
+solution code well beyond the single `.meta/example.py` this plan already
+flagged as never-shown-to-the-model. Fixed in
+`nova_pull_exercism_corpus.py` (`EXCLUDED_SUBDIR_PREFIXES`) before
+committing the vendored corpus — the version actually in the repo is
+`.docs`/`.meta` only, 241 files, 995K.
 
 ## Pinned for reproducibility
 
