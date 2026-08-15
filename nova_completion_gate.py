@@ -22,6 +22,7 @@
 
 import ast
 import builtins
+import hashlib
 import json
 import os
 import re
@@ -52,6 +53,23 @@ EXTRACTION_MODEL = "claude-sonnet-5"
 # diff-review call (5/6 reviews came back with no usable text block).
 # Sized well above that risk, not just the expected output length.
 EXTRACTION_MAX_TOKENS = 1024
+
+# On-disk cache for extract_task_requirements(), keyed by a hash of the
+# exact task text -- avoids re-paying for the same extraction every time
+# the same task description is seen twice. Real, confirmed duplication:
+# nova_coding_eval.py's three backend runners (run_runpod_backend/
+# run_devstral_backend/run_qwen3_backend) each call this fresh for the
+# same fixed dev-set tasks, repeated across every eval session, and this
+# function's own docstring already documents (2026-08-08) that its output
+# is stable across repeated calls with the same input -- required_files/
+# forbidden_files/narrow_scope_files (the fields hard-fail checks depend
+# on) came back byte-identical across 3 repeated real calls; only
+# deliverables (warning-level only) showed minor wording variance.
+# logs/ is gitignored -- this cache is regenerable, never meant to be
+# committed, same as every other file already written there.
+TASK_REQUIREMENTS_CACHE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "logs", "task_requirements_cache.json"
+)
 
 # Host-side PowerShell syntax check (see _check_powershell_syntax_valid()
 # below). This gate runs unsandboxed in the orchestrator's own trusted
@@ -116,6 +134,28 @@ EXTRACTION_SYSTEM_PROMPT = (
 )
 
 
+def _task_requirements_cache_key(task_description: str) -> str:
+    """SHA-256 of the exact task text -- same hashing discipline as nova_task_queue._description_hash()."""
+    return hashlib.sha256(task_description.encode("utf-8")).hexdigest()
+
+
+def _load_task_requirements_cache() -> dict:
+    """{cache_key: requirements_dict}. Empty dict if the cache file doesn't exist yet or is corrupt."""
+    if not os.path.exists(TASK_REQUIREMENTS_CACHE_PATH):
+        return {}
+    try:
+        with open(TASK_REQUIREMENTS_CACHE_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _save_task_requirements_cache(cache: dict) -> None:
+    os.makedirs(os.path.dirname(TASK_REQUIREMENTS_CACHE_PATH), exist_ok=True)
+    with open(TASK_REQUIREMENTS_CACHE_PATH, "w", encoding="utf-8") as f:
+        json.dump(cache, f, ensure_ascii=False, indent=2)
+
+
 def extract_task_requirements(task_description: str) -> dict:
     """
     One-time, non-agentic Claude call that parses a task's own spec text
@@ -159,6 +199,13 @@ def extract_task_requirements(task_description: str) -> dict:
     below -- were identical every time; only deliverables (warning-level
     only, never a hard fail) showed minor wording variance run to run. Good
     enough without a temperature knob to hold onto.
+
+    Cached on disk (TASK_REQUIREMENTS_CACHE_PATH), keyed by an exact hash
+    of task_description -- the determinism confirmed above is exactly what
+    makes this safe. Only a genuinely successful, parsed extraction is
+    cached; empty_result (API-key-missing or parse/API failure) is never
+    written, so a transient failure can't permanently poison the cache for
+    a task text that would otherwise extract cleanly on a later real call.
     """
     empty_result = {
         "required_files": [],
@@ -166,6 +213,11 @@ def extract_task_requirements(task_description: str) -> dict:
         "narrow_scope_files": [],
         "deliverables": [],
     }
+
+    cache_key = _task_requirements_cache_key(task_description)
+    cache = _load_task_requirements_cache()
+    if cache_key in cache:
+        return cache[cache_key]
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -188,12 +240,15 @@ def extract_task_requirements(task_description: str) -> dict:
         # despite being told not to.
         unfenced = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw, flags=re.IGNORECASE).strip()
         parsed = json.loads(unfenced)
-        return {
+        result = {
             "required_files": list(parsed.get("required_files", [])),
             "forbidden_files": list(parsed.get("forbidden_files", [])),
             "narrow_scope_files": list(parsed.get("narrow_scope_files", [])),
             "deliverables": list(parsed.get("deliverables", [])),
         }
+        cache[cache_key] = result
+        _save_task_requirements_cache(cache)
+        return result
     except (anthropic.APIError, json.JSONDecodeError, KeyError, TypeError, AttributeError):
         return empty_result
 

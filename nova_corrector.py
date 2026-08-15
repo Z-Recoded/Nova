@@ -14,6 +14,8 @@ import os
 import sys
 
 import anthropic
+import numpy as np
+from chromadb.utils import embedding_functions
 from dotenv import load_dotenv
 
 # Windows' default console codepage (cp1252) can't encode characters Claude's
@@ -62,6 +64,105 @@ GOLDEN_QUERY_STRINGS = {
 def _is_golden_duplicate(query: str) -> bool:
     """True if query exactly matches (case/whitespace-insensitive) one of nova_benchmark.py's GOLDEN_QUERIES."""
     return query.strip().lower() in GOLDEN_QUERY_STRINGS
+
+
+# ── Correction reuse cache ─────────────────────────────────────
+# Avoids spending a fresh Claude call on a flagged entry that's really a
+# repeat of one already corrected. Real duplication confirmed directly
+# against this file's own data (2026-08-14 audit): "Who is Null?" recurs 6x
+# verbatim, and the Null/Nullius source pair recurs 9x with closely related
+# rewordings ("Good, who is Null?"). Two tiers, cheapest and safest first:
+#   1. Exact match on normalized query text -- zero risk, the same question
+#      asked twice has the same correct answer.
+#   2. Embedding similarity, scoped to entries sharing the exact same
+#      sources_mixed set -- for near-duplicate rewordings that don't match
+#      exactly.
+#
+# embedding_functions.DefaultEmbeddingFunction() runs a local ONNX model --
+# no network call, no dependency on the Omen/Chroma server being reachable.
+# This preserves request_correction()'s existing no-Chroma-connectivity
+# guarantee (see this file's own dotenv-path comment above) even though it
+# does add a chromadb import; both chromadb and numpy are already pinned
+# project dependencies (requirements.txt), so this introduces no new one.
+SIMILARITY_REUSE_THRESHOLD = 0.90
+
+# Real validated margin behind the 0.90 cutoff (2026-08-14, tested against
+# this file's own recorded near-duplicates): a genuine reworded repeat
+# ("Good, who is Null?" vs "Who is Null?") scored 0.935 cosine similarity,
+# while a genuinely DIFFERENT question sharing the same character ("How old
+# is Null?" vs "Who is Null?") scored only 0.792 -- a real ~14-point gap.
+# A naive character-level similarity (difflib.SequenceMatcher) was tried
+# first and rejected: it scored those same two pairs at 0.800 vs 0.786, a
+# gap too thin to safely tell "same question, reworded" apart from
+# "different question, same character" -- reusing a correction for the
+# wrong question would silently ship a wrong answer as if it were verified.
+
+
+def _normalize_query(query: str) -> str:
+    """Same normalization _is_golden_duplicate() uses -- strip + lowercase, no other transformation."""
+    return query.strip().lower()
+
+
+def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
+    """Standard cosine similarity -- 1.0 is identical direction, 0.0 is orthogonal."""
+    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+
+def _build_reuse_cache(entries: list[dict], embedding_fn) -> list[dict]:
+    """
+    One record per already-corrected entry: normalized query text, its
+    sources_mixed set (as a sorted tuple, for scoping the similarity search
+    below), the correction text itself, and its embedding -- computed once
+    here in a single batched call, reused for every comparison against it.
+    """
+    corrected = [e for e in entries if e.get("correction")]
+    if not corrected:
+        return []
+    queries = [e["messages"][0]["content"] for e in corrected]
+    embeddings = embedding_fn(queries)
+    return [
+        {
+            "query_norm": _normalize_query(entry["messages"][0]["content"]),
+            "sources": tuple(sorted(entry.get("sources_mixed", []))),
+            "correction": entry["correction"],
+            "embedding": np.array(embedding),
+        }
+        for entry, embedding in zip(corrected, embeddings, strict=True)
+    ]
+
+
+def _find_reusable_correction(
+    query: str, sources: list[str], query_embedding: np.ndarray, cache: list[dict]
+) -> tuple[str, str, float] | None:
+    """
+    Look for a prior correction this entry can reuse instead of a fresh API
+    call. Returns (correction, match_kind, similarity) where match_kind is
+    "exact" or "similarity", or None if nothing reusable was found.
+
+    Tier 1 -- exact match on normalized query text, against any source set.
+    Tier 2 -- embedding similarity, but ONLY against cache entries sharing
+    this entry's exact sources_mixed set (the same character-file pair) --
+    a cheap pre-filter that also doubles as a safety net, since a
+    same-character near-duplicate is a fundamentally safer reuse than a
+    coincidentally-similar-sounding question about different characters.
+    """
+    query_norm = _normalize_query(query)
+    for record in cache:
+        if record["query_norm"] == query_norm:
+            return record["correction"], "exact", 1.0
+
+    sources_key = tuple(sorted(sources))
+    best_record, best_similarity = None, 0.0
+    for record in cache:
+        if record["sources"] != sources_key:
+            continue
+        similarity = _cosine_similarity(query_embedding, record["embedding"])
+        if similarity > best_similarity:
+            best_record, best_similarity = record, similarity
+
+    if best_record and best_similarity >= SIMILARITY_REUSE_THRESHOLD:
+        return best_record["correction"], "similarity", best_similarity
+    return None
 
 
 # ── File lookup ────────────────────────────────────────────────
@@ -183,8 +284,11 @@ def run(dry_run: bool = False) -> None:
     if not api_key:
         raise OSError("ANTHROPIC_API_KEY environment variable is not set. Export it before running this script.")
     client = anthropic.Anthropic(api_key=api_key)
+    embedding_fn = embedding_functions.DefaultEmbeddingFunction()
+    reuse_cache = _build_reuse_cache(entries, embedding_fn)
 
-    corrected = 0
+    generated = 0
+    reused = 0
     for entry in entries:
         if entry.get("correction"):
             continue
@@ -193,18 +297,68 @@ def run(dry_run: bool = False) -> None:
 
         query = entry["messages"][0]["content"]
         sources = entry.get("sources_mixed", [])
-        lore = load_lore(sources)
 
         print(f"\nQuery : {query[:80]}{'...' if len(query) > 80 else ''}")
         print(f"Sources: {', '.join(sources)}")
 
-        if dry_run:
-            print("(dry run — skipping API call)")
+        query_embedding = np.array(embedding_fn([query])[0])
+        reuse = _find_reusable_correction(query, sources, query_embedding, reuse_cache)
+
+        if reuse:
+            correction, match_kind, similarity = reuse
+            if dry_run:
+                if match_kind == "exact":
+                    print("(dry run — would reuse an exact prior match, no API call)")
+                else:
+                    print(f"(dry run — would reuse a similar prior match, similarity={similarity:.3f}, no API call)")
+                # Real correction text -- safe to add to the cache so a later
+                # entry in this same dry-run preview can chain off it too.
+                reuse_cache.append(
+                    {
+                        "query_norm": _normalize_query(query),
+                        "sources": tuple(sorted(sources)),
+                        "correction": correction,
+                        "embedding": query_embedding,
+                    }
+                )
+                continue
+
+            entry["correction"] = correction
+            entry["correction_source"] = "reused_exact" if match_kind == "exact" else "reused_similarity"
+            reused += 1
+            reuse_cache.append(
+                {
+                    "query_norm": _normalize_query(query),
+                    "sources": tuple(sorted(sources)),
+                    "correction": correction,
+                    "embedding": query_embedding,
+                }
+            )
+            save_entries(entries)
+
+            if match_kind == "exact":
+                print("Reused an exact prior correction — no API call.")
+            else:
+                print(f"Reused a similar prior correction (similarity={similarity:.3f}) — no API call.")
             continue
 
+        if dry_run:
+            print("(dry run — would call the API to generate a fresh correction)")
+            continue
+
+        lore = load_lore(sources)
         correction = request_correction(client, query, lore)
         entry["correction"] = correction
-        corrected += 1
+        entry["correction_source"] = "generated"
+        generated += 1
+        reuse_cache.append(
+            {
+                "query_norm": _normalize_query(query),
+                "sources": tuple(sorted(sources)),
+                "correction": correction,
+                "embedding": query_embedding,
+            }
+        )
 
         # Saved after every single correction, not once at the end -- a real
         # run crashed mid-way on an encoding bug (fixed above) and threw away
@@ -216,8 +370,11 @@ def run(dry_run: bool = False) -> None:
 
         print(f"Correction: {correction[:120]}{'...' if len(correction) > 120 else ''}")
 
-    if not dry_run and corrected:
-        print(f"\n{corrected} correction(s) written to {JSONL_PATH}")
+    if not dry_run and (generated or reused):
+        print(
+            f"\n{generated} correction(s) generated via API, {reused} reused from a prior match "
+            f"— written to {JSONL_PATH}"
+        )
     elif not dry_run:
         print("Nothing to write.")
 
