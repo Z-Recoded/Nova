@@ -1,0 +1,363 @@
+# nova_aci_harness.py
+# Real, live test harness driving one exercise from the vendored Exercism
+# corpus (data/coding_specialist_eval/exercism_subset/) through
+# Qwen2.5-Coder-7B via nova_coding_aci.py's constrained action-space
+# interface (86bbch95y). Proves the whole pipeline works end-to-end before
+# any container/production wiring -- the same "ship the working loop first,
+# harden sandboxing later" precedent nova_orchestrator.py's own Claude-
+# backed lane already established (CLAUDE.md: "v1 is driven by the Claude
+# API... has no Docker/OpenHands sandboxing for the interactive lane --
+# that's deferred"). Runs directly against a real temp directory today;
+# docker/nova-aci-sandbox/ is the container this same logic would run
+# inside once that hardening pass happens.
+#
+# Real gotcha found live (2026-08-15): Ollama's `tool_calls` response field
+# came back None for qwen2.5-coder:7b even when given a real `tools=[...]`
+# schema -- the model emitted its tool-call attempt as raw JSON text in
+# `content` instead. Same shape nova_orchestrator_runpod.py already found
+# for its own RunPod endpoint (no native tool-calling, a prompted
+# <tools>...</tools> text format instead) -- this harness uses the
+# identical proven pattern: a system prompt describing the call format,
+# JSON parsed out of plain text, defensive against a markdown code fence
+# wrapping it (the same gotcha nova_task_queue.propose_tier()/
+# nova_completion_gate.extract_task_requirements() already found and
+# handle).
+#
+# Usage:
+#   python nova_aci_harness.py <exercise-slug>   # e.g. bob
+
+import argparse
+import ast
+import json
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+import ollama
+
+import nova_coding_aci as aci
+
+OLLAMA_MODEL = "qwen2.5-coder:7b"
+OLLAMA_HOST = "http://127.0.0.1:11434"
+
+# Generous relative to a 6-difficulty-tier corpus of small exercises -- most
+# should complete in well under this; a run that's still going at this point
+# is treated as stuck, matching nova_orchestrator.py's own max-turns
+# philosophy for the Claude-backed lane.
+MAX_TURNS = 15
+
+# Same "keep recent, condense older" call as nova_coding_aci.collapse_history()
+# itself -- applied here, not inside the ACI module, since history
+# management is the turn loop's concern, not an individual command's.
+HISTORY_KEEP_RECENT = 8
+
+CORPUS_ROOT = Path(__file__).parent / "data" / "coding_specialist_eval" / "exercism_subset"
+
+TEST_TIMEOUT_SECONDS = 30
+
+SYSTEM_PROMPT = """You are editing Python code inside a working directory to complete a task.
+You interact with the directory ONLY through the following commands -- you have no direct
+shell or filesystem access. Respond with EXACTLY ONE JSON object per turn, no other text,
+in this shape:
+
+{"tool": "<name>", "arguments": {...}}
+
+Available tools:
+- find_file: {"pattern": "<substring>"} -- find files whose name contains pattern
+- search_file: {"path": "<relative path>", "pattern": "<substring>"} -- search one file for matching lines
+- search_dir: {"pattern": "<substring>"} -- search every .py file for matching lines
+- view: {"path": "<relative path>", "start_line": <int, optional>, "window": <int, optional>} --
+  view a windowed, line-numbered slice of a file
+- edit: {"path": "<relative path>", "start_line": <int>, "end_line": <int>, "new_content": "<text>"} --
+  replace lines [start_line, end_line] (inclusive) with new_content
+- done: {} -- call this when you believe the task is complete
+
+Your entire response must be valid JSON, on one line if possible. new_content must be a
+normal JSON string -- use \\n for newlines and \\" for embedded quotes. Never use Python's
+triple-quote (\"\"\"...\"\"\") syntax inside a JSON value; it is not valid JSON and will fail
+to parse. Example of a real, valid edit call replacing one line:
+
+{"tool": "edit", "arguments": {"path": "f.py", "start_line": 2, "end_line": 2, "new_content": "    return 1\\n"}}
+
+Always view a file before editing it, so your line numbers are correct. Work directly on the
+file the task names, and only that file, unless told otherwise. Do not edit the test file."""
+
+
+def _strip_code_fence(raw: str) -> str:
+    """Same markdown-fence gotcha nova_task_queue.propose_tier() already found live -- strip it before parsing."""
+    return re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.IGNORECASE).strip()
+
+
+def _repair_unterminated_string(raw: str) -> str | None:
+    """
+    Real repair heuristic, added 2026-08-15 after direct evidence: across a
+    full real run, the model's edit calls were consistently CORRECT,
+    complete Python logic, undone by one single missing closing quote right
+    before the call's trailing braces -- e.g. `..."Whatever."}}` where the
+    new_content value opened with a quote that was never closed. Verified
+    against all 15 real turns from that run: this exact heuristic
+    (try appending each quote character right before the trailing `}` run,
+    re-parse) recovered 14 of 15 -- the model's actual reasoning was right
+    almost every time; only the closing punctuation was missing.
+
+    This is deliberately a repair of the TEXT, not a guess at INTENT --
+    it only tries appending a real quote character in the one place a
+    genuinely truncated string would need one, then hands the result to
+    ast.literal_eval() to confirm it's now valid; it never invents content.
+    Returns the repaired string, or None if no repair makes it parseable.
+    """
+    stripped = raw.rstrip()
+    if not stripped.endswith("}"):
+        return None
+    trailing_brace_count = len(stripped) - len(stripped.rstrip("}"))
+    body = stripped[: len(stripped) - trailing_brace_count]
+    for quote_char in ("'", '"'):
+        candidate = body + quote_char + "}" * trailing_brace_count
+        try:
+            ast.literal_eval(candidate)
+            return candidate
+        except (ValueError, SyntaxError):
+            continue
+    return None
+
+
+def _try_parse_raw(raw: str) -> tuple[dict | None, str]:
+    """
+    Three graduated attempts to turn the model's raw text into a real
+    Python dict, cheapest and strictest first -- the answer to "what if
+    parsing didn't care about the model's exact format, only that it can be
+    turned into something valid without losing meaning": (1) strict JSON,
+    the fast path when the model gets it exactly right; (2) ast.literal_eval,
+    which safely accepts Python literal syntax (single/triple-quoted
+    strings) that isn't valid JSON but IS valid, complete Python -- covers
+    the model's real, repeated bias toward Python string conventions over
+    strict JSON; (3) _repair_unterminated_string, for the specific real
+    truncation pattern found live. ast.literal_eval only evaluates literal
+    expressions (dicts/strings/numbers/etc.) -- unlike eval(), it cannot
+    execute arbitrary code, so this stays safe against untrusted model
+    output even while being lenient about its exact syntax.
+
+    Returns (parsed_dict_or_None, method) where method is "json", "python",
+    or "repaired" on success -- surfaced so a real run can see which tier
+    actually did the work, not just that parsing succeeded. On total
+    failure, method carries the real json.JSONDecodeError text instead (the
+    most informative of the three failures, since strict JSON is the
+    documented contract) so the caller doesn't need to re-parse a second
+    time just to build an error message.
+    """
+    try:
+        return json.loads(raw), "json"
+    except json.JSONDecodeError as e:
+        json_error = str(e)
+    try:
+        return ast.literal_eval(raw), "python"
+    except (ValueError, SyntaxError):
+        pass
+    repaired = _repair_unterminated_string(raw)
+    if repaired is not None:
+        return ast.literal_eval(repaired), "repaired"
+    return None, json_error
+
+
+def _parse_tool_call(raw_content: str) -> tuple[dict | None, str | None]:
+    """
+    Parses one tool call out of the model's plain-text response. Returns
+    (call, None) on success or (None, reason) on failure -- the reason is
+    fed back to the model as a specific correction, not a generic "couldn't
+    parse" message, so it has a real chance to self-correct rather than
+    repeat the identical mistake.
+
+    Real gotcha, found live (2026-08-15, first real harness run): despite
+    the system prompt specifying {"tool": "<name>", "arguments": {...}},
+    the model consistently emitted a FLAT shape instead --
+    {"tool": "view", "path": "bob.py"} with no "arguments" key at all.
+    Normalized here rather than trusting the prompt to fix it: any
+    top-level key other than "tool"/"arguments" is folded into the
+    arguments dict, so both shapes work. See _try_parse_raw()'s own
+    docstring for the (json/python/repaired) graduated parsing this
+    function now sits on top of.
+    """
+    raw = _strip_code_fence(raw_content)
+    parsed, method = _try_parse_raw(raw)
+    if parsed is None:
+        return None, (
+            f"Your response could not be parsed as JSON or as a Python literal: {method}. "
+            "Respond with a single, COMPLETE tool call -- check that every string you open is "
+            'also closed: {"tool": "<name>", "arguments": {...}}'
+        )
+    if not isinstance(parsed, dict) or "tool" not in parsed:
+        return None, 'Your response was parseable but had no "tool" key.'
+    arguments = dict(parsed.get("arguments") or {})
+    flat_extras = {k: v for k, v in parsed.items() if k not in ("tool", "arguments")}
+    arguments.update(flat_extras)
+    return {"tool": parsed["tool"], "arguments": arguments, "_parse_method": method}, None
+
+
+def _execute_tool(call: dict, root: str) -> str:
+    """
+    Runs one ACI command by name, returns a plain-text result string to
+    feed back to the model. Unknown tool names / bad arguments come back as
+    a plain error string rather than raising -- the model needs to see the
+    mistake to correct it, not crash the whole run over one bad call.
+    """
+    tool = call.get("tool")
+    args = call.get("arguments") or {}
+
+    try:
+        if tool == "find_file":
+            return json.dumps(aci.find_file(args["pattern"], root))
+        if tool == "search_file":
+            return json.dumps(aci.search_file(args["path"], args["pattern"], root))
+        if tool == "search_dir":
+            return json.dumps(aci.search_dir(args["pattern"], root))
+        if tool == "view":
+            return aci.view(
+                args["path"], root, args.get("start_line", 1), args.get("window", aci.DEFAULT_VIEW_WINDOW_LINES)
+            )
+        if tool == "edit":
+            return json.dumps(aci.edit(args["path"], args["start_line"], args["end_line"], args["new_content"], root))
+        if tool == "done":
+            return "DONE"
+        return f"ERROR: unknown tool '{tool}'. Valid tools: find_file, search_file, search_dir, view, edit, done."
+    except KeyError as e:
+        return f"ERROR: missing required argument {e} for tool '{tool}'."
+    except (ValueError, OSError) as e:
+        return f"ERROR: {e}"
+
+
+def _prepare_working_copy(slug: str, tmp_dir: Path) -> Path:
+    """
+    Copies one real vendored exercise into a disposable temp directory,
+    excluding .meta/ (the reference solution -- nova_coding_aci.py's own
+    EXCLUDED_DIR_NAMES already keeps it out of find_file/search_dir results,
+    but not copying it into the working directory at all is a second,
+    independent layer -- it can't leak if it was never present).
+    """
+    source = CORPUS_ROOT / slug
+    if not source.is_dir():
+        raise RuntimeError(f"No vendored exercise '{slug}' at {source}")
+
+    dest = tmp_dir / slug
+    shutil.copytree(source, dest, ignore=shutil.ignore_patterns(".meta"))
+    return dest
+
+
+def _read_task_description(working_copy: Path) -> str:
+    """Real task text from the exercise's own .docs/instructions.md -- what the model is actually given."""
+    instructions_path = working_copy / ".docs" / "instructions.md"
+    return instructions_path.read_text(encoding="utf-8")
+
+
+def _run_real_tests(working_copy: Path, slug: str) -> tuple[bool, str]:
+    """
+    Runs the exercise's REAL test file via stdlib unittest (no pytest
+    dependency needed) from inside the working copy, so `from <slug> import
+    ...` resolves correctly. This is the objective, runnable check that
+    defines success -- never a judgment call by the model or a human
+    reviewer, matching 86bbch9ak's own task-template principle.
+    """
+    module_name = slug.replace("-", "_")
+    result = subprocess.run(
+        [sys.executable, "-m", "unittest", f"{module_name}_test", "-v"],
+        cwd=str(working_copy),
+        capture_output=True,
+        text=True,
+        timeout=TEST_TIMEOUT_SECONDS,
+    )
+    return result.returncode == 0, result.stdout + result.stderr
+
+
+def run_exercise(slug: str, verbose: bool = False) -> dict:
+    """
+    Runs one real vendored exercise through Qwen2.5-Coder-7B via the ACI,
+    end to end. The model never sees .meta/example.py (excluded before the
+    working copy even exists) or is told a reference solution exists at
+    all. Returns {"slug", "turns_used", "final_status", "test_passed",
+    "test_output"}.
+    """
+    client = ollama.Client(host=OLLAMA_HOST)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        working_copy = _prepare_working_copy(slug, Path(tmp))
+        root = str(working_copy)
+        task_description = _read_task_description(working_copy)
+
+        # Real gotcha found live (2026-08-15): .docs/instructions.md never
+        # names the actual file to edit (bob's instructions talk about a
+        # PERSON named Bob, never the file bob.py) -- without this, the
+        # model spent its entire turn budget guessing plausible-sounding
+        # wrong filenames ("task.py") and never adjusted after find_file
+        # kept returning empty. A real production task would always name
+        # its target file explicitly; this gives the model the same
+        # starting information any real task would, rather than making it
+        # guess blind.
+        initial_files = aci.find_file(".py", root)
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": f"Task:\n\n{task_description}\n\nFiles in your working directory: {initial_files}",
+            },
+        ]
+
+        final_status = "max_turns_reached"
+        turns_used = 0
+
+        for turn in range(1, MAX_TURNS + 1):
+            turns_used = turn
+            messages = [messages[0]] + aci.collapse_history(messages[1:], keep_recent=HISTORY_KEEP_RECENT)
+
+            response = client.chat(model=OLLAMA_MODEL, messages=messages)
+            raw_content = response["message"]["content"]
+            messages.append({"role": "assistant", "content": raw_content})
+
+            if verbose:
+                print(f"\n--- turn {turn}: model said ---\n{raw_content}")
+
+            call, parse_error = _parse_tool_call(raw_content)
+            if call is None:
+                messages.append({"role": "user", "content": f"ERROR: {parse_error}"})
+                if verbose:
+                    print(f"--- turn {turn}: parse failed ({parse_error}) ---")
+                continue
+
+            if call.get("tool") == "done":
+                final_status = "completed"
+                break
+
+            tool_result = _execute_tool(call, root)
+            messages.append({"role": "user", "content": tool_result})
+            if verbose:
+                method = call.get("_parse_method", "?")
+                print(f"--- turn {turn}: ran {call.get('tool')} (parsed via {method}) -> {tool_result[:300]}")
+
+        test_passed, test_output = _run_real_tests(working_copy, slug)
+
+        return {
+            "slug": slug,
+            "turns_used": turns_used,
+            "final_status": final_status,
+            "test_passed": test_passed,
+            "test_output": test_output,
+        }
+
+
+if __name__ == "__main__":
+    if sys.platform == "win32":
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+    parser = argparse.ArgumentParser(description="Run one vendored exercise through Qwen2.5-Coder-7B via the ACI.")
+    parser.add_argument(
+        "slug", help="Exercise slug, e.g. 'bob' (must exist under data/coding_specialist_eval/exercism_subset/)"
+    )
+    parser.add_argument("--verbose", action="store_true", help="Print each turn's raw model output and tool result.")
+    args = parser.parse_args()
+
+    result = run_exercise(args.slug, verbose=args.verbose)
+    print(f"\n=== {result['slug']} ===")
+    print(f"Status: {result['final_status']} ({result['turns_used']} turn(s) used)")
+    print(f"Tests passed: {result['test_passed']}")
+    print(f"\n--- Test output ---\n{result['test_output']}")
