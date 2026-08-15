@@ -144,7 +144,29 @@ artifact.
 (GitHub Contents API + raw.githubusercontent.com), `--dry-run` confirmed
 working, ruff-clean, writes the `NOTICE.md` attribution file automatically.
 
-**Not yet done:** the real fetch (`python nova_pull_exercism_corpus.py`,
-no flag) hasn't been run — that vendors ~150-180 real files into the repo,
-a genuine one-way addition worth a explicit go-ahead rather than bundling
-into a scoping pass.
+**Update, 2026-08-15 — the real fetch has since run.** 30 exercises are
+vendored and committed (241 files, 995K). The corpus has already been used
+for real: `nova_aci_harness.py` ran `bob` through Qwen2.5-Coder-7B end to
+end. See the next section for what that run found.
+
+## Real finding from first use: parsing leniency matters more than format choice
+
+The first real exercise run against this corpus surfaced something worth
+recording here, not just in the harness's own commit history — full writeup
+in `docs/liberal-parsing-principle.md`. Short version: a strict-JSON-only
+parser rejected the model's real edit attempts even when its underlying
+Python logic was already correct, because it kept encoding that logic using
+Python string-literal syntax instead of strict JSON. Adding graduated
+leniency (`json.loads` → `ast.literal_eval` → a targeted repair for one
+specific truncation pattern, each verified against real captured failures
+before being trusted) took the same exercise from 0/26 tests passing across
+a fully burned turn budget to 26/26 passing in 3 turns.
+
+**Direct implication for this corpus's other intended use (`86bbch988`'s
+edit-format comparison):** that plan currently proposes testing three
+formats under strict parsing, matching Aider's own benchmark methodology.
+Worth testing each format under the same graduated leniency before trusting
+a ranking — a format that looks weak under strict parsing might perform
+very differently once given the same tolerance `nova_coding_aci.edit()`
+already has. Not yet done; flagged here so it isn't forgotten when that
+comparison actually runs.
