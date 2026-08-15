@@ -29,9 +29,6 @@ import urllib.request
 
 EXERCISM_PYTHON_COMMIT = "1f6aab8667bf653b10cc3799f94352fcdb749db6"  # pinned 2026-08-15, real HEAD as of 2026-08-10
 RAW_BASE_URL = f"https://raw.githubusercontent.com/exercism/python/{EXERCISM_PYTHON_COMMIT}"
-API_CONTENTS_URL = (
-    f"https://api.github.com/repos/exercism/python/contents/exercises/practice/{{slug}}?ref={EXERCISM_PYTHON_COMMIT}"
-)
 
 OUTPUT_DIR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "data", "coding_specialist_eval", "exercism_subset"
