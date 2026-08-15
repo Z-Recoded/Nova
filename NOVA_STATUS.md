@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-08-09 01:27 UTC
+Last updated: 2026-08-15 01:09 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,10 +8,22 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- ready -> complete/removed: 86bbaury4 (Re-deploy Qwen3-Coder-Next endpoint with its real context window (controlled 32K comparison done))
+- NEW -> ready: 86bbch9cy (Coding specialist: explore structure-aware (AST-level) action primitives)
+- NEW -> ready: 86bbch9ak (Coding specialist: define verifiable task template (narrow scope + objective check))
+- NEW -> ready: 86bbch988 (Coding specialist: edit-format test plan (whole-file vs. search/replace vs. unified diff))
+- NEW -> ready: 86bbch95y (Coding specialist: design constrained action-space interface (ACI))
+- NEW -> ready: 86bbcfvay (Eval Harness — Initiative 5: per-specialist vetting harness)
+- NEW -> ready: 86bbcfvak (Eval Harness — Initiative 4: guardrail — verifier stays inference-time only)
+- NEW -> ready: 86bbcfva4 (Eval Harness — Initiative 3: add inference-time verifier)
+- NEW -> ready: 86bbcfv9d (Eval Harness — Initiative 2: audit existing gates individually)
+- NEW -> ready: 86bbcfpd1 (Nova Training Pipeline — Phase 5: hybrid verification at inference time)
+- NEW -> ready: 86bbcfpck (Nova Training Pipeline — Phase 4: DPO difficulty filtering)
+- NEW -> ready: 86bbcfpbg (Nova Training Pipeline — Phase 2: grounded execution-based refinement (per module))
+- NEW -> in_progress: 86bbcfpap (Nova Training Pipeline — Phase 1: bulk execution-free distillation from Claude)
 
-## In progress (4)
+## In progress (5)
 
+- 86bbcfpap  Nova Training Pipeline — Phase 1: bulk execution-free distillation from Claude
 - 86bb72gpa  Coding agent runs its own verification repeatedly but never fixes the bug it finds
 - 86bb728nj  RunPod coding agent re-issues already-successful edits, burns full 25-turn budget without progressing
 - 86bb71x1j  Design auto-configuring harness: detect and align tool-call/completion conventions per model backend
@@ -31,8 +43,19 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (105)
+## Ready (116)
 
+- 86bbch9cy  Coding specialist: explore structure-aware (AST-level) action primitives
+- 86bbch9ak  Coding specialist: define verifiable task template (narrow scope + objective check)
+- 86bbch988  Coding specialist: edit-format test plan (whole-file vs. search/replace vs. unified diff)
+- 86bbch95y  Coding specialist: design constrained action-space interface (ACI)
+- 86bbcfvay  Eval Harness — Initiative 5: per-specialist vetting harness
+- 86bbcfvak  Eval Harness — Initiative 4: guardrail — verifier stays inference-time only
+- 86bbcfva4  Eval Harness — Initiative 3: add inference-time verifier
+- 86bbcfv9d  Eval Harness — Initiative 2: audit existing gates individually
+- 86bbcfpd1  Nova Training Pipeline — Phase 5: hybrid verification at inference time
+- 86bbcfpck  Nova Training Pipeline — Phase 4: DPO difficulty filtering
+- 86bbcfpbg  Nova Training Pipeline — Phase 2: grounded execution-based refinement (per module)
 - 86bbaph6w  Spec: Local compute sizing & multi-GPU build plan (Nova central node)
 - 86bb7pawp  Observability Phase 1: Instrument turn loop (reasoning + tool calls + token uncertainty)
 - 86bb7pamh  Nova Observability Initiative — Langfuse tracing, agent oversight, and failure diagnosis

@@ -1,6 +1,50 @@
 {
   "ready": [
     {
+      "id": "86bbch9cy",
+      "name": "Coding specialist: explore structure-aware (AST-level) action primitives"
+    },
+    {
+      "id": "86bbch9ak",
+      "name": "Coding specialist: define verifiable task template (narrow scope + objective check)"
+    },
+    {
+      "id": "86bbch988",
+      "name": "Coding specialist: edit-format test plan (whole-file vs. search/replace vs. unified diff)"
+    },
+    {
+      "id": "86bbch95y",
+      "name": "Coding specialist: design constrained action-space interface (ACI)"
+    },
+    {
+      "id": "86bbcfvay",
+      "name": "Eval Harness \u2014 Initiative 5: per-specialist vetting harness"
+    },
+    {
+      "id": "86bbcfvak",
+      "name": "Eval Harness \u2014 Initiative 4: guardrail \u2014 verifier stays inference-time only"
+    },
+    {
+      "id": "86bbcfva4",
+      "name": "Eval Harness \u2014 Initiative 3: add inference-time verifier"
+    },
+    {
+      "id": "86bbcfv9d",
+      "name": "Eval Harness \u2014 Initiative 2: audit existing gates individually"
+    },
+    {
+      "id": "86bbcfpd1",
+      "name": "Nova Training Pipeline \u2014 Phase 5: hybrid verification at inference time"
+    },
+    {
+      "id": "86bbcfpck",
+      "name": "Nova Training Pipeline \u2014 Phase 4: DPO difficulty filtering"
+    },
+    {
+      "id": "86bbcfpbg",
+      "name": "Nova Training Pipeline \u2014 Phase 2: grounded execution-based refinement (per module)"
+    },
+    {
       "id": "86bbaph6w",
       "name": "Spec: Local compute sizing & multi-GPU build plan (Nova central node)"
     },
@@ -422,6 +466,10 @@
     }
   ],
   "in_progress": [
+    {
+      "id": "86bbcfpap",
+      "name": "Nova Training Pipeline \u2014 Phase 1: bulk execution-free distillation from Claude"
+    },
     {
       "id": "86bb72gpa",
       "name": "Coding agent runs its own verification repeatedly but never fixes the bug it finds"
