@@ -92,6 +92,37 @@ no-progress handling before iterating further on Nova's guards by hand, and (2) 
 real published diff-vs-search/replace numbers into `86bbch988`'s edit-format test plan as a
 starting hypothesis, not a from-scratch benchmark design.
 
+## Proposed experiment: SWE-agent head-to-head (scoped 2026-08-17, not started)
+
+A third option beyond "read SWE-agent's source" and "borrow specific ideas": run the *same*
+model (Qwen2.5-Coder-7B, local Ollama) through SWE-agent's actual ACI implementation instead of
+Nova's own, against a comparable task set, and compare pass rates directly. This is a genuinely
+different kind of evidence than a source read — it would separate "the model is just bad at this
+task class" from "Nova's specific interface is leaving performance on the table," which no
+amount of reading SWE-agent's code can answer on its own.
+
+**What it would take:**
+- SWE-agent expects its own environment per task (it was built around Docker-per-repo for real
+  GitHub issues) — real setup cost, not a drop-in library call. Needs to be scoped, not assumed
+  cheap.
+- **Open feasibility question, not yet answered:** SWE-agent's native task shape is "GitHub
+  issue + repo → patch," not "self-contained exercise + test file" like Nova's vendored
+  Exercism corpus. Whether SWE-agent can be pointed at the existing corpus with a reasonable
+  adapter, or whether a genuinely comparable task set would need to be built/found instead, is
+  unresolved — this determines whether the experiment is a days-scale adaptation or a
+  weeks-scale one.
+- Needs a real license check before any code from the repo is pulled in or run locally
+  (believed permissive from general knowledge, not confirmed this session — GitHub was
+  unreachable throughout).
+- Real compute cost is likely small (same local Qwen2.5-Coder-7B, same Aero GPU already proven
+  to have headroom for this class of run) — the cost is engineering time to stand up the harness,
+  not GPU/API spend.
+
+**Status:** scoped, not started. Filed as a ClickUp task (see comment on `86bbch95y`) rather than
+picked up immediately — the repeat-failure source read (blocked on GitHub connectivity, see
+above) is the cheaper, more targeted next step and should happen first; this experiment is a
+larger, separate decision.
+
 ## Sources
 
 - [SWE-agent: Agent-Computer Interfaces Enable Automated Software Engineering (arXiv:2405.15793)](https://arxiv.org/abs/2405.15793)
