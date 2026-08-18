@@ -168,8 +168,28 @@ from.
 - Real compute cost is likely small (same local Qwen2.5-Coder-7B, same Aero GPU already proven to
   have headroom) — the cost is engineering time to stand up the harness, not GPU/API spend.
 
-**Status:** scoped, not started. Filed as `86bbfwbwc` (ClickUp), description updated to point at
-`mini-swe-agent` as the real comparison target.
+**Feasibility scoping done 2026-08-17 (GitHub reachable):** the previously-open questions are now
+resolved, favorably:
+- **License:** MIT — confirmed permissive.
+- **Environment:** bash is the only hard requirement. Docker/Podman/Singularity/Bubblewrap are
+  supported sandboxing options, not mandatory — a `LocalEnvironment` runs via direct
+  `subprocess.run`, no Docker-per-repo setup needed. Lighter than originally assumed.
+- **Task shape — the main open question, now answered:** confirmed via a real code sample from
+  the README, not inference: `agent.run("Write a sudoku game")`. The agent accepts an arbitrary
+  free-text task description, not a GitHub-issue-specific format. Adapting it to Nova's
+  self-contained-exercise corpus looks plausible without a GitHub-issue wrapper.
+- **Stop conditions:** step limits and cost limits are real, documented config options (comparable
+  to Nova's `MAX_TURNS`). No repeat-loop/stuck-detection mechanism was found across the README,
+  project overview, or config reference pages checked — consistent with, not contradicting, the
+  earlier finding that this family generally lacks that mechanism.
+
+**Revised verdict:** this now looks like a days-scale adaptation, not a weeks-scale build — the
+two things that could have made it impractical (Docker requirement, GitHub-issue task lock-in)
+both turned out not to be true. Still not started; this was feasibility scoping only, not a
+green light to build without a separate decision to spend the time.
+
+**Status:** feasibility scoped 2026-08-17, looks tractable, not yet started. Filed as `86bbfwbwc`
+(ClickUp).
 
 ## Sources
 
