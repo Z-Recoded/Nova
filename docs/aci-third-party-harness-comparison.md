@@ -23,15 +23,57 @@ own paper identifies as central to why the interface works, without having copie
 time of publication this design reached 12.5% pass@1 on SWE-bench and 87.7% on HumanEvalFix —
 state of the art for that generation of models.
 
-**Real implication:** rather than treating today's two new ACI guards
-(`docs/aci-failure-mechanism-analysis.md`) as Nova-original discoveries, worth a direct source
-read of SWE-agent's actual repository (`SWE-agent/SWE-agent` on GitHub) for how *it* handles
-repeat-failure and no-progress cases — a battle-tested reference implementation of the same
-interface concept is a faster way to find a good guard design than re-deriving one from three
-transcripts each time. (Attempted to pull the actual `docs/background/aci.md` source directly
-this session; both GitHub and arXiv fetches failed from this environment — worth a follow-up
-attempt from a session where outbound fetches are working, since the primary source would sharpen
-this section considerably.)
+**Update 2026-08-17, source read completed once GitHub connectivity was restored (see
+`reference_aero_outbound_https_degradation` memory — the earlier fetch failures were a local
+DHCP/IPv4 fault on the Aero, not GitHub or arXiv actually being unreachable):**
+
+Confirmed directly from `docs/background/aci.md` and `swe-agent.com`'s reference docs:
+- The linter-gated edit, windowed file viewer (100 lines/turn, scroll + in-file search), and a
+  directory-search command that shows one match summary per file (not every line) are all real
+  and match what was inferred from search summaries earlier.
+- One concrete, cheap, directly-applicable idea found here: SWE-agent gives explicit natural-
+  language feedback on an empty result — *"Your command ran successfully and did not produce any
+  output"* — rather than a bare empty structure. This is a real, low-cost fix worth making to
+  `nova_coding_aci.py`'s `find_file`/`search_file`/`search_dir` (which currently just return
+  `json.dumps([])` on no matches) — directly relevant to the `affine-cipher` transcript in
+  `docs/aci-failure-mechanism-analysis.md`, where the model read a bare empty search result as
+  decisive proof a file didn't exist. Not yet implemented.
+
+**The original recommendation — "go read SWE-agent's source, it's a battle-tested reference for
+repeat-failure/no-progress handling" — turned out to rest on an assumption that didn't hold.**
+SWE-agent's five documented history processors (`DefaultHistoryProcessor`,
+`LastNObservations`, `TagToolCallObservations`, `CacheControlHistoryProcessor`, `RemoveRegex`)
+are all generic context-truncation/tagging tools — none of them detect or specifically handle a
+*repeated* action. The closest thing in the agent config is `max_requeries: int = 3`, a bounded
+retry counter for re-querying the model after a parse/format/blocked-action error — a narrower,
+different mechanism than Nova's `GUARD_REPEAT_FAILED_CALL` (which detects an exact repeat of a
+call that already failed for a domain reason, like `bob`'s rejected edit, not a formatting
+error). No max-step/no-progress/stuck-agent detection is documented in the public config surface
+either. **Conclusion: there was nothing to borrow here — Nova's two guards
+(`docs/aci-failure-mechanism-analysis.md`) are not behind this reference implementation on this
+specific point, they cover ground SWE-agent's own public design doesn't.**
+
+**A more significant discovery, found while looking for the above:** SWE-agent itself is now in
+"maintenance-only mode." Its own team's actively maintained successor is
+[`mini-swe-agent`](https://github.com/SWE-agent/mini-swe-agent) — a ~100-line agent, no
+structured tool-calling interface at all, no windowed viewer, no named commands — the model just
+runs raw bash directly, closer to OpenHands/CodeAct's unconstrained-action-space philosophy than
+to the original SWE-agent's constrained ACI. It reportedly scores >74% on SWE-bench Verified,
+well above original SWE-agent's 12.5% pass@1 (though this reflects newer, more capable backend
+models too, not purely a controlled interface-only comparison). The team's own stated reasoning:
+"as LMs have become more capable, a lot of the complexity from the original SWE-agent is not
+needed at all."
+
+**This complicates, without refuting, this doc's earlier OpenHands-comparison conclusion.** The
+argument that "a constrained ACI suits Nova's small local-model tier because that's what
+SWE-agent's own design principle argues for" is weaker than it looked before this read — the team
+that made that original argument has since moved toward *less* structure, not more, as capability
+grew. The real open question this doesn't resolve: is Qwen2.5-Coder-7B closer to the "still needs
+guardrails" regime the original SWE-agent targeted, or capable enough that a minimal interface
+would do better? That's genuinely unknown and is exactly what the proposed experiment below should
+now test against — with `mini-swe-agent`, not the maintenance-only original, as the sharper
+comparison target, since it represents the field's current actual bet on the opposite side of the
+same question Nova is asking.
 
 ## Aider — real, controlled edit-format benchmark data Nova doesn't have to re-derive
 
@@ -84,13 +126,17 @@ Nova's action set further.
 
 ## Bottom line
 
-Nothing here says "stop building the custom ACI and adopt X instead." The comparison instead
-validates the current direction (Nova's edit-gate design independently matches the field's actual
-reference implementation) while surfacing two concrete, low-cost next steps that don't require
-re-deriving anything from scratch: (1) read SWE-agent's real source for its own repeat-failure/
-no-progress handling before iterating further on Nova's guards by hand, and (2) fold Aider's
-real published diff-vs-search/replace numbers into `86bbch988`'s edit-format test plan as a
-starting hypothesis, not a from-scratch benchmark design.
+Still not "stop building the custom ACI and adopt X instead" — but less clean-cut than it first
+looked. Nova's edit-gate design independently matches the original SWE-agent's actual reference
+implementation, and Nova's own repeat-failure/no-progress guards turned out to cover ground that
+reference implementation's public design doesn't. Two concrete, low-cost actions came out of
+this: (1) give `find_file`/`search_file`/`search_dir` explicit natural-language empty-result
+feedback, matching SWE-agent's own pattern, directly motivated by the `affine-cipher` transcript
+— not yet done; (2) fold Aider's real published diff-vs-search/replace numbers into `86bbch988`'s
+edit-format test plan as a starting hypothesis. The complication: the field's own reference team
+has since moved toward *less* structure (`mini-swe-agent`) as models got more capable, which
+means "constrained ACI is right for Nova's small-model tier" is a real, testable hypothesis now,
+not a settled conclusion this comparison can claim to have validated.
 
 ## Proposed experiment: SWE-agent head-to-head (scoped 2026-08-17, not started)
 
@@ -101,32 +147,37 @@ different kind of evidence than a source read — it would separate "the model i
 task class" from "Nova's specific interface is leaving performance on the table," which no
 amount of reading SWE-agent's code can answer on its own.
 
-**What it would take:**
-- SWE-agent expects its own environment per task (it was built around Docker-per-repo for real
-  GitHub issues) — real setup cost, not a drop-in library call. Needs to be scoped, not assumed
-  cheap.
-- **Open feasibility question, not yet answered:** SWE-agent's native task shape is "GitHub
-  issue + repo → patch," not "self-contained exercise + test file" like Nova's vendored
-  Exercism corpus. Whether SWE-agent can be pointed at the existing corpus with a reasonable
-  adapter, or whether a genuinely comparable task set would need to be built/found instead, is
-  unresolved — this determines whether the experiment is a days-scale adaptation or a
-  weeks-scale one.
-- Needs a real license check before any code from the repo is pulled in or run locally
-  (believed permissive from general knowledge, not confirmed this session — GitHub was
-  unreachable throughout).
-- Real compute cost is likely small (same local Qwen2.5-Coder-7B, same Aero GPU already proven
-  to have headroom for this class of run) — the cost is engineering time to stand up the harness,
-  not GPU/API spend.
+**Update 2026-08-17 — retarget to `mini-swe-agent`, not the original SWE-agent.** Now that the
+source read is done (above), the sharper version of this experiment is Nova's constrained ACI
+vs. `mini-swe-agent`'s raw-bash, no-structure approach — both real, current implementations
+representing opposite bets on the same open question (does a small local model benefit more from
+guardrails or freedom), rather than comparing against a project its own team has since moved on
+from.
 
-**Status:** scoped, not started. Filed as a ClickUp task (see comment on `86bbch95y`) rather than
-picked up immediately — the repeat-failure source read (blocked on GitHub connectivity, see
-above) is the cheaper, more targeted next step and should happen first; this experiment is a
-larger, separate decision.
+**What it would take:**
+- `mini-swe-agent` is reportedly much lighter-weight than the original SWE-agent (~100 lines, no
+  Docker-per-repo requirement implied by its own pitch) — plausibly cheaper to stand up than
+  originally scoped, but not independently verified yet.
+- **Open feasibility question, still unresolved:** both SWE-agent-family tools' native task shape
+  is "GitHub issue + repo → patch," not "self-contained exercise + test file" like Nova's
+  vendored Exercism corpus. Whether either can be pointed at the existing corpus via an adapter,
+  or a genuinely comparable task set needs to be built/found instead, determines whether this is
+  a days-scale or weeks-scale effort.
+- Needs a real license check before any code from either repo is pulled in or run locally
+  (believed permissive from general knowledge, not independently confirmed).
+- Real compute cost is likely small (same local Qwen2.5-Coder-7B, same Aero GPU already proven to
+  have headroom) — the cost is engineering time to stand up the harness, not GPU/API spend.
+
+**Status:** scoped, not started. Filed as `86bbfwbwc` (ClickUp), description updated to point at
+`mini-swe-agent` as the real comparison target.
 
 ## Sources
 
 - [SWE-agent: Agent-Computer Interfaces Enable Automated Software Engineering (arXiv:2405.15793)](https://arxiv.org/abs/2405.15793)
-- [SWE-agent/SWE-agent — docs/background/aci.md](https://github.com/SWE-agent/SWE-agent/blob/main/docs/background/aci.md) (fetch attempted, failed this session — content above is from search-result summaries of this page, not a direct read)
+- [SWE-agent/SWE-agent — docs/background/aci.md](https://github.com/SWE-agent/SWE-agent/blob/main/docs/background/aci.md) (directly read 2026-08-17 once GitHub connectivity was restored)
+- [SWE-agent documentation — History Processor reference](https://swe-agent.com/latest/reference/history_processor_config/)
+- [SWE-agent documentation — Agent Config reference](https://swe-agent.com/latest/reference/agent_config/)
+- [SWE-agent/mini-swe-agent — the ~100-line successor, active maintenance](https://github.com/SWE-agent/mini-swe-agent/)
 - [SWE-agent deep dive & build-your-own guide (DEV Community)](https://dev.to/truongpx396/swe-agent-deep-dive-build-your-own-guide-ade)
 - [Aider — unified diffs make GPT-4 Turbo 3x less lazy](https://aider.chat/docs/unified-diffs.html)
 - [Aider — edit formats](https://aider.chat/docs/more/edit-formats.html)
