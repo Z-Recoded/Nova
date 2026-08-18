@@ -174,3 +174,40 @@ That counted signal is exactly the raw material Eval Harness Initiative 7 (accum
 tracking) and Initiative 8 (correlation-based failure prediction) are designed to consume —
 this corpus run is effectively a first live data source for both, ahead of either initiative
 being built.
+
+## Third guard: same-path repeated failure (2026-08-17, `86bbfwm3a`)
+
+Re-examining the guarded run above surfaced the actual mechanism behind that 48% figure: the
+model wasn't resending identical calls (that's already refused) — it was generating a *new,
+differently wrong* edit against the same spot each time. `GUARD_REPEAT_FAILED_CALL` structurally
+cannot see this, since it keys on exact call identity. Built `GUARD_SAME_PATH_REPEATED_FAILURE`:
+tracks failed `edit` calls per path regardless of content, appends a corrective note (not a
+refusal) once a path crosses 3 failures — mirrors `nova_orchestrator_runpod.py`'s own
+`file_replace` fallback nudge, built for the identical real loop shape (`86bb728nj`). Also
+ported SWE-agent's explicit empty-result feedback into `find_file`/`search_file`/`search_dir`
+the same day (`_format_list_result()`), motivated by the `affine-cipher` transcript.
+
+Re-ran the full 120-run corpus a third time:
+
+| | Baseline | 2-guard | 3-guard |
+|---|---|---|---|
+| Runs | 122 | 120 | 120 |
+| Passed | 9 (7.2%) | 7 (5.8%) | 9 (7.5%) |
+| Avg turns used | 8.57 | 9.07 | **7.76** |
+| `max_turns_reached` rate | 36.0% | 38.3% | **25.8%** |
+
+**This time the effect is real, not just better telemetry.** Pass rate recovered to roughly
+baseline (7.5% vs. 7.2%, still noise-level at this sample size) — but `max_turns_reached` dropped
+from 38.3% to 25.8%, a genuine ~12-point reduction in runs that burn the entire budget without
+resolving, and average turns per run dropped from 9.07 to 7.76. `same_path_repeated_failure`
+fired 34 times across 120 runs — confirming the pattern is common, not a one-off. One
+`abandoned_after_nudge` fired organically this run (the first time that status has occurred
+outside a deliberately scripted test) — a real case of the model calling `done` with nothing
+attempted, getting nudged twice, and genuinely having nothing more to offer on the third try,
+correctly distinguished from every other outcome bucket instead of hiding inside `completed`.
+
+**Honest read:** the model still doesn't solve meaningfully more exercises — the ceiling on raw
+capability hasn't moved. What moved is process efficiency: fewer runs get stuck spinning through
+the full 15-turn budget, and runs resolve (whether pass or fail) faster on average. That's a real
+result, distinct from the flat null result the first two guards produced alone, and it's exactly
+the kind of signal Eval Harness Initiative 7/8 are built to consume at scale.
