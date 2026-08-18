@@ -55,6 +55,26 @@ MAX_TURNS = 15
 # management is the turn loop's concern, not an individual command's.
 HISTORY_KEEP_RECENT = 8
 
+# Real gotcha found live (2026-08-15, docs/aci-failure-mechanism-analysis.md): the `bob`
+# exercise resent a byte-for-byte identical, already-rejected `edit` call 13 times in a row
+# -- the model's logic was correct, but a single stray character made the code invalid
+# Python, and it never adjusted after seeing the same syntax error thirteen times. Mirrors
+# nova_orchestrator_runpod.py's own GUARD_REPEAT_FAILED_CALL, built for the identical real
+# loop shape in that backend.
+GUARD_REPEAT_FAILED_CALL = "repeat_failed_call"
+
+# Real gotcha found live the same session: `zebra-puzzle` and `affine-cipher` both called
+# `done` without ever successfully editing anything -- one gave up after two exploratory
+# calls, the other quit after a single self-inflicted empty search overrode a filename it
+# had already been given. Mirrors nova_orchestrator.py's own self_verify_nudge, which closes
+# the same "accepted a stop with nothing actually verified" gap in the interactive lane.
+GUARD_DONE_WITHOUT_EDIT = "done_without_edit"
+
+# Deliberately bounded, not infinite -- refusing `done` forever just turns a quick give-up
+# into a stuck loop, which is the OTHER failure mode this session found. Two real chances to
+# reconsider, then let the model actually stop rather than force it to keep burning turns.
+MAX_DONE_WITHOUT_EDIT_NUDGES = 2
+
 CORPUS_ROOT = Path(__file__).parent / "data" / "coding_specialist_eval" / "exercism_subset"
 
 TEST_TIMEOUT_SECONDS = 30
@@ -202,6 +222,39 @@ def _parse_tool_call(raw_content: str) -> tuple[dict | None, str | None]:
     return {"tool": parsed["tool"], "arguments": arguments, "_parse_method": method}, None
 
 
+def _call_key(call: dict) -> tuple:
+    """
+    A hashable identity for one tool call -- same shape as
+    nova_orchestrator_runpod.py's own _call_key(), so an exact repeat (not
+    just a repeat of the tool name) can be recognized. Argument values here
+    are always strings/ints (view/edit/find_file/search_* never take
+    nested structures), so sorted items are safely hashable.
+    """
+    return (call.get("tool"), tuple(sorted(call.get("arguments", {}).items())))
+
+
+def _tool_result_failed(tool: str, result: str) -> bool:
+    """
+    Whether one real tool_result string represents a genuine failure worth
+    refusing a repeat of -- not just an unhelpful-but-valid result. An
+    empty find_file/search_dir list is a real answer (possibly to a bad
+    query, per the affine-cipher transcript in
+    docs/aci-failure-mechanism-analysis.md), not a mechanical failure, so
+    it does NOT count here -- that is a judgment problem for the model,
+    not something this guard should mask by refusing a legitimate retry
+    with different arguments. Only two real failure shapes count: an
+    edit() call the ACI itself rejected (accepted: false), and the
+    plain-text "ERROR: ..." string _execute_tool() returns for a bad/
+    missing argument or an unknown tool.
+    """
+    if tool == "edit":
+        try:
+            return json.loads(result).get("accepted") is False
+        except (json.JSONDecodeError, AttributeError):
+            return False
+    return result.startswith("ERROR:")
+
+
 def _execute_tool(call: dict, root: str) -> str:
     """
     Runs one ACI command by name, returns a plain-text result string to
@@ -314,6 +367,13 @@ def run_exercise(slug: str, verbose: bool = False) -> dict:
         parse_method_counts = {"json": 0, "python": 0, "repaired": 0}
         parse_failures = 0
 
+        # Guard state -- see GUARD_REPEAT_FAILED_CALL/GUARD_DONE_WITHOUT_EDIT above.
+        failed_calls: set = set()
+        repeat_refusal_counts: dict = {}
+        has_successful_edit = False
+        done_without_edit_nudges = 0
+        guard_fires = {GUARD_REPEAT_FAILED_CALL: 0, GUARD_DONE_WITHOUT_EDIT: 0}
+
         for turn in range(1, MAX_TURNS + 1):
             turns_used = turn
             messages = [messages[0]] + aci.collapse_history(messages[1:], keep_recent=HISTORY_KEEP_RECENT)
@@ -334,16 +394,55 @@ def run_exercise(slug: str, verbose: bool = False) -> dict:
                 continue
 
             parse_method_counts[call.get("_parse_method", "json")] += 1
+            tool = call.get("tool")
 
-            if call.get("tool") == "done":
-                final_status = "completed"
-                break
+            if tool == "done":
+                if has_successful_edit or done_without_edit_nudges >= MAX_DONE_WITHOUT_EDIT_NUDGES:
+                    final_status = "completed" if has_successful_edit else "abandoned_after_nudge"
+                    break
+                done_without_edit_nudges += 1
+                guard_fires[GUARD_DONE_WITHOUT_EDIT] += 1
+                nudge = (
+                    "Refused: you have not made any successful edit yet, so nothing has "
+                    "actually been attempted. View the target file and make a real edit "
+                    f"before calling done again. ({done_without_edit_nudges}/{MAX_DONE_WITHOUT_EDIT_NUDGES} "
+                    "warnings -- after this, done will be accepted as-is.)"
+                )
+                messages.append({"role": "user", "content": nudge})
+                if verbose:
+                    print(f"--- turn {turn}: refused done (no successful edit yet) ---")
+                continue
+
+            key = _call_key(call)
+            if key in failed_calls:
+                repeat_refusal_counts[key] = repeat_refusal_counts.get(key, 0) + 1
+                guard_fires[GUARD_REPEAT_FAILED_CALL] += 1
+                refusal = (
+                    f"Refused: you already tried this exact {tool} call and it failed. "
+                    "Repeating it verbatim will fail again for the same reason -- take a "
+                    "genuinely different next step."
+                )
+                if repeat_refusal_counts[key] >= 2:
+                    refusal += (
+                        " This is the same call again after already being refused once. "
+                        "Re-view the file to see its real current content before editing "
+                        "it, and change something concrete this time, not just resend the "
+                        "same arguments."
+                    )
+                messages.append({"role": "user", "content": refusal})
+                if verbose:
+                    print(f"--- turn {turn}: refused repeat of already-failed {tool} call ---")
+                continue
 
             tool_result = _execute_tool(call, root)
             messages.append({"role": "user", "content": tool_result})
+            if _tool_result_failed(tool, tool_result):
+                failed_calls.add(key)
+            elif tool == "edit":
+                has_successful_edit = True
             if verbose:
                 method = call.get("_parse_method", "?")
-                print(f"--- turn {turn}: ran {call.get('tool')} (parsed via {method}) -> {tool_result[:300]}")
+                print(f"--- turn {turn}: ran {tool} (parsed via {method}) -> {tool_result[:300]}")
 
         test_passed, test_output = _run_real_tests(working_copy, slug)
 
@@ -356,6 +455,7 @@ def run_exercise(slug: str, verbose: bool = False) -> dict:
             "test_output": test_output,
             "parse_method_counts": parse_method_counts,
             "parse_failures": parse_failures,
+            "guard_fires": guard_fires,
         }
         _log_result(result)
         return result
@@ -415,10 +515,15 @@ def _print_summary(results: list[dict]) -> None:
     passed = sum(1 for r in results if r["test_passed"])
     totals = {"json": 0, "python": 0, "repaired": 0}
     total_parse_failures = 0
+    guard_totals = {GUARD_REPEAT_FAILED_CALL: 0, GUARD_DONE_WITHOUT_EDIT: 0}
+    status_totals: dict[str, int] = {}
     for r in results:
         for method, count in r["parse_method_counts"].items():
             totals[method] += count
         total_parse_failures += r["parse_failures"]
+        for guard, count in r.get("guard_fires", {}).items():
+            guard_totals[guard] = guard_totals.get(guard, 0) + count
+        status_totals[r["final_status"]] = status_totals.get(r["final_status"], 0) + 1
 
     print(f"\n=== Summary: {passed}/{total} runs passed ===")
 
@@ -435,6 +540,14 @@ def _print_summary(results: list[dict]) -> None:
     print(f"  python (ast.literal_eval fallback): {totals['python']}")
     print(f"  repaired (targeted fix): {totals['repaired']}")
     print(f"  total parse failures (no tier recovered it): {total_parse_failures}")
+
+    print("\nFinal status breakdown:")
+    for status in sorted(status_totals, key=lambda s: -status_totals[s]):
+        print(f"  {status:<24} {status_totals[status]}")
+
+    print("\nGuard fire totals (docs/aci-failure-mechanism-analysis.md):")
+    print(f"  {GUARD_REPEAT_FAILED_CALL}: {guard_totals[GUARD_REPEAT_FAILED_CALL]}")
+    print(f"  {GUARD_DONE_WITHOUT_EDIT}: {guard_totals[GUARD_DONE_WITHOUT_EDIT]}")
 
 
 if __name__ == "__main__":
@@ -468,6 +581,7 @@ if __name__ == "__main__":
         print(f"\n=== {result['slug']} ===")
         print(f"Status: {result['final_status']} ({result['turns_used']} turn(s) used)")
         print(f"Tests passed: {result['test_passed']}")
+        print(f"Guard fires: {result['guard_fires']}")
         print(f"\n--- Test output ---\n{result['test_output']}")
     else:
         parser.error("Provide a slug or use --all.")

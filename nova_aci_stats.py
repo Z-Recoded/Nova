@@ -68,7 +68,11 @@ def build_numeric_table(results: list[dict]) -> dict[str, list[float]]:
         total_calls = sum(pm.values())
         columns["difficulty"].append(slug_to_difficulty.get(r["slug"], 0))
         columns["turns_used"].append(r["turns_used"])
-        columns["completed"].append(1 if r["final_status"] == "completed" else 0)
+        # "completed" means "the model itself ended the run" (via done, accepted or
+        # abandoned-after-nudge) as opposed to hitting the turn cap -- broadened from a
+        # straight "== completed" check when GUARD_DONE_WITHOUT_EDIT (nova_aci_harness.py,
+        # 2026-08-17) added "abandoned_after_nudge" as a second self-terminated status.
+        columns["completed"].append(0 if r["final_status"] == "max_turns_reached" else 1)
         columns["test_passed"].append(1 if r["test_passed"] else 0)
         columns["parse_failures"].append(r["parse_failures"])
         columns["lenient_fraction"].append((pm["python"] + pm["repaired"]) / total_calls if total_calls else 0.0)
@@ -116,6 +120,22 @@ def print_report() -> None:
     print("Pass rate by exercise:")
     for slug, passed, total in pass_rates_by_slug(results):
         print(f"  {slug:<24} {passed}/{total}")
+
+    status_totals: dict[str, int] = {}
+    guard_totals: dict[str, int] = {}
+    for r in results:
+        status_totals[r["final_status"]] = status_totals.get(r["final_status"], 0) + 1
+        for guard, count in r.get("guard_fires", {}).items():
+            guard_totals[guard] = guard_totals.get(guard, 0) + count
+
+    print("\nFinal status breakdown (all logged runs, old runs predate the guards below so carry no guard_fires):")
+    for status in sorted(status_totals, key=lambda s: -status_totals[s]):
+        print(f"  {status:<24} {status_totals[status]}")
+
+    if guard_totals:
+        print("\nGuard fire totals (docs/aci-failure-mechanism-analysis.md):")
+        for guard, count in sorted(guard_totals.items(), key=lambda kv: -kv[1]):
+            print(f"  {guard:<24} {count}")
 
     if n < 10:
         print(
