@@ -75,6 +75,18 @@ GUARD_DONE_WITHOUT_EDIT = "done_without_edit"
 # reconsider, then let the model actually stop rather than force it to keep burning turns.
 MAX_DONE_WITHOUT_EDIT_NUDGES = 2
 
+# Real gap found live (2026-08-17) re-examining the first guarded corpus run: of 46 runs that
+# still hit max_turns_reached, 22 had a GUARD_REPEAT_FAILED_CALL fire along the way -- the
+# model never resent the IDENTICAL broken call twice, it just generated a new, differently
+# wrong edit against the same spot and kept spinning (watched live in a fresh affine-cipher
+# re-run: three different failed edits in a row, all circling the same couple of lines, before
+# one finally landed). Exact-repeat detection can't see this. Mirrors
+# nova_orchestrator_runpod.py's own file_replace fallback nudge -- that backend already learned
+# (86bb728nj) that failures on the same PATH, not just identical calls, are the real recurring
+# loop shape and need their own threshold, separate from the exact-repeat guard.
+GUARD_SAME_PATH_REPEATED_FAILURE = "same_path_repeated_failure"
+SAME_PATH_FAILURE_THRESHOLD = 3
+
 CORPUS_ROOT = Path(__file__).parent / "data" / "coding_specialist_eval" / "exercism_subset"
 
 TEST_TIMEOUT_SECONDS = 30
@@ -255,6 +267,27 @@ def _tool_result_failed(tool: str, result: str) -> bool:
     return result.startswith("ERROR:")
 
 
+def _format_list_result(items: list) -> str:
+    """
+    JSON-encodes a find_file/search_file/search_dir result, with an
+    explicit natural-language message on an empty result instead of a bare
+    "[]" -- SWE-agent's own real pattern ("Your command ran successfully
+    and did not produce any output"), ported here after the affine-cipher
+    transcript (docs/aci-failure-mechanism-analysis.md) showed a model
+    reading a bare empty list as decisive proof a file didn't exist, when
+    it had actually just searched with the wrong pattern -- the file was
+    already named correctly in the model's own first-turn prompt.
+    """
+    if not items:
+        return (
+            "No matches found. This command ran successfully -- an empty result is not an "
+            "error and does not prove the file/pattern doesn't exist. Check the file list you "
+            "were already given, or try a different search pattern, before concluding anything "
+            "is missing."
+        )
+    return json.dumps(items)
+
+
 def _execute_tool(call: dict, root: str) -> str:
     """
     Runs one ACI command by name, returns a plain-text result string to
@@ -267,11 +300,11 @@ def _execute_tool(call: dict, root: str) -> str:
 
     try:
         if tool == "find_file":
-            return json.dumps(aci.find_file(args["pattern"], root))
+            return _format_list_result(aci.find_file(args["pattern"], root))
         if tool == "search_file":
-            return json.dumps(aci.search_file(args["path"], args["pattern"], root))
+            return _format_list_result(aci.search_file(args["path"], args["pattern"], root))
         if tool == "search_dir":
-            return json.dumps(aci.search_dir(args["pattern"], root))
+            return _format_list_result(aci.search_dir(args["pattern"], root))
         if tool == "view":
             return aci.view(
                 args["path"], root, args.get("start_line", 1), args.get("window", aci.DEFAULT_VIEW_WINDOW_LINES)
@@ -367,12 +400,18 @@ def run_exercise(slug: str, verbose: bool = False) -> dict:
         parse_method_counts = {"json": 0, "python": 0, "repaired": 0}
         parse_failures = 0
 
-        # Guard state -- see GUARD_REPEAT_FAILED_CALL/GUARD_DONE_WITHOUT_EDIT above.
+        # Guard state -- see GUARD_REPEAT_FAILED_CALL/GUARD_DONE_WITHOUT_EDIT/
+        # GUARD_SAME_PATH_REPEATED_FAILURE above.
         failed_calls: set = set()
         repeat_refusal_counts: dict = {}
         has_successful_edit = False
         done_without_edit_nudges = 0
-        guard_fires = {GUARD_REPEAT_FAILED_CALL: 0, GUARD_DONE_WITHOUT_EDIT: 0}
+        path_failure_counts: dict = {}
+        guard_fires = {
+            GUARD_REPEAT_FAILED_CALL: 0,
+            GUARD_DONE_WITHOUT_EDIT: 0,
+            GUARD_SAME_PATH_REPEATED_FAILURE: 0,
+        }
 
         for turn in range(1, MAX_TURNS + 1):
             turns_used = turn
@@ -435,11 +474,24 @@ def run_exercise(slug: str, verbose: bool = False) -> dict:
                 continue
 
             tool_result = _execute_tool(call, root)
-            messages.append({"role": "user", "content": tool_result})
-            if _tool_result_failed(tool, tool_result):
+            if tool == "edit" and _tool_result_failed(tool, tool_result):
+                failed_calls.add(key)
+                path = call.get("arguments", {}).get("path", "")
+                path_failure_counts[path] = path_failure_counts.get(path, 0) + 1
+                if path_failure_counts[path] >= SAME_PATH_FAILURE_THRESHOLD:
+                    guard_fires[GUARD_SAME_PATH_REPEATED_FAILURE] += 1
+                    tool_result += (
+                        f"\n\nNOTE: that's {path_failure_counts[path]} failed edits now on "
+                        f"'{path}' -- not necessarily the same call each time, but you keep "
+                        "failing in the same place. Stop guessing at small variations. Use view "
+                        "to re-read the file's real current content in full before your next "
+                        "edit, and think through the change before submitting it."
+                    )
+            elif _tool_result_failed(tool, tool_result):
                 failed_calls.add(key)
             elif tool == "edit":
                 has_successful_edit = True
+            messages.append({"role": "user", "content": tool_result})
             if verbose:
                 method = call.get("_parse_method", "?")
                 print(f"--- turn {turn}: ran {tool} (parsed via {method}) -> {tool_result[:300]}")
@@ -515,7 +567,11 @@ def _print_summary(results: list[dict]) -> None:
     passed = sum(1 for r in results if r["test_passed"])
     totals = {"json": 0, "python": 0, "repaired": 0}
     total_parse_failures = 0
-    guard_totals = {GUARD_REPEAT_FAILED_CALL: 0, GUARD_DONE_WITHOUT_EDIT: 0}
+    guard_totals = {
+        GUARD_REPEAT_FAILED_CALL: 0,
+        GUARD_DONE_WITHOUT_EDIT: 0,
+        GUARD_SAME_PATH_REPEATED_FAILURE: 0,
+    }
     status_totals: dict[str, int] = {}
     for r in results:
         for method, count in r["parse_method_counts"].items():
@@ -548,6 +604,7 @@ def _print_summary(results: list[dict]) -> None:
     print("\nGuard fire totals (docs/aci-failure-mechanism-analysis.md):")
     print(f"  {GUARD_REPEAT_FAILED_CALL}: {guard_totals[GUARD_REPEAT_FAILED_CALL]}")
     print(f"  {GUARD_DONE_WITHOUT_EDIT}: {guard_totals[GUARD_DONE_WITHOUT_EDIT]}")
+    print(f"  {GUARD_SAME_PATH_REPEATED_FAILURE}: {guard_totals[GUARD_SAME_PATH_REPEATED_FAILURE]}")
 
 
 if __name__ == "__main__":
