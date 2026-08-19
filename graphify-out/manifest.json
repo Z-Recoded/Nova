@@ -5,8 +5,8 @@
     "semantic_hash": ""
   },
   ".nova_status_snapshot.json": {
-    "mtime": 1785973782.737017,
-    "ast_hash": "3997f998eb6db2d9b798082beef60399",
+    "mtime": 1786764032.4635427,
+    "ast_hash": "a8df0aa80d049cfc344746cfa948a92a",
     "semantic_hash": ""
   },
   "archive/test_nova.py": {
@@ -85,18 +85,18 @@
     "semantic_hash": "42c965a395a454ca539755703ed0a522"
   },
   "nova_api.py": {
-    "mtime": 1785980735.111526,
-    "ast_hash": "877fe487aacd7b7f433c47971721258e",
+    "mtime": 1786496463.2483833,
+    "ast_hash": "8851e72020ec81d44bc121dec9bebf0a",
     "semantic_hash": ""
   },
   "nova_benchmark.py": {
-    "mtime": 1784776455.684462,
-    "ast_hash": "a568da2d0eb34c6bdc0e1405628d1756",
+    "mtime": 1786209181.744611,
+    "ast_hash": "ef1491573c4feba9a06ff1c92fc7b0c4",
     "semantic_hash": ""
   },
   "nova_board.py": {
-    "mtime": 1784776455.684462,
-    "ast_hash": "8d1ca4d4de73f1d0b37097224662b91c",
+    "mtime": 1786206581.898591,
+    "ast_hash": "86d383a81d5fc325482b416180c30725",
     "semantic_hash": ""
   },
   "nova_chat.py": {
@@ -115,23 +115,23 @@
     "semantic_hash": ""
   },
   "nova_clickup_client.py": {
-    "mtime": 1784776455.690673,
-    "ast_hash": "8a750a6ada84e381b798290b1fafc8f1",
+    "mtime": 1786206686.9272008,
+    "ast_hash": "4cd3804821374236758371b6304213cc",
     "semantic_hash": ""
   },
   "nova_config.json": {
-    "mtime": 1785982213.3402789,
-    "ast_hash": "d8b2b4f9280387ac199c59d26df6b6ff",
+    "mtime": 1786077407.34234,
+    "ast_hash": "df47542a56e5bdbfa2c9a453275c3191",
     "semantic_hash": ""
   },
   "nova_config.py": {
-    "mtime": 1785980735.111526,
-    "ast_hash": "9042bee3575f8cafed8d348e07fd39e2",
+    "mtime": 1786077398.6030827,
+    "ast_hash": "449c51a769e0e8432bcb728610738464",
     "semantic_hash": ""
   },
   "nova_corrector.py": {
-    "mtime": 1785606541.050475,
-    "ast_hash": "3bb01b5d1349ed5387e134238a8a6360",
+    "mtime": 1786753137.8109806,
+    "ast_hash": "2d4680fde81c262e0a0a44386ae23ab1",
     "semantic_hash": ""
   },
   "nova_embedding_viz.py": {
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "nova_logger.py": {
-    "mtime": 1784776455.690673,
-    "ast_hash": "40462bbba0831fbce59ae70e44d7d4dd",
+    "mtime": 1786208913.0023804,
+    "ast_hash": "94ae672b154b0ce4848878e87e1b4de3",
     "semantic_hash": ""
   },
   "nova_mcp_server.py": {
@@ -185,8 +185,8 @@
     "semantic_hash": ""
   },
   "nova_orchestrator.py": {
-    "mtime": 1785978851.9409559,
-    "ast_hash": "2190e5df5aa2898248d72a952c255405",
+    "mtime": 1786508031.0434885,
+    "ast_hash": "55d56ae6286ba4b27864c48c28b7441d",
     "semantic_hash": ""
   },
   "nova_orchestrator_graph.py": {
@@ -195,8 +195,8 @@
     "semantic_hash": ""
   },
   "nova_query.py": {
-    "mtime": 1784776455.6982534,
-    "ast_hash": "17551357bd5ec46cce5458a614c152ca",
+    "mtime": 1786208926.7541468,
+    "ast_hash": "38bca0bc9c219a40dba0f1fbd827b75b",
     "semantic_hash": ""
   },
   "nova_router.py": {
@@ -225,13 +225,13 @@
     "semantic_hash": "e9a7787e1ee6320f54c47785f580d222"
   },
   "nova_status_digest.py": {
-    "mtime": 1784776455.7035813,
-    "ast_hash": "3458c5f49391743b0a5a4a7ee773594c",
+    "mtime": 1786206570.4896605,
+    "ast_hash": "6ce4ee17ac526df9713a58c91870ee46",
     "semantic_hash": ""
   },
   "nova_task_queue.py": {
-    "mtime": 1785606528.8627918,
-    "ast_hash": "5088b8859dbe234ab35c253c9b407030",
+    "mtime": 1786206586.4287167,
+    "ast_hash": "c01f88ff982bb119561728fd7caeaa79",
     "semantic_hash": ""
   },
   "nova_token_budget.py": {
@@ -265,13 +265,13 @@
     "semantic_hash": "969b2a89980f6f877f6316ca7c89f51e"
   },
   "CLAUDE.md": {
-    "mtime": 1785990275.9192739,
-    "ast_hash": "7b78749684c5566e942c7df77c65724c",
+    "mtime": 1786755384.5658107,
+    "ast_hash": "08887b08ccd44ab2fe2c8fcef63e14a8",
     "semantic_hash": ""
   },
   "NOVA_STATUS.md": {
-    "mtime": 1785973782.737017,
-    "ast_hash": "7204e060333b44a6e321b185a272449a",
+    "mtime": 1786764032.4635427,
+    "ast_hash": "76a6adcaa0270e73f84652e1f63431f3",
     "semantic_hash": ""
   },
   "browser_hands/config/sites.yaml": {
@@ -385,8 +385,8 @@
     "semantic_hash": ""
   },
   "nova_coding_dataset_curator.py": {
-    "mtime": 1784778288.3167708,
-    "ast_hash": "25ab1157397c88e1907579d4e2fb1f4d",
+    "mtime": 1786508031.0434885,
+    "ast_hash": "035d113353f49a8bdde2ad7658a27734",
     "semantic_hash": ""
   },
   "nova_finetune_phi4.py": {
@@ -475,18 +475,18 @@
     "semantic_hash": ""
   },
   ".pre-commit-config.yaml": {
-    "mtime": 1784776455.6759088,
+    "mtime": 1786759366.0147088,
     "ast_hash": "9444da9b6278ebfa51a106c570939981",
     "semantic_hash": ""
   },
   "NOVA_BUILD_LOG.md": {
-    "mtime": 1785114054.0471828,
-    "ast_hash": "759bbe6427e8b896abf278b11b0fcc75",
+    "mtime": 1786508031.0434885,
+    "ast_hash": "d79514d7d64561022c312f9bd9eff970",
     "semantic_hash": ""
   },
   "nova_backend_profiles.py": {
-    "mtime": 1785806663.6781495,
-    "ast_hash": "d4a44c9a36ba944d9371fb7ad767c77c",
+    "mtime": 1786077309.6680934,
+    "ast_hash": "a69ee0aaa0e607d5595671aaa2a3eb13",
     "semantic_hash": ""
   },
   "nova_coding_corrector.py": {
@@ -495,13 +495,13 @@
     "semantic_hash": ""
   },
   "nova_coding_eval.py": {
-    "mtime": 1785806663.679264,
-    "ast_hash": "509cb49e702aded72bdf9f09c307a6f4",
+    "mtime": 1786508031.0434885,
+    "ast_hash": "586701d7ee1ad316cbc4c02189c45433",
     "semantic_hash": ""
   },
   "nova_completion_gate.py": {
-    "mtime": 1785729848.7926188,
-    "ast_hash": "20d98e40da5518937b389aa3093d66fe",
+    "mtime": 1786753863.659204,
+    "ast_hash": "0361538ed180214aac15361dbd422177",
     "semantic_hash": ""
   },
   "nova_finetune_qwen_coder.py": {
@@ -550,8 +550,8 @@
     "semantic_hash": ""
   },
   "nova_orchestrator_runpod.py": {
-    "mtime": 1785990045.8794508,
-    "ast_hash": "22029c05b0c99157e6ede4b79f3a3ee5",
+    "mtime": 1786227013.7266269,
+    "ast_hash": "93a9b199bb948ad5bb7d360492ad2cae",
     "semantic_hash": ""
   },
   "nova_quantize_qwen_coder_awq.py": {
@@ -677,6 +677,1041 @@
   "scripts/ssh_read_observability_logs.ps1": {
     "mtime": 1785983851.0278955,
     "ast_hash": "31cbf8532a9d6d745ca3181fe268a0a2",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/affine-cipher/.meta/config.json": {
+    "mtime": 1786759153.0726318,
+    "ast_hash": "e9f51d389795c1a8038eba4e3c6db8a2",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/affine-cipher/.meta/example.py": {
+    "mtime": 1786759153.203179,
+    "ast_hash": "67e10d131de61851f65a6cf1998517bb",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/affine-cipher/affine_cipher.py": {
+    "mtime": 1786759153.6647096,
+    "ast_hash": "01dd7542710d82bb875195d1a6ce69ef",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/affine-cipher/affine_cipher_test.py": {
+    "mtime": 1786759153.7921872,
+    "ast_hash": "df91837095780d739a4fcda67f3ddf9a",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/all-your-base/.meta/config.json": {
+    "mtime": 1786759141.146323,
+    "ast_hash": "01a36fc380a0937abca55c8f6653cde0",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/all-your-base/.meta/example.py": {
+    "mtime": 1786759141.275903,
+    "ast_hash": "e2c1111c5418a332b9936d376583ea0c",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/all-your-base/all_your_base.py": {
+    "mtime": 1786759141.740551,
+    "ast_hash": "90d5c40f2f0764b07c25dfa2ddb1501d",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/all-your-base/all_your_base_test.py": {
+    "mtime": 1786759141.8775077,
+    "ast_hash": "24ab5138c3b6fc9814785922bef0d35b",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/binary-search-tree/.meta/config.json": {
+    "mtime": 1786759148.3300958,
+    "ast_hash": "a5c725b27640f3055701d3a14a7486dd",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/binary-search-tree/.meta/example.py": {
+    "mtime": 1786759148.4671483,
+    "ast_hash": "6bda8e2a91e638419afaf0f8bf8209af",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/binary-search-tree/binary_search_tree.py": {
+    "mtime": 1786759148.8571498,
+    "ast_hash": "880fb5fe8e23040eb9bad56df505bae0",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/binary-search-tree/binary_search_tree_test.py": {
+    "mtime": 1786759149.0261712,
+    "ast_hash": "eacb7df036241014f0a402686801362d",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/binary/.meta/config.json": {
+    "mtime": 1786759134.6503856,
+    "ast_hash": "1eb3604a286265f7f902a44b7698311e",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/binary/.meta/example.py": {
+    "mtime": 1786759134.789796,
+    "ast_hash": "d09dbec06c18b1a6f60cdf1d0db9e4f4",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/binary/binary.py": {
+    "mtime": 1786759135.0598717,
+    "ast_hash": "a64ec1696d79556701dddd65c6e7aba2",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/binary/binary_test.py": {
+    "mtime": 1786759135.1900475,
+    "ast_hash": "669567f1811873852753627f5ebb463d",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/bob/.meta/config.json": {
+    "mtime": 1786759116.5923676,
+    "ast_hash": "ef635c00fefcfe102783bbac098d8123",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/bob/.meta/example.py": {
+    "mtime": 1786759116.7414563,
+    "ast_hash": "226b3af5556b2f2cce17b504ee75d4d5",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/bob/bob.py": {
+    "mtime": 1786759117.1471198,
+    "ast_hash": "17cfd3c809c6ccde77929e168be28427",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/bob/bob_test.py": {
+    "mtime": 1786759117.2733982,
+    "ast_hash": "c4a37ed292e15c735b4c47027d0682b3",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/bowling/.meta/config.json": {
+    "mtime": 1786759150.2300937,
+    "ast_hash": "979dfa18ddf0766b952db0c693961e3a",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/bowling/.meta/example.py": {
+    "mtime": 1786759150.3785386,
+    "ast_hash": "6288dbd8695dd95167d02658329ab410",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/bowling/bowling.py": {
+    "mtime": 1786759150.8002844,
+    "ast_hash": "38991eed17bac10a96a884a79c2b68fe",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/bowling/bowling_test.py": {
+    "mtime": 1786759150.9203112,
+    "ast_hash": "f2fe2c579fdb732fb70a514a2d71ed29",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/complex-numbers/.meta/additional_tests.json": {
+    "mtime": 1786759142.6044285,
+    "ast_hash": "98f2a5e2ffaa9c02cd6a30f7f3eeb434",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/complex-numbers/.meta/config.json": {
+    "mtime": 1786759142.7450016,
+    "ast_hash": "f264d2bb014067e67ff62a720230bc6d",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/complex-numbers/.meta/example.py": {
+    "mtime": 1786759142.8678186,
+    "ast_hash": "99da91a38392fc5727b49b8480d247a9",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/complex-numbers/complex_numbers.py": {
+    "mtime": 1786759143.312954,
+    "ast_hash": "fa6c8d66e8a0e666dfe47225330f6dbe",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/complex-numbers/complex_numbers_test.py": {
+    "mtime": 1786759143.4756358,
+    "ast_hash": "99e28d1879c9712a127a18d71c2dbf93",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/crypto-square/.meta/config.json": {
+    "mtime": 1786759135.759889,
+    "ast_hash": "c56038b67e6be0de671607bf925a9316",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/crypto-square/.meta/example.py": {
+    "mtime": 1786759135.9122658,
+    "ast_hash": "d5e65d4d5ddc71a862744b4c378ddc78",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/crypto-square/crypto_square.py": {
+    "mtime": 1786759136.3229928,
+    "ast_hash": "ce6d6475b5a1b635ef74d46261498f8e",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/crypto-square/crypto_square_test.py": {
+    "mtime": 1786759136.4564283,
+    "ast_hash": "749c4420dcda5717635972f5e62781fa",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/dominoes/.meta/config.json": {
+    "mtime": 1786759155.971847,
+    "ast_hash": "d4ce154247d3e1d7daad74083515bcd9",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/dominoes/.meta/example.py": {
+    "mtime": 1786759156.1178446,
+    "ast_hash": "fd4faca69221a98ba506c018377c9b84",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/dominoes/dominoes.py": {
+    "mtime": 1786759156.530398,
+    "ast_hash": "efe8cb6899e66c8e91898b94234192c7",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/dominoes/dominoes_test.py": {
+    "mtime": 1786759156.6861534,
+    "ast_hash": "2cd6585ab63f5f1821a08c8ecef1651c",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/error-handling/.meta/config.json": {
+    "mtime": 1786759137.2683733,
+    "ast_hash": "bde24c6246cf6db3ba994ad80b790741",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/error-handling/.meta/example.py": {
+    "mtime": 1786759137.4137275,
+    "ast_hash": "6674fe278b9eb29a21429bc4ccaa8466",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/error-handling/error_handling.py": {
+    "mtime": 1786759137.5858285,
+    "ast_hash": "2b1f1aa0ebec89f5be54a0cf6337b4f1",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/error-handling/error_handling_test.py": {
+    "mtime": 1786759137.715285,
+    "ast_hash": "97892fa057d411284b148c7c6ea9fc4a",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/error-handling/test_utils.py": {
+    "mtime": 1786759137.8481445,
+    "ast_hash": "2865128ee74f2027d45179657a6320fa",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/ledger/.meta/config.json": {
+    "mtime": 1786759144.0351362,
+    "ast_hash": "3914a65c8e6d20c228c4561647424428",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/ledger/.meta/example.py": {
+    "mtime": 1786759144.161863,
+    "ast_hash": "838d0bee368cfc5013f4826946c1b72b",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/ledger/ledger.py": {
+    "mtime": 1786759144.5617094,
+    "ast_hash": "557401774141c946451a83a8b3756285",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/ledger/ledger_test.py": {
+    "mtime": 1786759144.7612524,
+    "ast_hash": "3934bafe365ef2badb1ed33b153b9741",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/list-ops/.meta/additional_tests.json": {
+    "mtime": 1786759117.8408751,
+    "ast_hash": "a3481ba1dccdcce54d0ae6e41b07756d",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/list-ops/.meta/config.json": {
+    "mtime": 1786759117.9747705,
+    "ast_hash": "6fc4d319af38820f91e43a3ff8c3728d",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/list-ops/.meta/example.py": {
+    "mtime": 1786759118.120367,
+    "ast_hash": "bf35a48a1b1898ed42a546d6e32ddfd0",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/list-ops/list_ops.py": {
+    "mtime": 1786759118.5452154,
+    "ast_hash": "6103744a8c48029a1cb2e238bf155b98",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/list-ops/list_ops_test.py": {
+    "mtime": 1786759118.703435,
+    "ast_hash": "a587c3dd9bc8e71311c5d421958ff672",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/luhn/.meta/config.json": {
+    "mtime": 1786759126.330497,
+    "ast_hash": "1a41c4ae54e8fbd5cc16cc5cc4e96973",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/luhn/.meta/example.py": {
+    "mtime": 1786759126.4760306,
+    "ast_hash": "ecb9fcb0983090f3a3c2401d3aa5697d",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/luhn/luhn.py": {
+    "mtime": 1786759126.9859445,
+    "ast_hash": "0c9af9754575e7d71444565548be4005",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/luhn/luhn_test.py": {
+    "mtime": 1786759127.1779182,
+    "ast_hash": "bc3fab0a602c25eaae5231b4372985f3",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/meetup/.meta/additional_tests.json": {
+    "mtime": 1786759145.5927382,
+    "ast_hash": "b20b97df6e336af86cbcd7c7d3814b09",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/meetup/.meta/config.json": {
+    "mtime": 1786759145.7330973,
+    "ast_hash": "a284d19c7b5f9048bbb11a6bead510c5",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/meetup/.meta/example.py": {
+    "mtime": 1786759145.862073,
+    "ast_hash": "805a770d304df07972d0a335b1e06aab",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/meetup/meetup.py": {
+    "mtime": 1786759146.3356783,
+    "ast_hash": "55adb68d6acbf91c025ed8bcef80f07a",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/meetup/meetup_test.py": {
+    "mtime": 1786759146.4718876,
+    "ast_hash": "4259493471da8c086d056bcb0adb9f0c",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/nth-prime/.meta/additional_tests.json": {
+    "mtime": 1786759127.9630387,
+    "ast_hash": "7f106cacb2ebb52c14987fc0d31f45ba",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/nth-prime/.meta/config.json": {
+    "mtime": 1786759128.1686506,
+    "ast_hash": "05c36d95b6cd0b0229ed58ac948e992b",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/nth-prime/.meta/example.py": {
+    "mtime": 1786759128.303259,
+    "ast_hash": "1241bcba4319fd297216e8c912478aed",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/nth-prime/nth_prime.py": {
+    "mtime": 1786759128.8602426,
+    "ast_hash": "0b7e2e2d7bc36b746236bc5c1bb79f8d",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/nth-prime/nth_prime_test.py": {
+    "mtime": 1786759129.0438113,
+    "ast_hash": "4c3580eadd6122fc86ce3f5c64c8465a",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/octal/.meta/config.json": {
+    "mtime": 1786759138.4537687,
+    "ast_hash": "0c229ce546a2f31b8c5b49eba8b2185d",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/octal/.meta/example.py": {
+    "mtime": 1786759138.6599593,
+    "ast_hash": "515f138f560d4f554453cf2dbe19af53",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/octal/octal.py": {
+    "mtime": 1786759138.7999642,
+    "ast_hash": "21372e8e4e5a4e5fb53249d2dbb6351c",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/octal/octal_test.py": {
+    "mtime": 1786759138.9484892,
+    "ast_hash": "c6f9fa904ef23531817b1c00d040b8fb",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/poker/.meta/config.json": {
+    "mtime": 1786759139.5498686,
+    "ast_hash": "a0026e7019fbece7f9b49b46f06c5879",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/poker/.meta/example.py": {
+    "mtime": 1786759139.6870644,
+    "ast_hash": "f6b1b583dba27793bba87f52941e7b4a",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/poker/poker.py": {
+    "mtime": 1786759140.1285934,
+    "ast_hash": "9e9c57b4691c6b615203a05f33cb1fcb",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/poker/poker_test.py": {
+    "mtime": 1786759140.2665875,
+    "ast_hash": "5488068e518524361089b7e211c564d0",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/pov/.meta/config.json": {
+    "mtime": 1786759160.1234467,
+    "ast_hash": "224de8bdec61662f45391c3b3e101346",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/pov/.meta/example.py": {
+    "mtime": 1786759160.2712798,
+    "ast_hash": "438a8a87def972d19ef035d942d195a8",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/pov/pov.py": {
+    "mtime": 1786759160.6647532,
+    "ast_hash": "f40740cdf132d7274395af7e03c68b13",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/pov/pov_test.py": {
+    "mtime": 1786759160.8405066,
+    "ast_hash": "d9acb83afbfe1fde3b2d5e145389b392",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/proverb/.meta/additional_tests.json": {
+    "mtime": 1786759129.8999517,
+    "ast_hash": "2c9cb4efb7891418c124eebb82e61b59",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/proverb/.meta/config.json": {
+    "mtime": 1786759130.0496538,
+    "ast_hash": "34bd2971bac8c0bb3121f726952ed12d",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/proverb/.meta/example.py": {
+    "mtime": 1786759130.182014,
+    "ast_hash": "51a8e81342e12e9e019442801c247c44",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/proverb/proverb.py": {
+    "mtime": 1786759130.6098106,
+    "ast_hash": "81bc124d6e1813c62f3c1ad84a4b896c",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/proverb/proverb_test.py": {
+    "mtime": 1786759130.7495208,
+    "ast_hash": "615eded26ec13c6820db92561931f6f1",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/rail-fence-cipher/.meta/config.json": {
+    "mtime": 1786759147.0601716,
+    "ast_hash": "002617b3c664007150691c4319224194",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/rail-fence-cipher/.meta/example.py": {
+    "mtime": 1786759147.194561,
+    "ast_hash": "b81e2d9a9a4f914af8de23f0b8964b9d",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/rail-fence-cipher/rail_fence_cipher.py": {
+    "mtime": 1786759147.6012797,
+    "ast_hash": "f5455ec8ffd2e8a08f8d9f7cd27f2419",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/rail-fence-cipher/rail_fence_cipher_test.py": {
+    "mtime": 1786759147.742402,
+    "ast_hash": "e37ef41b27369a0166ae984e0e94e591",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/raindrops/.meta/config.json": {
+    "mtime": 1786759119.595083,
+    "ast_hash": "5f804ad7f1fb326994b9a7733652edab",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/raindrops/.meta/example.py": {
+    "mtime": 1786759119.7396274,
+    "ast_hash": "4faa2b0c523acde4eb57091a2d75abcb",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/raindrops/raindrops.py": {
+    "mtime": 1786759120.1565516,
+    "ast_hash": "0ded061303010eec84f17be6a02912e8",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/raindrops/raindrops_test.py": {
+    "mtime": 1786759120.306252,
+    "ast_hash": "ec6418b2ce96118a65e0c67c0df7b924",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/rest-api/.meta/config.json": {
+    "mtime": 1786759158.722386,
+    "ast_hash": "d10764b8d84a512c53b0b04270bfed8f",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/rest-api/.meta/example.py": {
+    "mtime": 1786759158.8559449,
+    "ast_hash": "208d3887f094d79dd251df117841346d",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/rest-api/rest_api.py": {
+    "mtime": 1786759159.2588625,
+    "ast_hash": "7b14f4f09c5afd3a676a6e6dd13d5176",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/rest-api/rest_api_test.py": {
+    "mtime": 1786759159.3941412,
+    "ast_hash": "65fcd02c840a52a87e6243ff6a385c8c",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/scrabble-score/.meta/config.json": {
+    "mtime": 1786759131.5233471,
+    "ast_hash": "200223a7b907348a06c284cfdd1543d5",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/scrabble-score/.meta/example.py": {
+    "mtime": 1786759131.6515064,
+    "ast_hash": "9639fcd15902c98ebea4b08f975de0e7",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/scrabble-score/scrabble_score.py": {
+    "mtime": 1786759132.1398962,
+    "ast_hash": "3aaf6e775358c31d4c0fcf1642e5e487",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/scrabble-score/scrabble_score_test.py": {
+    "mtime": 1786759132.2701962,
+    "ast_hash": "aac39e0edaba585697a60c12df9ae10f",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/secret-handshake/.meta/config.json": {
+    "mtime": 1786759121.1809514,
+    "ast_hash": "c26f4fa5dfda77b63f388aa464f3af9e",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/secret-handshake/.meta/example.py": {
+    "mtime": 1786759121.329623,
+    "ast_hash": "a0af70d9dbef80bbd9a33888a9a9bf6b",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/secret-handshake/.meta/plugins.py": {
+    "mtime": 1786759121.6910508,
+    "ast_hash": "a94cba427736c5dda465f70beef91b4f",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/secret-handshake/secret_handshake.py": {
+    "mtime": 1786759122.1397471,
+    "ast_hash": "ec8c78d78e1940328f427436f12f507a",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/secret-handshake/secret_handshake_test.py": {
+    "mtime": 1786759122.289742,
+    "ast_hash": "0738228a8a006831003779c65d89adcb",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/sgf-parsing/.meta/config.json": {
+    "mtime": 1786759157.402011,
+    "ast_hash": "c1b4dd15d82b620856ac2da4a060e872",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/sgf-parsing/.meta/example.py": {
+    "mtime": 1786759157.5512645,
+    "ast_hash": "64de50411b81e28d317c9d6419fd111e",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/sgf-parsing/sgf_parsing.py": {
+    "mtime": 1786759158.0038283,
+    "ast_hash": "902b86e9e8ea9744f7c70e9df98ce395",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/sgf-parsing/sgf_parsing_test.py": {
+    "mtime": 1786759158.1604517,
+    "ast_hash": "b22089bd04383bcfee4176923b2e7e3d",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/space-age/.meta/config.json": {
+    "mtime": 1786759123.3106499,
+    "ast_hash": "82250505b6c9b111f0d52d80803aed87",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/space-age/.meta/example.py": {
+    "mtime": 1786759123.4613278,
+    "ast_hash": "e7d1797f6c60ba296b7d193b71b478f8",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/space-age/space_age.py": {
+    "mtime": 1786759123.8725808,
+    "ast_hash": "aac97fc3943ed6aa6b5ad71f1bd9add1",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/space-age/space_age_test.py": {
+    "mtime": 1786759124.0038445,
+    "ast_hash": "b66df4f82d6b435948dc532a3f1af5db",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/two-bucket/.meta/config.json": {
+    "mtime": 1786759154.470243,
+    "ast_hash": "f3746e80067b2b95e96098b6396630bc",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/two-bucket/.meta/example.py": {
+    "mtime": 1786759154.620373,
+    "ast_hash": "beaa98243856b15c62502bc0179a0f20",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/two-bucket/two_bucket.py": {
+    "mtime": 1786759155.104591,
+    "ast_hash": "9e6123dab75020edf48a6467eb42f02f",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/two-bucket/two_bucket_test.py": {
+    "mtime": 1786759155.2441928,
+    "ast_hash": "c476731d785b2c23a047d1662ba10eb4",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/two-fer/.meta/config.json": {
+    "mtime": 1786759124.7080095,
+    "ast_hash": "6b5beefbc87b7437d2fe6f6a0b9274b9",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/two-fer/.meta/example.py": {
+    "mtime": 1786759124.8983326,
+    "ast_hash": "1b6fa12da0d943c373c496c548b7c457",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/two-fer/two_fer.py": {
+    "mtime": 1786759125.3696327,
+    "ast_hash": "dd90793d646bb4bbe641595abba2faed",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/two-fer/two_fer_test.py": {
+    "mtime": 1786759125.5329604,
+    "ast_hash": "aa46a84491790a379e812526dac309ca",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/yacht/.meta/config.json": {
+    "mtime": 1786759133.1247277,
+    "ast_hash": "e44cb3854e7f429cd38dfb74a5787059",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/yacht/.meta/example.py": {
+    "mtime": 1786759133.2485318,
+    "ast_hash": "a0c2eba10ba9ff5739ea3ec7ed4eea7c",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/yacht/yacht.py": {
+    "mtime": 1786759133.7371333,
+    "ast_hash": "db2237f5920d11d6e06a8ff145a4024e",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/yacht/yacht_test.py": {
+    "mtime": 1786759133.9270098,
+    "ast_hash": "1000d929f9b3e37c2b0cf8a315d1c063",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/zebra-puzzle/.meta/config.json": {
+    "mtime": 1786759151.6525588,
+    "ast_hash": "a6cb9e34f16cba2e11d9efafd922f1c1",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/zebra-puzzle/.meta/example.py": {
+    "mtime": 1786759151.7702787,
+    "ast_hash": "f4e5ca18e756293fa088b638959cc6f9",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/zebra-puzzle/zebra_puzzle.py": {
+    "mtime": 1786759152.178323,
+    "ast_hash": "b0dc46c2d0407d8ebe1635edda0243b7",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/zebra-puzzle/zebra_puzzle_test.py": {
+    "mtime": 1786759152.3180544,
+    "ast_hash": "3c872fb5f6681158822ed3dffe4717c1",
+    "semantic_hash": ""
+  },
+  "nova_aci_harness.py": {
+    "mtime": 1787024958.6663785,
+    "ast_hash": "e87dd5601a3507608819a2dddfddea15",
+    "semantic_hash": ""
+  },
+  "nova_aci_stats.py": {
+    "mtime": 1787016672.600993,
+    "ast_hash": "33fd7b3eb30e3db01d4d0b1211f68aae",
+    "semantic_hash": ""
+  },
+  "nova_bulk_distillation.py": {
+    "mtime": 1786593862.5946865,
+    "ast_hash": "e436224966a3dba3a5c748cdda622ee2",
+    "semantic_hash": ""
+  },
+  "nova_coding_aci.py": {
+    "mtime": 1786760055.4236002,
+    "ast_hash": "064ebc9259141cdb961b6bbdbe99d48c",
+    "semantic_hash": ""
+  },
+  "nova_eval_held_out.py": {
+    "mtime": 1786508046.7739198,
+    "ast_hash": "e1d7a2dd086a7fcfb5b3f655f03a59b1",
+    "semantic_hash": ""
+  },
+  "nova_gpu_monitor.py": {
+    "mtime": 1787097621.5771537,
+    "ast_hash": "e6e8398003fb89296215855e93fcf30c",
+    "semantic_hash": ""
+  },
+  "nova_mini_swe_agent_harness.py": {
+    "mtime": 1787100050.0322492,
+    "ast_hash": "fe071e635fa1e7ba8b5d465ef8a7b7b2",
+    "semantic_hash": ""
+  },
+  "nova_orchestrator_qwen3.py": {
+    "mtime": 1786237784.3791506,
+    "ast_hash": "8f188a12940fff5426b70489cf9e1a8f",
+    "semantic_hash": ""
+  },
+  "nova_pull_exercism_corpus.py": {
+    "mtime": 1786761155.5517085,
+    "ast_hash": "924781c7c5e2bfbb99992f68ddb7c7bb",
+    "semantic_hash": ""
+  },
+  "nova_remote_inference_qwen3_native_tools.py": {
+    "mtime": 1786237770.9160972,
+    "ast_hash": "bb3542a0ec1e487e3dafad183738bb13",
+    "semantic_hash": ""
+  },
+  "nova_synthetic_task_gen.py": {
+    "mtime": 1786594525.4774518,
+    "ast_hash": "9974f2811ffd3646d8df61eaaf085246",
+    "semantic_hash": ""
+  },
+  "pyproject.toml": {
+    "mtime": 1786759093.3672037,
+    "ast_hash": "9ccef085f162927f8cde5defe3711723",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/NOTICE.md": {
+    "mtime": 1786759161.1446197,
+    "ast_hash": "dfc9bea04b07c57933a8b75ad74ae561",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/affine-cipher/.docs/instructions.append.md": {
+    "mtime": 1786759152.7645342,
+    "ast_hash": "038d1cc10fee448ab19a6fcf984c1d62",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/affine-cipher/.docs/instructions.md": {
+    "mtime": 1786759152.9128182,
+    "ast_hash": "b79ef9309c15def568bb72619282e406",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/all-your-base/.docs/instructions.append.md": {
+    "mtime": 1786759140.7073152,
+    "ast_hash": "08f6b34d1e8bbe7b480e4e6c45172bce",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/all-your-base/.docs/instructions.md": {
+    "mtime": 1786759140.8708067,
+    "ast_hash": "9e0c44c0153249cc5a38d4c435d094dd",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/all-your-base/.docs/introduction.md": {
+    "mtime": 1786759141.0200207,
+    "ast_hash": "b7ce3028cb460d4034fb4fd4b71c0785",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/binary-search-tree/.docs/instructions.md": {
+    "mtime": 1786759148.1860473,
+    "ast_hash": "ab4969e3a173a9a6e4bc0a6134a946e3",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/binary/.docs/instructions.append.md": {
+    "mtime": 1786759134.3765745,
+    "ast_hash": "7d30007c53dceba53749ddae61a85cd3",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/binary/.docs/instructions.md": {
+    "mtime": 1786759134.4996455,
+    "ast_hash": "4fa2becef194cd36373d1455de4469b3",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/bob/.docs/instructions.md": {
+    "mtime": 1786759116.252385,
+    "ast_hash": "fcccd22ed105c8e5585716171b563e19",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/bob/.docs/introduction.md": {
+    "mtime": 1786759116.3876615,
+    "ast_hash": "49870da3dd5d27c95afd980c41695880",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/bowling/.docs/instructions.append.md": {
+    "mtime": 1786759149.4558766,
+    "ast_hash": "3883efbd644d7732af05028e4762aa16",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/bowling/.docs/instructions.md": {
+    "mtime": 1786759149.888493,
+    "ast_hash": "882e6fad211cd6fe8b1b93265acf5730",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/complex-numbers/.docs/instructions.append.md": {
+    "mtime": 1786759142.3030815,
+    "ast_hash": "1c15fc358ae6a220afd49ad2353695f9",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/complex-numbers/.docs/instructions.md": {
+    "mtime": 1786759142.4684365,
+    "ast_hash": "3cdc9f678baa6b1fd1ac3950cf393814",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/crypto-square/.docs/instructions.md": {
+    "mtime": 1786759135.629671,
+    "ast_hash": "81c1b0b55e954638447fd686d87a1342",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/dominoes/.docs/instructions.md": {
+    "mtime": 1786759155.6803818,
+    "ast_hash": "93cdeb4a1a7e957924c2597d13fa2995",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/dominoes/.docs/introduction.md": {
+    "mtime": 1786759155.8304012,
+    "ast_hash": "d67621e7cbcf16546d1b2870e911e1c5",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/error-handling/.docs/instructions.append.md": {
+    "mtime": 1786759136.9143913,
+    "ast_hash": "f26277d9e837875fd5dc85194bf9bdf0",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/error-handling/.docs/instructions.md": {
+    "mtime": 1786759137.0472105,
+    "ast_hash": "2ae7276f3bb582d29fb153bf218d5763",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/ledger/.docs/instructions.md": {
+    "mtime": 1786759143.9028687,
+    "ast_hash": "e916f3f26b3e216ece80ba601e0e9ce4",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/list-ops/.docs/instructions.md": {
+    "mtime": 1786759117.7097805,
+    "ast_hash": "220b3820eef4c6773b3bacb1a47f5fbe",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/luhn/.docs/instructions.md": {
+    "mtime": 1786759126.059689,
+    "ast_hash": "2072b075b4da265d1e3f6d7e27ced64b",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/luhn/.docs/introduction.md": {
+    "mtime": 1786759126.197464,
+    "ast_hash": "3743b18fa6470c79c421479a59825da1",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/meetup/.docs/instructions.append.md": {
+    "mtime": 1786759145.1938014,
+    "ast_hash": "637f2cc3423058cee17409b2dccaa7ea",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/meetup/.docs/instructions.md": {
+    "mtime": 1786759145.3281364,
+    "ast_hash": "eb9a9d25f0868018dafcd0aab0fd1a5e",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/meetup/.docs/introduction.md": {
+    "mtime": 1786759145.4540637,
+    "ast_hash": "4aa5a3f51ec1012fe92f3c7fadfb3129",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/nth-prime/.docs/instructions.append.md": {
+    "mtime": 1786759127.6257477,
+    "ast_hash": "244ccff7fe3f01fd0cdcf899e5529137",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/nth-prime/.docs/instructions.md": {
+    "mtime": 1786759127.7796903,
+    "ast_hash": "222338e5a101b7769512f5395991c913",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/octal/.docs/instructions.md": {
+    "mtime": 1786759138.2786298,
+    "ast_hash": "f8a7ec6dd9a212e1e13940b1e88dff11",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/poker/.docs/instructions.md": {
+    "mtime": 1786759139.4025478,
+    "ast_hash": "b6343d96162ca379d36dc92db3efdd6b",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/pov/.docs/instructions.append.md": {
+    "mtime": 1786759159.820614,
+    "ast_hash": "4de2c6ba3b86b609281dfa409de04204",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/pov/.docs/instructions.md": {
+    "mtime": 1786759159.9806812,
+    "ast_hash": "ffec572e6d3480d50bee29a61ff6cd1b",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/proverb/.docs/instructions.append.md": {
+    "mtime": 1786759129.5894825,
+    "ast_hash": "69bc7d2da0035237830b0e4e7ec50616",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/proverb/.docs/instructions.md": {
+    "mtime": 1786759129.7538638,
+    "ast_hash": "a97b2810eed8ba723a1fa368ff820bfc",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/rail-fence-cipher/.docs/instructions.md": {
+    "mtime": 1786759146.9325156,
+    "ast_hash": "234e41d2e99ba00fd19f36e5c44959ea",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/raindrops/.docs/instructions.append.md": {
+    "mtime": 1786759119.137504,
+    "ast_hash": "1ce6b539f27daa56d21fb3556c089c08",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/raindrops/.docs/instructions.md": {
+    "mtime": 1786759119.29356,
+    "ast_hash": "1ab278c3f5f8f4d4341bf6324989e1fb",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/raindrops/.docs/introduction.md": {
+    "mtime": 1786759119.44466,
+    "ast_hash": "1c112335da7e667fe35da7f7828afc4d",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/rest-api/.docs/instructions.md": {
+    "mtime": 1786759158.589055,
+    "ast_hash": "584c440f0c02f6704d6f54df75006618",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/scrabble-score/.docs/instructions.md": {
+    "mtime": 1786759131.1897652,
+    "ast_hash": "7e5156d57b2123e9a114a39056e8e50d",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/scrabble-score/.docs/introduction.md": {
+    "mtime": 1786759131.3236504,
+    "ast_hash": "0eec6c6681de1796a069fde20cad2732",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/secret-handshake/.docs/instructions.append.md": {
+    "mtime": 1786759120.7435758,
+    "ast_hash": "d33a1eb5fae68eaa7fa7d289cbb568ec",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/secret-handshake/.docs/instructions.md": {
+    "mtime": 1786759120.8867586,
+    "ast_hash": "adddf966fce973175b935cda88bff7d9",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/secret-handshake/.docs/introduction.md": {
+    "mtime": 1786759121.0309026,
+    "ast_hash": "0742c4435426451bd3fd5c3c7cc53c59",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/sgf-parsing/.docs/instructions.append.md": {
+    "mtime": 1786759157.1323855,
+    "ast_hash": "9edf41fba67e7db0f22d596ba41c501e",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/sgf-parsing/.docs/instructions.md": {
+    "mtime": 1786759157.272274,
+    "ast_hash": "eaa5233dd0d40878e02065f79645f5be",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/space-age/.docs/instructions.append.md": {
+    "mtime": 1786759122.7653632,
+    "ast_hash": "be68537539b5f57f5468a2bda01807a0",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/space-age/.docs/instructions.md": {
+    "mtime": 1786759122.9803715,
+    "ast_hash": "c4d88c8eeff2a34f65693d0623f9bcf4",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/space-age/.docs/introduction.md": {
+    "mtime": 1786759123.1797814,
+    "ast_hash": "10eff576df2b1bfaec84a4a2fabe4494",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/two-bucket/.docs/instructions.append.md": {
+    "mtime": 1786759154.2243066,
+    "ast_hash": "8a4436fd0fb200b47998eb65c9e8b285",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/two-bucket/.docs/instructions.md": {
+    "mtime": 1786759154.340233,
+    "ast_hash": "afd3a729d6433997980871b4ef2ce1ec",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/two-fer/.docs/instructions.md": {
+    "mtime": 1786759124.4394562,
+    "ast_hash": "70421291e7e910d6b3116c4f66dbe9b2",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/two-fer/.docs/introduction.md": {
+    "mtime": 1786759124.5794017,
+    "ast_hash": "d3e95dad444ae6932275a5bccae1e095",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/yacht/.docs/instructions.md": {
+    "mtime": 1786759132.7198126,
+    "ast_hash": "cc6700ee841e71bf4e0a5058c3376975",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/yacht/.docs/introduction.md": {
+    "mtime": 1786759132.9254787,
+    "ast_hash": "67d9ea29be5fae1c33bea94e6f3dcf68",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/zebra-puzzle/.docs/instructions.md": {
+    "mtime": 1786759151.3701563,
+    "ast_hash": "aa61f31847b268ced1b26f8cf26cb93a",
+    "semantic_hash": ""
+  },
+  "data/coding_specialist_eval/exercism_subset/zebra-puzzle/.docs/introduction.md": {
+    "mtime": 1786759151.5178328,
+    "ast_hash": "0d0280901168d043e637a394910dd340",
+    "semantic_hash": ""
+  },
+  "docs/aci-failure-mechanism-analysis.md": {
+    "mtime": 1787026540.6369097,
+    "ast_hash": "f256d9318bc9a066f0a0775b7dc46a27",
+    "semantic_hash": ""
+  },
+  "docs/aci-task-familiarity-finding.md": {
+    "mtime": 1786769271.777686,
+    "ast_hash": "070f7f7c2876bbcac45286bbaaaf7545",
+    "semantic_hash": ""
+  },
+  "docs/aci-third-party-harness-comparison.md": {
+    "mtime": 1787026986.0245328,
+    "ast_hash": "19c85ef1798954b53b0e3d999a33d8cc",
+    "semantic_hash": ""
+  },
+  "docs/coding-specialist-aci-sandbox-decision.md": {
+    "mtime": 1786757198.2466092,
+    "ast_hash": "4009c1faac6f9aa546d554d13c498874",
+    "semantic_hash": ""
+  },
+  "docs/coding-specialist-edit-format-test-plan.md": {
+    "mtime": 1786756596.9049468,
+    "ast_hash": "3b6114a13308e1823d564170dccaeac5",
+    "semantic_hash": ""
+  },
+  "docs/coding-specialist-exercise-corpus-plan.md": {
+    "mtime": 1786763764.4810543,
+    "ast_hash": "c0f1b9da108e099ccd5c74dffed98de0",
+    "semantic_hash": ""
+  },
+  "docs/liberal-parsing-principle.md": {
+    "mtime": 1786763740.1409693,
+    "ast_hash": "e75dca3dd0b749943eefd9e53b1760e4",
+    "semantic_hash": ""
+  },
+  "docs/nova-tiered-triage-exploration.md": {
+    "mtime": 1786591347.8068907,
+    "ast_hash": "aa91b584ce66bf60162e2f49a8fd2391",
+    "semantic_hash": ""
+  },
+  "docs/nova-tiered-triage-findings.md": {
+    "mtime": 1786753918.305401,
+    "ast_hash": "3b8691479ca0ecffe692eb0b29b6346d",
+    "semantic_hash": ""
+  },
+  "nova-eval-harness-runbook.md": {
+    "mtime": 1786312397.3473594,
+    "ast_hash": "10f6ab64361c321bd658460662f9d15e",
     "semantic_hash": ""
   }
 }

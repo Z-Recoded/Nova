@@ -40,9 +40,27 @@ from pathlib import Path
 import ollama
 
 import nova_coding_aci as aci
+from nova_tools import _resolve_within_root
 
 OLLAMA_MODEL = "qwen2.5-coder:7b"
 OLLAMA_HOST = "http://127.0.0.1:11434"
+
+# Real A/B result, 2026-08-19: client.chat() originally passed no options at
+# all, so Ollama silently ran this model's real 32768-token context at its
+# own default of 4096. Raised to 24576 (empirically confirmed 100% GPU-
+# resident, unlike the full 32768 which forces ~12% CPU offload) and ran a
+# real 120-run comparable batch against the existing 3-guard baseline --
+# pass rate was flat (9/120 -> 10/120, noise), but every efficiency metric
+# got measurably WORSE: avg turns/run 7.76->9.51, max_turns_reached
+# 25.8%->38.3%, wall time +30%, and MORE guard fires (repeat_failed_call
+# 45->71), not fewer -- the opposite of what the truncation hypothesis
+# predicted. Reverted to 4096, kept explicit (not just Ollama's implicit
+# default) so this real, tested conclusion is visible in code rather than
+# silently relying on whatever Ollama's default happens to be. Second real
+# data point (after project_coding_agent_context_budget_finding's 32B-backend
+# result) that context scaling has hit diminishing/negative returns here --
+# the residual gap looks like model capability, not a context-window bug.
+OLLAMA_NUM_CTX = 4096
 
 # Generous relative to a 6-difficulty-tier corpus of small exercises -- most
 # should complete in well under this; a run that's still going at this point
@@ -121,6 +139,65 @@ to parse. Example of a real, valid edit call replacing one line:
 {"tool": "edit", "arguments": {"path": "f.py", "start_line": 2, "end_line": 2, "new_content": "    return 1\\n"}}
 
 Always view a file before editing it, so your line numbers are correct. Work directly on the
+file the task names, and only that file, unless told otherwise. Do not edit the test file."""
+
+# 86bbch988's diff-format variant -- identical to SYSTEM_PROMPT except for the edit tool's own
+# argument shape. Real motivation: Aider's own published benchmark found unified-diff cut GPT-4
+# Turbo's lazy-completion rate 3x over search/replace-style edits (20%->61% on Aider's own
+# benchmark) -- the current SYSTEM_PROMPT's explicit-line-number format is functionally closer
+# to the weaker search/replace family (exact positional matching), not the stronger diff family.
+# edit() itself needed zero changes for this -- it was already explicitly format-agnostic
+# (nova_coding_aci.edit()'s own docstring); _resolve_diff_hunk() below is the new piece,
+# converting a diff hunk into the same (start_line, end_line, new_content) triple edit() always
+# took. No @@ hunk header or a/b file paths -- both are redundant with the edit call's own
+# "path" argument, and 86bbch988's real open risk is hunk-to-file resolution, not header parsing.
+#
+# REAL RESULT, 2026-08-19 -- closed, negative, do not use by default: a real 120-run corpus
+# batch (--diff-format, same 4096 ctx as baseline) came back a clear regression, not noise --
+# pass rate 7.5%->4.2%, avg turns/run 7.76->13.53, max_turns_reached 25.8%->82.5%,
+# repeat_failed_call guard fires 45->360 (8x). Root cause, confirmed live via a verbose bob run:
+# the model made a real whitespace/indentation mistake reproducing an unchanged line in its diff
+# hunk, got correctly rejected (no fuzzy matching, by design), then couldn't self-correct and
+# got stuck resending the identical broken hunk. Aider's number was measured on GPT-4 Turbo,
+# where diff format's real benefit is stopping LAZY full-file rewrites ("// rest unchanged") --
+# a large-model failure mode. This model's actual bottleneck is different: not laziness, exact
+# content reproduction -- and the line-range format sidesteps that specific weakness entirely
+# (the model never retypes existing code, only supplies new content at a line number view()
+# already gave it). Diff format made this model's real weak spot load-bearing instead of routing
+# around it. Left in the codebase as a real, tested reference (kept off by default, opt-in via
+# --diff-format only) -- not deleted, matching how nova_orchestrator_runpod.py/_devstral.py
+# stayed in the codebase after their own dense-model backends were deprioritized.
+SYSTEM_PROMPT_DIFF = """You are editing Python code inside a working directory to complete a task.
+You interact with the directory ONLY through the following commands -- you have no direct
+shell or filesystem access. Respond with EXACTLY ONE JSON object per turn, no other text,
+in this shape:
+
+{"tool": "<name>", "arguments": {...}}
+
+Available tools:
+- find_file: {"pattern": "<substring>"} -- find files whose name contains pattern
+- search_file: {"path": "<relative path>", "pattern": "<substring>"} -- search one file for matching lines
+- search_dir: {"pattern": "<substring>"} -- search every .py file for matching lines
+- view: {"path": "<relative path>", "start_line": <int, optional>, "window": <int, optional>} --
+  view a windowed, line-numbered slice of a file
+- edit: {"path": "<relative path>", "diff": "<diff hunk>"} -- apply a diff hunk to the file.
+  The diff hunk is one or more lines, each starting with exactly one of these three characters:
+    ' ' (a space) -- an EXISTING line, unchanged, given as context so the edit location can be found
+    '-' -- an EXISTING line to remove
+    '+' -- a NEW line to add
+  Every space-prefixed and '-'-prefixed line must match the file's real current content EXACTLY,
+  including whitespace -- no fuzzy matching is done. Include at least one unchanged (space-prefixed)
+  line of real context so the location is unambiguous. Do not include line numbers or @@ headers.
+- done: {} -- call this when you believe the task is complete
+
+Your entire response must be valid JSON, on one line if possible. The diff value must be a
+normal JSON string -- use \\n for newlines and \\" for embedded quotes. Never use Python's
+triple-quote (\"\"\"...\"\"\") syntax inside a JSON value; it is not valid JSON and will fail
+to parse. Example of a real, valid edit call:
+
+{"tool": "edit", "arguments": {"path": "f.py", "diff": " def response(hey_bob):\\n-    pass\\n+    return \\"Sure.\\""}}
+
+Always view a file before editing it, so your context lines are correct. Work directly on the
 file the task names, and only that file, unless told otherwise. Do not edit the test file."""
 
 
@@ -260,6 +337,15 @@ def _tool_result_failed(tool: str, result: str) -> bool:
     missing argument or an unknown tool.
     """
     if tool == "edit":
+        # Real bug found live (2026-08-19), fixed while adding diff-format support: an
+        # "ERROR: ..." string (a missing argument, or _resolve_diff_hunk() rejecting an
+        # unmatched/ambiguous diff) fell through json.loads()'s except clause and returned
+        # False -- silently NOT a failure, so the repeat-failure guards could never catch a
+        # model stuck resending the same broken diff hunk. Pre-existing gap on the original
+        # line-range format too (a missing start_line/end_line had the same blind spot),
+        # not something new to diff-format alone.
+        if result.startswith("ERROR:"):
+            return True
         try:
             return json.loads(result).get("accepted") is False
         except (json.JSONDecodeError, AttributeError):
@@ -288,7 +374,69 @@ def _format_list_result(items: list) -> str:
     return json.dumps(items)
 
 
-def _execute_tool(call: dict, root: str) -> str:
+def _resolve_diff_hunk(diff_text: str, path: str, root: str) -> tuple[int, int, str]:
+    """
+    Resolves a SYSTEM_PROMPT_DIFF-style hunk (space/-/+ prefixed lines) against
+    the real current content of `path`, converting it into the same
+    (start_line, end_line, new_content) triple aci.edit() always took --
+    86bbch988's diff-format variant, built on the ACI's existing
+    format-agnostic edit() rather than changing it.
+
+    Matching is exact-text only, no fuzzy matching -- deliberately, so a
+    silent near-match can never apply an edit in the wrong place. Raises
+    ValueError with a specific, actionable message on any failure (same
+    "give the model a real chance to self-correct" discipline as
+    _parse_tool_call()); _execute_tool()'s existing except (ValueError, ...)
+    handler turns that straight into the ERROR: string the model sees.
+    """
+    resolved = _resolve_within_root(path, root)
+    original_lines = [line.rstrip("\n") for line in resolved.read_text(encoding="utf-8").splitlines(keepends=True)]
+
+    search_lines: list[str] = []  # must match the file's real content, in order
+    replacement_lines: list[str] = []  # what the matched range becomes
+    for raw_line in diff_text.splitlines():
+        marker, content = (raw_line[0], raw_line[1:]) if raw_line else (" ", "")
+        if marker == " ":
+            search_lines.append(content)
+            replacement_lines.append(content)
+        elif marker == "-":
+            search_lines.append(content)
+        elif marker == "+":
+            replacement_lines.append(content)
+        else:
+            raise ValueError(
+                f"Diff line {raw_line!r} doesn't start with a space (unchanged), '-' (remove), "
+                "or '+' (add) -- every line in the diff must have one of those three prefixes."
+            )
+
+    if not search_lines:
+        raise ValueError(
+            "Diff has no context or removed lines to anchor the edit -- include at least one "
+            "unchanged line (space-prefixed) or removed line ('-'-prefixed) so the exact "
+            "location in the file can be found."
+        )
+
+    window = len(search_lines)
+    matches = [i for i in range(len(original_lines) - window + 1) if original_lines[i : i + window] == search_lines]
+
+    if not matches:
+        raise ValueError(
+            "Could not find these exact lines in the file -- view() the file again and copy "
+            "the context/removed lines EXACTLY, including whitespace. No fuzzy matching is done."
+        )
+    if len(matches) > 1:
+        raise ValueError(
+            f"These lines match {len(matches)} different places in the file -- include more "
+            "surrounding context lines so the edit location is unambiguous."
+        )
+
+    start_line = matches[0] + 1
+    end_line = matches[0] + window
+    new_content = "".join(line + "\n" for line in replacement_lines)
+    return start_line, end_line, new_content
+
+
+def _execute_tool(call: dict, root: str, diff_format: bool = False) -> str:
     """
     Runs one ACI command by name, returns a plain-text result string to
     feed back to the model. Unknown tool names / bad arguments come back as
@@ -310,6 +458,9 @@ def _execute_tool(call: dict, root: str) -> str:
                 args["path"], root, args.get("start_line", 1), args.get("window", aci.DEFAULT_VIEW_WINDOW_LINES)
             )
         if tool == "edit":
+            if diff_format:
+                start_line, end_line, new_content = _resolve_diff_hunk(args["diff"], args["path"], root)
+                return json.dumps(aci.edit(args["path"], start_line, end_line, new_content, root))
             return json.dumps(aci.edit(args["path"], args["start_line"], args["end_line"], args["new_content"], root))
         if tool == "done":
             return "DONE"
@@ -362,13 +513,19 @@ def _run_real_tests(working_copy: Path, slug: str) -> tuple[bool, str]:
     return result.returncode == 0, result.stdout + result.stderr
 
 
-def run_exercise(slug: str, verbose: bool = False) -> dict:
+def run_exercise(slug: str, verbose: bool = False, diff_format: bool = False) -> dict:
     """
     Runs one real vendored exercise through Qwen2.5-Coder-7B via the ACI,
     end to end. The model never sees .meta/example.py (excluded before the
     working copy even exists) or is told a reference solution exists at
     all. Returns {"slug", "turns_used", "final_status", "test_passed",
     "test_output"}.
+
+    `diff_format`: 86bbch988's edit-format A/B test -- SYSTEM_PROMPT_DIFF
+    instead of SYSTEM_PROMPT, and edit() calls arrive as diff hunks resolved
+    via _resolve_diff_hunk() instead of explicit line numbers. Logged on the
+    result so a later comparison never needs the timestamp-cutoff trick the
+    context-window A/B test needed.
     """
     client = ollama.Client(host=OLLAMA_HOST)
 
@@ -388,7 +545,7 @@ def run_exercise(slug: str, verbose: bool = False) -> dict:
         # guess blind.
         initial_files = aci.find_file(".py", root)
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": SYSTEM_PROMPT_DIFF if diff_format else SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": f"Task:\n\n{task_description}\n\nFiles in your working directory: {initial_files}",
@@ -417,7 +574,7 @@ def run_exercise(slug: str, verbose: bool = False) -> dict:
             turns_used = turn
             messages = [messages[0]] + aci.collapse_history(messages[1:], keep_recent=HISTORY_KEEP_RECENT)
 
-            response = client.chat(model=OLLAMA_MODEL, messages=messages)
+            response = client.chat(model=OLLAMA_MODEL, messages=messages, options={"num_ctx": OLLAMA_NUM_CTX})
             raw_content = response["message"]["content"]
             messages.append({"role": "assistant", "content": raw_content})
 
@@ -473,7 +630,7 @@ def run_exercise(slug: str, verbose: bool = False) -> dict:
                     print(f"--- turn {turn}: refused repeat of already-failed {tool} call ---")
                 continue
 
-            tool_result = _execute_tool(call, root)
+            tool_result = _execute_tool(call, root, diff_format=diff_format)
             if tool == "edit" and _tool_result_failed(tool, tool_result):
                 failed_calls.add(key)
                 path = call.get("arguments", {}).get("path", "")
@@ -501,6 +658,7 @@ def run_exercise(slug: str, verbose: bool = False) -> dict:
         result = {
             "timestamp": datetime.now().isoformat(timespec="seconds"),
             "slug": slug,
+            "diff_format": diff_format,
             "turns_used": turns_used,
             "final_status": final_status,
             "test_passed": test_passed,
@@ -524,7 +682,7 @@ def _log_result(result: dict) -> None:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
-def run_all_exercises(verbose: bool = False, repeats: int = 1) -> list[dict]:
+def run_all_exercises(verbose: bool = False, repeats: int = 1, diff_format: bool = False) -> list[dict]:
     """
     Runs every real vendored exercise under CORPUS_ROOT through
     run_exercise(), `repeats` times each, in slug-sorted order (not
@@ -550,7 +708,7 @@ def run_all_exercises(verbose: bool = False, repeats: int = 1) -> list[dict]:
         for rep in range(1, repeats + 1):
             run_number += 1
             print(f"\n[{run_number}/{total_runs}] Running {slug} (rep {rep}/{repeats})...")
-            result = run_exercise(slug, verbose=verbose)
+            result = run_exercise(slug, verbose=verbose, diff_format=diff_format)
             status = "PASS" if result["test_passed"] else "FAIL"
             print(f"  -> {status} ({result['final_status']}, {result['turns_used']} turn(s))")
             results.append(result)
@@ -628,13 +786,18 @@ if __name__ == "__main__":
         help="With --all: run each exercise N times, for a real pass rate instead of one noisy sample.",
     )
     parser.add_argument("--verbose", action="store_true", help="Print each turn's raw model output and tool result.")
+    parser.add_argument(
+        "--diff-format",
+        action="store_true",
+        help="86bbch988 A/B test: use SYSTEM_PROMPT_DIFF (unified-diff-style edits) instead of explicit line numbers.",
+    )
     args = parser.parse_args()
 
     if args.all:
-        results = run_all_exercises(verbose=args.verbose, repeats=args.repeat)
+        results = run_all_exercises(verbose=args.verbose, repeats=args.repeat, diff_format=args.diff_format)
         _print_summary(results)
     elif args.slug:
-        result = run_exercise(args.slug, verbose=args.verbose)
+        result = run_exercise(args.slug, verbose=args.verbose, diff_format=args.diff_format)
         print(f"\n=== {result['slug']} ===")
         print(f"Status: {result['final_status']} ({result['turns_used']} turn(s) used)")
         print(f"Tests passed: {result['test_passed']}")

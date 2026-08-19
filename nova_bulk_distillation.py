@@ -171,12 +171,17 @@ def request_bulk_solution(client: anthropic.Anthropic, task: str, file_context: 
         "hunk headers). If a file is noted as not existing yet, create it from scratch. Output "
         "ONLY the diff, no other text."
     )
-    message = client.messages.create(
+    # Real gotcha found live (2026-08-19): 16000 wasn't enough headroom for a
+    # from-scratch multi-file diff plus Sonnet 5's adaptive thinking -- 22 of
+    # 25 real rows in one run hit max_tokens with zero visible output ("will
+    # retry on a future run"), at real billed cost every time. Raised to
+    # 64000 for real headroom, which per the Claude API skill's own guidance
+    # requires streaming rather than a plain create() call to avoid the
+    # separate failure mode of a large non-streaming request hitting the
+    # SDK's own HTTP timeout.
+    with client.messages.stream(
         model=NOVA_AGENT_MODEL,
-        # Same budget nova_coding_corrector.py needed for full-diff output --
-        # a real multi-file diff plus an invisible thinking block can exceed
-        # a review-verdict-sized budget.
-        max_tokens=16000,
+        max_tokens=64000,
         system=system,
         messages=[
             {
@@ -186,7 +191,8 @@ def request_bulk_solution(client: anthropic.Anthropic, task: str, file_context: 
                 ),
             }
         ],
-    )
+    ) as stream:
+        message = stream.get_final_message()
     text_blocks = [block.text for block in message.content if block.type == "text"]
     if not text_blocks:
         # Real, billed API call already happened (thinking can consume the
