@@ -11,6 +11,7 @@ job, or leave it running continuously to track long-term drift.
 
 import argparse
 import json
+import os
 import subprocess
 import time
 from datetime import UTC, datetime
@@ -19,6 +20,7 @@ from pathlib import Path
 # ── Constants ──
 
 DEFAULT_POLL_INTERVAL_SECONDS = 60
+DEFAULT_CLEAR_AFTER_READINGS = 20
 LOG_PATH = Path(__file__).parent / "logs" / "gpu_telemetry_log.jsonl"
 
 # nvidia-smi --query-gpu field names, in the order we read them back out of the CSV row.
@@ -105,24 +107,63 @@ def is_throttling(reading: dict) -> bool:
     return any(reading.get(field) == "Active" for field in throttle_fields)
 
 
+def format_reading_line(reading: dict) -> str:
+    """One human-readable terminal line for a single reading — the live view, not the log format."""
+    local_time = datetime.fromisoformat(reading["timestamp"]).astimezone().strftime("%H:%M:%S")
+    throttle_flag = "THROTTLING" if is_throttling(reading) else "ok"
+    return (
+        f"{local_time}  temp {reading['temperature.gpu']:>3}C  "
+        f"power {reading['power.draw']:>6}/{reading['power.limit']}W  "
+        f"util gpu {reading['utilization.gpu']:>3}% mem {reading['utilization.memory']:>3}%  "
+        f"clocks sm {reading['clocks.sm']:>5}MHz mem {reading['clocks.mem']:>5}MHz  {throttle_flag}"
+    )
+
+
+def clear_terminal() -> None:
+    """
+    Clears the terminal screen. Uses subprocess.run() with an explicit argument
+    list and shell=False rather than os.system() -- cls is a cmd.exe builtin, not
+    a standalone binary, so it's invoked via ["cmd", "/c", "cls"] on Windows; no
+    string is ever passed through a shell, so there's no injection surface.
+    """
+    if os.name == "nt":
+        subprocess.run(["cmd", "/c", "cls"], shell=False, check=False)
+    else:
+        subprocess.run(["clear"], shell=False, check=False)
+
+
 # ── Core ──
 
 
-def run_monitor_loop(poll_interval_seconds: int, duration_minutes: float | None) -> None:
+def run_monitor_loop(poll_interval_seconds: int, duration_minutes: float | None, clear_after: int) -> None:
     """
     Polls nvidia-smi on a fixed interval until duration_minutes elapses (or
-    forever if None), appending each reading to LOG_PATH.
+    forever if None), appending every reading to LOG_PATH (the full history,
+    never cleared) and printing each one to the terminal. Every clear_after
+    prints, the terminal screen is cleared and printing starts fresh from the
+    top — keeps a long-running session from scrolling forever without losing
+    any logged data.
     """
     start_time = time.monotonic()
     duration_seconds = duration_minutes * 60 if duration_minutes else None
+    prints_since_clear = 0
 
-    print(f"Logging GPU telemetry to {LOG_PATH} every {poll_interval_seconds}s. Ctrl+C to stop.")
+    def print_header() -> None:
+        print(f"Logging GPU telemetry to {LOG_PATH} every {poll_interval_seconds}s. Ctrl+C to stop.\n")
+
+    print_header()
 
     try:
         while True:
             reading = poll_gpu_once()
             if reading is not None:
                 append_reading(reading)
+                print(format_reading_line(reading))
+                prints_since_clear += 1
+                if prints_since_clear >= clear_after:
+                    clear_terminal()
+                    print_header()
+                    prints_since_clear = 0
             else:
                 print("Warning: nvidia-smi poll failed, skipping this interval.")
 
@@ -176,6 +217,13 @@ def main() -> None:
         help="Minutes to run before stopping automatically (default: run until Ctrl+C)",
     )
     parser.add_argument(
+        "--clear-after",
+        type=int,
+        default=DEFAULT_CLEAR_AFTER_READINGS,
+        metavar="N",
+        help=f"Clear the terminal every N printed readings (default {DEFAULT_CLEAR_AFTER_READINGS})",
+    )
+    parser.add_argument(
         "--summary",
         action="store_true",
         help="Print summary stats from the existing log instead of logging new readings",
@@ -185,7 +233,7 @@ def main() -> None:
     if args.summary:
         print_summary()
     else:
-        run_monitor_loop(args.interval, args.duration)
+        run_monitor_loop(args.interval, args.duration, args.clear_after)
 
 
 if __name__ == "__main__":
