@@ -31,6 +31,17 @@ select = ["E", "F", "I", "UP", "B"]
 # worth linting.
 "graphify-out/**" = ["E", "F", "I", "UP", "B"]
 
+# nova_mini_swe_agent_harness.py's system_template/instance_template strings
+# are copied verbatim from mini-swe-agent's own config/mini_textbased.yaml --
+# the experiment compares interface design, not prompt tuning, so the prompt
+# must stay byte-identical to what the package ships. A trailing `# noqa`
+# comment can't be added to these lines individually the normal way (E501's
+# usual per-outlier suppression, see the line-length comment above) since
+# they're inside triple-quoted string literals -- appending anything to
+# those lines would corrupt the actual prompt text sent to the model, not
+# just suppress a lint warning.
+"nova_mini_swe_agent_harness.py" = ["E501"]
+
 [tool.mypy]
 python_version = "3.13"
 # Scoped to the design doc's own stated priority targets (nova_api.py, the
