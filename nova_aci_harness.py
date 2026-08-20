@@ -29,6 +29,7 @@
 import argparse
 import ast
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -37,10 +38,18 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
+import anthropic
 import ollama
+from dotenv import load_dotenv
 
 import nova_coding_aci as aci
+from nova_orchestrator import NOVA_AGENT_MODEL
 from nova_tools import _resolve_within_root
+
+# Same .env-relative-to-script-location pattern every other Claude-API
+# script in this repo uses -- only actually needed when --hybrid-verify is
+# on (see Phase 5 section below), but loading is harmless either way.
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 
 OLLAMA_MODEL = "qwen2.5-coder:7b"
 OLLAMA_HOST = "http://127.0.0.1:11434"
@@ -104,6 +113,26 @@ MAX_DONE_WITHOUT_EDIT_NUDGES = 2
 # loop shape and need their own threshold, separate from the exact-repeat guard.
 GUARD_SAME_PATH_REPEATED_FAILURE = "same_path_repeated_failure"
 SAME_PATH_FAILURE_THRESHOLD = 3
+
+# Nova Training Pipeline coding track, Phase 5 (86bbcfpd1): hybrid inference-time verification --
+# real gap found live, 2026-08-20: `done` was accepted purely on has_successful_edit (any edit
+# ever succeeded), with zero relationship to whether the solution is actually correct --
+# _run_real_tests() only ran once, after the loop already exited, as a final scoring metric, never
+# as a gate. Opt-in via --hybrid-verify (off by default, same pattern as --diff-format below) --
+# this is the first thing in this file to spend real Anthropic API money, where every prior run
+# has been $0 (Ollama only). Combines two verifier types before accepting `done`: execution-based
+# (real _run_real_tests(), cheap and already proven -- a real test failure never reaches the
+# generative call at all) and execution-free (one real Claude call, no `tools` argument -- a
+# judge, never a writer, same structural guarantee nova_orchestrator._review_coding_diff()
+# established for its reviewer role -- catching a gamed/hardcoded solution that can pass real
+# tests and still be wrong in the way that matters). Per Eval Harness Initiative 4's standing
+# guardrail, this verdict is used ONLY to gate this turn loop's own accept/nudge decision -- never
+# logged anywhere nova_coding_dpo_filter.py (Phase 4) or any DPO/training pipeline reads from.
+GUARD_HYBRID_VERIFY_REJECTED = "hybrid_verify_rejected"
+
+# Same "don't refuse forever" precedent as MAX_DONE_WITHOUT_EDIT_NUDGES -- shared across both a
+# real test failure and a real style CONCERNS verdict, whichever the gate hits first each time.
+MAX_HYBRID_VERIFY_NUDGES = 2
 
 CORPUS_ROOT = Path(__file__).parent / "data" / "coding_specialist_eval" / "exercism_subset"
 
@@ -513,7 +542,80 @@ def _run_real_tests(working_copy: Path, slug: str) -> tuple[bool, str]:
     return result.returncode == 0, result.stdout + result.stderr
 
 
-def run_exercise(slug: str, verbose: bool = False, diff_format: bool = False) -> dict:
+def _generative_style_verifier(
+    client: anthropic.Anthropic, task_description: str, solution_content: str
+) -> tuple[str, str]:
+    """
+    Real execution-free half of Phase 5's hybrid verifier (86bbcfpd1) -- a
+    generative judgment call, not a simple classifier, per Eval Harness
+    Initiative 3's own explicit preference ("generative verifiers hold up
+    much better on novel, out-of-domain failures"). No `tools` argument --
+    a judge, never a writer. Returns (verdict, reason); reason is empty on
+    ACCEPT.
+    """
+    system = (
+        "You are reviewing a real solution to a small coding exercise for two specific things, "
+        "not general code quality: (1) a gamed or hardcoded solution -- output values copied "
+        "from the visible test cases rather than a genuine implementation of the described "
+        "logic, and (2) clearly unidiomatic Python that a competent developer would not write. "
+        "If neither applies, respond with exactly: ACCEPT. Otherwise respond with exactly: "
+        "CONCERNS: <one sentence reason>."
+    )
+    message = client.messages.create(
+        model=NOVA_AGENT_MODEL,
+        max_tokens=200,
+        system=system,
+        messages=[
+            {
+                "role": "user",
+                "content": f"Task:\n{task_description}\n\nSolution:\n\n```python\n{solution_content}\n```",
+            }
+        ],
+    )
+    text_blocks = [block.text for block in message.content if block.type == "text"]
+    verdict_text = text_blocks[0].strip() if text_blocks else "ACCEPT"
+    if verdict_text.upper().startswith("ACCEPT"):
+        return "ACCEPT", ""
+    reason = verdict_text.split(":", 1)[1].strip() if ":" in verdict_text else verdict_text
+    return "CONCERNS", reason
+
+
+def _hybrid_verify_gate(
+    client: anthropic.Anthropic, working_copy: Path, slug: str, task_description: str
+) -> tuple[bool, str, bool]:
+    """
+    Phase 5's real hybrid gate (86bbcfpd1) -- runs right before a `done`
+    call is accepted, when --hybrid-verify is on. Execution-based first
+    (cheap, deterministic, the same _run_real_tests() the final scoring
+    metric already uses): a real test failure never reaches the
+    generative call at all, no reason to pay for a style opinion on code
+    that doesn't work yet. Execution-free second, only once tests already
+    pass. Returns (gate_passed, nudge_text, style_call_made) -- the caller
+    tallies style_call_made into the real per-run cost count regardless
+    of the verdict.
+    """
+    test_passed, test_output = _run_real_tests(working_copy, slug)
+    if not test_passed:
+        nudge = (
+            "Your solution does not pass the real test suite yet. Real test output:\n\n"
+            f"{test_output[:1500]}\n\nFix the real failures shown above before calling done again."
+        )
+        return False, nudge, False
+
+    module_name = slug.replace("-", "_")
+    solution_content = (working_copy / f"{module_name}.py").read_text(encoding="utf-8")
+    verdict, reason = _generative_style_verifier(client, task_description, solution_content)
+    if verdict == "ACCEPT":
+        return True, "", True
+
+    nudge = (
+        f"Your solution passes the real tests, but a style review flagged a real concern: {reason} "
+        "Address this before calling done again."
+    )
+    return False, nudge, True
+
+
+def run_exercise(slug: str, verbose: bool = False, diff_format: bool = False, hybrid_verify: bool = False) -> dict:
     """
     Runs one real vendored exercise through Qwen2.5-Coder-7B via the ACI,
     end to end. The model never sees .meta/example.py (excluded before the
@@ -526,8 +628,15 @@ def run_exercise(slug: str, verbose: bool = False, diff_format: bool = False) ->
     via _resolve_diff_hunk() instead of explicit line numbers. Logged on the
     result so a later comparison never needs the timestamp-cutoff trick the
     context-window A/B test needed.
+
+    `hybrid_verify`: Phase 5's real hybrid gate (86bbcfpd1), off by
+    default -- see the GUARD_HYBRID_VERIFY_REJECTED comment above. Only
+    constructs a real Anthropic client (and requires ANTHROPIC_API_KEY)
+    when True, so the default path stays exactly as it was before this
+    flag existed -- no new dependency, no new cost.
     """
     client = ollama.Client(host=OLLAMA_HOST)
+    anthropic_client = anthropic.Anthropic() if hybrid_verify else None
 
     with tempfile.TemporaryDirectory() as tmp:
         working_copy = _prepare_working_copy(slug, Path(tmp))
@@ -558,16 +667,27 @@ def run_exercise(slug: str, verbose: bool = False, diff_format: bool = False) ->
         parse_failures = 0
 
         # Guard state -- see GUARD_REPEAT_FAILED_CALL/GUARD_DONE_WITHOUT_EDIT/
-        # GUARD_SAME_PATH_REPEATED_FAILURE above.
+        # GUARD_SAME_PATH_REPEATED_FAILURE/GUARD_HYBRID_VERIFY_REJECTED above.
         failed_calls: set = set()
         repeat_refusal_counts: dict = {}
         has_successful_edit = False
         done_without_edit_nudges = 0
         path_failure_counts: dict = {}
+        # Real gap found live (2026-08-20): a single shared nudge budget let real test failures
+        # alone exhaust it before the model ever reached a passing-tests state -- the generative
+        # verifier never got a chance to participate in either of the first two real pilot runs
+        # (style_verifier_calls stayed 0 both times). Separate counters/caps so a model that
+        # struggles with tests first still gets its own real shot at the style check once it
+        # clears them -- up to 4 real rejections total in the worst case, still well within
+        # MAX_TURNS.
+        test_fail_nudges = 0
+        style_concern_nudges = 0
+        style_verifier_calls = 0
         guard_fires = {
             GUARD_REPEAT_FAILED_CALL: 0,
             GUARD_DONE_WITHOUT_EDIT: 0,
             GUARD_SAME_PATH_REPEATED_FAILURE: 0,
+            GUARD_HYBRID_VERIFY_REJECTED: 0,
         }
 
         for turn in range(1, MAX_TURNS + 1):
@@ -593,20 +713,56 @@ def run_exercise(slug: str, verbose: bool = False, diff_format: bool = False) ->
             tool = call.get("tool")
 
             if tool == "done":
-                if has_successful_edit or done_without_edit_nudges >= MAX_DONE_WITHOUT_EDIT_NUDGES:
-                    final_status = "completed" if has_successful_edit else "abandoned_after_nudge"
+                if not has_successful_edit:
+                    if done_without_edit_nudges >= MAX_DONE_WITHOUT_EDIT_NUDGES:
+                        final_status = "abandoned_after_nudge"
+                        break
+                    done_without_edit_nudges += 1
+                    guard_fires[GUARD_DONE_WITHOUT_EDIT] += 1
+                    nudge = (
+                        "Refused: you have not made any successful edit yet, so nothing has "
+                        "actually been attempted. View the target file and make a real edit "
+                        f"before calling done again. ({done_without_edit_nudges}/{MAX_DONE_WITHOUT_EDIT_NUDGES} "
+                        "warnings -- after this, done will be accepted as-is.)"
+                    )
+                    messages.append({"role": "user", "content": nudge})
+                    if verbose:
+                        print(f"--- turn {turn}: refused done (no successful edit yet) ---")
+                    continue
+
+                # has_successful_edit is True from here on -- Phase 5's real hybrid gate
+                # (86bbcfpd1) only applies once there's something real to verify.
+                if not hybrid_verify:
+                    final_status = "completed"
                     break
-                done_without_edit_nudges += 1
-                guard_fires[GUARD_DONE_WITHOUT_EDIT] += 1
-                nudge = (
-                    "Refused: you have not made any successful edit yet, so nothing has "
-                    "actually been attempted. View the target file and make a real edit "
-                    f"before calling done again. ({done_without_edit_nudges}/{MAX_DONE_WITHOUT_EDIT_NUDGES} "
-                    "warnings -- after this, done will be accepted as-is.)"
+                if test_fail_nudges >= MAX_HYBRID_VERIFY_NUDGES and style_concern_nudges >= MAX_HYBRID_VERIFY_NUDGES:
+                    final_status = "completed"
+                    break
+
+                gate_passed, gate_nudge, style_call_made = _hybrid_verify_gate(
+                    anthropic_client, working_copy, slug, task_description
                 )
-                messages.append({"role": "user", "content": nudge})
+                if style_call_made:
+                    style_verifier_calls += 1
+                if gate_passed:
+                    final_status = "completed"
+                    break
+
+                if style_call_made:
+                    if style_concern_nudges >= MAX_HYBRID_VERIFY_NUDGES:
+                        final_status = "completed"
+                        break
+                    style_concern_nudges += 1
+                else:
+                    if test_fail_nudges >= MAX_HYBRID_VERIFY_NUDGES:
+                        final_status = "completed"
+                        break
+                    test_fail_nudges += 1
+
+                guard_fires[GUARD_HYBRID_VERIFY_REJECTED] += 1
+                messages.append({"role": "user", "content": gate_nudge})
                 if verbose:
-                    print(f"--- turn {turn}: refused done (no successful edit yet) ---")
+                    print(f"--- turn {turn}: hybrid-verify gate rejected done ---")
                 continue
 
             key = _call_key(call)
@@ -666,6 +822,10 @@ def run_exercise(slug: str, verbose: bool = False, diff_format: bool = False) ->
             "parse_method_counts": parse_method_counts,
             "parse_failures": parse_failures,
             "guard_fires": guard_fires,
+            "hybrid_verify_enabled": hybrid_verify,
+            "style_verifier_calls": style_verifier_calls,
+            "test_fail_nudges": test_fail_nudges,
+            "style_concern_nudges": style_concern_nudges,
         }
         _log_result(result)
         return result
@@ -682,7 +842,9 @@ def _log_result(result: dict) -> None:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
-def run_all_exercises(verbose: bool = False, repeats: int = 1, diff_format: bool = False) -> list[dict]:
+def run_all_exercises(
+    verbose: bool = False, repeats: int = 1, diff_format: bool = False, hybrid_verify: bool = False
+) -> list[dict]:
     """
     Runs every real vendored exercise under CORPUS_ROOT through
     run_exercise(), `repeats` times each, in slug-sorted order (not
@@ -708,7 +870,7 @@ def run_all_exercises(verbose: bool = False, repeats: int = 1, diff_format: bool
         for rep in range(1, repeats + 1):
             run_number += 1
             print(f"\n[{run_number}/{total_runs}] Running {slug} (rep {rep}/{repeats})...")
-            result = run_exercise(slug, verbose=verbose, diff_format=diff_format)
+            result = run_exercise(slug, verbose=verbose, diff_format=diff_format, hybrid_verify=hybrid_verify)
             status = "PASS" if result["test_passed"] else "FAIL"
             print(f"  -> {status} ({result['final_status']}, {result['turns_used']} turn(s))")
             results.append(result)
@@ -729,8 +891,10 @@ def _print_summary(results: list[dict]) -> None:
         GUARD_REPEAT_FAILED_CALL: 0,
         GUARD_DONE_WITHOUT_EDIT: 0,
         GUARD_SAME_PATH_REPEATED_FAILURE: 0,
+        GUARD_HYBRID_VERIFY_REJECTED: 0,
     }
     status_totals: dict[str, int] = {}
+    total_style_verifier_calls = 0
     for r in results:
         for method, count in r["parse_method_counts"].items():
             totals[method] += count
@@ -738,6 +902,7 @@ def _print_summary(results: list[dict]) -> None:
         for guard, count in r.get("guard_fires", {}).items():
             guard_totals[guard] = guard_totals.get(guard, 0) + count
         status_totals[r["final_status"]] = status_totals.get(r["final_status"], 0) + 1
+        total_style_verifier_calls += r.get("style_verifier_calls", 0)
 
     print(f"\n=== Summary: {passed}/{total} runs passed ===")
 
@@ -763,6 +928,10 @@ def _print_summary(results: list[dict]) -> None:
     print(f"  {GUARD_REPEAT_FAILED_CALL}: {guard_totals[GUARD_REPEAT_FAILED_CALL]}")
     print(f"  {GUARD_DONE_WITHOUT_EDIT}: {guard_totals[GUARD_DONE_WITHOUT_EDIT]}")
     print(f"  {GUARD_SAME_PATH_REPEATED_FAILURE}: {guard_totals[GUARD_SAME_PATH_REPEATED_FAILURE]}")
+    print(f"  {GUARD_HYBRID_VERIFY_REJECTED}: {guard_totals[GUARD_HYBRID_VERIFY_REJECTED]}")
+
+    if total_style_verifier_calls:
+        print(f"\nReal style-verifier (Claude) calls this batch: {total_style_verifier_calls}")
 
 
 if __name__ == "__main__":
@@ -791,17 +960,32 @@ if __name__ == "__main__":
         action="store_true",
         help="86bbch988 A/B test: use SYSTEM_PROMPT_DIFF (unified-diff-style edits) instead of explicit line numbers.",
     )
+    parser.add_argument(
+        "--hybrid-verify",
+        action="store_true",
+        help=(
+            "86bbcfpd1 (Phase 5): gate `done` on real test execution + a real generative style "
+            "verifier before accepting it. Off by default -- this is the first thing in this "
+            "file that spends real Anthropic API money, requires ANTHROPIC_API_KEY."
+        ),
+    )
     args = parser.parse_args()
 
     if args.all:
-        results = run_all_exercises(verbose=args.verbose, repeats=args.repeat, diff_format=args.diff_format)
+        results = run_all_exercises(
+            verbose=args.verbose, repeats=args.repeat, diff_format=args.diff_format, hybrid_verify=args.hybrid_verify
+        )
         _print_summary(results)
     elif args.slug:
-        result = run_exercise(args.slug, verbose=args.verbose, diff_format=args.diff_format)
+        result = run_exercise(
+            args.slug, verbose=args.verbose, diff_format=args.diff_format, hybrid_verify=args.hybrid_verify
+        )
         print(f"\n=== {result['slug']} ===")
         print(f"Status: {result['final_status']} ({result['turns_used']} turn(s) used)")
         print(f"Tests passed: {result['test_passed']}")
         print(f"Guard fires: {result['guard_fires']}")
+        if result["hybrid_verify_enabled"]:
+            print(f"Style-verifier (Claude) calls: {result['style_verifier_calls']}")
         print(f"\n--- Test output ---\n{result['test_output']}")
     else:
         parser.error("Provide a slug or use --all.")
