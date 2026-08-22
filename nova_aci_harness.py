@@ -268,9 +268,91 @@ def _repair_unterminated_string(raw: str) -> str | None:
     return None
 
 
+def _repair_missing_closing_braces(raw: str) -> str | None:
+    """
+    Real repair heuristic, added 2026-08-22 after direct evidence from the
+    86bbhckr3 checkpoint comparison (SWE-Dev-7B, SWE-Gym's openhands-lm-7b
+    checkpoint): unlike bob's missing-quote pattern above, these models'
+    edit calls were syntactically complete -- correct Python logic, the
+    inner "arguments" object properly closed -- but generation stopped one
+    token before the OUTER {"tool": ..., "arguments": {...}} wrapper got
+    its own closing brace. Verified against a real live turn
+    (nova_aci_harness.py --verbose, affine-cipher, SWE-Dev-7B): appending
+    exactly one more "}" turned an unparseable response into a valid,
+    complete tool call with the model's content completely unchanged.
+
+    Tries appending 1, then 2, extra closing braces -- this protocol nests
+    at most two levels ({"tool": ..., "arguments": {...}}), so more than
+    two missing braces would mean something beyond punctuation is wrong --
+    and only accepts a candidate that ast.literal_eval() confirms is
+    genuinely valid. Same safety property as _repair_unterminated_string():
+    repairs the TEXT, never guesses INTENT, and can't execute arbitrary
+    code.
+    """
+    stripped = raw.rstrip()
+    for extra_braces in (1, 2):
+        candidate = stripped + ("}" * extra_braces)
+        try:
+            ast.literal_eval(candidate)
+            return candidate
+        except (ValueError, SyntaxError):
+            continue
+    return None
+
+
+def _extract_first_json_object(raw: str) -> str | None:
+    """
+    Scans for the first "{" and walks forward tracking brace depth --
+    respecting quoted string content, so a brace that's just part of a
+    string value doesn't miscount -- to isolate exactly the first
+    complete {...} block in the text. Real gap found live 2026-08-22
+    (86bbhckr3 checkpoint comparison): SWE-Dev-7B and SWE-Gym's
+    openhands-lm-7b checkpoint routinely narrate ("Let me start by...")
+    before AND between multiple separate tool calls within a single
+    turn, so parsing the raw response as one object failed even though
+    each individual JSON block was itself complete and valid -- no
+    amount of edge-repair fixes that, since the problem isn't a
+    malformed object, it's several objects (plus prose) where the parser
+    expects exactly one.
+
+    This only isolates a candidate substring -- it doesn't validate it,
+    that's still _try_parse_raw()'s job. Returns None if no "{" exists,
+    or if brace depth never returns to zero (an incomplete/truncated
+    block), in which case the caller falls back to the full raw text so
+    the existing repair tiers still get a chance at it.
+    """
+    start = raw.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    in_string = False
+    string_char = ""
+    escaped = False
+    for i in range(start, len(raw)):
+        ch = raw[i]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == string_char:
+                in_string = False
+            continue
+        if ch in ("'", '"'):
+            in_string = True
+            string_char = ch
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return raw[start : i + 1]
+    return None
+
+
 def _try_parse_raw(raw: str) -> tuple[dict | None, str]:
     """
-    Three graduated attempts to turn the model's raw text into a real
+    Four graduated attempts to turn the model's raw text into a real
     Python dict, cheapest and strictest first -- the answer to "what if
     parsing didn't care about the model's exact format, only that it can be
     turned into something valid without losing meaning": (1) strict JSON,
@@ -279,31 +361,56 @@ def _try_parse_raw(raw: str) -> tuple[dict | None, str]:
     strings) that isn't valid JSON but IS valid, complete Python -- covers
     the model's real, repeated bias toward Python string conventions over
     strict JSON; (3) _repair_unterminated_string, for the specific real
-    truncation pattern found live. ast.literal_eval only evaluates literal
-    expressions (dicts/strings/numbers/etc.) -- unlike eval(), it cannot
-    execute arbitrary code, so this stays safe against untrusted model
-    output even while being lenient about its exact syntax.
+    truncation pattern found live (a missing closing quote); (4)
+    _repair_missing_closing_braces, for the specific real truncation
+    pattern found live in the 86bbhckr3 checkpoint comparison (missing
+    closing brace(s) on an otherwise-complete call). ast.literal_eval only
+    evaluates literal expressions (dicts/strings/numbers/etc.) -- unlike
+    eval(), it cannot execute arbitrary code, so this stays safe against
+    untrusted model output even while being lenient about its exact syntax.
+
+    Before any of that, _extract_first_json_object() isolates the first
+    complete {...} block out of any surrounding narration -- real gap
+    found live in the same 86bbhckr3 comparison: a response can be
+    "Let me start by... {...} Now let's... {...}", where every tier above
+    fails on the FULL response even though the first block alone is
+    perfectly valid. All four tiers then run against the extracted
+    substring first; if that whole chain comes up empty, they're retried
+    against the original raw text (covers a truncated first block, where
+    extraction itself found nothing to isolate).
 
     Returns (parsed_dict_or_None, method) where method is "json", "python",
-    or "repaired" on success -- surfaced so a real run can see which tier
-    actually did the work, not just that parsing succeeded. On total
-    failure, method carries the real json.JSONDecodeError text instead (the
-    most informative of the three failures, since strict JSON is the
-    documented contract) so the caller doesn't need to re-parse a second
-    time just to build an error message.
+    "repaired", or "repaired_brace" on success -- surfaced so a real run
+    can see which tier actually did the work, not just that parsing
+    succeeded. On total failure, method carries the real
+    json.JSONDecodeError text instead (the most informative of the four
+    failures, since strict JSON is the documented contract) so the caller
+    doesn't need to re-parse a second time just to build an error message.
     """
-    try:
-        return json.loads(raw), "json"
-    except json.JSONDecodeError as e:
-        json_error = str(e)
-    try:
-        return ast.literal_eval(raw), "python"
-    except (ValueError, SyntaxError):
-        pass
-    repaired = _repair_unterminated_string(raw)
-    if repaired is not None:
-        return ast.literal_eval(repaired), "repaired"
-    return None, json_error
+
+    def _graduated_tiers(text: str) -> tuple[dict | None, str]:
+        try:
+            return json.loads(text), "json"
+        except json.JSONDecodeError as e:
+            json_error = str(e)
+        try:
+            return ast.literal_eval(text), "python"
+        except (ValueError, SyntaxError):
+            pass
+        repaired = _repair_unterminated_string(text)
+        if repaired is not None:
+            return ast.literal_eval(repaired), "repaired"
+        repaired_brace = _repair_missing_closing_braces(text)
+        if repaired_brace is not None:
+            return ast.literal_eval(repaired_brace), "repaired_brace"
+        return None, json_error
+
+    extracted = _extract_first_json_object(raw)
+    if extracted is not None:
+        parsed, method = _graduated_tiers(extracted)
+        if parsed is not None:
+            return parsed, method
+    return _graduated_tiers(raw)
 
 
 def _parse_tool_call(raw_content: str) -> tuple[dict | None, str | None]:
@@ -530,15 +637,30 @@ def _run_real_tests(working_copy: Path, slug: str) -> tuple[bool, str]:
     ...` resolves correctly. This is the objective, runnable check that
     defines success -- never a judgment call by the model or a human
     reviewer, matching 86bbch9ak's own task-template principle.
+
+    Real gap found live 2026-08-22 (86bbhckr3 checkpoint comparison,
+    two-bucket exercise): subprocess.run's own timeout raises
+    subprocess.TimeoutExpired rather than returning normally, and that
+    wasn't caught here -- one model-generated infinite loop crashed the
+    entire run_all_exercises() batch instead of just failing that one
+    exercise. Caught now and reported as a normal (False, message) result,
+    same contract as every other failure path.
     """
     module_name = slug.replace("-", "_")
-    result = subprocess.run(
-        [sys.executable, "-m", "unittest", f"{module_name}_test", "-v"],
-        cwd=str(working_copy),
-        capture_output=True,
-        text=True,
-        timeout=TEST_TIMEOUT_SECONDS,
-    )
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "unittest", f"{module_name}_test", "-v"],
+            cwd=str(working_copy),
+            capture_output=True,
+            text=True,
+            timeout=TEST_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return False, (
+            f"REAL TEST TIMEOUT: tests did not finish within {TEST_TIMEOUT_SECONDS}s -- almost "
+            "certainly an infinite loop or blocking call in the model's own code, not a "
+            "harness/test-file problem."
+        )
     return result.returncode == 0, result.stdout + result.stderr
 
 
@@ -670,7 +792,7 @@ def run_exercise(
 
         final_status = "max_turns_reached"
         turns_used = 0
-        parse_method_counts = {"json": 0, "python": 0, "repaired": 0}
+        parse_method_counts = {"json": 0, "python": 0, "repaired": 0, "repaired_brace": 0}
         parse_failures = 0
 
         # Guard state -- see GUARD_REPEAT_FAILED_CALL/GUARD_DONE_WITHOUT_EDIT/
@@ -899,7 +1021,7 @@ def _print_summary(results: list[dict]) -> None:
     """
     total = len(results)
     passed = sum(1 for r in results if r["test_passed"])
-    totals = {"json": 0, "python": 0, "repaired": 0}
+    totals = {"json": 0, "python": 0, "repaired": 0, "repaired_brace": 0}
     total_parse_failures = 0
     guard_totals = {
         GUARD_REPEAT_FAILED_CALL: 0,
@@ -931,7 +1053,8 @@ def _print_summary(results: list[dict]) -> None:
     print("\nParse method totals across all successful tool calls:")
     print(f"  json (strict, first try): {totals['json']}")
     print(f"  python (ast.literal_eval fallback): {totals['python']}")
-    print(f"  repaired (targeted fix): {totals['repaired']}")
+    print(f"  repaired (targeted fix, missing quote): {totals['repaired']}")
+    print(f"  repaired_brace (targeted fix, missing brace): {totals['repaired_brace']}")
     print(f"  total parse failures (no tier recovered it): {total_parse_failures}")
 
     print("\nFinal status breakdown:")

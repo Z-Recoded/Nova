@@ -75,7 +75,10 @@ def build_numeric_table(results: list[dict]) -> dict[str, list[float]]:
         columns["completed"].append(0 if r["final_status"] == "max_turns_reached" else 1)
         columns["test_passed"].append(1 if r["test_passed"] else 0)
         columns["parse_failures"].append(r["parse_failures"])
-        columns["lenient_fraction"].append((pm["python"] + pm["repaired"]) / total_calls if total_calls else 0.0)
+        # Any non-strict-json tier counts as lenient -- computed as a remainder
+        # rather than naming each tier so a new repair heuristic (nova_aci_harness.py's
+        # graduated _try_parse_raw chain) is automatically included here too.
+        columns["lenient_fraction"].append((total_calls - pm["json"]) / total_calls if total_calls else 0.0)
     return columns
 
 
