@@ -119,8 +119,6 @@ C:/Nova/
 ├── ingest_manifest.json    # Tracks file mtimes for incremental ingest
 ├── start_nova.ps1          # Launches nova_api.py + Open WebUI, one command
 ├── launch_openwebui.ps1    # Open WebUI env vars + launch (called by start_nova.ps1)
-├── omen_setup_runbook.md   # HP Omen headless Ubuntu server setup — concrete step-by-step commands
-├── runpod_finetune_runbook.md # Manual steps once a rented A100 pod is RUNNING — clone, install, run both finetune stages, verify upload, terminate
 ├── memory/                 # Legacy local Chroma PersistentClient data — superseded by the Omen-hosted
 │                           # HttpClient server (see Key External Dependencies below), kept as-is, not deleted
 └── logs/
@@ -172,7 +170,7 @@ sleeps. Service-host-only for Chroma/orchestration — GPU compute added 2026-08
 Ubuntu 24.04, static IP `192.168.1.250`, Tailscale IP `100.114.197.117` (hostname `nova`). Chroma runs
 as `HttpClient` server on port 8000; `nova-api` runs on **port 8001** (not 8000 — real port
 conflict, both services defaulted there). `nova-chroma`/`nova-api` are permanent systemd units.
-Full step-by-step commands in `omen_setup_runbook.md`. Full incident narrative (stale-clone
+Full step-by-step commands in `docs/omen_setup_runbook.md`. Full incident narrative (stale-clone
 discovery, passphrase-protected deploy key, hardcoded-path bugs) in `NOVA_BUILD_LOG.md`.
 
 **Uptime Kuma (`86bb7qua2`, 2026-08-05)** — service/infra health monitoring, reachable at

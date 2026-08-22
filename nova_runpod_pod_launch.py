@@ -10,7 +10,7 @@
 # tagged tier-manual-only, and a rented pod starts billing the second it's
 # RUNNING -- the "start spending" decision stays a human running this script
 # by hand each time, not something any other script calls automatically. See
-# runpod_finetune_runbook.md for the manual steps once a pod is up (git clone,
+# docs/runpod_finetune_runbook.md for the manual steps once a pod is up (git clone,
 # pip install, run the finetune scripts, stop the pod).
 #
 # Uses raw requests against RunPod's REST API (base URL, auth header, and every
