@@ -615,11 +615,13 @@ def _hybrid_verify_gate(
     return False, nudge, True
 
 
-def run_exercise(slug: str, verbose: bool = False, diff_format: bool = False, hybrid_verify: bool = False) -> dict:
+def run_exercise(
+    slug: str, verbose: bool = False, diff_format: bool = False, hybrid_verify: bool = False, model: str = OLLAMA_MODEL
+) -> dict:
     """
-    Runs one real vendored exercise through Qwen2.5-Coder-7B via the ACI,
-    end to end. The model never sees .meta/example.py (excluded before the
-    working copy even exists) or is told a reference solution exists at
+    Runs one real vendored exercise through the given Ollama model via the
+    ACI, end to end. The model never sees .meta/example.py (excluded before
+    the working copy even exists) or is told a reference solution exists at
     all. Returns {"slug", "turns_used", "final_status", "test_passed",
     "test_output"}.
 
@@ -634,6 +636,11 @@ def run_exercise(slug: str, verbose: bool = False, diff_format: bool = False, hy
     constructs a real Anthropic client (and requires ANTHROPIC_API_KEY)
     when True, so the default path stays exactly as it was before this
     flag existed -- no new dependency, no new cost.
+
+    `model`: Ollama tag to run against, default OLLAMA_MODEL
+    (qwen2.5-coder:7b). 86bbhckr3's checkpoint-comparison override -- always
+    logged on the result (see _log_result) so a comparison run against a
+    different checkpoint never silently pools into the baseline's stats.
     """
     client = ollama.Client(host=OLLAMA_HOST)
     anthropic_client = anthropic.Anthropic() if hybrid_verify else None
@@ -694,7 +701,7 @@ def run_exercise(slug: str, verbose: bool = False, diff_format: bool = False, hy
             turns_used = turn
             messages = [messages[0]] + aci.collapse_history(messages[1:], keep_recent=HISTORY_KEEP_RECENT)
 
-            response = client.chat(model=OLLAMA_MODEL, messages=messages, options={"num_ctx": OLLAMA_NUM_CTX})
+            response = client.chat(model=model, messages=messages, options={"num_ctx": OLLAMA_NUM_CTX})
             raw_content = response["message"]["content"]
             messages.append({"role": "assistant", "content": raw_content})
 
@@ -814,6 +821,7 @@ def run_exercise(slug: str, verbose: bool = False, diff_format: bool = False, hy
         result = {
             "timestamp": datetime.now().isoformat(timespec="seconds"),
             "slug": slug,
+            "model": model,
             "diff_format": diff_format,
             "turns_used": turns_used,
             "final_status": final_status,
@@ -843,7 +851,11 @@ def _log_result(result: dict) -> None:
 
 
 def run_all_exercises(
-    verbose: bool = False, repeats: int = 1, diff_format: bool = False, hybrid_verify: bool = False
+    verbose: bool = False,
+    repeats: int = 1,
+    diff_format: bool = False,
+    hybrid_verify: bool = False,
+    model: str = OLLAMA_MODEL,
 ) -> list[dict]:
     """
     Runs every real vendored exercise under CORPUS_ROOT through
@@ -870,7 +882,9 @@ def run_all_exercises(
         for rep in range(1, repeats + 1):
             run_number += 1
             print(f"\n[{run_number}/{total_runs}] Running {slug} (rep {rep}/{repeats})...")
-            result = run_exercise(slug, verbose=verbose, diff_format=diff_format, hybrid_verify=hybrid_verify)
+            result = run_exercise(
+                slug, verbose=verbose, diff_format=diff_format, hybrid_verify=hybrid_verify, model=model
+            )
             status = "PASS" if result["test_passed"] else "FAIL"
             print(f"  -> {status} ({result['final_status']}, {result['turns_used']} turn(s))")
             results.append(result)
@@ -969,16 +983,34 @@ if __name__ == "__main__":
             "file that spends real Anthropic API money, requires ANTHROPIC_API_KEY."
         ),
     )
+    parser.add_argument(
+        "--model",
+        default=OLLAMA_MODEL,
+        metavar="TAG",
+        help=(
+            f"Ollama model tag to run against (default: {OLLAMA_MODEL}). 86bbhckr3: override to "
+            "compare an existing checkpoint (e.g. a pulled SWE-Gym-7B/SWE-Dev-7B GGUF) against "
+            "Nova's own ACI corpus. Always logged on the result so runs never mix models silently."
+        ),
+    )
     args = parser.parse_args()
 
     if args.all:
         results = run_all_exercises(
-            verbose=args.verbose, repeats=args.repeat, diff_format=args.diff_format, hybrid_verify=args.hybrid_verify
+            verbose=args.verbose,
+            repeats=args.repeat,
+            diff_format=args.diff_format,
+            hybrid_verify=args.hybrid_verify,
+            model=args.model,
         )
         _print_summary(results)
     elif args.slug:
         result = run_exercise(
-            args.slug, verbose=args.verbose, diff_format=args.diff_format, hybrid_verify=args.hybrid_verify
+            args.slug,
+            verbose=args.verbose,
+            diff_format=args.diff_format,
+            hybrid_verify=args.hybrid_verify,
+            model=args.model,
         )
         print(f"\n=== {result['slug']} ===")
         print(f"Status: {result['final_status']} ({result['turns_used']} turn(s) used)")
