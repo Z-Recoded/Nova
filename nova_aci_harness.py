@@ -572,6 +572,24 @@ def _resolve_diff_hunk(diff_text: str, path: str, root: str) -> tuple[int, int, 
     return start_line, end_line, new_content
 
 
+def _build_progress_note(turn: int, successful_edit_count: int, edit_succeeded_this_turn: bool) -> str:
+    """
+    Positive-framing counterpart to this file's existing refusal-only nudges (real gap
+    found live spot-checking 86bbjx8zp's pilot transcripts -- see run_exercise()'s own
+    `progress_framing` docstring). Always states real, checkable facts (turn count,
+    real edit count) rather than vague encouragement -- credits genuine progress when it
+    happened this turn, and otherwise just keeps the turn/edit count visible so an idle
+    run has a chance to notice its own lack of progress without being told it's wrong.
+    """
+    if edit_succeeded_this_turn:
+        credit = (
+            f"Real progress: that edit was accepted and changed the file ({successful_edit_count} real edit(s) so far)."
+        )
+    else:
+        credit = f"{successful_edit_count} real edit(s) made so far."
+    return f"\n\n[{credit} Turn {turn}/{MAX_TURNS}.]"
+
+
 def _execute_tool(call: dict, root: str, diff_format: bool = False) -> str:
     """
     Runs one ACI command by name, returns a plain-text result string to
@@ -738,7 +756,13 @@ def _hybrid_verify_gate(
 
 
 def run_exercise(
-    slug: str, verbose: bool = False, diff_format: bool = False, hybrid_verify: bool = False, model: str = OLLAMA_MODEL
+    slug: str,
+    verbose: bool = False,
+    diff_format: bool = False,
+    hybrid_verify: bool = False,
+    model: str = OLLAMA_MODEL,
+    extra_context: str = "",
+    progress_framing: bool = False,
 ) -> dict:
     """
     Runs one real vendored exercise through the given Ollama model via the
@@ -763,6 +787,23 @@ def run_exercise(
     (qwen2.5-coder:7b). 86bbhckr3's checkpoint-comparison override -- always
     logged on the result (see _log_result) so a comparison run against a
     different checkpoint never silently pools into the baseline's stats.
+
+    `extra_context`: 86bbjx8zp's shared-search-space pilot -- an optional
+    pre-formatted block of retrieved prior-attempt context, inserted into
+    the initial user message between the task description and the file
+    listing. Empty by default, so every existing call site is unaffected.
+    `retrieval_context_used` is always logged on the result (same
+    never-silently-pool discipline as `model`/`diff_format` above).
+
+    `progress_framing`: real gap found live while spot-checking 86bbjx8zp's
+    pilot transcripts -- every existing guard/nudge in this file is purely
+    prohibitive ("Refused: ..."), and a genuinely SUCCESSFUL-but-idle loop
+    (repeated `view` calls returning the same unchanged result, no other
+    action) is invisible to the model today, since nothing ever tells it
+    how much real progress it has or hasn't made. Off by default, same
+    opt-in-flag-plus-logged-axis pattern as `diff_format`/`hybrid_verify` --
+    this is an untested intervention, not yet shown to help, so it shouldn't
+    change default behavior until a real A/B batch says otherwise.
     """
     client = ollama.Client(host=OLLAMA_HOST)
     anthropic_client = anthropic.Anthropic() if hybrid_verify else None
@@ -782,12 +823,16 @@ def run_exercise(
         # starting information any real task would, rather than making it
         # guess blind.
         initial_files = aci.find_file(".py", root)
+        user_content = f"Task:\n\n{task_description}"
+        if extra_context:
+            user_content += (
+                "\n\nReference: prior attempts on similar tasks (for context only -- "
+                f"this is a different task):\n\n{extra_context}"
+            )
+        user_content += f"\n\nFiles in your working directory: {initial_files}"
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT_DIFF if diff_format else SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": f"Task:\n\n{task_description}\n\nFiles in your working directory: {initial_files}",
-            },
+            {"role": "user", "content": user_content},
         ]
 
         final_status = "max_turns_reached"
@@ -800,6 +845,7 @@ def run_exercise(
         failed_calls: set = set()
         repeat_refusal_counts: dict = {}
         has_successful_edit = False
+        successful_edit_count = 0
         done_without_edit_nudges = 0
         path_failure_counts: dict = {}
         # Real gap found live (2026-08-20): a single shared nudge budget let real test failures
@@ -916,6 +962,7 @@ def run_exercise(
                 continue
 
             tool_result = _execute_tool(call, root, diff_format=diff_format)
+            edit_succeeded_this_turn = False
             if tool == "edit" and _tool_result_failed(tool, tool_result):
                 failed_calls.add(key)
                 path = call.get("arguments", {}).get("path", "")
@@ -933,12 +980,24 @@ def run_exercise(
                 failed_calls.add(key)
             elif tool == "edit":
                 has_successful_edit = True
+                successful_edit_count += 1
+                edit_succeeded_this_turn = True
+            if progress_framing:
+                tool_result += _build_progress_note(turn, successful_edit_count, edit_succeeded_this_turn)
             messages.append({"role": "user", "content": tool_result})
             if verbose:
                 method = call.get("_parse_method", "?")
                 print(f"--- turn {turn}: ran {tool} (parsed via {method}) -> {tool_result[:300]}")
 
         test_passed, test_output = _run_real_tests(working_copy, slug)
+
+        # 86bbjx8zp: the model's final attempt at the target file, whatever it ended up
+        # with (pass or fail) -- not captured anywhere before this, needed so a caller
+        # (nova_squad_pilot.py) can use it as attempt-memory content once the temp
+        # directory this working copy lives in is gone.
+        module_name = slug.replace("-", "_")
+        solution_path = working_copy / f"{module_name}.py"
+        solution_content = solution_path.read_text(encoding="utf-8") if solution_path.exists() else ""
 
         result = {
             "timestamp": datetime.now().isoformat(timespec="seconds"),
@@ -949,6 +1008,9 @@ def run_exercise(
             "final_status": final_status,
             "test_passed": test_passed,
             "test_output": test_output,
+            "solution_content": solution_content,
+            "retrieval_context_used": bool(extra_context),
+            "progress_framing_enabled": progress_framing,
             "parse_method_counts": parse_method_counts,
             "parse_failures": parse_failures,
             "guard_fires": guard_fires,
@@ -963,11 +1025,13 @@ def run_exercise(
 
 def _log_result(result: dict) -> None:
     """
-    Appends one real run's result to RESULTS_LOG_PATH. test_output is
-    dropped from the logged copy -- verbose, not needed for analysis.
+    Appends one real run's result to RESULTS_LOG_PATH. test_output and
+    solution_content are dropped from the logged copy -- both verbose, not
+    needed for analysis; solution_content is only needed transiently by an
+    in-memory caller (nova_squad_pilot.py) before the working copy is gone.
     """
     RESULTS_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    entry = {k: v for k, v in result.items() if k != "test_output"}
+    entry = {k: v for k, v in result.items() if k not in ("test_output", "solution_content")}
     with open(RESULTS_LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
@@ -978,6 +1042,7 @@ def run_all_exercises(
     diff_format: bool = False,
     hybrid_verify: bool = False,
     model: str = OLLAMA_MODEL,
+    progress_framing: bool = False,
 ) -> list[dict]:
     """
     Runs every real vendored exercise under CORPUS_ROOT through
@@ -1005,7 +1070,12 @@ def run_all_exercises(
             run_number += 1
             print(f"\n[{run_number}/{total_runs}] Running {slug} (rep {rep}/{repeats})...")
             result = run_exercise(
-                slug, verbose=verbose, diff_format=diff_format, hybrid_verify=hybrid_verify, model=model
+                slug,
+                verbose=verbose,
+                diff_format=diff_format,
+                hybrid_verify=hybrid_verify,
+                model=model,
+                progress_framing=progress_framing,
             )
             status = "PASS" if result["test_passed"] else "FAIL"
             print(f"  -> {status} ({result['final_status']}, {result['turns_used']} turn(s))")
@@ -1116,6 +1186,16 @@ if __name__ == "__main__":
             "Nova's own ACI corpus. Always logged on the result so runs never mix models silently."
         ),
     )
+    parser.add_argument(
+        "--progress-framing",
+        action="store_true",
+        help=(
+            "Real gap found live spot-checking 86bbjx8zp's pilot transcripts: append a positive, "
+            "fact-based progress note (real edit count + turn count) to every tool result, instead "
+            "of the harness only ever speaking up to refuse a bad action. Off by default -- an "
+            "untested intervention, not yet shown to help via a real A/B batch."
+        ),
+    )
     args = parser.parse_args()
 
     if args.all:
@@ -1125,6 +1205,7 @@ if __name__ == "__main__":
             diff_format=args.diff_format,
             hybrid_verify=args.hybrid_verify,
             model=args.model,
+            progress_framing=args.progress_framing,
         )
         _print_summary(results)
     elif args.slug:
@@ -1134,6 +1215,7 @@ if __name__ == "__main__":
             diff_format=args.diff_format,
             hybrid_verify=args.hybrid_verify,
             model=args.model,
+            progress_framing=args.progress_framing,
         )
         print(f"\n=== {result['slug']} ===")
         print(f"Status: {result['final_status']} ({result['turns_used']} turn(s) used)")
