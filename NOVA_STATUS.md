@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-08-15 03:20 UTC
+Last updated: 2026-08-23 03:18 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,10 +8,12 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- No category changes since last digest.
+- ready -> in_progress: 86bbh41rk (Explore: small proxy-model validation gate for training recipe changes)
+- ready -> complete/removed: 86bbhckr3 (Evaluate existing SWE-Gym-7B/SWE-Dev-7B checkpoints against Nova ACI harness before more from-scratch training)
 
-## In progress (5)
+## In progress (6)
 
+- 86bbh41rk  Explore: small proxy-model validation gate for training recipe changes
 - 86bbcfpap  Nova Training Pipeline — Phase 1: bulk execution-free distillation from Claude
 - 86bb72gpa  Coding agent runs its own verification repeatedly but never fixes the bug it finds
 - 86bb728nj  RunPod coding agent re-issues already-successful edits, burns full 25-turn budget without progressing
@@ -32,8 +34,20 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (116)
+## Ready (128)
 
+- 86bbjtgqr  Tutor specialist v0: Obsidian → AI-generated flashcards → Anki (obsidianki)
+- 86bbjrt4d  Nova internal shape visualizer: UMAP on Chroma chunks + cross-specialist RSA
+- 86bbjrjtc  Code World Model: Generate/Improve/Fix search loop for coder specialist
+- 86bbjrjqx  Coder specialist: GIF-MCTS-style search loop (staged, git-branching storage)
+- 86bbjr89r  Squad-host KV cache persistence: llama-server slot save/restore + reverse proxy
+- 86bbh41p2  Explore: specialist-squad architecture (small models + orchestrator) vs. single frontier model
+- 86bbh0ad9  Explore: oracle-based supplemental signal for nova_corrector.py
+- 86bbfwm3y  Explore task-familiarity as a routing signal for nova_task_queue.propose_tier()
+- 86bbfwbwc  Evaluate mini-swe-agent as an alternative coding-specialist harness (head-to-head vs. Nova's ACI)
+- 86bbfw011  Eval Harness — Initiative 9: human verification UX (routed attention, not full review)
+- 86bbezc3e  Eval Harness — Initiative 8: correlation-based failure prediction
+- 86bbezc34  Eval Harness — Initiative 7: accumulated-failure tracking (integral signal)
 - 86bbch9cy  Coding specialist: explore structure-aware (AST-level) action primitives
 - 86bbch9ak  Coding specialist: define verifiable task template (narrow scope + objective check)
 - 86bbch988  Coding specialist: edit-format test plan (whole-file vs. search/replace vs. unified diff)

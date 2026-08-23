@@ -140,8 +140,15 @@ C:/nova-agent-worktrees/    # Sibling dir, outside the repo — disposable per-t
 ```
 C:/Users/marvi/OneDrive/Documents/Second Brain/
 ```
-This is Marvin's Obsidian vault. It is the corpus Nova ingests. Never write to this directory.
-Read-only always.
+This is Marvin's Obsidian vault. It is the corpus Nova ingests. Read-only always, with one
+narrow, deliberate exception (2026-08-22): `nova_vault_notes.create_research_note()` may
+create new, provenance-tagged notes inside `Second Brain/Nova Research/` — nowhere else in
+the vault, and never as an edit to an existing file. That subfolder is excluded from
+ingestion (`nova_sources.py` `IGNORE_PATTERNS`) until Marvin manually promotes a note out of
+it, mirroring the coding agent's own isolate-then-human-merges pattern. Every other write
+path into the vault stays hard-denied — `nova_tools.py`'s coding-agent primitives keep their
+existing unconditional Second Brain deny-check untouched. See
+`project_tutor_vault_write_access_question.md` for the full reasoning.
 
 ### Key External Dependencies
 - **Ollama** — local LLM runner on the Aero, model: `llama3.2` (LLaMA 3.2 3B). As of
@@ -908,7 +915,10 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 - Do not refactor code that wasn't part of the task.
 - Do not rename things without asking — naming is intentional.
 - Do not add dependencies without asking.
-- Do not write to the Second Brain directory — read-only always.
+- Do not write to the Second Brain directory — read-only always, except through
+  `nova_vault_notes.create_research_note()`, which is scoped to create-only new files inside
+  `Second Brain/Nova Research/` and nowhere else (see Section 2). Never edit an existing vault
+  file, never write outside that one subfolder, regardless of which tool is asked to do it.
 - Do not talk directly to Chroma or Ollama from new code — route through FastAPI.
 - Do not write TODO comments and leave them — either implement it or ask what to do.
 - Do not optimize prematurely. Readable first, fast later if needed.

@@ -1,6 +1,54 @@
 {
   "ready": [
     {
+      "id": "86bbjtgqr",
+      "name": "Tutor specialist v0: Obsidian \u2192 AI-generated flashcards \u2192 Anki (obsidianki)"
+    },
+    {
+      "id": "86bbjrt4d",
+      "name": "Nova internal shape visualizer: UMAP on Chroma chunks + cross-specialist RSA"
+    },
+    {
+      "id": "86bbjrjtc",
+      "name": "Code World Model: Generate/Improve/Fix search loop for coder specialist"
+    },
+    {
+      "id": "86bbjrjqx",
+      "name": "Coder specialist: GIF-MCTS-style search loop (staged, git-branching storage)"
+    },
+    {
+      "id": "86bbjr89r",
+      "name": "Squad-host KV cache persistence: llama-server slot save/restore + reverse proxy"
+    },
+    {
+      "id": "86bbh41p2",
+      "name": "Explore: specialist-squad architecture (small models + orchestrator) vs. single frontier model"
+    },
+    {
+      "id": "86bbh0ad9",
+      "name": "Explore: oracle-based supplemental signal for nova_corrector.py"
+    },
+    {
+      "id": "86bbfwm3y",
+      "name": "Explore task-familiarity as a routing signal for nova_task_queue.propose_tier()"
+    },
+    {
+      "id": "86bbfwbwc",
+      "name": "Evaluate mini-swe-agent as an alternative coding-specialist harness (head-to-head vs. Nova's ACI)"
+    },
+    {
+      "id": "86bbfw011",
+      "name": "Eval Harness \u2014 Initiative 9: human verification UX (routed attention, not full review)"
+    },
+    {
+      "id": "86bbezc3e",
+      "name": "Eval Harness \u2014 Initiative 8: correlation-based failure prediction"
+    },
+    {
+      "id": "86bbezc34",
+      "name": "Eval Harness \u2014 Initiative 7: accumulated-failure tracking (integral signal)"
+    },
+    {
       "id": "86bbch9cy",
       "name": "Coding specialist: explore structure-aware (AST-level) action primitives"
     },
@@ -466,6 +514,10 @@
     }
   ],
   "in_progress": [
+    {
+      "id": "86bbh41rk",
+      "name": "Explore: small proxy-model validation gate for training recipe changes"
+    },
     {
       "id": "86bbcfpap",
       "name": "Nova Training Pipeline \u2014 Phase 1: bulk execution-free distillation from Claude"
