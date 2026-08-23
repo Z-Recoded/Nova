@@ -134,6 +134,25 @@ GUARD_HYBRID_VERIFY_REJECTED = "hybrid_verify_rejected"
 # real test failure and a real style CONCERNS verdict, whichever the gate hits first each time.
 MAX_HYBRID_VERIFY_NUDGES = 2
 
+# Real bug found live 2026-08-23 (86bbk09da), spot-checking 86bbjzguh's progress-framing
+# transcripts: _extract_first_json_object() only ever isolates the FIRST {...} block in a
+# turn's raw text -- a model that emits two tool calls back-to-back with no narration
+# between them (e.g. `{"tool": "view", ...} {"tool": "edit", ...}`) has the second one
+# silently vanish. Never executed, never logged as failed, invisible to every other guard.
+# Confirmed live in a real scrabble-score --progress-framing transcript where this happened
+# on 12 of 15 turns (turns 3-7's real incremental edits and turns 8-15's `done` calls all
+# discarded), and via a 9-run/86-turn negative-control baseline batch (no progress-framing)
+# where it never happened once. This guard makes the drop visible and countable instead of
+# silent -- it does NOT silently execute the extra call, since SYSTEM_PROMPT's own contract
+# is exactly one tool call per turn and every historical result assumes that protocol held.
+GUARD_MULTIPLE_CALLS_IGNORED = "multiple_calls_ignored"
+
+MULTIPLE_CALLS_NUDGE = (
+    "\n\nNOTE: your response contained more than one tool call -- only the first one above "
+    "actually ran; anything after it was ignored. Respond with EXACTLY ONE JSON tool call "
+    "per turn. If you meant to also do something else, make that your next call."
+)
+
 CORPUS_ROOT = Path(__file__).parent / "data" / "coding_specialist_eval" / "exercism_subset"
 
 TEST_TIMEOUT_SECONDS = 30
@@ -348,6 +367,25 @@ def _extract_first_json_object(raw: str) -> str | None:
             if depth == 0:
                 return raw[start : i + 1]
     return None
+
+
+def _has_second_tool_call(raw: str, first_extracted: str) -> bool:
+    """
+    Real gap found live 2026-08-23 (86bbk09da): after _extract_first_json_object() isolates
+    the block that _parse_tool_call() actually used, checks whether the REMAINDER of the raw
+    text contains another complete {...} block that itself looks like a tool call (has a
+    "tool" key, single- or double-quoted). Only flags a genuine second call, not trailing
+    prose/narration, so it doesn't misfire on the harmless case _extract_first_json_object()
+    was originally built to handle.
+    """
+    idx = raw.find(first_extracted)
+    if idx == -1:
+        return False
+    remainder = raw[idx + len(first_extracted) :]
+    second = _extract_first_json_object(remainder)
+    if second is None:
+        return False
+    return re.search(r"""['"]tool['"]\s*:""", second) is not None
 
 
 def _try_parse_raw(raw: str) -> tuple[dict | None, str]:
@@ -863,6 +901,7 @@ def run_exercise(
             GUARD_DONE_WITHOUT_EDIT: 0,
             GUARD_SAME_PATH_REPEATED_FAILURE: 0,
             GUARD_HYBRID_VERIFY_REJECTED: 0,
+            GUARD_MULTIPLE_CALLS_IGNORED: 0,
         }
 
         for turn in range(1, MAX_TURNS + 1):
@@ -887,6 +926,14 @@ def run_exercise(
             parse_method_counts[call.get("_parse_method", "json")] += 1
             tool = call.get("tool")
 
+            # 86bbk09da: detect a second tool call silently sitting in this turn's raw
+            # text, beyond the one _parse_tool_call() already used -- see
+            # GUARD_MULTIPLE_CALLS_IGNORED above. Computed once per turn, applied at
+            # whichever branch below ends up sending the next user-role message.
+            stripped_raw = _strip_code_fence(raw_content)
+            first_block = _extract_first_json_object(stripped_raw) or stripped_raw
+            has_extra_call = _has_second_tool_call(stripped_raw, first_block)
+
             if tool == "done":
                 if not has_successful_edit:
                     if done_without_edit_nudges >= MAX_DONE_WITHOUT_EDIT_NUDGES:
@@ -900,6 +947,9 @@ def run_exercise(
                         f"before calling done again. ({done_without_edit_nudges}/{MAX_DONE_WITHOUT_EDIT_NUDGES} "
                         "warnings -- after this, done will be accepted as-is.)"
                     )
+                    if has_extra_call:
+                        guard_fires[GUARD_MULTIPLE_CALLS_IGNORED] += 1
+                        nudge += MULTIPLE_CALLS_NUDGE
                     messages.append({"role": "user", "content": nudge})
                     if verbose:
                         print(f"--- turn {turn}: refused done (no successful edit yet) ---")
@@ -956,6 +1006,9 @@ def run_exercise(
                         "it, and change something concrete this time, not just resend the "
                         "same arguments."
                     )
+                if has_extra_call:
+                    guard_fires[GUARD_MULTIPLE_CALLS_IGNORED] += 1
+                    refusal += MULTIPLE_CALLS_NUDGE
                 messages.append({"role": "user", "content": refusal})
                 if verbose:
                     print(f"--- turn {turn}: refused repeat of already-failed {tool} call ---")
@@ -982,6 +1035,9 @@ def run_exercise(
                 has_successful_edit = True
                 successful_edit_count += 1
                 edit_succeeded_this_turn = True
+            if has_extra_call:
+                guard_fires[GUARD_MULTIPLE_CALLS_IGNORED] += 1
+                tool_result += MULTIPLE_CALLS_NUDGE
             if progress_framing:
                 tool_result += _build_progress_note(turn, successful_edit_count, edit_succeeded_this_turn)
             messages.append({"role": "user", "content": tool_result})
@@ -1098,6 +1154,7 @@ def _print_summary(results: list[dict]) -> None:
         GUARD_DONE_WITHOUT_EDIT: 0,
         GUARD_SAME_PATH_REPEATED_FAILURE: 0,
         GUARD_HYBRID_VERIFY_REJECTED: 0,
+        GUARD_MULTIPLE_CALLS_IGNORED: 0,
     }
     status_totals: dict[str, int] = {}
     total_style_verifier_calls = 0
@@ -1136,6 +1193,7 @@ def _print_summary(results: list[dict]) -> None:
     print(f"  {GUARD_DONE_WITHOUT_EDIT}: {guard_totals[GUARD_DONE_WITHOUT_EDIT]}")
     print(f"  {GUARD_SAME_PATH_REPEATED_FAILURE}: {guard_totals[GUARD_SAME_PATH_REPEATED_FAILURE]}")
     print(f"  {GUARD_HYBRID_VERIFY_REJECTED}: {guard_totals[GUARD_HYBRID_VERIFY_REJECTED]}")
+    print(f"  {GUARD_MULTIPLE_CALLS_IGNORED}: {guard_totals[GUARD_MULTIPLE_CALLS_IGNORED]}")
 
     if total_style_verifier_calls:
         print(f"\nReal style-verifier (Claude) calls this batch: {total_style_verifier_calls}")
