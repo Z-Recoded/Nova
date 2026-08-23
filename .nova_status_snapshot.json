@@ -1,20 +1,12 @@
 {
   "ready": [
     {
-      "id": "86bbjtgqr",
-      "name": "Tutor specialist v0: Obsidian \u2192 AI-generated flashcards \u2192 Anki (obsidianki)"
-    },
-    {
       "id": "86bbjrt4d",
       "name": "Nova internal shape visualizer: UMAP on Chroma chunks + cross-specialist RSA"
     },
     {
       "id": "86bbjrjtc",
       "name": "Code World Model: Generate/Improve/Fix search loop for coder specialist"
-    },
-    {
-      "id": "86bbjrjqx",
-      "name": "Coder specialist: GIF-MCTS-style search loop (staged, git-branching storage)"
     },
     {
       "id": "86bbjr89r",
@@ -31,10 +23,6 @@
     {
       "id": "86bbfwm3y",
       "name": "Explore task-familiarity as a routing signal for nova_task_queue.propose_tier()"
-    },
-    {
-      "id": "86bbfwbwc",
-      "name": "Evaluate mini-swe-agent as an alternative coding-specialist harness (head-to-head vs. Nova's ACI)"
     },
     {
       "id": "86bbfw011",
