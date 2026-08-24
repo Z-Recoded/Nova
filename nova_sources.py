@@ -16,9 +16,20 @@ SOURCES = [
         "path": r"C:\Users\marvi\OneDrive\Documents\Second Brain",
         "project": "Second Brain",
         "description": "Obsidian vault — notes, projects, knowledge base",
+        "domain": "lore",
     },
-    {"path": NOVA_ROOT, "project": "Nova", "description": "Nova project source files and documentation"},
+    {
+        "path": NOVA_ROOT,
+        "project": "Nova",
+        "description": "Nova project source files and documentation",
+        "domain": "lore",
+    },
 ]
+
+# Nova Tutor Phase 1 (86bawnkbv) — the required domain field enforced at chunk-write time.
+# File-scanned SOURCES are always "lore" today; "tutor" chunks come from nova_tutor.py's
+# own write path (quiz/study sessions), never from ingest.py's directory scan.
+ALLOWED_DOMAINS = {"lore", "tutor"}
 
 # Set of file extensions that are supported for ingestion
 SUPPORTED_EXTENSIONS = {

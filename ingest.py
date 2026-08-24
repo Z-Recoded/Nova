@@ -12,7 +12,7 @@ import chromadb
 from chromadb.utils import embedding_functions
 from transformers import AutoTokenizer
 
-from nova_sources import IGNORE_PATTERNS, SOURCES, SUPPORTED_EXTENSIONS
+from nova_sources import ALLOWED_DOMAINS, IGNORE_PATTERNS, SOURCES, SUPPORTED_EXTENSIONS
 
 # Windows consoles default to cp1252, which can't encode the checkmark/box
 # characters in this file's progress output — force UTF-8 so a real re-ingest
@@ -142,8 +142,17 @@ def chunk_text(text, max_tokens, overlap=CHUNK_OVERLAP_TOKENS):
     return chunks
 
 
-def ingest_file(filepath, project, description):
-    """Ingest a single file into Nova's memory."""
+def ingest_file(filepath, project, description, domain):
+    """
+    Ingest a single file into Nova's memory. `domain` is required and enforced
+    at write time (Nova Tutor Phase 1, 86bawnkbv) -- every chunk must declare
+    which domain it belongs to (lore/tutor) so Phase 3's retrieval routing can
+    `$eq`-filter on it later, same shape as the existing `filename` $eq filter
+    in nova_query.py's CHARACTER_FILES lookup.
+    """
+    if domain not in ALLOWED_DOMAINS:
+        raise ValueError(f"Unknown domain '{domain}' -- must be one of {sorted(ALLOWED_DOMAINS)}")
+
     try:
         with open(filepath, encoding="utf-8", errors="ignore") as f:
             content = f.read()
@@ -167,6 +176,7 @@ def ingest_file(filepath, project, description):
                         "filename": filename,
                         "project": project,
                         "description": description,
+                        "domain": domain,
                         "chunk_index": i,
                         "total_chunks": len(chunks),
                         "links": str(links),
@@ -195,6 +205,7 @@ def run_ingestion(full: bool = False):
         path = source["path"]
         project = source["project"]
         description = source["description"]
+        domain = source["domain"]
 
         print(f"Source: {path}")
         print(f"Project: {project}\n")
@@ -223,7 +234,7 @@ def run_ingestion(full: bool = False):
                     skipped += 1
                     continue
 
-                chunks = ingest_file(filepath, project, description)
+                chunks = ingest_file(filepath, project, description, domain)
                 if chunks > 0:
                     print(f"  ✓ {filename} ({chunks} chunks)")
                     total_files += 1

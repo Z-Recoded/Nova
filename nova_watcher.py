@@ -43,8 +43,8 @@ WATCH_PATHS = [src["path"] for src in SOURCES if "Second Brain" in src["path"] o
 if not WATCH_PATHS:
     WATCH_PATHS = [src["path"] for src in SOURCES]
 
-# Build a quick lookup: path prefix → (project, description)
-SOURCE_MAP = {src["path"]: (src["project"], src["description"]) for src in SOURCES}
+# Build a quick lookup: path prefix → (project, description, domain)
+SOURCE_MAP = {src["path"]: (src["project"], src["description"], src["domain"]) for src in SOURCES}
 
 
 # ── Logging setup ──────────────────────────────────────────────
@@ -65,12 +65,12 @@ log = logging.getLogger("nova_watcher")
 # ── Source resolution ──────────────────────────────────────────
 
 
-def _resolve_source(filepath: str) -> tuple[str, str]:
-    """Return (project, description) for a file based on SOURCES config."""
-    for prefix, (project, description) in SOURCE_MAP.items():
+def _resolve_source(filepath: str) -> tuple[str, str, str]:
+    """Return (project, description, domain) for a file based on SOURCES config."""
+    for prefix, (project, description, domain) in SOURCE_MAP.items():
         if filepath.startswith(prefix):
-            return project, description
-    return "Unknown", ""
+            return project, description, domain
+    return "Unknown", "", "lore"
 
 
 # ── Debouncer ──────────────────────────────────────────────────
@@ -111,14 +111,14 @@ def _handle_change(filepath: str) -> None:
     3. Log result.
     """
     filename = os.path.basename(filepath)
-    project, description = _resolve_source(filepath)
+    project, description, domain = _resolve_source(filepath)
 
     log.info(f"Change detected: {filename}  (project={project})")
     t0 = time.monotonic()
 
     # Step 1: ingest
     try:
-        chunks = ingest_file(filepath, project, description)
+        chunks = ingest_file(filepath, project, description, domain)
     except Exception as e:
         log.error(f"Ingest failed for {filename}: {e}")
         chunks = 0
