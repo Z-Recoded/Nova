@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-08-23 05:23 UTC
+Last updated: 2026-08-24 04:01 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,7 +8,13 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- ready -> complete/removed: 86bbjrjqx (Coder specialist: GIF-MCTS-style search loop (staged, git-branching storage))
+- NEW -> ready: 86bbk1kqr (Explore self-play / asymmetric self-play for generating coder specialist training problems)
+- NEW -> ready: 86bbk03ma (Hands-on: DEAP genetic programming toy loop (population-based search exploration))
+- NEW -> ready: 86bbk03gg (Hands-on: Z3-based CEGIS toy loop (program synthesis exploration))
+- NEW -> ready: 86bbjzmhp (Claude Code session as live teacher-student loop for coder specialist (hooks-based))
+- NEW -> ready: 86bbjx8zp (Proxy pilot: does retrieval over prior similar attempts improve small-model coding competence?)
+- ready -> complete/removed: 86bb1pq3k (Deploy Open WebUI to the Omen — make it the sole always-on Nova machine)
+- ready -> complete/removed: 86bawnkbv (Nova Tutor — Phase 1: Chunk schema + storage)
 
 ## In progress (6)
 
@@ -33,8 +39,13 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (125)
+## Ready (128)
 
+- 86bbk1kqr  Explore self-play / asymmetric self-play for generating coder specialist training problems
+- 86bbk03ma  Hands-on: DEAP genetic programming toy loop (population-based search exploration)
+- 86bbk03gg  Hands-on: Z3-based CEGIS toy loop (program synthesis exploration)
+- 86bbjzmhp  Claude Code session as live teacher-student loop for coder specialist (hooks-based)
+- 86bbjx8zp  Proxy pilot: does retrieval over prior similar attempts improve small-model coding competence?
 - 86bbjrt4d  Nova internal shape visualizer: UMAP on Chroma chunks + cross-specialist RSA
 - 86bbjrjtc  Code World Model: Generate/Improve/Fix search loop for coder specialist
 - 86bbjr89r  Squad-host KV cache persistence: llama-server slot save/restore + reverse proxy
@@ -73,7 +84,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bb3p8xw  Automation Handover Package — Reusable Template
 - 86bb3ceyp  Nova Controller: push notifications (Layer 3)
 - 86bb3ceym  Nova Controller: pre-action approval gate (policy-based, not agent-judgment)
-- 86bb1pq3k  Deploy Open WebUI to the Omen — make it the sole always-on Nova machine
 - 86bb1nu7u  Prototype TabFM classifier for Nova blend-detection + routing gates
 - 86bb0wp16  Spec: Fine-Tune CI/CD Pipeline (data-volume-triggered retraining)
 - 86bb0we34  Evaluate Karakeep for tagged/indexed social content archive (content pipeline + Nova ingestion)
@@ -110,7 +120,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bawnkd9  Nova Tutor — Phase 4: Synthesis links (Claude-assisted proposal + approval)
 - 86bawnkcg  Nova Tutor — Phase 3: Domain-aware routing (primary only)
 - 86bawnkc6  Nova Tutor — Phase 2: Spaced repetition + quiz engine
-- 86bawnkbv  Nova Tutor — Phase 1: Chunk schema + storage
 - 86bawna2g  Ingestion Principles addendum — chunking discipline, Tika/Docling rejection, injection-surface note
 - 86bawna1k  Router/Governor spec — conditional router as front door to Token Budget Governor
 - 86bawna17  Hybrid Retrieval spec — dense + BM25/FTS5 fusion, cross-encoder reranker

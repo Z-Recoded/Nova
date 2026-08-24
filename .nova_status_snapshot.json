@@ -1,6 +1,26 @@
 {
   "ready": [
     {
+      "id": "86bbk1kqr",
+      "name": "Explore self-play / asymmetric self-play for generating coder specialist training problems"
+    },
+    {
+      "id": "86bbk03ma",
+      "name": "Hands-on: DEAP genetic programming toy loop (population-based search exploration)"
+    },
+    {
+      "id": "86bbk03gg",
+      "name": "Hands-on: Z3-based CEGIS toy loop (program synthesis exploration)"
+    },
+    {
+      "id": "86bbjzmhp",
+      "name": "Claude Code session as live teacher-student loop for coder specialist (hooks-based)"
+    },
+    {
+      "id": "86bbjx8zp",
+      "name": "Proxy pilot: does retrieval over prior similar attempts improve small-model coding competence?"
+    },
+    {
       "id": "86bbjrt4d",
       "name": "Nova internal shape visualizer: UMAP on Chroma chunks + cross-specialist RSA"
     },
@@ -153,10 +173,6 @@
       "name": "Nova Controller: pre-action approval gate (policy-based, not agent-judgment)"
     },
     {
-      "id": "86bb1pq3k",
-      "name": "Deploy Open WebUI to the Omen \u2014 make it the sole always-on Nova machine"
-    },
-    {
       "id": "86bb1nu7u",
       "name": "Prototype TabFM classifier for Nova blend-detection + routing gates"
     },
@@ -299,10 +315,6 @@
     {
       "id": "86bawnkc6",
       "name": "Nova Tutor \u2014 Phase 2: Spaced repetition + quiz engine"
-    },
-    {
-      "id": "86bawnkbv",
-      "name": "Nova Tutor \u2014 Phase 1: Chunk schema + storage"
     },
     {
       "id": "86bawna2g",
