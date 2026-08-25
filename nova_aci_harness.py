@@ -134,6 +134,18 @@ GUARD_HYBRID_VERIFY_REJECTED = "hybrid_verify_rejected"
 # real test failure and a real style CONCERNS verdict, whichever the gate hits first each time.
 MAX_HYBRID_VERIFY_NUDGES = 2
 
+# 86bbkru66 follow-up (2026-08-24): Sparse Vector Technique-inspired early-abandon threshold.
+# Real collapse pattern found live in the max-hybrid-nudges probe -- some runs burn their
+# entire turn budget while the real test-pass fraction gets WORSE, not better (bob:
+# 25/26 -> 0/26 passing across repeated `done` attempts). Rather than a fixed turn cap
+# discovering this only after the fact, --early-abandon tracks the best pass fraction seen
+# and stops the run once it goes EARLY_ABANDON_PATIENCE consecutive hybrid-verify checks
+# without a real improvement -- the same "only act once a cheap noisy signal crosses a
+# threshold" shape SVT uses to avoid spending a scarce budget on uninformative queries,
+# applied here to turn budget instead of privacy budget. No artificial noise added (no
+# privacy guarantee needed here) -- this is SVT-inspired sparse thresholding, not literal SVT.
+EARLY_ABANDON_PATIENCE = 2
+
 # Real bug found live 2026-08-23 (86bbk09da), spot-checking 86bbjzguh's progress-framing
 # transcripts: _extract_first_json_object() only ever isolates the FIRST {...} block in a
 # turn's raw text -- a model that emits two tool calls back-to-back with no narration
@@ -720,6 +732,23 @@ def _run_real_tests(working_copy: Path, slug: str) -> tuple[bool, str]:
     return result.returncode == 0, result.stdout + result.stderr
 
 
+def _parse_test_pass_fraction(test_output: str) -> float | None:
+    """
+    Extracts what fraction of tests passed from unittest -v's per-test lines
+    (e.g. "test_foo (module.Cls.test_foo) ... ok" / "... FAIL" / "... ERROR"),
+    for --early-abandon's stall detection. Returns None if no per-test lines
+    are found at all (e.g. a real import error that never reaches unittest's
+    own test runner) -- a real absence of signal, not a 0.0 pass rate, since
+    0.0 would misleadingly count as "no worse than last time" in the stall
+    check below.
+    """
+    outcomes = re.findall(r"^\S.* \.\.\. (ok|FAIL|ERROR)\s*$", test_output, re.MULTILINE)
+    if not outcomes:
+        return None
+    passed = sum(1 for o in outcomes if o == "ok")
+    return passed / len(outcomes)
+
+
 def _generative_style_verifier(
     client: anthropic.Anthropic, task_description: str, solution_content: str
 ) -> tuple[str, str]:
@@ -760,7 +789,7 @@ def _generative_style_verifier(
 
 def _hybrid_verify_gate(
     client: anthropic.Anthropic, working_copy: Path, slug: str, task_description: str
-) -> tuple[bool, str, bool]:
+) -> tuple[bool, str, bool, float | None]:
     """
     Phase 5's real hybrid gate (86bbcfpd1) -- runs right before a `done`
     call is accepted, when --hybrid-verify is on. Execution-based first
@@ -768,29 +797,31 @@ def _hybrid_verify_gate(
     metric already uses): a real test failure never reaches the
     generative call at all, no reason to pay for a style opinion on code
     that doesn't work yet. Execution-free second, only once tests already
-    pass. Returns (gate_passed, nudge_text, style_call_made) -- the caller
-    tallies style_call_made into the real per-run cost count regardless
-    of the verdict.
+    pass. Returns (gate_passed, nudge_text, style_call_made, pass_fraction)
+    -- the caller tallies style_call_made into the real per-run cost count
+    regardless of the verdict, and pass_fraction (86bbkru66's
+    --early-abandon follow-up) feeds the stall-detection check.
     """
     test_passed, test_output = _run_real_tests(working_copy, slug)
+    pass_fraction = _parse_test_pass_fraction(test_output)
     if not test_passed:
         nudge = (
             "Your solution does not pass the real test suite yet. Real test output:\n\n"
             f"{test_output[:1500]}\n\nFix the real failures shown above before calling done again."
         )
-        return False, nudge, False
+        return False, nudge, False, pass_fraction
 
     module_name = slug.replace("-", "_")
     solution_content = (working_copy / f"{module_name}.py").read_text(encoding="utf-8")
     verdict, reason = _generative_style_verifier(client, task_description, solution_content)
     if verdict == "ACCEPT":
-        return True, "", True
+        return True, "", True, pass_fraction
 
     nudge = (
         f"Your solution passes the real tests, but a style review flagged a real concern: {reason} "
         "Address this before calling done again."
     )
-    return False, nudge, True
+    return False, nudge, True, pass_fraction
 
 
 def run_exercise(
@@ -801,6 +832,8 @@ def run_exercise(
     model: str = OLLAMA_MODEL,
     extra_context: str = "",
     progress_framing: bool = False,
+    max_hybrid_nudges: int = MAX_HYBRID_VERIFY_NUDGES,
+    early_abandon: bool = False,
 ) -> dict:
     """
     Runs one real vendored exercise through the given Ollama model via the
@@ -842,6 +875,24 @@ def run_exercise(
     opt-in-flag-plus-logged-axis pattern as `diff_format`/`hybrid_verify` --
     this is an untested intervention, not yet shown to help, so it shouldn't
     change default behavior until a real A/B batch says otherwise.
+
+    `max_hybrid_nudges`: 86bbkr47d follow-up (2026-08-24) -- overrides
+    MAX_HYBRID_VERIFY_NUDGES for this run only. Real finding: the default
+    cap of 2 means a near-miss solution (failing only 1-4 tests) can get
+    waved through as "completed" while still failing, once both real
+    rejection budgets are spent -- untested whether more correction cycles
+    would have actually closed the gap, or whether the model was genuinely
+    stuck regardless of budget.
+
+    `early_abandon`: 86bbkru66 follow-up (2026-08-24), SVT-inspired. Real
+    collapse pattern found in the max_hybrid_nudges probe -- some runs burn
+    the entire turn budget while the real test-pass fraction gets WORSE
+    across repeated `done` attempts, not better. When on, stops the run
+    early (final_status="abandoned_no_improvement") once
+    EARLY_ABANDON_PATIENCE consecutive hybrid-verify checks pass without a
+    real improvement in test-pass fraction, instead of burning the rest of
+    MAX_TURNS on a run that isn't converging. No effect without
+    --hybrid-verify (there is no pass-fraction signal without it).
     """
     client = ollama.Client(host=OLLAMA_HOST)
     anthropic_client = anthropic.Anthropic() if hybrid_verify else None
@@ -886,6 +937,11 @@ def run_exercise(
         successful_edit_count = 0
         done_without_edit_nudges = 0
         path_failure_counts: dict = {}
+        # --early-abandon stall tracking (86bbkru66 follow-up) -- best real test-pass
+        # fraction seen so far this run, and how many consecutive hybrid-verify checks
+        # have passed with no real improvement over that best.
+        best_pass_fraction = 0.0
+        turns_without_improvement = 0
         # Real gap found live (2026-08-20): a single shared nudge budget let real test failures
         # alone exhaust it before the model ever reached a passing-tests state -- the generative
         # verifier never got a chance to participate in either of the first two real pilot runs
@@ -960,11 +1016,11 @@ def run_exercise(
                 if not hybrid_verify:
                     final_status = "completed"
                     break
-                if test_fail_nudges >= MAX_HYBRID_VERIFY_NUDGES and style_concern_nudges >= MAX_HYBRID_VERIFY_NUDGES:
+                if test_fail_nudges >= max_hybrid_nudges and style_concern_nudges >= max_hybrid_nudges:
                     final_status = "completed"
                     break
 
-                gate_passed, gate_nudge, style_call_made = _hybrid_verify_gate(
+                gate_passed, gate_nudge, style_call_made, pass_fraction = _hybrid_verify_gate(
                     anthropic_client, working_copy, slug, task_description
                 )
                 if style_call_made:
@@ -973,13 +1029,28 @@ def run_exercise(
                     final_status = "completed"
                     break
 
+                # --early-abandon (86bbkru66, SVT-inspired): stop burning turns once the
+                # real test-pass fraction stalls for EARLY_ABANDON_PATIENCE consecutive
+                # checks instead of no improvement -- the run isn't converging, so the
+                # rest of MAX_TURNS is unlikely to change that (real pattern found live:
+                # some runs got WORSE across repeated `done` attempts, never better).
+                if early_abandon and pass_fraction is not None:
+                    if pass_fraction > best_pass_fraction:
+                        best_pass_fraction = pass_fraction
+                        turns_without_improvement = 0
+                    else:
+                        turns_without_improvement += 1
+                        if turns_without_improvement >= EARLY_ABANDON_PATIENCE:
+                            final_status = "abandoned_no_improvement"
+                            break
+
                 if style_call_made:
-                    if style_concern_nudges >= MAX_HYBRID_VERIFY_NUDGES:
+                    if style_concern_nudges >= max_hybrid_nudges:
                         final_status = "completed"
                         break
                     style_concern_nudges += 1
                 else:
-                    if test_fail_nudges >= MAX_HYBRID_VERIFY_NUDGES:
+                    if test_fail_nudges >= max_hybrid_nudges:
                         final_status = "completed"
                         break
                     test_fail_nudges += 1
@@ -1074,6 +1145,8 @@ def run_exercise(
             "style_verifier_calls": style_verifier_calls,
             "test_fail_nudges": test_fail_nudges,
             "style_concern_nudges": style_concern_nudges,
+            "early_abandon_enabled": early_abandon,
+            "best_pass_fraction_seen": best_pass_fraction,
         }
         _log_result(result)
         return result
@@ -1099,6 +1172,8 @@ def run_all_exercises(
     hybrid_verify: bool = False,
     model: str = OLLAMA_MODEL,
     progress_framing: bool = False,
+    max_hybrid_nudges: int = MAX_HYBRID_VERIFY_NUDGES,
+    early_abandon: bool = False,
 ) -> list[dict]:
     """
     Runs every real vendored exercise under CORPUS_ROOT through
@@ -1132,6 +1207,8 @@ def run_all_exercises(
                 hybrid_verify=hybrid_verify,
                 model=model,
                 progress_framing=progress_framing,
+                max_hybrid_nudges=max_hybrid_nudges,
+                early_abandon=early_abandon,
             )
             status = "PASS" if result["test_passed"] else "FAIL"
             print(f"  -> {status} ({result['final_status']}, {result['turns_used']} turn(s))")
@@ -1254,6 +1331,29 @@ if __name__ == "__main__":
             "untested intervention, not yet shown to help via a real A/B batch."
         ),
     )
+    parser.add_argument(
+        "--max-hybrid-nudges",
+        type=int,
+        default=MAX_HYBRID_VERIFY_NUDGES,
+        metavar="N",
+        help=(
+            f"86bbkr47d follow-up: override MAX_HYBRID_VERIFY_NUDGES (default {MAX_HYBRID_VERIFY_NUDGES}) "
+            "for this run only, to test whether a near-miss solution needs more real "
+            "test-feedback correction cycles than the default cap allows. No effect without "
+            "--hybrid-verify."
+        ),
+    )
+    parser.add_argument(
+        "--early-abandon",
+        action="store_true",
+        help=(
+            f"86bbkru66 follow-up, SVT-inspired: stop a run early "
+            f"(final_status='abandoned_no_improvement') once EARLY_ABANDON_PATIENCE "
+            f"({EARLY_ABANDON_PATIENCE}) consecutive hybrid-verify checks pass with no real "
+            "improvement in test-pass fraction, instead of burning the rest of MAX_TURNS on a "
+            "run that isn't converging. Off by default. No effect without --hybrid-verify."
+        ),
+    )
     args = parser.parse_args()
 
     if args.all:
@@ -1264,6 +1364,8 @@ if __name__ == "__main__":
             hybrid_verify=args.hybrid_verify,
             model=args.model,
             progress_framing=args.progress_framing,
+            max_hybrid_nudges=args.max_hybrid_nudges,
+            early_abandon=args.early_abandon,
         )
         _print_summary(results)
     elif args.slug:
@@ -1274,6 +1376,8 @@ if __name__ == "__main__":
             hybrid_verify=args.hybrid_verify,
             model=args.model,
             progress_framing=args.progress_framing,
+            max_hybrid_nudges=args.max_hybrid_nudges,
+            early_abandon=args.early_abandon,
         )
         print(f"\n=== {result['slug']} ===")
         print(f"Status: {result['final_status']} ({result['turns_used']} turn(s) used)")
@@ -1281,6 +1385,8 @@ if __name__ == "__main__":
         print(f"Guard fires: {result['guard_fires']}")
         if result["hybrid_verify_enabled"]:
             print(f"Style-verifier (Claude) calls: {result['style_verifier_calls']}")
+        if result["early_abandon_enabled"]:
+            print(f"Best test-pass fraction seen: {result['best_pass_fraction_seen']:.3f}")
         print(f"\n--- Test output ---\n{result['test_output']}")
     else:
         parser.error("Provide a slug or use --all.")
