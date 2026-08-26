@@ -36,6 +36,10 @@ DEFAULT_VIEW_WINDOW_LINES = 100
 # Matches nova_completion_gate.py's own RUFF_CHECK_TIMEOUT_SECONDS.
 RUFF_CHECK_TIMEOUT_SECONDS = 20
 
+# 86bbmn9vp: edit() refuses any path ending in this suffix -- see its own
+# docstring for the real test-tampering incident that motivated this.
+TEST_FILE_SUFFIX = "_test.py"
+
 # Real leakage risk found live (2026-08-15) testing find_file/search_dir
 # against a real vendored exercise directory (data/coding_specialist_eval/
 # exercism_subset/bob/): both walked into .meta/, which holds the exercise's
@@ -192,8 +196,34 @@ def edit(
     edit" posture, just enforced by the structural gate instead of an
     old_str-uniqueness check.
 
-    Returns {"accepted": bool, "syntax_error": str | None, "lint_issues": list[str]}.
+    Real gap found live 2026-08-25/26: nothing stopped a model from editing
+    the exercise's own real test file instead of fixing a genuine bug in its
+    implementation -- caught directly in a bob transcript, where a model
+    rewrote a failing assertion's expected value to match its own (still
+    buggy) output rather than fix the missing `.strip()` call the test was
+    correctly catching, and the harness scored the tampered result a clean
+    pass. _run_real_tests()'s own docstring already states the test file is
+    "the objective, runnable check that defines success -- never a judgment
+    call by the model" -- this refusal just enforces that at the one place a
+    model could otherwise violate it. Refused before any file I/O, so a
+    refused call never touches the test file at all.
+
+    Returns {"accepted": bool, "syntax_error": str | None, "lint_issues": list[str],
+    "refused_reason": str | None}.
     """
+    if path.endswith(TEST_FILE_SUFFIX):
+        return {
+            "accepted": False,
+            "syntax_error": None,
+            "lint_issues": [],
+            "refused_reason": (
+                "Refused: this is the exercise's own real test file, the objective ground "
+                "truth this task is graded against -- it is never a file you edit. Editing it "
+                "to make your own output match instead of fixing the real bug in your "
+                "implementation would make the test meaningless. Go back to the actual "
+                "solution file and fix the real issue there."
+            ),
+        }
     resolved = _resolve_within_root(path, root)
     original_lines = resolved.read_text(encoding="utf-8").splitlines(keepends=True)
 
