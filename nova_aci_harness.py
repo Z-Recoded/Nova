@@ -789,7 +789,7 @@ def _generative_style_verifier(
 
 def _hybrid_verify_gate(
     client: anthropic.Anthropic, working_copy: Path, slug: str, task_description: str
-) -> tuple[bool, str, bool, float | None]:
+) -> tuple[bool, str, bool, float | None, str | None]:
     """
     Phase 5's real hybrid gate (86bbcfpd1) -- runs right before a `done`
     call is accepted, when --hybrid-verify is on. Execution-based first
@@ -797,10 +797,14 @@ def _hybrid_verify_gate(
     metric already uses): a real test failure never reaches the
     generative call at all, no reason to pay for a style opinion on code
     that doesn't work yet. Execution-free second, only once tests already
-    pass. Returns (gate_passed, nudge_text, style_call_made, pass_fraction)
-    -- the caller tallies style_call_made into the real per-run cost count
-    regardless of the verdict, and pass_fraction (86bbkru66's
-    --early-abandon follow-up) feeds the stall-detection check.
+    pass. Returns (gate_passed, nudge_text, style_call_made, pass_fraction,
+    solution_content) -- the caller tallies style_call_made into the real
+    per-run cost count regardless of the verdict; pass_fraction feeds the
+    stall-detection check (--early-abandon) and the regression-guard nudge
+    (--regression-guard); solution_content is the real file content at this
+    check, non-None only when the real test suite passed (86bbmj2hw --
+    regression-guard's snapshot source, since a solution is only worth
+    snapshotting once it's actually correct).
     """
     test_passed, test_output = _run_real_tests(working_copy, slug)
     pass_fraction = _parse_test_pass_fraction(test_output)
@@ -809,19 +813,19 @@ def _hybrid_verify_gate(
             "Your solution does not pass the real test suite yet. Real test output:\n\n"
             f"{test_output[:1500]}\n\nFix the real failures shown above before calling done again."
         )
-        return False, nudge, False, pass_fraction
+        return False, nudge, False, pass_fraction, None
 
     module_name = slug.replace("-", "_")
     solution_content = (working_copy / f"{module_name}.py").read_text(encoding="utf-8")
     verdict, reason = _generative_style_verifier(client, task_description, solution_content)
     if verdict == "ACCEPT":
-        return True, "", True, pass_fraction
+        return True, "", True, pass_fraction, solution_content
 
     nudge = (
         f"Your solution passes the real tests, but a style review flagged a real concern: {reason} "
         "Address this before calling done again."
     )
-    return False, nudge, True, pass_fraction
+    return False, nudge, True, pass_fraction, solution_content
 
 
 def run_exercise(
@@ -834,6 +838,7 @@ def run_exercise(
     progress_framing: bool = False,
     max_hybrid_nudges: int = MAX_HYBRID_VERIFY_NUDGES,
     early_abandon: bool = False,
+    regression_guard: bool = False,
 ) -> dict:
     """
     Runs one real vendored exercise through the given Ollama model via the
@@ -893,6 +898,24 @@ def run_exercise(
     real improvement in test-pass fraction, instead of burning the rest of
     MAX_TURNS on a run that isn't converging. No effect without
     --hybrid-verify (there is no pass-fraction signal without it).
+
+    `regression_guard`: 86bbmj2hw, filed after a verbose re-run of an
+    --early-abandon transcript (octal, 2026-08-25) showed the real cause of
+    that collapse pattern -- a model reached a genuinely 100%-passing
+    solution, the style verifier rejected it anyway, and the "fix" attempt
+    introduced a real regression (a nested `def` shadowing itself) that was
+    never recovered, silently discarding the working solution. Two parts,
+    both gated by this one flag: (1) when a hybrid-verify check's pass
+    fraction drops below the run's best-seen, the nudge sent back to the
+    model gets an explicit "you regressed from X% to Y%" line, turning the
+    tracked signal into real corrective feedback instead of only feeding
+    --early-abandon's internal stall counter; (2) if the run still ends
+    without a passing solution but a fully-passing (pass_fraction == 1.0)
+    snapshot was seen earlier, that snapshot is restored to disk and
+    re-verified before final scoring, so a real regression-during-nudging
+    doesn't cost a run that already had a correct answer. `snapshot_restored`
+    is logged on the result whenever restoration actually happened. No
+    effect without --hybrid-verify (same reason as --early-abandon).
     """
     client = ollama.Client(host=OLLAMA_HOST)
     anthropic_client = anthropic.Anthropic() if hybrid_verify else None
@@ -937,11 +960,17 @@ def run_exercise(
         successful_edit_count = 0
         done_without_edit_nudges = 0
         path_failure_counts: dict = {}
-        # --early-abandon stall tracking (86bbkru66 follow-up) -- best real test-pass
-        # fraction seen so far this run, and how many consecutive hybrid-verify checks
-        # have passed with no real improvement over that best.
+        # Real test-pass-fraction tracking, shared by --early-abandon and --regression-guard
+        # (86bbmj2hw) -- tracked unconditionally whenever hybrid_verify is on, since both
+        # flags need the same underlying signal: the best real pass fraction seen so far
+        # this run, the real file content at the moment that best was reached (only ever
+        # set when pass_fraction == 1.0 -- a solution is only worth snapshotting once it's
+        # actually correct), and how many consecutive hybrid-verify checks have passed with
+        # no real improvement over that best (--early-abandon's stall counter).
         best_pass_fraction = 0.0
+        best_snapshot_content: str | None = None
         turns_without_improvement = 0
+        snapshot_restored = False
         # Real gap found live (2026-08-20): a single shared nudge budget let real test failures
         # alone exhaust it before the model ever reached a passing-tests state -- the generative
         # verifier never got a chance to participate in either of the first two real pilot runs
@@ -1020,7 +1049,7 @@ def run_exercise(
                     final_status = "completed"
                     break
 
-                gate_passed, gate_nudge, style_call_made, pass_fraction = _hybrid_verify_gate(
+                gate_passed, gate_nudge, style_call_made, pass_fraction, solution_content = _hybrid_verify_gate(
                     anthropic_client, working_copy, slug, task_description
                 )
                 if style_call_made:
@@ -1029,20 +1058,43 @@ def run_exercise(
                     final_status = "completed"
                     break
 
-                # --early-abandon (86bbkru66, SVT-inspired): stop burning turns once the
-                # real test-pass fraction stalls for EARLY_ABANDON_PATIENCE consecutive
-                # checks instead of no improvement -- the run isn't converging, so the
-                # rest of MAX_TURNS is unlikely to change that (real pattern found live:
-                # some runs got WORSE across repeated `done` attempts, never better).
-                if early_abandon and pass_fraction is not None:
+                # Real test-pass-fraction tracking, shared by --early-abandon and
+                # --regression-guard (86bbmj2hw) -- updated whenever this check produced a
+                # real fraction, regardless of which flag is on, so both features see the
+                # same signal without duplicating the bookkeeping.
+                regressed_from = None
+                if pass_fraction is not None:
                     if pass_fraction > best_pass_fraction:
                         best_pass_fraction = pass_fraction
+                        if solution_content is not None:
+                            best_snapshot_content = solution_content
                         turns_without_improvement = 0
                     else:
+                        if pass_fraction < best_pass_fraction:
+                            regressed_from = best_pass_fraction
                         turns_without_improvement += 1
-                        if turns_without_improvement >= EARLY_ABANDON_PATIENCE:
+                        # --early-abandon (SVT-inspired): stop burning turns once the real
+                        # test-pass fraction stalls for EARLY_ABANDON_PATIENCE consecutive
+                        # checks instead of improving -- the run isn't converging, so the
+                        # rest of MAX_TURNS is unlikely to change that (real pattern found
+                        # live: some runs got WORSE across repeated `done` attempts, never
+                        # better).
+                        if early_abandon and turns_without_improvement >= EARLY_ABANDON_PATIENCE:
                             final_status = "abandoned_no_improvement"
                             break
+
+                # --regression-guard (86bbmj2hw): a real drop below the run's best-seen
+                # fraction means the model just broke something that used to work (found
+                # live: a passing int(digits, 8) solution replaced by a self-shadowing
+                # nested def while chasing a style nudge). Say so explicitly rather than
+                # only feeding the drop into --early-abandon's internal stall counter.
+                if regression_guard and regressed_from is not None:
+                    gate_nudge += (
+                        f"\n\nNote: you previously reached a {regressed_from:.0%} real test "
+                        f"pass rate, but this attempt only reaches {pass_fraction:.0%} -- you "
+                        "have regressed. Consider reverting toward your earlier approach "
+                        "rather than continuing further down this one."
+                    )
 
                 if style_call_made:
                     if style_concern_nudges >= max_hybrid_nudges:
@@ -1118,6 +1170,21 @@ def run_exercise(
 
         test_passed, test_output = _run_real_tests(working_copy, slug)
 
+        # --regression-guard (86bbmj2hw): if the run still ended without a passing
+        # solution but a genuinely 100%-passing snapshot was seen earlier this run,
+        # restore it to disk and re-verify before final scoring -- otherwise a real
+        # regression introduced while chasing a style nudge (found live: octal,
+        # 2026-08-25 -- a passing int(digits, 8) solution replaced by a self-shadowing
+        # nested def) silently costs a run that already had a correct answer.
+        if regression_guard and not test_passed and best_snapshot_content is not None:
+            restore_module_name = slug.replace("-", "_")
+            restore_path = working_copy / f"{restore_module_name}.py"
+            restore_path.write_text(best_snapshot_content, encoding="utf-8")
+            restored_passed, restored_output = _run_real_tests(working_copy, slug)
+            if restored_passed:
+                test_passed, test_output = restored_passed, restored_output
+                snapshot_restored = True
+
         # 86bbjx8zp: the model's final attempt at the target file, whatever it ended up
         # with (pass or fail) -- not captured anywhere before this, needed so a caller
         # (nova_squad_pilot.py) can use it as attempt-memory content once the temp
@@ -1147,6 +1214,8 @@ def run_exercise(
             "style_concern_nudges": style_concern_nudges,
             "early_abandon_enabled": early_abandon,
             "best_pass_fraction_seen": best_pass_fraction,
+            "regression_guard_enabled": regression_guard,
+            "snapshot_restored": snapshot_restored,
         }
         _log_result(result)
         return result
@@ -1174,6 +1243,7 @@ def run_all_exercises(
     progress_framing: bool = False,
     max_hybrid_nudges: int = MAX_HYBRID_VERIFY_NUDGES,
     early_abandon: bool = False,
+    regression_guard: bool = False,
 ) -> list[dict]:
     """
     Runs every real vendored exercise under CORPUS_ROOT through
@@ -1209,6 +1279,7 @@ def run_all_exercises(
                 progress_framing=progress_framing,
                 max_hybrid_nudges=max_hybrid_nudges,
                 early_abandon=early_abandon,
+                regression_guard=regression_guard,
             )
             status = "PASS" if result["test_passed"] else "FAIL"
             print(f"  -> {status} ({result['final_status']}, {result['turns_used']} turn(s))")
@@ -1354,6 +1425,18 @@ if __name__ == "__main__":
             "run that isn't converging. Off by default. No effect without --hybrid-verify."
         ),
     )
+    parser.add_argument(
+        "--regression-guard",
+        action="store_true",
+        help=(
+            "86bbmj2hw: when a hybrid-verify check's real test-pass fraction drops below the "
+            "run's best-seen, tell the model explicitly it regressed (real X% -> Y% line "
+            "appended to the nudge) instead of only feeding the drop into --early-abandon's "
+            "internal stall counter, and restore+re-verify a genuinely 100%-passing snapshot "
+            "at run end if the final state never recovered one. Off by default. No effect "
+            "without --hybrid-verify."
+        ),
+    )
     args = parser.parse_args()
 
     if args.all:
@@ -1366,6 +1449,7 @@ if __name__ == "__main__":
             progress_framing=args.progress_framing,
             max_hybrid_nudges=args.max_hybrid_nudges,
             early_abandon=args.early_abandon,
+            regression_guard=args.regression_guard,
         )
         _print_summary(results)
     elif args.slug:
@@ -1378,6 +1462,7 @@ if __name__ == "__main__":
             progress_framing=args.progress_framing,
             max_hybrid_nudges=args.max_hybrid_nudges,
             early_abandon=args.early_abandon,
+            regression_guard=args.regression_guard,
         )
         print(f"\n=== {result['slug']} ===")
         print(f"Status: {result['final_status']} ({result['turns_used']} turn(s) used)")
@@ -1387,6 +1472,8 @@ if __name__ == "__main__":
             print(f"Style-verifier (Claude) calls: {result['style_verifier_calls']}")
         if result["early_abandon_enabled"]:
             print(f"Best test-pass fraction seen: {result['best_pass_fraction_seen']:.3f}")
+        if result["regression_guard_enabled"]:
+            print(f"Snapshot restored: {result['snapshot_restored']}")
         print(f"\n--- Test output ---\n{result['test_output']}")
     else:
         parser.error("Provide a slug or use --all.")
