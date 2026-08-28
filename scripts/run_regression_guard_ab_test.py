@@ -2,7 +2,7 @@
 # Real A/B batch for the --regression-guard flag (nova_aci_harness.py, 86bbmj2hw),
 # following the same real-batch-A/B methodology as
 # scripts/run_early_abandon_ab_test.py: full corpus, baseline vs. the variant flag,
-# repeat=2 per condition for real-sampling noise (Ollama isn't deterministic).
+# repeat=N per condition for real-sampling noise (Ollama isn't deterministic).
 #
 # Both conditions run with hybrid_verify=True -- regression-guard has no effect without
 # it, since there is no pass-fraction signal to track otherwise. The question this
@@ -11,7 +11,13 @@
 # actually recover real pass rate, and does the regression-aware nudge text change model
 # behavior at all?
 #
-# Usage: nova-env/Scripts/python.exe scripts/run_regression_guard_ab_test.py
+# The first real run (2026-08-25, repeat=2) found pass rate doubling (6/60 -> 12/60) with
+# one direct causal restore proof (octal) -- encouraging but not disentangled from ordinary
+# Ollama sampling noise at only n=2/condition. --repeat defaults to 4 here (double the
+# original sample) to firm that finding up before considering promoting the flag out of
+# opt-in.
+#
+# Usage: nova-env/Scripts/python.exe scripts/run_regression_guard_ab_test.py [--repeat N]
 
 import argparse
 import sys
@@ -21,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from nova_aci_harness import OLLAMA_MODEL, run_all_exercises  # noqa: E402
 
-REPEATS = 2
+DEFAULT_REPEATS = 4
 
 
 def _stats(results: list[dict]) -> dict:
@@ -54,16 +60,25 @@ def main() -> None:
     parser.add_argument(
         "--model", default=OLLAMA_MODEL, metavar="TAG", help=f"Ollama model tag (default: {OLLAMA_MODEL})."
     )
+    parser.add_argument(
+        "--repeat",
+        type=int,
+        default=DEFAULT_REPEATS,
+        metavar="N",
+        help=f"Repeats per condition (default: {DEFAULT_REPEATS}).",
+    )
     args = parser.parse_args()
 
-    print(f"=== Regression-guard A/B test (86bbmj2hw) -- model={args.model}, repeat={REPEATS} per condition ===")
+    print(f"=== Regression-guard A/B test (86bbmj2hw) -- model={args.model}, repeat={args.repeat} per condition ===")
     print("Both conditions run with --hybrid-verify on.\n")
 
     print(">>> Condition: baseline (hybrid_verify=True, regression_guard=False)")
-    baseline_results = run_all_exercises(repeats=REPEATS, hybrid_verify=True, regression_guard=False, model=args.model)
+    baseline_results = run_all_exercises(
+        repeats=args.repeat, hybrid_verify=True, regression_guard=False, model=args.model
+    )
 
     print("\n>>> Condition: regression-guard (hybrid_verify=True, regression_guard=True)")
-    guard_results = run_all_exercises(repeats=REPEATS, hybrid_verify=True, regression_guard=True, model=args.model)
+    guard_results = run_all_exercises(repeats=args.repeat, hybrid_verify=True, regression_guard=True, model=args.model)
 
     baseline_stats = _stats(baseline_results)
     guard_stats = _stats(guard_results)

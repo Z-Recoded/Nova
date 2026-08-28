@@ -134,7 +134,9 @@ GUARD_HYBRID_VERIFY_REJECTED = "hybrid_verify_rejected"
 # real test failure and a real style CONCERNS verdict, whichever the gate hits first each time.
 MAX_HYBRID_VERIFY_NUDGES = 2
 
-# 86bbkru66 follow-up (2026-08-24): Sparse Vector Technique-inspired early-abandon threshold.
+# No ClickUp ticket filed (built ad hoc, 2026-08-24) -- Sparse Vector Technique-inspired
+# early-abandon threshold. Comments here previously mislabeled this "86bbkru66 follow-up";
+# that ID is a real, unrelated ticket (multi-agent scaling limits) -- corrected 2026-08-26.
 # Real collapse pattern found live in the max-hybrid-nudges probe -- some runs burn their
 # entire turn budget while the real test-pass fraction gets WORSE, not better (bob:
 # 25/26 -> 0/26 passing across repeated `done` attempts). Rather than a fixed turn cap
@@ -838,7 +840,7 @@ def run_exercise(
     progress_framing: bool = False,
     max_hybrid_nudges: int = MAX_HYBRID_VERIFY_NUDGES,
     early_abandon: bool = False,
-    regression_guard: bool = False,
+    regression_guard: bool = True,
 ) -> dict:
     """
     Runs one real vendored exercise through the given Ollama model via the
@@ -889,7 +891,7 @@ def run_exercise(
     would have actually closed the gap, or whether the model was genuinely
     stuck regardless of budget.
 
-    `early_abandon`: 86bbkru66 follow-up (2026-08-24), SVT-inspired. Real
+    `early_abandon`: no ClickUp ticket filed (2026-08-24), SVT-inspired. Real
     collapse pattern found in the max_hybrid_nudges probe -- some runs burn
     the entire turn budget while the real test-pass fraction gets WORSE
     across repeated `done` attempts, not better. When on, stops the run
@@ -916,6 +918,12 @@ def run_exercise(
     doesn't cost a run that already had a correct answer. `snapshot_restored`
     is logged on the result whenever restoration actually happened. No
     effect without --hybrid-verify (same reason as --early-abandon).
+
+    Promoted to on-by-default 2026-08-27 after 3 real A/B batches
+    (n=210/condition combined: 27/210 baseline vs. 34/210 with the guard, 5
+    real causal snapshot restores, zero net-negative batches) -- see
+    memory `project_early_abandon_ab_and_snapshot_finding.md`. Pass
+    `--no-regression-guard` to opt back out.
     """
     client = ollama.Client(host=OLLAMA_HOST)
     anthropic_client = anthropic.Anthropic() if hybrid_verify else None
@@ -1243,7 +1251,7 @@ def run_all_exercises(
     progress_framing: bool = False,
     max_hybrid_nudges: int = MAX_HYBRID_VERIFY_NUDGES,
     early_abandon: bool = False,
-    regression_guard: bool = False,
+    regression_guard: bool = True,
 ) -> list[dict]:
     """
     Runs every real vendored exercise under CORPUS_ROOT through
@@ -1418,7 +1426,7 @@ if __name__ == "__main__":
         "--early-abandon",
         action="store_true",
         help=(
-            f"86bbkru66 follow-up, SVT-inspired: stop a run early "
+            f"SVT-inspired (no ClickUp ticket filed): stop a run early "
             f"(final_status='abandoned_no_improvement') once EARLY_ABANDON_PATIENCE "
             f"({EARLY_ABANDON_PATIENCE}) consecutive hybrid-verify checks pass with no real "
             "improvement in test-pass fraction, instead of burning the rest of MAX_TURNS on a "
@@ -1426,15 +1434,19 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
-        "--regression-guard",
-        action="store_true",
+        "--no-regression-guard",
+        dest="regression_guard",
+        action="store_false",
+        default=True,
         help=(
-            "86bbmj2hw: when a hybrid-verify check's real test-pass fraction drops below the "
-            "run's best-seen, tell the model explicitly it regressed (real X% -> Y% line "
-            "appended to the nudge) instead of only feeding the drop into --early-abandon's "
-            "internal stall counter, and restore+re-verify a genuinely 100%-passing snapshot "
-            "at run end if the final state never recovered one. Off by default. No effect "
-            "without --hybrid-verify."
+            "86bbmj2hw: opt OUT of the regression guard (on by default as of 2026-08-27, "
+            "promoted after 3 real A/B batches showed a modest real pass-rate edge with no "
+            "net-negative batch -- see project_early_abandon_ab_and_snapshot_finding.md). When "
+            "on: a hybrid-verify check's real test-pass fraction dropping below the run's "
+            "best-seen tells the model explicitly it regressed (real X%% -> Y%% line appended to "
+            "the nudge) instead of only feeding the drop into --early-abandon's internal stall "
+            "counter, and a genuinely 100%%-passing snapshot is restored+re-verified at run end "
+            "if the final state never recovered one. No effect without --hybrid-verify."
         ),
     )
     args = parser.parse_args()

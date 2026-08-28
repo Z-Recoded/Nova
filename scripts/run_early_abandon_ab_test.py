@@ -1,5 +1,6 @@
 # scripts/run_early_abandon_ab_test.py
-# Real A/B batch for the --early-abandon flag (nova_aci_harness.py, 86bbkru66), following
+# Real A/B batch for the --early-abandon flag (nova_aci_harness.py, no ClickUp ticket filed),
+# following
 # the same real-batch-A/B methodology as scripts/run_progress_framing_ab_test.py: full
 # corpus, baseline vs. the variant flag, repeat=2 per condition for real-sampling noise
 # (Ollama isn't deterministic).
@@ -47,13 +48,13 @@ def main() -> None:
     if sys.platform == "win32":
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-    parser = argparse.ArgumentParser(description="86bbkru66: early-abandon A/B batch.")
+    parser = argparse.ArgumentParser(description="early-abandon A/B batch.")
     parser.add_argument(
         "--model", default=OLLAMA_MODEL, metavar="TAG", help=f"Ollama model tag (default: {OLLAMA_MODEL})."
     )
     args = parser.parse_args()
 
-    print(f"=== Early-abandon A/B test (86bbkru66) -- model={args.model}, repeat={REPEATS} per condition ===")
+    print(f"=== Early-abandon A/B test -- model={args.model}, repeat={REPEATS} per condition ===")
     print("Both conditions run with --hybrid-verify on.\n")
 
     print(">>> Condition: baseline (hybrid_verify=True, early_abandon=False)")
@@ -65,7 +66,7 @@ def main() -> None:
     baseline_stats = _stats(baseline_results)
     early_abandon_stats = _stats(early_abandon_results)
 
-    print("\n\n=== A/B summary: early-abandon vs. baseline (86bbkru66) ===")
+    print("\n\n=== A/B summary: early-abandon vs. baseline ===")
     print(f"{'Condition':<18} {'Pass rate':<14} {'Avg turns':<12} {'Total guard fires'}")
     print(
         f"{'baseline':<18} "
