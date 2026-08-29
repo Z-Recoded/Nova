@@ -759,16 +759,37 @@ def _generative_style_verifier(
     generative judgment call, not a simple classifier, per Eval Harness
     Initiative 3's own explicit preference ("generative verifiers hold up
     much better on novel, out-of-domain failures"). No `tools` argument --
-    a judge, never a writer. Returns (verdict, reason); reason is empty on
-    ACCEPT.
+    a judge, never a writer.
+
+    Returns (verdict, reason) where verdict is one of:
+      "ACCEPT" -- no concern, reason is empty.
+      "GAMED"  -- output values copied from the visible test cases rather
+                  than a genuine implementation. A real correctness/cheating
+                  issue, blocks `done` regardless of flags.
+      "IDIOM"  -- genuine implementation, but clearly unidiomatic Python.
+                  A subjective style opinion -- only blocks `done` when
+                  --advisory-idiom is off (see _hybrid_verify_gate).
+
+    The old two-in-one "CONCERNS" verdict was split into GAMED vs. IDIOM
+    for 86bbcfv9d (Eval Harness Initiative 2, "audit existing gates
+    individually"): the two carry very different stakes, and treating an
+    idiom nudge with the same blocking force as a gaming flag is the
+    confirmed trigger for the `octal` loss-of-working-solution failure
+    (docs/aci-hybrid-verify-gate-audit.md). The categorization itself is
+    unconditional -- every hybrid-verify run logs which one fired, so we
+    have real GAMED-vs-IDIOM data before deciding whether to promote the
+    flag. An unrecognized reply falls back to ACCEPT (fail open -- a judge
+    that can't answer clearly should not block a solution that already
+    passes every real test).
     """
     system = (
         "You are reviewing a real solution to a small coding exercise for two specific things, "
         "not general code quality: (1) a gamed or hardcoded solution -- output values copied "
         "from the visible test cases rather than a genuine implementation of the described "
         "logic, and (2) clearly unidiomatic Python that a competent developer would not write. "
-        "If neither applies, respond with exactly: ACCEPT. Otherwise respond with exactly: "
-        "CONCERNS: <one sentence reason>."
+        "If neither applies, respond with exactly: ACCEPT. If (1) applies, respond with exactly: "
+        "GAMED: <one sentence reason>. If only (2) applies, respond with exactly: "
+        "IDIOM: <one sentence reason>."
     )
     message = client.messages.create(
         model=NOVA_AGENT_MODEL,
@@ -783,15 +804,22 @@ def _generative_style_verifier(
     )
     text_blocks = [block.text for block in message.content if block.type == "text"]
     verdict_text = text_blocks[0].strip() if text_blocks else "ACCEPT"
-    if verdict_text.upper().startswith("ACCEPT"):
-        return "ACCEPT", ""
+    upper = verdict_text.upper()
     reason = verdict_text.split(":", 1)[1].strip() if ":" in verdict_text else verdict_text
-    return "CONCERNS", reason
+    if upper.startswith("GAMED"):
+        return "GAMED", reason
+    if upper.startswith("IDIOM"):
+        return "IDIOM", reason
+    return "ACCEPT", ""
 
 
 def _hybrid_verify_gate(
-    client: anthropic.Anthropic, working_copy: Path, slug: str, task_description: str
-) -> tuple[bool, str, bool, float | None, str | None]:
+    client: anthropic.Anthropic,
+    working_copy: Path,
+    slug: str,
+    task_description: str,
+    advisory_idiom: bool = False,
+) -> tuple[bool, str, bool, float | None, str | None, str | None, str]:
     """
     Phase 5's real hybrid gate (86bbcfpd1) -- runs right before a `done`
     call is accepted, when --hybrid-verify is on. Execution-based first
@@ -799,14 +827,27 @@ def _hybrid_verify_gate(
     metric already uses): a real test failure never reaches the
     generative call at all, no reason to pay for a style opinion on code
     that doesn't work yet. Execution-free second, only once tests already
-    pass. Returns (gate_passed, nudge_text, style_call_made, pass_fraction,
-    solution_content) -- the caller tallies style_call_made into the real
-    per-run cost count regardless of the verdict; pass_fraction feeds the
-    stall-detection check (--early-abandon) and the regression-guard nudge
-    (--regression-guard); solution_content is the real file content at this
-    check, non-None only when the real test suite passed (86bbmj2hw --
-    regression-guard's snapshot source, since a solution is only worth
-    snapshotting once it's actually correct).
+    pass.
+
+    Returns (gate_passed, nudge_text, style_call_made, pass_fraction,
+    solution_content, style_verdict, style_reason):
+      - the caller tallies style_call_made into the real per-run cost count
+        regardless of the verdict;
+      - pass_fraction feeds the stall-detection check (--early-abandon) and
+        the regression-guard nudge (--regression-guard);
+      - solution_content is the real file content at this check, non-None
+        only when the real test suite passed (86bbmj2hw -- regression-guard's
+        snapshot source, since a solution is only worth snapshotting once
+        it's actually correct);
+      - style_verdict is None when the tests failed (no style call was
+        made), else "ACCEPT" / "GAMED" / "IDIOM";
+      - style_reason is the one-sentence explanation for GAMED/IDIOM, "" otherwise.
+
+    `advisory_idiom` (86bbcfv9d): when True, an IDIOM verdict (passes every
+    real test, just unidiomatic) does NOT block `done` -- it's logged and
+    accepted. GAMED still blocks unconditionally. When False, both GAMED and
+    IDIOM block, preserving the pre-split behavior. See
+    docs/aci-hybrid-verify-gate-audit.md.
     """
     test_passed, test_output = _run_real_tests(working_copy, slug)
     pass_fraction = _parse_test_pass_fraction(test_output)
@@ -815,19 +856,31 @@ def _hybrid_verify_gate(
             "Your solution does not pass the real test suite yet. Real test output:\n\n"
             f"{test_output[:1500]}\n\nFix the real failures shown above before calling done again."
         )
-        return False, nudge, False, pass_fraction, None
+        return False, nudge, False, pass_fraction, None, None, ""
 
     module_name = slug.replace("-", "_")
     solution_content = (working_copy / f"{module_name}.py").read_text(encoding="utf-8")
     verdict, reason = _generative_style_verifier(client, task_description, solution_content)
     if verdict == "ACCEPT":
-        return True, "", True, pass_fraction, solution_content
+        return True, "", True, pass_fraction, solution_content, verdict, reason
 
-    nudge = (
-        f"Your solution passes the real tests, but a style review flagged a real concern: {reason} "
-        "Address this before calling done again."
-    )
-    return False, nudge, True, pass_fraction, solution_content
+    if verdict == "IDIOM" and advisory_idiom:
+        # Advisory only -- the solution passes every real test; an idiom
+        # opinion is not worth risking the model breaking it to chase.
+        return True, "", True, pass_fraction, solution_content, verdict, reason
+
+    if verdict == "GAMED":
+        nudge = (
+            f"Your solution passes the real tests, but a review flagged it as a likely gamed or "
+            f"hardcoded solution: {reason} Replace it with a genuine implementation of the "
+            "described logic before calling done again."
+        )
+    else:
+        nudge = (
+            f"Your solution passes the real tests, but a style review flagged a real concern: {reason} "
+            "Address this before calling done again."
+        )
+    return False, nudge, True, pass_fraction, solution_content, verdict, reason
 
 
 def run_exercise(
@@ -841,6 +894,7 @@ def run_exercise(
     max_hybrid_nudges: int = MAX_HYBRID_VERIFY_NUDGES,
     early_abandon: bool = False,
     regression_guard: bool = True,
+    advisory_idiom: bool = False,
 ) -> dict:
     """
     Runs one real vendored exercise through the given Ollama model via the
@@ -924,6 +978,18 @@ def run_exercise(
     real causal snapshot restores, zero net-negative batches) -- see
     memory `project_early_abandon_ab_and_snapshot_finding.md`. Pass
     `--no-regression-guard` to opt back out.
+
+    `advisory_idiom`: 86bbcfv9d (Eval Harness Initiative 2, "audit existing
+    gates individually"). The generative style verifier now categorizes its
+    concern as GAMED (copied test outputs -- a real cheating issue) or IDIOM
+    (passes honestly, just unidiomatic). When this flag is on, an IDIOM
+    verdict is logged and accepted rather than blocking `done` -- an idiom
+    nudge on an already-passing solution is the confirmed trigger for the
+    octal loss-of-working-solution failure that `regression_guard` only
+    catches after the fact. GAMED always blocks. Off by default (preserves
+    the pre-split block-both behavior); promote later only if a real A/B
+    batch supports it. No effect without --hybrid-verify. See
+    docs/aci-hybrid-verify-gate-audit.md.
     """
     client = ollama.Client(host=OLLAMA_HOST)
     anthropic_client = anthropic.Anthropic() if hybrid_verify else None
@@ -989,6 +1055,11 @@ def run_exercise(
         test_fail_nudges = 0
         style_concern_nudges = 0
         style_verifier_calls = 0
+        # 86bbcfv9d: the style verifier's verdict is now 3-way (ACCEPT/GAMED/IDIOM). Track
+        # the split so every hybrid-verify run has real data on which concern fired, and
+        # (when --advisory-idiom is on) surface the accepted idiom note on the result.
+        style_idiom_note: str | None = None
+        style_gamed_rejections = 0
         guard_fires = {
             GUARD_REPEAT_FAILED_CALL: 0,
             GUARD_DONE_WITHOUT_EDIT: 0,
@@ -1057,11 +1128,24 @@ def run_exercise(
                     final_status = "completed"
                     break
 
-                gate_passed, gate_nudge, style_call_made, pass_fraction, solution_content = _hybrid_verify_gate(
-                    anthropic_client, working_copy, slug, task_description
+                (
+                    gate_passed,
+                    gate_nudge,
+                    style_call_made,
+                    pass_fraction,
+                    solution_content,
+                    style_verdict,
+                    style_reason,
+                ) = _hybrid_verify_gate(
+                    anthropic_client, working_copy, slug, task_description, advisory_idiom=advisory_idiom
                 )
                 if style_call_made:
                     style_verifier_calls += 1
+                # 86bbcfv9d: record the idiom note whenever it was the verdict -- both when
+                # --advisory-idiom accepted it (gate_passed True) and when the flag was off
+                # and it blocked (so a blocked-on-idiom run is still visible in the logs).
+                if style_verdict == "IDIOM":
+                    style_idiom_note = style_reason
                 if gate_passed:
                     final_status = "completed"
                     break
@@ -1105,6 +1189,8 @@ def run_exercise(
                     )
 
                 if style_call_made:
+                    if style_verdict == "GAMED":
+                        style_gamed_rejections += 1
                     if style_concern_nudges >= max_hybrid_nudges:
                         final_status = "completed"
                         break
@@ -1220,6 +1306,9 @@ def run_exercise(
             "style_verifier_calls": style_verifier_calls,
             "test_fail_nudges": test_fail_nudges,
             "style_concern_nudges": style_concern_nudges,
+            "advisory_idiom_enabled": advisory_idiom,
+            "style_idiom_note": style_idiom_note,
+            "style_gamed_rejections": style_gamed_rejections,
             "early_abandon_enabled": early_abandon,
             "best_pass_fraction_seen": best_pass_fraction,
             "regression_guard_enabled": regression_guard,
@@ -1252,6 +1341,7 @@ def run_all_exercises(
     max_hybrid_nudges: int = MAX_HYBRID_VERIFY_NUDGES,
     early_abandon: bool = False,
     regression_guard: bool = True,
+    advisory_idiom: bool = False,
 ) -> list[dict]:
     """
     Runs every real vendored exercise under CORPUS_ROOT through
@@ -1288,6 +1378,7 @@ def run_all_exercises(
                 max_hybrid_nudges=max_hybrid_nudges,
                 early_abandon=early_abandon,
                 regression_guard=regression_guard,
+                advisory_idiom=advisory_idiom,
             )
             status = "PASS" if result["test_passed"] else "FAIL"
             print(f"  -> {status} ({result['final_status']}, {result['turns_used']} turn(s))")
@@ -1314,6 +1405,8 @@ def _print_summary(results: list[dict]) -> None:
     }
     status_totals: dict[str, int] = {}
     total_style_verifier_calls = 0
+    total_gamed_rejections = 0
+    total_idiom_notes = 0
     for r in results:
         for method, count in r["parse_method_counts"].items():
             totals[method] += count
@@ -1322,6 +1415,9 @@ def _print_summary(results: list[dict]) -> None:
             guard_totals[guard] = guard_totals.get(guard, 0) + count
         status_totals[r["final_status"]] = status_totals.get(r["final_status"], 0) + 1
         total_style_verifier_calls += r.get("style_verifier_calls", 0)
+        total_gamed_rejections += r.get("style_gamed_rejections", 0)
+        if r.get("style_idiom_note"):
+            total_idiom_notes += 1
 
     print(f"\n=== Summary: {passed}/{total} runs passed ===")
 
@@ -1353,6 +1449,8 @@ def _print_summary(results: list[dict]) -> None:
 
     if total_style_verifier_calls:
         print(f"\nReal style-verifier (Claude) calls this batch: {total_style_verifier_calls}")
+        print(f"  GAMED rejections (blocked done): {total_gamed_rejections}")
+        print(f"  runs with an IDIOM note: {total_idiom_notes}")
 
 
 if __name__ == "__main__":
@@ -1449,6 +1547,21 @@ if __name__ == "__main__":
             "if the final state never recovered one. No effect without --hybrid-verify."
         ),
     )
+    parser.add_argument(
+        "--advisory-idiom",
+        action="store_true",
+        help=(
+            "86bbcfv9d (Eval Harness Initiative 2): split the generative style gate. The verifier "
+            "now returns GAMED (output values copied from the visible test cases -- a real "
+            "cheating issue, always blocks done) or IDIOM (passes every real test, just "
+            "unidiomatic). With this flag on, an IDIOM verdict is logged (style_idiom_note) and "
+            "accepted instead of nudging -- an idiom nudge on an already-passing solution is the "
+            "confirmed trigger for the octal loss-of-working-solution failure that "
+            "--regression-guard only catches after the fact. Off by default (blocks on both, the "
+            "pre-split behavior). No effect without --hybrid-verify. See "
+            "docs/aci-hybrid-verify-gate-audit.md."
+        ),
+    )
     args = parser.parse_args()
 
     if args.all:
@@ -1462,6 +1575,7 @@ if __name__ == "__main__":
             max_hybrid_nudges=args.max_hybrid_nudges,
             early_abandon=args.early_abandon,
             regression_guard=args.regression_guard,
+            advisory_idiom=args.advisory_idiom,
         )
         _print_summary(results)
     elif args.slug:
@@ -1475,6 +1589,7 @@ if __name__ == "__main__":
             max_hybrid_nudges=args.max_hybrid_nudges,
             early_abandon=args.early_abandon,
             regression_guard=args.regression_guard,
+            advisory_idiom=args.advisory_idiom,
         )
         print(f"\n=== {result['slug']} ===")
         print(f"Status: {result['final_status']} ({result['turns_used']} turn(s) used)")
@@ -1482,6 +1597,10 @@ if __name__ == "__main__":
         print(f"Guard fires: {result['guard_fires']}")
         if result["hybrid_verify_enabled"]:
             print(f"Style-verifier (Claude) calls: {result['style_verifier_calls']}")
+            print(f"GAMED rejections: {result['style_gamed_rejections']}")
+            if result["style_idiom_note"]:
+                accepted = " (accepted, advisory)" if result["advisory_idiom_enabled"] else ""
+                print(f"IDIOM note{accepted}: {result['style_idiom_note']}")
         if result["early_abandon_enabled"]:
             print(f"Best test-pass fraction seen: {result['best_pass_fraction_seen']:.3f}")
         if result["regression_guard_enabled"]:
