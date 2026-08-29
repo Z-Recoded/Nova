@@ -167,6 +167,22 @@ MULTIPLE_CALLS_NUDGE = (
     "per turn. If you meant to also do something else, make that your next call."
 )
 
+# 86bbcfv9d (Eval Harness Initiative 2, "audit existing gates individually"): the four
+# always-on turn-loop guards, each individually suppressible via run_exercise(disabled_guards=...)
+# / --disable-guard NAME. When a guard is in the disabled set, its EFFECT is skipped (the loop
+# reverts to pre-guard behaviour at that point) but a would-have-fired count is still recorded
+# in the result's `guards_suppressed`, so an ablation batch sees both the pass-rate/turn delta
+# AND how often the guard actually engaged. --hybrid-verify / --early-abandon / --regression-guard
+# are separate axes with their own flags and are not part of this set.
+ABLATABLE_GUARDS = frozenset(
+    {
+        GUARD_REPEAT_FAILED_CALL,
+        GUARD_DONE_WITHOUT_EDIT,
+        GUARD_SAME_PATH_REPEATED_FAILURE,
+        GUARD_MULTIPLE_CALLS_IGNORED,
+    }
+)
+
 CORPUS_ROOT = Path(__file__).parent / "data" / "coding_specialist_eval" / "exercism_subset"
 
 TEST_TIMEOUT_SECONDS = 30
@@ -895,6 +911,7 @@ def run_exercise(
     early_abandon: bool = False,
     regression_guard: bool = True,
     advisory_idiom: bool = False,
+    disabled_guards: frozenset[str] = frozenset(),
 ) -> dict:
     """
     Runs one real vendored exercise through the given Ollama model via the
@@ -990,7 +1007,22 @@ def run_exercise(
     the pre-split block-both behavior); promote later only if a real A/B
     batch supports it. No effect without --hybrid-verify. See
     docs/aci-hybrid-verify-gate-audit.md.
+
+    `disabled_guards`: 86bbcfv9d (Eval Harness Initiative 2). A subset of
+    ABLATABLE_GUARDS whose effect is suppressed for this run -- the loop
+    reverts to pre-guard behaviour at that point (executes the repeat,
+    accepts the no-edit `done`, drops the same-path note / multi-call note).
+    A would-have-fired count is still recorded in the result's
+    `guards_suppressed`. Used by scripts/run_guard_ablation.py to measure
+    each guard's individual contribution against the real corpus, rather
+    than only ever cumulatively (docs/aci-failure-mechanism-analysis.md
+    measured guards 1->2->3 as a block, not one-at-a-time). Empty by
+    default -- every guard on, exactly as before.
     """
+    unknown_guards = set(disabled_guards) - ABLATABLE_GUARDS
+    if unknown_guards:
+        raise ValueError(f"disabled_guards contains non-ablatable name(s): {sorted(unknown_guards)}")
+
     client = ollama.Client(host=OLLAMA_HOST)
     anthropic_client = anthropic.Anthropic() if hybrid_verify else None
 
@@ -1067,6 +1099,25 @@ def run_exercise(
             GUARD_HYBRID_VERIFY_REJECTED: 0,
             GUARD_MULTIPLE_CALLS_IGNORED: 0,
         }
+        # 86bbcfv9d: for each ablated guard, how many times it would have fired this run
+        # if it had been active. Only the keys in `disabled_guards` ever get incremented.
+        guards_suppressed = {name: 0 for name in disabled_guards}
+
+        def _multi_call_suffix() -> str:
+            """
+            86bbk09da's multi-call nudge, honouring 86bbcfv9d's ablation. Returns the
+            nudge suffix to append when this turn's raw text carried a second, dropped
+            tool call -- and "" (recording a would-have-fired count) when
+            GUARD_MULTIPLE_CALLS_IGNORED is in disabled_guards. `has_extra_call` is read
+            late, per turn, from the enclosing loop.
+            """
+            if not has_extra_call:
+                return ""
+            if GUARD_MULTIPLE_CALLS_IGNORED in disabled_guards:
+                guards_suppressed[GUARD_MULTIPLE_CALLS_IGNORED] += 1
+                return ""
+            guard_fires[GUARD_MULTIPLE_CALLS_IGNORED] += 1
+            return MULTIPLE_CALLS_NUDGE
 
         for turn in range(1, MAX_TURNS + 1):
             turns_used = turn
@@ -1099,6 +1150,14 @@ def run_exercise(
             has_extra_call = _has_second_tool_call(stripped_raw, first_block)
 
             if tool == "done":
+                if not has_successful_edit and GUARD_DONE_WITHOUT_EDIT in disabled_guards:
+                    # 86bbcfv9d ablation: guard suppressed -- accept the `done` with
+                    # nothing attempted and stop, exactly as the pre-guard harness did.
+                    # Deliberately does NOT fall through to the hybrid-verify gate, which
+                    # assumes a real edit exists to verify.
+                    guards_suppressed[GUARD_DONE_WITHOUT_EDIT] += 1
+                    final_status = "completed"
+                    break
                 if not has_successful_edit:
                     if done_without_edit_nudges >= MAX_DONE_WITHOUT_EDIT_NUDGES:
                         final_status = "abandoned_after_nudge"
@@ -1111,9 +1170,7 @@ def run_exercise(
                         f"before calling done again. ({done_without_edit_nudges}/{MAX_DONE_WITHOUT_EDIT_NUDGES} "
                         "warnings -- after this, done will be accepted as-is.)"
                     )
-                    if has_extra_call:
-                        guard_fires[GUARD_MULTIPLE_CALLS_IGNORED] += 1
-                        nudge += MULTIPLE_CALLS_NUDGE
+                    nudge += _multi_call_suffix()
                     messages.append({"role": "user", "content": nudge})
                     if verbose:
                         print(f"--- turn {turn}: refused done (no successful edit yet) ---")
@@ -1208,7 +1265,12 @@ def run_exercise(
                 continue
 
             key = _call_key(call)
-            if key in failed_calls:
+            if key in failed_calls and GUARD_REPEAT_FAILED_CALL in disabled_guards:
+                # 86bbcfv9d ablation: guard suppressed -- fall through and re-execute the
+                # already-failed call, exactly as the pre-guard harness did (bob resent
+                # the same broken edit 13 times this way).
+                guards_suppressed[GUARD_REPEAT_FAILED_CALL] += 1
+            elif key in failed_calls:
                 repeat_refusal_counts[key] = repeat_refusal_counts.get(key, 0) + 1
                 guard_fires[GUARD_REPEAT_FAILED_CALL] += 1
                 refusal = (
@@ -1223,9 +1285,7 @@ def run_exercise(
                         "it, and change something concrete this time, not just resend the "
                         "same arguments."
                     )
-                if has_extra_call:
-                    guard_fires[GUARD_MULTIPLE_CALLS_IGNORED] += 1
-                    refusal += MULTIPLE_CALLS_NUDGE
+                refusal += _multi_call_suffix()
                 messages.append({"role": "user", "content": refusal})
                 if verbose:
                     print(f"--- turn {turn}: refused repeat of already-failed {tool} call ---")
@@ -1238,23 +1298,25 @@ def run_exercise(
                 path = call.get("arguments", {}).get("path", "")
                 path_failure_counts[path] = path_failure_counts.get(path, 0) + 1
                 if path_failure_counts[path] >= SAME_PATH_FAILURE_THRESHOLD:
-                    guard_fires[GUARD_SAME_PATH_REPEATED_FAILURE] += 1
-                    tool_result += (
-                        f"\n\nNOTE: that's {path_failure_counts[path]} failed edits now on "
-                        f"'{path}' -- not necessarily the same call each time, but you keep "
-                        "failing in the same place. Stop guessing at small variations. Use view "
-                        "to re-read the file's real current content in full before your next "
-                        "edit, and think through the change before submitting it."
-                    )
+                    if GUARD_SAME_PATH_REPEATED_FAILURE in disabled_guards:
+                        # 86bbcfv9d ablation: guard suppressed -- drop the corrective note.
+                        guards_suppressed[GUARD_SAME_PATH_REPEATED_FAILURE] += 1
+                    else:
+                        guard_fires[GUARD_SAME_PATH_REPEATED_FAILURE] += 1
+                        tool_result += (
+                            f"\n\nNOTE: that's {path_failure_counts[path]} failed edits now on "
+                            f"'{path}' -- not necessarily the same call each time, but you keep "
+                            "failing in the same place. Stop guessing at small variations. Use view "
+                            "to re-read the file's real current content in full before your next "
+                            "edit, and think through the change before submitting it."
+                        )
             elif _tool_result_failed(tool, tool_result):
                 failed_calls.add(key)
             elif tool == "edit":
                 has_successful_edit = True
                 successful_edit_count += 1
                 edit_succeeded_this_turn = True
-            if has_extra_call:
-                guard_fires[GUARD_MULTIPLE_CALLS_IGNORED] += 1
-                tool_result += MULTIPLE_CALLS_NUDGE
+            tool_result += _multi_call_suffix()
             if progress_framing:
                 tool_result += _build_progress_note(turn, successful_edit_count, edit_succeeded_this_turn)
             messages.append({"role": "user", "content": tool_result})
@@ -1302,6 +1364,8 @@ def run_exercise(
             "parse_method_counts": parse_method_counts,
             "parse_failures": parse_failures,
             "guard_fires": guard_fires,
+            "disabled_guards": sorted(disabled_guards),
+            "guards_suppressed": guards_suppressed,
             "hybrid_verify_enabled": hybrid_verify,
             "style_verifier_calls": style_verifier_calls,
             "test_fail_nudges": test_fail_nudges,
@@ -1342,6 +1406,7 @@ def run_all_exercises(
     early_abandon: bool = False,
     regression_guard: bool = True,
     advisory_idiom: bool = False,
+    disabled_guards: frozenset[str] = frozenset(),
 ) -> list[dict]:
     """
     Runs every real vendored exercise under CORPUS_ROOT through
@@ -1379,6 +1444,7 @@ def run_all_exercises(
                 early_abandon=early_abandon,
                 regression_guard=regression_guard,
                 advisory_idiom=advisory_idiom,
+                disabled_guards=disabled_guards,
             )
             status = "PASS" if result["test_passed"] else "FAIL"
             print(f"  -> {status} ({result['final_status']}, {result['turns_used']} turn(s))")
@@ -1407,12 +1473,15 @@ def _print_summary(results: list[dict]) -> None:
     total_style_verifier_calls = 0
     total_gamed_rejections = 0
     total_idiom_notes = 0
+    suppressed_totals: dict[str, int] = {}
     for r in results:
         for method, count in r["parse_method_counts"].items():
             totals[method] += count
         total_parse_failures += r["parse_failures"]
         for guard, count in r.get("guard_fires", {}).items():
             guard_totals[guard] = guard_totals.get(guard, 0) + count
+        for guard, count in r.get("guards_suppressed", {}).items():
+            suppressed_totals[guard] = suppressed_totals.get(guard, 0) + count
         status_totals[r["final_status"]] = status_totals.get(r["final_status"], 0) + 1
         total_style_verifier_calls += r.get("style_verifier_calls", 0)
         total_gamed_rejections += r.get("style_gamed_rejections", 0)
@@ -1446,6 +1515,11 @@ def _print_summary(results: list[dict]) -> None:
     print(f"  {GUARD_SAME_PATH_REPEATED_FAILURE}: {guard_totals[GUARD_SAME_PATH_REPEATED_FAILURE]}")
     print(f"  {GUARD_HYBRID_VERIFY_REJECTED}: {guard_totals[GUARD_HYBRID_VERIFY_REJECTED]}")
     print(f"  {GUARD_MULTIPLE_CALLS_IGNORED}: {guard_totals[GUARD_MULTIPLE_CALLS_IGNORED]}")
+
+    if suppressed_totals:
+        print("\nAblated guards -- would-have-fired totals this batch (86bbcfv9d):")
+        for guard in sorted(suppressed_totals):
+            print(f"  {guard}: {suppressed_totals[guard]}")
 
     if total_style_verifier_calls:
         print(f"\nReal style-verifier (Claude) calls this batch: {total_style_verifier_calls}")
@@ -1562,6 +1636,21 @@ if __name__ == "__main__":
             "docs/aci-hybrid-verify-gate-audit.md."
         ),
     )
+    parser.add_argument(
+        "--disable-guard",
+        action="append",
+        default=[],
+        choices=sorted(ABLATABLE_GUARDS),
+        metavar="NAME",
+        dest="disabled_guards",
+        help=(
+            "86bbcfv9d (Eval Harness Initiative 2): suppress one always-on turn-loop guard for "
+            "this run (repeatable). The loop reverts to pre-guard behaviour at that point; a "
+            "would-have-fired count is still logged in guards_suppressed. Used by "
+            "scripts/run_guard_ablation.py to measure each guard's individual contribution "
+            f"rather than only cumulatively. Choices: {', '.join(sorted(ABLATABLE_GUARDS))}."
+        ),
+    )
     args = parser.parse_args()
 
     if args.all:
@@ -1576,6 +1665,7 @@ if __name__ == "__main__":
             early_abandon=args.early_abandon,
             regression_guard=args.regression_guard,
             advisory_idiom=args.advisory_idiom,
+            disabled_guards=frozenset(args.disabled_guards),
         )
         _print_summary(results)
     elif args.slug:
@@ -1590,11 +1680,15 @@ if __name__ == "__main__":
             early_abandon=args.early_abandon,
             regression_guard=args.regression_guard,
             advisory_idiom=args.advisory_idiom,
+            disabled_guards=frozenset(args.disabled_guards),
         )
         print(f"\n=== {result['slug']} ===")
         print(f"Status: {result['final_status']} ({result['turns_used']} turn(s) used)")
         print(f"Tests passed: {result['test_passed']}")
         print(f"Guard fires: {result['guard_fires']}")
+        if result["disabled_guards"]:
+            print(f"Disabled guards: {result['disabled_guards']}")
+            print(f"  would have fired: {result['guards_suppressed']}")
         if result["hybrid_verify_enabled"]:
             print(f"Style-verifier (Claude) calls: {result['style_verifier_calls']}")
             print(f"GAMED rejections: {result['style_gamed_rejections']}")

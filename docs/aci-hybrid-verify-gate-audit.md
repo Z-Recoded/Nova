@@ -3,7 +3,8 @@
 Written 2026-08-29 for Eval Harness Initiative 2 (`86bbcfv9d`, "audit existing gates
 individually"), applied to `nova_aci_harness.py`'s hybrid-verify gate. Feeds Nova Training
 Pipeline Phase 5 (`86bbcfpd1`, hybrid verification at inference time). Companion to
-`docs/aci-failure-mechanism-analysis.md`.
+`docs/aci-failure-mechanism-analysis.md` and `docs/aci-guard-cluster-ablation.md` (the same
+initiative applied to the four always-on turn-loop guards).
 
 ## What the gate does today
 
