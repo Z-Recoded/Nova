@@ -73,10 +73,6 @@
       "name": "Coding specialist: define verifiable task template (narrow scope + objective check)"
     },
     {
-      "id": "86bbch988",
-      "name": "Coding specialist: edit-format test plan (whole-file vs. search/replace vs. unified diff)"
-    },
-    {
       "id": "86bbch95y",
       "name": "Coding specialist: design constrained action-space interface (ACI)"
     },
@@ -536,10 +532,6 @@
     }
   ],
   "blocked": [
-    {
-      "id": "86bb4gy0y",
-      "name": "Build Qwen-writes / Claude-reviews coding pipeline (Phase 3.5 refinement)"
-    },
     {
       "id": "86bawjyj8",
       "name": "Spec: Subagent escalation ladder + \"travel to\" central command console"

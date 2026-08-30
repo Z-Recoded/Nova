@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-08-30 00:02 UTC
+Last updated: 2026-08-30 00:08 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,23 +8,8 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- NEW -> ready: 86bbnbq0q (Scope Qwen3.6/3.8-27B dense as a coder-specialist candidate for the local 3090 rig)
-- NEW -> ready: 86bbn80qp (Model capability complexity rubric + boundary visualization)
-- NEW -> ready: 86bbkru66 (Multi-agent scaling limits: where does specialist-squad coordination hit diminishing returns?)
-- NEW -> ready: 86bbkr4aa (Hands-on: TransformerLens mechanistic interpretability exploration)
-- NEW -> ready: 86bbkr48x (Task-complexity framework: analytical + empirical, state kept external to models)
-- NEW -> ready: 86bbk2nkb (OmniRoute as squad-bootstrap infra on the Omen (non-training-critical roles, with provider provenance tracking))
-- in_progress -> ready: 86bb72gpa (Coding agent runs its own verification repeatedly but never fixes the bug it finds)
-- in_progress -> ready: 86bb728nj (RunPod coding agent re-issues already-successful edits, burns full 25-turn budget without progressing)
-- in_progress -> ready: 86bb71x1j (Design auto-configuring harness: detect and align tool-call/completion conventions per model backend)
-- ready -> in_progress: 86bbcfv9d (Eval Harness — Initiative 2: audit existing gates individually)
-- ready -> complete/removed: 86bbk03ma (Hands-on: DEAP genetic programming toy loop (population-based search exploration))
-- ready -> complete/removed: 86bbk03gg (Hands-on: Z3-based CEGIS toy loop (program synthesis exploration))
-- ready -> complete/removed: 86bbjx8zp (Proxy pilot: does retrieval over prior similar attempts improve small-model coding competence?)
-- ready -> complete/removed: 86bbh41p2 (Explore: specialist-squad architecture (small models + orchestrator) vs. single frontier model)
-- ready -> complete/removed: 86bb7pawp (Observability Phase 1: Instrument turn loop (reasoning + tool calls + token uncertainty))
-- ready -> complete/removed: 86bb7pamh (Nova Observability Initiative — Langfuse tracing, agent oversight, and failure diagnosis)
-- ready -> complete/removed: 86bax697m (Adopt Langfuse as Nova's observability + auto-training-data backbone)
+- ready -> complete/removed: 86bbch988 (Coding specialist: edit-format test plan (whole-file vs. search/replace vs. unified diff))
+- blocked -> complete/removed: 86bb4gy0y (Build Qwen-writes / Claude-reviews coding pipeline (Phase 3.5 refinement))
 
 ## In progress (4)
 
@@ -33,9 +18,8 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bbcfpap  Nova Training Pipeline — Phase 1: bulk execution-free distillation from Claude
 - 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
 
-## Blocked (11)
+## Blocked (10)
 
-- 86bb4gy0y  Build Qwen-writes / Claude-reviews coding pipeline (Phase 3.5 refinement)
 - 86bawjyj8  Spec: Subagent escalation ladder + "travel to" central command console
 - 86bauwkvq  Token Budget Governor — remaining scope (Haiku routing, queue concurrency, push notifications, auto ClickUp updates)
 - 86barue80  Games domain node — nova_state_games.py adapter
@@ -47,7 +31,7 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (129)
+## Ready (128)
 
 - 86bbnbq0q  Scope Qwen3.6/3.8-27B dense as a coder-specialist candidate for the local 3090 rig
 - 86bbn80qp  Model capability complexity rubric + boundary visualization
@@ -67,7 +51,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bbezc34  Eval Harness — Initiative 7: accumulated-failure tracking (integral signal)
 - 86bbch9cy  Coding specialist: explore structure-aware (AST-level) action primitives
 - 86bbch9ak  Coding specialist: define verifiable task template (narrow scope + objective check)
-- 86bbch988  Coding specialist: edit-format test plan (whole-file vs. search/replace vs. unified diff)
 - 86bbch95y  Coding specialist: design constrained action-space interface (ACI)
 - 86bbcfvay  Eval Harness — Initiative 5: per-specialist vetting harness
 - 86bbcfvak  Eval Harness — Initiative 4: guardrail — verifier stays inference-time only
