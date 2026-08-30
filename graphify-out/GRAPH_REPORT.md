@@ -1,16 +1,16 @@
 # Graph Report - Nova  (2026-08-29)
 
 ## Corpus Check
-- 351 files · ~280,891 words
+- 351 files · ~282,015 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3320 nodes · 5409 edges · 270 communities (173 shown, 97 thin omitted)
+- 3324 nodes · 5413 edges · 281 communities (183 shown, 98 thin omitted)
 - Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 732 edges (avg confidence: 0.77)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `7d2277f8`
+- Built from commit: `96c5490b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -250,17 +250,28 @@
 - The six initiatives
 - nova_mini_swe_agent_harness.py
 - RunPod A100 Fine-Tune Runbook (`86baf4e70` Pattern 1)
+- _check_statement_sequence
 - Coding track: real data-scale gap, and what to do about it
 - nova_coding_dpo_filter.py
 - nova_toy_deap_gp.py
+- nova_completion_gate.py
 - get_dispatch_cost_summary
 - create_research_note
 - nova_toy_z3_cegis.py
 - push_daily_usage_history
 - embedding_viz_page
 - nova_domain_backfill.py
+- _check_narrow_scope_not_exceeded
+- _execute_tool
+- _check_module_level_circular_imports
 - check_multi_call_baseline.sh
 - pywin32==312 (dependency, Windows-only)
+- _check_powershell_syntax_valid
+- _check_deliverables_present
+- _check_cross_module_missing_exports
+- _check_required_files_touched
+- 1. Project Overview
+- _repair_missing_closing_braces
 
 ## God Nodes (most connected - your core abstractions)
 1. `MeetupTest` - 105 edges
@@ -275,6 +286,8 @@
 10. `YachtTest` - 30 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `Atomic per-change commit convention ([module] short imperative)` --conceptually_related_to--> `file_replace()`  [INFERRED]
+  skills/coding.md → nova_tools.py
 - `_load_graph()` --semantically_similar_to--> `load_manifest()`  [INFERRED] [semantically similar]
   graph_builder.py → ingest.py
 - `_save_graph()` --semantically_similar_to--> `save_manifest()`  [INFERRED] [semantically similar]
@@ -283,8 +296,6 @@
   nova_corrector.py → nova_orchestrator.py
 - `sync_omen()` --semantically_similar_to--> `dispatch_headless_task()`  [INFERRED] [semantically similar]
   nova_omen_sync.py → nova_omen_dispatch.py
-- `refresh_system_state()` --implements--> `Domain State Layer — scoped v1`  [EXTRACTED]
-  nova_state_system.py → CLAUDE.md
 
 ## Import Cycles
 - None detected.
@@ -298,15 +309,15 @@
 - **Token Budget Governor v1 — tracking, gating, and documentation** — nova_token_budget_get_budget_status, nova_state_system_refresh_system_state, skills_orchestration_token_budget_gate, clickup_86barhqt9 [INFERRED 0.85]
 - **86bax0exx headless dispatch pipeline — readiness, resolution, and tool-call visibility** — nova_task_queue_get_ready_tasks, nova_task_queue_resolve_task_description, nova_tool_call_log_log_tool_call, clickup_86bax0exx [EXTRACTED 1.00]
 
-## Communities (270 total, 97 thin omitted)
+## Communities (281 total, 98 thin omitted)
 
 ### Community 0 - "Coding Sub-Agent Orchestrator"
 Cohesion: 0.05
 Nodes (6): meetup(), MeetupDayException, ValueError, Exception raised when the Meetup weekday and count do not result in a valid date, MeetupTest, date
 
 ### Community 1 - "ClickUp Board CLI"
-Cohesion: 0.13
-Nodes (31): ClickUp 86baf72n5 — ClickUp MCP tool-calling, build_parser(), cmd_audit(), cmd_check(), cmd_find(), cmd_help(), cmd_move(), cmd_ready() (+23 more)
+Cohesion: 0.12
+Nodes (34): ClickUp 86baf72n5 — ClickUp MCP tool-calling, build_parser(), cmd_audit(), cmd_block(), cmd_check(), cmd_find(), cmd_help(), cmd_move() (+26 more)
 
 ### Community 2 - "Wikilink Graph Builder"
 Cohesion: 0.14
@@ -317,36 +328,36 @@ Cohesion: 0.11
 Nodes (23): ClickUp 86bawjg14 — Embedding-Space Visualization, embedding_viz_data(), JSON data backing the /embedding-viz page — one point per Chroma chunk., FILENAME_TO_CHARACTER (reverse of CHARACTER_FILES), _build_base_points(), build_embedding_viz_data(), _character_for_filename(), _dpo_corrected_filenames() (+15 more)
 
 ### Community 4 - "CLAUDE.md Architecture Doc"
-Cohesion: 0.06
-Nodes (30): browser_hands/config/sites.yaml — per-adapter config template, 10. Change Log, 11. Session Startup Checklist, 1. Project Overview, 3. Coding Philosophy — Legibility First, 4. Python Style Guide, 5. Known Issues & Active Bugs, 7. Nova API Routes (+22 more)
+Cohesion: 0.07
+Nodes (27): browser_hands/config/sites.yaml — per-adapter config template, 10. Change Log, 11. Session Startup Checklist, 3. Coding Philosophy — Legibility First, 4. Python Style Guide, 5. Known Issues & Active Bugs, 7. Nova API Routes, 8. What Claude Should Always Do (+19 more)
 
 ### Community 5 - "Headless Dispatch & Escalation"
-Cohesion: 0.07
-Nodes (37): cancel_escalation(), create_tool_approval(), get_activity_profile(), get_dispatch_pause_route(), get_escalations(), get_tier_proposals(), get_tier_watermarks(), get_tool_approvals() (+29 more)
+Cohesion: 0.09
+Nodes (24): get_activity_profile(), get_dispatch_pause_route(), get_escalations(), get_tier_proposals(), get_tier_watermarks(), get_tool_approvals(), get_usage_history(), All pending/decided tool-call approvals from the pre-action approval     gate ( (+16 more)
 
 ### Community 6 - "LangGraph Orchestration Port"
-Cohesion: 0.11
-Nodes (26): headroom(), Return Nova's current resource headroom report — VRAM (nvidia-smi), RAM     + C, _available_before_threshold(), build_headroom_summary(), compute_task_headroom(), _describe_budget_status(), _describe_pipeline_status(), _empty_gpu_stats() (+18 more)
+Cohesion: 0.10
+Nodes (28): headroom(), Return Nova's current resource headroom report — VRAM (nvidia-smi), RAM     + C, _available_before_threshold(), build_headroom_summary(), compute_task_headroom(), _describe_budget_status(), _describe_pipeline_status(), _empty_gpu_stats() (+20 more)
 
 ### Community 7 - "Board Status Digest & Token Budget"
-Cohesion: 0.11
-Nodes (22): cmd_block(), cmd_link(), cmd_split(), cmd_unlink(), add_dependency(), _api_key(), create_task(), _headers() (+14 more)
+Cohesion: 0.12
+Nodes (19): cmd_link(), cmd_split(), cmd_unlink(), add_dependency(), _api_key(), create_task(), _headers(), Generic task field update (name, status, priority, ...) — PUT /task/{id} with wh (+11 more)
 
 ### Community 8 - "Browser Hands CDP Harness"
 Cohesion: 0.27
 Nodes (9): _get_connection(), get_recent_runs(), Connection, One adapter run's outcome — matches the Build Spec's Section 2.2 adapter     co, Open a connection to nova_state.db, creating the browser_tasks table if needed., Write one RunResult as a new browser_tasks row. `captured_at` is     generated, Read back the most recent browser_tasks rows, newest first. If `adapter`     is, record_run() (+1 more)
 
 ### Community 9 - "Resource Headroom Calculator"
-Cohesion: 0.05
-Nodes (79): BackendProfile, One backend's real conventions: how it's asked to call tools, how a     finishe, log_turn(), Mirrors nova_langfuse_client.log_turn()'s exact signature and calling     conven, log_turn(), One shared turn-logging path for Observability Initiative Phase 1     (86bb7paw, build_devstral_system_prompt(), _estimate_message_list_tokens() (+71 more)
+Cohesion: 0.08
+Nodes (44): build_devstral_system_prompt(), _estimate_message_list_tokens(), _estimate_message_tokens(), _log_agent_turn_devstral(), _message_groups(), _prune_history_if_needed(), Rough token estimate for one message, covering both a plain content string and a, [(start, end), ...] for each turn group from index 2 onward: one     assistant (+36 more)
 
 ### Community 10 - "RAG Retrieval & Blend Logging"
-Cohesion: 0.11
-Nodes (29): ClickUp 86bawx7vj — bounded headless coding runner spec, ClickUp 86bax0exx — headless dispatch orchestration checklist, ClickUp 86bax0wkj — Nova Controller v1 (real escalation detection), check_escalation(), is_dispatch_paused(), Parses a NOVA_ESCALATION_START/END block out of session_result's own     "summa, Current pause state for headless dispatch, read from the Omen's own     nova-ap, _build_credential_prefix() (+21 more)
+Cohesion: 0.09
+Nodes (35): ClickUp 86bawx7vj — bounded headless coding runner spec, ClickUp 86bax0exx — headless dispatch orchestration checklist, ClickUp 86bax0wkj — Nova Controller v1 (real escalation detection), Runs in the background after POST /escalations/{id}/answer returns.     Resumes, _resume_escalated_task(), check_escalation(), is_dispatch_paused(), Parses a NOVA_ESCALATION_START/END block out of session_result's own     "summa (+27 more)
 
 ### Community 11 - "Claude Usage History Logger"
-Cohesion: 0.10
-Nodes (26): build_activity_profile(), build_daily_usage_history(), compute_entry_cost(), find_transcript_files(), iter_usage_entries(), normalize_model_id(), parse_local_datetime(), push_activity_profile() (+18 more)
+Cohesion: 0.09
+Nodes (30): POST/GET /usage-history route, Usage-history centralization via SessionEnd hook, build_activity_profile(), build_daily_usage_history(), compute_entry_cost(), find_transcript_files(), iter_usage_entries(), normalize_model_id() (+22 more)
 
 ### Community 12 - "Omen Sync & Reachability Checks"
 Cohesion: 0.14
@@ -362,7 +373,7 @@ Nodes (28): nova_graph.json (wikilink graph nodes+edges), nova_context_budget(),
 
 ### Community 15 - "Nova API Core Routes"
 Cohesion: 0.06
-Nodes (41): ActivityProfilePushRequest, agent_task(), AgentTaskRequest, ask_nova(), AskRequest, create_escalation(), create_tier_proposal(), DispatchPauseRequest (+33 more)
+Nodes (45): ActivityProfilePushRequest, agent_task(), AgentTaskRequest, ask_nova(), AskRequest, create_escalation(), create_tier_proposal(), create_tool_approval() (+37 more)
 
 ### Community 16 - "Feature Flag Config"
 Cohesion: 0.11
@@ -370,11 +381,11 @@ Nodes (23): _clean_assistant_content(), _clean_user_content(), curate(), extract
 
 ### Community 17 - "Nova API Request Models"
 Cohesion: 0.15
-Nodes (17): create_worktree_pr_route(), get_worktree_status_route(), Open git worktrees on both machines, with age/merged/prunable status     (86bb3, Push a dispatch worktree's branch and open a draft GitHub PR for     review — b, WorktreePrRequest, _create_pr_locally(), create_worktree_pr(), discard_worktree() (+9 more)
+Nodes (17): discard_worktree_route(), Delete a dispatch worktree and its branch outright — backs the     Controller's, WorktreeDiscardRequest, Record a human review decision for one headless-dispatched ClickUp     task (86, record_dispatch_review(), _create_pr_locally(), create_worktree_pr(), discard_worktree() (+9 more)
 
 ### Community 19 - "Browser Task State Writer"
-Cohesion: 0.14
-Nodes (24): _build_restricted_env(), _build_restricted_path(), _cd_targets_outside_root(), _command_references_outside_root(), file_replace(), _find_second_brain_path(), _is_dangerous_command(), list_files() (+16 more)
+Cohesion: 0.11
+Nodes (31): _approval_gate_reason(), _execute_tool(), None means silently allow. Any other value is the human-readable reason     a t, Dispatch one Claude tool_use call to the matching nova_tools function.     Logs, _build_restricted_env(), _build_restricted_path(), _cd_targets_outside_root(), _command_references_outside_root() (+23 more)
 
 ### Community 20 - "OpenAI-Compatible Chat Endpoint"
 Cohesion: 0.18
@@ -385,8 +396,8 @@ Cohesion: 0.13
 Nodes (19): nova_log_benchmarks(), nova_log_data(), nova_log_queries(), JSON data backing the /nova-log Health dashboard., Nova Log Query view — the last `limit` real queries (most recent first),     op, Nova Log Benchmark view — the last `limit` golden-query benchmark runs     from, BENCHMARK_LOG_PATH constant (nova_benchmark.py, not in this chunk), compute_health_summary() (+11 more)
 
 ### Community 22 - "Nova Log Benchmark View"
-Cohesion: 0.12
-Nodes (22): add_tag(), Attach a tag to a task — used to mark a headless dispatch paused awaiting Marvin, Task tiering (86bb01wur) — calls nova_task_queue.detect_tier_candidates()     (, _register_tier_proposals(), _current_tier_tag(), _description_hash(), detect_tier_candidates(), _fetch_tier_watermarks() (+14 more)
+Cohesion: 0.07
+Nodes (45): decide_tier_proposal(), Accept or override a pending tier proposal. Token-gated, reusing the     same X, add_comment(), add_tag(), Post a comment on a task — used for automated status/outcome notifications (e.g., Attach a tag to a task — used to mark a headless dispatch paused awaiting Marvin, get_max_unreviewed_dispatches(), The review-backpressure cap threshold — nova_scheduled_dispatch.py     skips pi (+37 more)
 
 ### Community 24 - "Graph Neighbors Endpoint"
 Cohesion: 0.12
@@ -414,7 +425,7 @@ Nodes (3): graph_builder.py CHROMA_HOST constant (192.168.1.250), ingest.py CHRO
 
 ### Community 32 - "Empty Adapters Package"
 Cohesion: 0.09
-Nodes (27): _build_progress_note(), _call_key(), _execute_tool(), _format_list_result(), _generative_style_verifier(), _hybrid_verify_gate(), _log_result(), _parse_test_pass_fraction() (+19 more)
+Nodes (36): _build_progress_note(), _call_key(), _extract_first_json_object(), _generative_style_verifier(), _has_second_tool_call(), _hybrid_verify_gate(), _log_result(), _parse_test_pass_fraction() (+28 more)
 
 ### Community 45 - "Community 45"
 Cohesion: 0.22
@@ -429,12 +440,12 @@ Cohesion: 0.11
 Nodes (29): blend(), _convert_agentinstruct(), convert_all(), _convert_apibench(), _convert_finqa(), _convert_tatqa(), _convert_toolbench(), _dataset_raw_dir() (+21 more)
 
 ### Community 48 - "Community 48"
-Cohesion: 0.07
-Nodes (41): _execute_tool_guarded(), Wraps nova_orchestrator._execute_tool() with two extra checks beyond     nova_o, Run one task through qwen3:8b via Ollama's tool-calling API, dispatching     ev, run_spike_task(), _worktree_has_file(), ClickUp 86barguac — Nova Skills Library, _approval_gate_reason(), _build_system_prompt() (+33 more)
+Cohesion: 0.06
+Nodes (47): _execute_tool_guarded(), Wraps nova_orchestrator._execute_tool() with two extra checks beyond     nova_o, Run one task through qwen3:8b via Ollama's tool-calling API, dispatching     ev, run_spike_task(), _worktree_has_file(), ClickUp 86barguac — Nova Skills Library, _create_worktree_at(), _git_diff_against_ref() (+39 more)
 
 ### Community 49 - "Community 49"
 Cohesion: 0.11
-Nodes (16): Constraints, Conventions, Examples, Money as INTEGER cents convention, Financial data never enters Chroma (hard boundary), Nova Skill: Financial, Output format, Purpose (+8 more)
+Nodes (17): Nova Skills Library, Constraints, Conventions, Examples, Money as INTEGER cents convention, Financial data never enters Chroma (hard boundary), Nova Skill: Financial, Output format (+9 more)
 
 ### Community 50 - "Community 50"
 Cohesion: 0.20
@@ -458,7 +469,7 @@ Nodes (15): BackgroundTasks, answer_escalation(), _commit_config_change(), _disp
 
 ### Community 55 - "Community 55"
 Cohesion: 0.33
-Nodes (5): Blocked (11), Changed since last digest, In progress (6), Nova Board Status Digest, Ready (128)
+Nodes (5): Blocked (10), Changed since last digest, In progress (4), Nova Board Status Digest, Ready (128)
 
 ### Community 56 - "Community 56"
 Cohesion: 0.40
@@ -473,8 +484,8 @@ Cohesion: 0.09
 Nodes (7): append(), concat(), foldl(), foldr(), length(), reverse(), ListOpsTest
 
 ### Community 59 - "Community 59"
-Cohesion: 0.09
-Nodes (33): _create_worktree_at(), _find_merge_commit(), _format_gate_result(), generate_report(), _git_diff_against_ref(), _git_show(), _load_agent_log_entries_for_branch(), _load_outcomes() (+25 more)
+Cohesion: 0.18
+Nodes (16): _find_merge_commit(), _format_gate_result(), generate_report(), _git_show(), _load_agent_log_entries_for_branch(), _load_outcomes(), Hand-verified map lookup -- see DEV_SET_BRANCH_COMMITS's own comment above., Every agent_log.jsonl turn belonging to this branch, in turn order. (+8 more)
 
 ### Community 60 - "Community 60"
 Cohesion: 0.14
@@ -493,16 +504,16 @@ Cohesion: 0.16
 Nodes (21): _build_reuse_cache(), _cosine_similarity(), find_character_file(), _find_reusable_correction(), _is_golden_duplicate(), load_entries(), load_lore(), _normalize_query() (+13 more)
 
 ### Community 66 - "Community 66"
-Cohesion: 0.07
-Nodes (49): config_snapshot(), nova_config.json (feature flag values), FlagMeta, get_approval_gate_max_files_per_turn(), get_approval_gate_patterns(), get_approval_gate_poll_interval_seconds(), get_approval_gate_timeout_seconds(), get_flag_registry_values() (+41 more)
+Cohesion: 0.06
+Nodes (53): config_snapshot(), nova_config.json (feature flag values), FlagMeta, get_approval_gate_max_files_per_turn(), get_approval_gate_patterns(), get_approval_gate_poll_interval_seconds(), get_approval_gate_timeout_seconds(), get_flag_registry_values() (+45 more)
 
 ### Community 67 - "Community 67"
 Cohesion: 0.15
 Nodes (18): get_training_data_status(), Live DPO pair count, category coverage, and verification status --     replaces, dispatch_remote_patch(), get_combined_training_status(), get_training_flags_by_origin(), _parse_jsonl(), Fetch the Aero's logs/training_flags.jsonl over SSH, using the     dedicated co, Real entries from both machines, tagged by which one they actually     live on: (+10 more)
 
 ### Community 68 - "Community 68"
-Cohesion: 0.10
-Nodes (19): Nova Coding Sub-Agent (nova_orchestrator.py), Nova Skills Library, ClickUp 86barhqt9 — Token Budget Governor v1, langgraph==1.2.9 (dependency), Constraints, Conventions, Examples, Nova Skill: Coding (+11 more)
+Cohesion: 0.18
+Nodes (10): Nova Coding Sub-Agent (nova_orchestrator.py), langgraph==1.2.9 (dependency), Constraints, Conventions, Examples, Nova Skill: Orchestration, Output format, Principle 1 — parallelism contract (no concurrent writes to same file/row) (+2 more)
 
 ### Community 69 - "Community 69"
 Cohesion: 0.12
@@ -514,15 +525,15 @@ Nodes (14): Token Budget Governor — scoped v1, nova_tool_call_log.py — delib
 
 ### Community 71 - "Community 71"
 Cohesion: 0.11
-Nodes (29): AgentTurnState, build_graph(), _call_model(), _check_budget(), _execute_tools(), TypedDict, Runs every tool_use block from the most recent assistant message and     append, Deferred import so this module never needs nova_orchestrator.py at import time f (+21 more)
+Nodes (27): AgentTurnState, build_graph(), _call_model(), _check_budget(), _execute_tools(), TypedDict, Runs every tool_use block from the most recent assistant message and     append, Deferred import so this module never needs nova_orchestrator.py at import time f (+19 more)
 
 ### Community 72 - "Community 72"
 Cohesion: 0.23
 Nodes (12): build_dataset(), build_trainer(), export_gguf(), load_dpo_pairs(), load_model_and_tokenizer(), Dataset, Load the pre-quantized 4-bit Phi-4 Mini checkpoint via Unsloth and wrap it with, Wire up TRL's DPOTrainer with the re-scope doc's training config. dry_run caps (+4 more)
 
 ### Community 73 - "Community 73"
-Cohesion: 0.07
-Nodes (42): get_in_flight_status(), Is a headless dispatch running right now, and if so which task —     backs the, add_comment(), Post a comment on a task — used for automated status/outcome notifications (e.g., get_max_unreviewed_dispatches(), is_review_backpressure_enabled(), is_sandboxed_dispatch_enabled(), True if nova_scheduled_dispatch.py's review-bandwidth cap is on     (86bawpvzz (+34 more)
+Cohesion: 0.22
+Nodes (10): get_in_flight_status(), Is a headless dispatch running right now, and if so which task —     backs the, abort_current_dispatch(), _acquire_lock(), is_dispatch_currently_running(), _pid_is_alive(), Atomic create-if-absent lock (O_EXCL, not check-then-write — closes a     real, Read-only check for a live dispatch, backing GET /in-flight-status     (86bb3ce (+2 more)
 
 ### Community 74 - "Community 74"
 Cohesion: 0.24
@@ -541,16 +552,16 @@ Cohesion: 0.18
 Nodes (14): observability_diff_route(), Lazy, on-demand diff/PR-link lookup for one branch (86bb7pb6t). Not     folded, get_diff_link(), _local_diff(), _origin_link(), Real diff text for `branch` against master, from THIS machine's own     repo --, Aero-only: the Aero already has full, unrestricted SSH access to the     Omen (s, Omen-only: forced SSH via the dedicated AERO_DIFF_KEY ->     scripts/ssh_read_ae (+6 more)
 
 ### Community 78 - "Community 78"
-Cohesion: 0.12
-Nodes (16): abort_dispatch_route(), _check_escalation_token(), decide_tier_proposal(), decide_tool_approval(), discard_worktree_route(), DispatchAbortRequest, Accept or override a pending tier proposal. Token-gated, reusing the     same X, Approve or deny a pending tool-call approval (86bb3ceym / 86bb3r0h4).     Token (+8 more)
+Cohesion: 0.13
+Nodes (15): abort_dispatch_route(), cancel_escalation(), _check_escalation_token(), create_worktree_pr_route(), decide_tool_approval(), DispatchAbortRequest, get_worktree_status_route(), Approve or deny a pending tool-call approval (86bb3ceym / 86bb3r0h4).     Token (+7 more)
 
 ### Community 79 - "Community 79"
-Cohesion: 0.11
-Nodes (25): _prepare_working_copy(), Path, Copies one real vendored exercise into a disposable temp directory,     excludi, Real task text from the exercise's own .docs/instructions.md -- what the model i, Runs one real vendored exercise through the given Ollama model via the     ACI,, _read_task_description(), run_exercise(), _all_corpus_slugs() (+17 more)
+Cohesion: 0.13
+Nodes (20): Real task text from the exercise's own .docs/instructions.md -- what the model i, _read_task_description(), _all_corpus_slugs(), build_attempt_memory(), _cosine_similarity(), format_retrieved_context(), load_attempt_memory(), _log_pilot_result() (+12 more)
 
 ### Community 80 - "Community 80"
-Cohesion: 0.15
-Nodes (19): Langfuse, is_framework_integration_enabled(), True if the named framework integration flag is on. These are     independent f, _ensure_initialized(), log_gate_result(), log_guard_events(), Real, live proof the configured Laminar Cloud project is reachable --     sends, Mirrors nova_langfuse_client.log_guard_events()'s calling convention and     reg (+11 more)
+Cohesion: 0.13
+Nodes (23): Langfuse, is_framework_integration_enabled(), True if the named framework integration flag is on. These are     independent f, _ensure_initialized(), log_gate_result(), log_guard_events(), log_turn(), Real, live proof the configured Laminar Cloud project is reachable --     sends (+15 more)
 
 ### Community 89 - "Community 89"
 Cohesion: 0.09
@@ -565,8 +576,8 @@ Cohesion: 0.18
 Nodes (18): _cmd_delete(), _cmd_deploy(), _cmd_status(), create_endpoint(), create_template(), delete_endpoint(), get_endpoint(), _headers() (+10 more)
 
 ### Community 93 - "Community 93"
-Cohesion: 0.05
-Nodes (70): AST, ExceptHandler, expr, _added_lines_text(), _assignment_target_names(), _check_cross_module_missing_exports(), _check_deliverables_present(), _check_forbidden_paths_untouched() (+62 more)
+Cohesion: 0.13
+Nodes (18): _check_forbidden_paths_untouched(), check_ground_truth_completion(), _check_lint_clean(), _check_module_level_name_order(), _check_nonzero_diff(), _check_syntax_valid(), Hard-fail reasons, one per file the task's own spec explicitly named as     off, Prefixes each message with which check produced it, e.g.     "[syntax_valid] .. (+10 more)
 
 ### Community 94 - "Community 94"
 Cohesion: 0.22
@@ -609,8 +620,8 @@ Cohesion: 0.17
 Nodes (3): decode(), encode(), AffineCipherTest
 
 ### Community 111 - "Community 111"
-Cohesion: 0.20
-Nodes (10): _extract_first_json_object(), _has_second_tool_call(), _parse_tool_call(), Same markdown-fence gotcha nova_task_queue.propose_tier() already found live --, Scans for the first "{" and walks forward tracking brace depth --     respectin, Real gap found live 2026-08-23 (86bbk09da): after _extract_first_json_object() i, Four graduated attempts to turn the model's raw text into a real     Python dic, Parses one tool call out of the model's plain-text response. Returns     (call, (+2 more)
+Cohesion: 0.08
+Nodes (29): BackendProfile, One backend's real conventions: how it's asked to call tools, how a     finishe, _call_key(), _execute_tool_guarded(), _find_duplicate_functions(), _find_unreachable_code(), _get_tokenizer(), _log_agent_turn_runpod() (+21 more)
 
 ### Community 112 - "Community 112"
 Cohesion: 0.14
@@ -677,8 +688,8 @@ Cohesion: 0.17
 Nodes (11): 1. `bob` (a "winner-adjacent" exercise, textbook-familiar) — stuck-loop exhaustion, 2. `zebra-puzzle` (genuinely unfamiliar, puzzle-shaped) — premature abandonment, no attempt, 3. `affine-cipher` (unfamiliar, modular-arithmetic) — self-inflicted false negative, ACI Failure Mechanism Analysis — What "Familiarity" Actually Predicts, Guarded re-run results (2026-08-17), Reframing the familiarity finding, The corpus-wide breakdown (104 failed runs across the 25 never-pass exercises), Third guard: same-path repeated failure (2026-08-17, `86bbfwm3a`) (+3 more)
 
 ### Community 138 - "The six initiatives"
-Cohesion: 0.29
-Nodes (6): Ablation infra (shipped 2026-08-29), ACI Turn-Loop Guard Cluster — Individual Ablation, Planned batch (not yet run), Results, The four ablatable guards, The gap this closes
+Cohesion: 0.20
+Nodes (9): Ablation infra (shipped 2026-08-29), ACI Turn-Loop Guard Cluster — Individual Ablation, advisory-idiom A/B (same batch, `--hybrid-verify` on), Pass rate: noise, as predicted, Per-guard read, Recommendation, Results — repeat=2 batch, 2026-08-29 ($0, Ollama-only, 300 runs), The four ablatable guards (+1 more)
 
 ### Community 139 - "Laminar CLI"
 Cohesion: 0.18
@@ -713,8 +724,8 @@ Cohesion: 0.20
 Nodes (9): Coding Specialist: Shared Exercise Corpus Plan, Exercise structure (confirmed live — corrected after the real fetch), Pinned for reproducibility, Real finding from first use: parsing leniency matters more than format choice, Selection methodology: difficulty-stratified, not arbitrary, Source: `exercism/python`, not the polyglot-benchmark repo, What's built vs. what's still a decision, Where it lands (+1 more)
 
 ### Community 149 - "MeetupDayException"
-Cohesion: 0.13
-Nodes (14): ACI Hybrid-Verify Gate Audit — Splitting "Gamed" from "Idiom", Audited, not changed — these are deliberate and stay, Flag, not default, Interaction with `--regression-guard`, Open question for Phase 5 (do not solve here), Stage 1 — execution (`_run_real_tests`, cheap, deterministic), Stage 2 — generative (`_generative_style_verifier`, one Claude call, only once tests pass), The change: split the verdict (+6 more)
+Cohesion: 0.12
+Nodes (15): A/B result — repeat=2 batch, 2026-08-29 (inconclusive), ACI Hybrid-Verify Gate Audit — Splitting "Gamed" from "Idiom", Audited, not changed — these are deliberate and stay, Flag, not default, Interaction with `--regression-guard`, Open question for Phase 5 (do not solve here), Stage 1 — execution (`_run_real_tests`, cheap, deterministic), Stage 2 — generative (`_generative_style_verifier`, one Claude call, only once tests pass) (+7 more)
 
 ### Community 150 - "Nova Confirm/Deny Gate Audit — Findings"
 Cohesion: 0.22
@@ -725,8 +736,8 @@ Cohesion: 0.33
 Nodes (8): add_organic_merge_task(), HeldOutTask, _load_organic_merges(), Real organic merges added over time via add_organic_merge_task(). Empty if the p, Combines hand-authored tasks (AUTHORED_HELD_OUT_TASKS above) with real     organ, Everything check_ground_truth_completion() needs to test a candidate     model's, Appends a real, organically-merged task to the held-out pool     (logs/held_out_, select_held_out_tasks()
 
 ### Community 152 - "nova_guard_stats.py"
-Cohesion: 0.20
-Nodes (16): Runs the exercise's REAL test file via stdlib unittest (no pytest     dependenc, _run_real_tests(), _all_corpus_slugs(), _append_row(), curate(), _load_processed_slugs(), Anthropic, Defensive fence-stripping even though the prompt asks for none --     same real (+8 more)
+Cohesion: 0.23
+Nodes (14): _all_corpus_slugs(), _append_row(), curate(), _load_processed_slugs(), Anthropic, Defensive fence-stripping even though the prompt asks for none --     same real, One Claude call producing a complete solution file. First attempt: task     + st, Runs one exercise through generate -> real-test-execute -> refine, up     to MAX (+6 more)
 
 ### Community 154 - "SQL Query API"
 Cohesion: 0.25
@@ -864,6 +875,10 @@ Nodes (10): _log_result(), _print_summary(), CompletedProcess, Runs one real ven
 Cohesion: 0.18
 Nodes (10): 0. Launch the pod (from the Aero), 1. Clone the repo (on the pod), 2. Install dependencies, 3. Set `HF_TOKEN` and redirect the HF cache to the volume, 4. Run the SFT warm-start stage first, 5. Run the DPO refinement stage, 6. Confirm the upload before stopping the pod, 7. Stop paying (+2 more)
 
+### Community 259 - "_check_statement_sequence"
+Cohesion: 0.17
+Nodes (15): ExceptHandler, expr, _assignment_target_names(), _check_statement_sequence(), _eager_bound_names(), _handler_terminates(), _names_bound_by_statement(), Every name bound at module level by this statement sequence, or by any     nest (+7 more)
+
 ### Community 260 - "Coding track: real data-scale gap, and what to do about it"
 Cohesion: 0.22
 Nodes (8): Coding track: real data-scale gap, and what to do about it, How this interacts with the three new exploration tickets (filed 2026-08-19), Real external options, not yet evaluated, Real open decision for next session, Sources, Storage is not the constraint, The real gap, in Nova's own numbers, Why self-generation alone can't close this gap right now
@@ -876,9 +891,13 @@ Nodes (6): _classify(), _count_real_test_results(), _extract_candidate_pairs(), 
 Cohesion: 0.52
 Nodes (6): build_primitive_set(), evaluate_fitness(), protected_division(), run_evolution(), target_function(), PrimitiveSet
 
+### Community 263 - "nova_completion_gate.py"
+Cohesion: 0.22
+Nodes (12): AST, _check_unused_new_imports(), extract_task_requirements(), _load_task_requirements_cache(), _name_referenced_elsewhere(), True if `name` is Name-referenced (Load context) anywhere in `tree`     outside, Soft-flag warnings, one per newly ADDED import whose bound name is never     re, SHA-256 of the exact task text -- same hashing discipline as nova_task_queue._de (+4 more)
+
 ### Community 264 - "get_dispatch_cost_summary"
-Cohesion: 0.33
-Nodes (6): get_dispatch_cost_summary_route(), Real headless-dispatch spend readout (86bb3ceya) — backs the Nova     Controlle, get_dispatch_cost_summary(), Shared summing logic for one bucket of scheduled_dispatch_log.jsonl     entries, Real spend readout for headless dispatch (86bb3ceya) -- backs the     Controlle, _sum_dispatch_cost()
+Cohesion: 0.15
+Nodes (13): get_dispatch_cost_summary_route(), Real headless-dispatch spend readout (86bb3ceya) — backs the Nova     Controlle, count_unreviewed_dispatches(), get_dispatch_cost_summary(), _pending_escalation_task_ids(), Path, Read a JSONL file into a list of dicts, silently skipping blank/malformed lines., task_ids currently mid-escalation (status "pending" or "resuming" in     nova_a (+5 more)
 
 ### Community 265 - "create_research_note"
 Cohesion: 0.40
@@ -889,33 +908,65 @@ Cohesion: 0.40
 Nodes (4): First pass: search a deliberately too-narrow candidate space (pick a     constan, Second pass: widen the candidate space to include a comparison-gated     branch, synthesize_conditional_choice(), synthesize_constant_choice()
 
 ### Community 267 - "push_daily_usage_history"
-Cohesion: 0.50
-Nodes (4): POST/GET /usage-history route, Usage-history centralization via SessionEnd hook, push_daily_usage_history(), Push this machine's daily usage history to nova_api.py's POST     /usage-histor
+Cohesion: 0.22
+Nodes (9): ClickUp 86barhqt9 — Token Budget Governor v1, Atomic per-change commit convention ([module] short imperative), Constraints, Conventions, Examples, Nova Skill: Coding, Output format, Never delete/rewrite whole file when a patch would do (86barhqpp) (+1 more)
 
 ### Community 268 - "embedding_viz_page"
 Cohesion: 0.50
 Nodes (4): embedding_viz_page(), nova_log_page(), Serve the Nova Log Health dashboard — static HTML/JS, fetches /nova-log/data., Serve the Embedding-Space Visualization page — static HTML/JS, fetches /embeddin
+
+### Community 270 - "_check_narrow_scope_not_exceeded"
+Cohesion: 0.25
+Nodes (8): _check_narrow_scope_not_exceeded(), _check_unexpected_deletions(), _diff_numstat(), _original_line_count(), {path: (added, removed)} for every file changed between base_ref and     the wo, Total line count of `path` at base_ref, or None if it didn't exist there (a new, Hard-fail reasons, one per file the task's own spec said should get     only a, Soft-flag warnings for files that lost a large number of lines -- or     were d
+
+### Community 271 - "_execute_tool"
+Cohesion: 0.33
+Nodes (6): _execute_tool(), _format_list_result(), JSON-encodes a find_file/search_file/search_dir result, with an     explicit na, Resolves a SYSTEM_PROMPT_DIFF-style hunk (space/-/+ prefixed lines) against, Runs one ACI command by name, returns a plain-text result string to     feed ba, _resolve_diff_hunk()
+
+### Community 272 - "_check_module_level_circular_imports"
+Cohesion: 0.40
+Nodes (6): _check_module_level_circular_imports(), _eager_imports(), _find_import_cycle(), Real module names a source file imports at true import time only -- see     _Ea, DFS following only eager (import-time) imports outward from `current`,     look, Hard-fail reasons, one per touched .py file whose current (post-edit)     top-l
+
+### Community 275 - "_check_powershell_syntax_valid"
+Cohesion: 0.33
+Nodes (6): _check_powershell_syntax_valid(), _powershell_literal_string(), _powershell_parse_error(), Escape `value` as a PowerShell single-quoted string literal (double any     emb, Runs PSParser.Tokenize() (parse-only -- never executes the script)     against, Hard-fail reasons, one per touched .ps1 file that doesn't parse as valid     Po
+
+### Community 276 - "_check_deliverables_present"
+Cohesion: 0.50
+Nodes (4): _added_lines_text(), _check_deliverables_present(), Soft-flag warnings, one per named deliverable (extract_task_requirements()'s, Concatenated text of every added line (`+...`, excluding the `+++`     file-hea
+
+### Community 277 - "_check_cross_module_missing_exports"
+Cohesion: 0.50
+Nodes (4): _check_cross_module_missing_exports(), _local_module_file(), Real file path for a local dotted module name (e.g.     "browser_hands.harness., Hard-fail reasons, one per touched .py file with a `from <local_module>     imp
+
+### Community 278 - "_check_required_files_touched"
+Cohesion: 0.50
+Nodes (4): _check_required_files_touched(), _find_untracked_file_by_basename(), True if a file named `basename` exists anywhere under the task's own     worktr, Hard-fail reasons, one per file the task's own spec explicitly named as     som
+
+### Community 279 - "1. Project Overview"
+Cohesion: 0.67
+Nodes (3): 1. Project Overview, Current Phase: Phase 1 — Memory Core (active), Phase Roadmap
 
 ## Ambiguous Edges - Review These
 - `nova_graph()` → `nova_graph.json (wikilink graph nodes+edges)`  [AMBIGUOUS]
   nova_mcp_server.py · relation: references
 
 ## Knowledge Gaps
-- **402 isolated node(s):** `name`, `short_name`, `start_url`, `scope`, `display` (+397 more)
+- **405 isolated node(s):** `name`, `short_name`, `start_url`, `scope`, `display` (+400 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **97 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **98 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **What is the exact relationship between `nova_graph()` and `nova_graph.json (wikilink graph nodes+edges)`?**
   _Edge tagged AMBIGUOUS (relation: references) - confidence is low._
-- **Why does `CLAUDE.md — Nova Project Context & Coding Standards` connect `CLAUDE.md Architecture Doc` to `Community 99`, `Community 68`, `Community 70`, `push_daily_usage_history`, `Browser Task State Writer`, `Community 56`, `Query Category Router`, `Community 94`?**
-  _High betweenness centrality (0.034) - this node is a cross-community bridge._
+- **Why does `CLAUDE.md — Nova Project Context & Coding Standards` connect `CLAUDE.md Architecture Doc` to `Community 99`, `Community 68`, `Community 70`, `Claude Usage History Logger`, `Community 49`, `Browser Task State Writer`, `1. Project Overview`, `Community 56`, `Query Category Router`, `Community 94`?**
+  _High betweenness centrality (0.029) - this node is a cross-community bridge._
 - **Why does `_prune_struggle_history()` connect `Community 46` to `Coding Sub-Agent Orchestrator`?**
   _High betweenness centrality (0.019) - this node is a cross-community bridge._
-- **Why does `run_command()` connect `Browser Task State Writer` to `Community 48`, `CLAUDE.md Architecture Doc`, `Community 68`?**
-  _High betweenness centrality (0.017) - this node is a cross-community bridge._
+- **Why does `file_replace()` connect `Browser Task State Writer` to `Community 48`, `push_daily_usage_history`, `CLAUDE.md Architecture Doc`?**
+  _High betweenness centrality (0.019) - this node is a cross-community bridge._
 - **Are the 103 inferred relationships involving `meetup()` (e.g. with `.test_fifth_monday_of_march_2015()` and `.test_fifth_saturday_of_february_2020()`) actually correct?**
   _`meetup()` has 103 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 100 inferred relationships involving `date` (e.g. with `.test_fifth_monday_of_march_2015()` and `.test_fifth_saturday_of_february_2020()`) actually correct?**

@@ -121,7 +121,23 @@ Opt-in `--advisory-idiom`, matching the `--diff-format` / `--early-abandon` / or
 `--regression-guard` pattern. Promote to default-on (with a `--no-advisory-idiom` opt-out) only
 after a real full-corpus A/B batch (`scripts/run_advisory_idiom_ab_test.py`) shows a pass-rate
 edge **without** raising `GAMED` rejections — the split must not weaken the one high-value
-check. ~$1–2 Console per repeat=2 batch.
+check.
+
+### A/B result — repeat=2 batch, 2026-08-29 (inconclusive)
+
+| Condition | Pass | Avg turns | Style calls | IDIOM verdicts | GAMED rejections |
+|---|---|---|---|---|---|
+| baseline (IDIOM blocks) | 7/60 | 13.50 | 8 | **0** | 4 |
+| `--advisory-idiom` | 10/60 | 13.30 | 9 | **0** | 3 |
+
+Across 120 runs the style verifier returned `GAMED` or `ACCEPT` only — **never `IDIOM`**. The
+`octal` scenario this flag targets needs a fully-passing solution *and* an "unidiomatic"
+verdict on it, and that pair never occurred. The +3 pass difference is noise (n=2/condition).
+GAMED rejections did not rise, so the split didn't weaken the cheat catch. Real cost was
+~$0.10, not the ~$1–2 estimated — most runs never reach a passing solution, so the paid style
+call rarely fires. **Verdict: keep opt-in, no evidence to promote.** A meaningful re-test needs
+a model/corpus that produces more passing-but-unidiomatic solutions, or the production coding
+lane. Full write-up in `docs/aci-guard-cluster-ablation.md`.
 
 ## Verified (2026-08-29, direct gate calls against a real `two-fer` working copy)
 

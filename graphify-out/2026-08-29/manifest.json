@@ -1295,8 +1295,8 @@
     "semantic_hash": ""
   },
   "nova_aci_harness.py": {
-    "mtime": 1788043704.1326983,
-    "ast_hash": "11be845a18efb165f3a759041e03b15b",
+    "mtime": 1788046729.5935616,
+    "ast_hash": "87a10b555e5bf594342128427405550f",
     "semantic_hash": ""
   },
   "nova_aci_stats.py": {
@@ -1750,8 +1750,8 @@
     "semantic_hash": ""
   },
   "scripts/run_advisory_idiom_ab_test.py": {
-    "mtime": 1788043745.277477,
-    "ast_hash": "7e097248865b65f17dbb1ca533b32307",
+    "mtime": 1788046083.6841648,
+    "ast_hash": "4d8f17b539fd66f24c7da3216329f040",
     "semantic_hash": ""
   },
   "scripts/run_early_abandon_ab_test.py": {
@@ -1775,8 +1775,8 @@
     "semantic_hash": ""
   },
   "docs/aci-hybrid-verify-gate-audit.md": {
-    "mtime": 1788043977.0111356,
-    "ast_hash": "1bbaf8a7227dd9679d4f618a0efb2a30",
+    "mtime": 1788046903.577524,
+    "ast_hash": "5e0fbb50e0d54542e06ae194d97f2d99",
     "semantic_hash": ""
   },
   "docs/coding-track-data-scale-decision.md": {
@@ -1797,6 +1797,16 @@
   "docs/runpod_finetune_runbook.md": {
     "mtime": 1785602420.9511378,
     "ast_hash": "2f63a937854a8ff9a3794ddafa3d3d62",
+    "semantic_hash": ""
+  },
+  "scripts/run_guard_ablation.py": {
+    "mtime": 1788046842.4294631,
+    "ast_hash": "e38c0dad4acd9596f71892330b65ffe1",
+    "semantic_hash": ""
+  },
+  "docs/aci-guard-cluster-ablation.md": {
+    "mtime": 1788046895.2350633,
+    "ast_hash": "e67f6b2829008fae6970f84aea748693",
     "semantic_hash": ""
   }
 }
