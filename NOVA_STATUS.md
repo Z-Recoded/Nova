@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-08-24 04:01 UTC
+Last updated: 2026-08-30 00:02 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,21 +8,29 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- NEW -> ready: 86bbk1kqr (Explore self-play / asymmetric self-play for generating coder specialist training problems)
-- NEW -> ready: 86bbk03ma (Hands-on: DEAP genetic programming toy loop (population-based search exploration))
-- NEW -> ready: 86bbk03gg (Hands-on: Z3-based CEGIS toy loop (program synthesis exploration))
-- NEW -> ready: 86bbjzmhp (Claude Code session as live teacher-student loop for coder specialist (hooks-based))
-- NEW -> ready: 86bbjx8zp (Proxy pilot: does retrieval over prior similar attempts improve small-model coding competence?)
-- ready -> complete/removed: 86bb1pq3k (Deploy Open WebUI to the Omen — make it the sole always-on Nova machine)
-- ready -> complete/removed: 86bawnkbv (Nova Tutor — Phase 1: Chunk schema + storage)
+- NEW -> ready: 86bbnbq0q (Scope Qwen3.6/3.8-27B dense as a coder-specialist candidate for the local 3090 rig)
+- NEW -> ready: 86bbn80qp (Model capability complexity rubric + boundary visualization)
+- NEW -> ready: 86bbkru66 (Multi-agent scaling limits: where does specialist-squad coordination hit diminishing returns?)
+- NEW -> ready: 86bbkr4aa (Hands-on: TransformerLens mechanistic interpretability exploration)
+- NEW -> ready: 86bbkr48x (Task-complexity framework: analytical + empirical, state kept external to models)
+- NEW -> ready: 86bbk2nkb (OmniRoute as squad-bootstrap infra on the Omen (non-training-critical roles, with provider provenance tracking))
+- in_progress -> ready: 86bb72gpa (Coding agent runs its own verification repeatedly but never fixes the bug it finds)
+- in_progress -> ready: 86bb728nj (RunPod coding agent re-issues already-successful edits, burns full 25-turn budget without progressing)
+- in_progress -> ready: 86bb71x1j (Design auto-configuring harness: detect and align tool-call/completion conventions per model backend)
+- ready -> in_progress: 86bbcfv9d (Eval Harness — Initiative 2: audit existing gates individually)
+- ready -> complete/removed: 86bbk03ma (Hands-on: DEAP genetic programming toy loop (population-based search exploration))
+- ready -> complete/removed: 86bbk03gg (Hands-on: Z3-based CEGIS toy loop (program synthesis exploration))
+- ready -> complete/removed: 86bbjx8zp (Proxy pilot: does retrieval over prior similar attempts improve small-model coding competence?)
+- ready -> complete/removed: 86bbh41p2 (Explore: specialist-squad architecture (small models + orchestrator) vs. single frontier model)
+- ready -> complete/removed: 86bb7pawp (Observability Phase 1: Instrument turn loop (reasoning + tool calls + token uncertainty))
+- ready -> complete/removed: 86bb7pamh (Nova Observability Initiative — Langfuse tracing, agent oversight, and failure diagnosis)
+- ready -> complete/removed: 86bax697m (Adopt Langfuse as Nova's observability + auto-training-data backbone)
 
-## In progress (6)
+## In progress (4)
 
 - 86bbh41rk  Explore: small proxy-model validation gate for training recipe changes
+- 86bbcfv9d  Eval Harness — Initiative 2: audit existing gates individually
 - 86bbcfpap  Nova Training Pipeline — Phase 1: bulk execution-free distillation from Claude
-- 86bb72gpa  Coding agent runs its own verification repeatedly but never fixes the bug it finds
-- 86bb728nj  RunPod coding agent re-issues already-successful edits, burns full 25-turn budget without progressing
-- 86bb71x1j  Design auto-configuring harness: detect and align tool-call/completion conventions per model backend
 - 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
 
 ## Blocked (11)
@@ -39,17 +47,19 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (128)
+## Ready (129)
 
+- 86bbnbq0q  Scope Qwen3.6/3.8-27B dense as a coder-specialist candidate for the local 3090 rig
+- 86bbn80qp  Model capability complexity rubric + boundary visualization
+- 86bbkru66  Multi-agent scaling limits: where does specialist-squad coordination hit diminishing returns?
+- 86bbkr4aa  Hands-on: TransformerLens mechanistic interpretability exploration
+- 86bbkr48x  Task-complexity framework: analytical + empirical, state kept external to models
+- 86bbk2nkb  OmniRoute as squad-bootstrap infra on the Omen (non-training-critical roles, with provider provenance tracking)
 - 86bbk1kqr  Explore self-play / asymmetric self-play for generating coder specialist training problems
-- 86bbk03ma  Hands-on: DEAP genetic programming toy loop (population-based search exploration)
-- 86bbk03gg  Hands-on: Z3-based CEGIS toy loop (program synthesis exploration)
 - 86bbjzmhp  Claude Code session as live teacher-student loop for coder specialist (hooks-based)
-- 86bbjx8zp  Proxy pilot: does retrieval over prior similar attempts improve small-model coding competence?
 - 86bbjrt4d  Nova internal shape visualizer: UMAP on Chroma chunks + cross-specialist RSA
 - 86bbjrjtc  Code World Model: Generate/Improve/Fix search loop for coder specialist
 - 86bbjr89r  Squad-host KV cache persistence: llama-server slot save/restore + reverse proxy
-- 86bbh41p2  Explore: specialist-squad architecture (small models + orchestrator) vs. single frontier model
 - 86bbh0ad9  Explore: oracle-based supplemental signal for nova_corrector.py
 - 86bbfwm3y  Explore task-familiarity as a routing signal for nova_task_queue.propose_tier()
 - 86bbfw011  Eval Harness — Initiative 9: human verification UX (routed attention, not full review)
@@ -62,16 +72,16 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bbcfvay  Eval Harness — Initiative 5: per-specialist vetting harness
 - 86bbcfvak  Eval Harness — Initiative 4: guardrail — verifier stays inference-time only
 - 86bbcfva4  Eval Harness — Initiative 3: add inference-time verifier
-- 86bbcfv9d  Eval Harness — Initiative 2: audit existing gates individually
 - 86bbcfpd1  Nova Training Pipeline — Phase 5: hybrid verification at inference time
 - 86bbcfpck  Nova Training Pipeline — Phase 4: DPO difficulty filtering
 - 86bbcfpbg  Nova Training Pipeline — Phase 2: grounded execution-based refinement (per module)
 - 86bbaph6w  Spec: Local compute sizing & multi-GPU build plan (Nova central node)
-- 86bb7pawp  Observability Phase 1: Instrument turn loop (reasoning + tool calls + token uncertainty)
-- 86bb7pamh  Nova Observability Initiative — Langfuse tracing, agent oversight, and failure diagnosis
 - 86bb77vk6  Completion gate misses cross-module circular imports (found live in 86bb71a0f re-eval, task 6)
 - 86bb73bjz  Screen BF16/FP8 vs AWQ INT4 on held-out eval before committing to AWQ as production format
 - 86bb72wfy  Test tool_choice="required" to stop over-explaining (verify against known Qwen3+reasoning parser bug)
+- 86bb72gpa  Coding agent runs its own verification repeatedly but never fixes the bug it finds
+- 86bb728nj  RunPod coding agent re-issues already-successful edits, burns full 25-turn budget without progressing
+- 86bb71x1j  Design auto-configuring harness: detect and align tool-call/completion conventions per model backend
 - 86bb71a15  Verify aero_only scoping on framework_integrations.runpod_coding_agent is policy, not a hard dependency
 - 86bb6ruqb  Research: Directed/targeted audio output channel (parametric & beamforming speakers)
 - 86bb639k9  📌 Reference: Task Planning Standard v1.0
@@ -105,7 +115,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86baxbeuc  Tactical practice-mode LLM opponent (PokéChamp-style, turn-based grid tactics)
 - 86baxb10x  Visual sequence capture: lightweight frame/video recording for agent + game sessions
 - 86bax8bb5  Capability–understanding differential scorer (Nova vs. Marvin)
-- 86bax697m  Adopt Langfuse as Nova's observability + auto-training-data backbone
 - 86bawx7vj  Headless Nova coding: usage-aware autonomous runner + branch-based diff confirmation
 - 86bawpvzz  [Initiative — not scoped] Autonomous coding sessions — Nova writes its own code to build local-model training data
 - 86bawpc67  Vivarium experiment: bidirectional visual control panel for Nova

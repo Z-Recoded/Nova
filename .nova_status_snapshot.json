@@ -1,24 +1,36 @@
 {
   "ready": [
     {
+      "id": "86bbnbq0q",
+      "name": "Scope Qwen3.6/3.8-27B dense as a coder-specialist candidate for the local 3090 rig"
+    },
+    {
+      "id": "86bbn80qp",
+      "name": "Model capability complexity rubric + boundary visualization"
+    },
+    {
+      "id": "86bbkru66",
+      "name": "Multi-agent scaling limits: where does specialist-squad coordination hit diminishing returns?"
+    },
+    {
+      "id": "86bbkr4aa",
+      "name": "Hands-on: TransformerLens mechanistic interpretability exploration"
+    },
+    {
+      "id": "86bbkr48x",
+      "name": "Task-complexity framework: analytical + empirical, state kept external to models"
+    },
+    {
+      "id": "86bbk2nkb",
+      "name": "OmniRoute as squad-bootstrap infra on the Omen (non-training-critical roles, with provider provenance tracking)"
+    },
+    {
       "id": "86bbk1kqr",
       "name": "Explore self-play / asymmetric self-play for generating coder specialist training problems"
     },
     {
-      "id": "86bbk03ma",
-      "name": "Hands-on: DEAP genetic programming toy loop (population-based search exploration)"
-    },
-    {
-      "id": "86bbk03gg",
-      "name": "Hands-on: Z3-based CEGIS toy loop (program synthesis exploration)"
-    },
-    {
       "id": "86bbjzmhp",
       "name": "Claude Code session as live teacher-student loop for coder specialist (hooks-based)"
-    },
-    {
-      "id": "86bbjx8zp",
-      "name": "Proxy pilot: does retrieval over prior similar attempts improve small-model coding competence?"
     },
     {
       "id": "86bbjrt4d",
@@ -31,10 +43,6 @@
     {
       "id": "86bbjr89r",
       "name": "Squad-host KV cache persistence: llama-server slot save/restore + reverse proxy"
-    },
-    {
-      "id": "86bbh41p2",
-      "name": "Explore: specialist-squad architecture (small models + orchestrator) vs. single frontier model"
     },
     {
       "id": "86bbh0ad9",
@@ -85,10 +93,6 @@
       "name": "Eval Harness \u2014 Initiative 3: add inference-time verifier"
     },
     {
-      "id": "86bbcfv9d",
-      "name": "Eval Harness \u2014 Initiative 2: audit existing gates individually"
-    },
-    {
       "id": "86bbcfpd1",
       "name": "Nova Training Pipeline \u2014 Phase 5: hybrid verification at inference time"
     },
@@ -105,14 +109,6 @@
       "name": "Spec: Local compute sizing & multi-GPU build plan (Nova central node)"
     },
     {
-      "id": "86bb7pawp",
-      "name": "Observability Phase 1: Instrument turn loop (reasoning + tool calls + token uncertainty)"
-    },
-    {
-      "id": "86bb7pamh",
-      "name": "Nova Observability Initiative \u2014 Langfuse tracing, agent oversight, and failure diagnosis"
-    },
-    {
       "id": "86bb77vk6",
       "name": "Completion gate misses cross-module circular imports (found live in 86bb71a0f re-eval, task 6)"
     },
@@ -123,6 +119,18 @@
     {
       "id": "86bb72wfy",
       "name": "Test tool_choice=\"required\" to stop over-explaining (verify against known Qwen3+reasoning parser bug)"
+    },
+    {
+      "id": "86bb72gpa",
+      "name": "Coding agent runs its own verification repeatedly but never fixes the bug it finds"
+    },
+    {
+      "id": "86bb728nj",
+      "name": "RunPod coding agent re-issues already-successful edits, burns full 25-turn budget without progressing"
+    },
+    {
+      "id": "86bb71x1j",
+      "name": "Design auto-configuring harness: detect and align tool-call/completion conventions per model backend"
     },
     {
       "id": "86bb71a15",
@@ -255,10 +263,6 @@
     {
       "id": "86bax8bb5",
       "name": "Capability\u2013understanding differential scorer (Nova vs. Marvin)"
-    },
-    {
-      "id": "86bax697m",
-      "name": "Adopt Langfuse as Nova's observability + auto-training-data backbone"
     },
     {
       "id": "86bawx7vj",
@@ -519,20 +523,12 @@
       "name": "Explore: small proxy-model validation gate for training recipe changes"
     },
     {
+      "id": "86bbcfv9d",
+      "name": "Eval Harness \u2014 Initiative 2: audit existing gates individually"
+    },
+    {
       "id": "86bbcfpap",
       "name": "Nova Training Pipeline \u2014 Phase 1: bulk execution-free distillation from Claude"
-    },
-    {
-      "id": "86bb72gpa",
-      "name": "Coding agent runs its own verification repeatedly but never fixes the bug it finds"
-    },
-    {
-      "id": "86bb728nj",
-      "name": "RunPod coding agent re-issues already-successful edits, burns full 25-turn budget without progressing"
-    },
-    {
-      "id": "86bb71x1j",
-      "name": "Design auto-configuring harness: detect and align tool-call/completion conventions per model backend"
     },
     {
       "id": "86baf4e70",
