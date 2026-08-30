@@ -58,7 +58,12 @@ and the call is re-executed. With `done_without_edit` active an immediate `done`
 `abandoned_after_nudge` after 2 nudges; disabled, it ends `completed` on turn 1 with
 `guards_suppressed["done_without_edit"] == 1`.
 
-## Results — repeat=2 batch, 2026-08-29 ($0, Ollama-only, 300 runs)
+## Results — 2026-08-29 ($0, Ollama-only)
+
+Two batches: a repeat=2 sweep of all four guards (300 runs) + a focused repeat=6 re-run of
+`same_path_repeated_failure` (360 runs) after that guard showed a surprising reversal.
+
+### repeat=2 sweep, all four guards
 
 `scripts/run_guard_ablation.py --repeat 2`, Qwen2.5-Coder-7B, 30 exercises × 2 per condition.
 
@@ -98,15 +103,34 @@ batch, so removing it changed nothing causally.
   (don't accept a `done` with zero work done), not an efficiency one — a low fire count is the
   expected, healthy state, not evidence it's useless.
 
-- **`same_path_repeated_failure` — the one real surprise. Needs a bigger re-run.** Removing it
-  *improved* efficiency: avg turns −0.75, `max_turns` % **−8.3**. This **contradicts**
-  `docs/aci-failure-mechanism-analysis.md`, where adding it as the 3rd guard *dropped*
-  `max_turns` 38.3 → 25.8 cumulatively. Two readings: (a) noise at n=60, or (b) real — its
-  corrective note ("stop guessing, re-view the file's real current content in full") pushes
-  the model into extra `view` turns instead of converging, and it only looked helpful
-  cumulatively via an interaction with the other two guards. Fired 22×, so it is being
-  exercised. **Do not change it yet** — n=60 is too thin and the memory's own lesson is to
-  distrust small batches. This is the finding worth a repeat=4–6 re-run.
+- **`same_path_repeated_failure` — net-negative on efficiency. Reproduced. Recommend flipping
+  it off by default.** Removing it *improved* turn-efficiency in both batches:
+
+  | | repeat=2 (n=60) | repeat=6 (n=180) | pooled (n=240) |
+  |---|---|---|---|
+  | Δ avg turns | −0.75 | −0.56 | ~−0.6 |
+  | Δ `max_turns` % | −8.3 | −6.1 | ~−6.8 |
+  | Δ pass | −1 | +3 | +2 (noise) |
+  | would-have-fired | 22 | 72 | — fires on ~40% of runs |
+
+  Same direction, similar magnitude, at 4× the combined sample — this is a real finding, not
+  noise. The guard is heavily exercised (~40% of runs) and removing it makes the harness
+  *faster* with no pass-rate cost.
+
+  **This contradicts `docs/aci-failure-mechanism-analysis.md`** (2026-08-17), where adding it
+  as the "3rd guard" appeared to drop `max_turns` 38.3 → 25.8. Most likely a **misattribution**:
+  that same 2026-08-17 change also "ported SWE-agent's explicit empty-result feedback into
+  `find_file`/`search_file`/`search_dir` … `_format_list_result()`" — a change that directly
+  targets the `affine-cipher`/`zebra-puzzle` "quit after an empty search" failures the doc
+  itself describes. Two efficiency changes shipped in one batch; the credit went to the wrong
+  one. `same_path`'s own nudge ("Stop guessing at small variations. Use `view` to re-read the
+  file's real current content **in full**…") pushes the model into an extra `view` turn — and
+  `repeat_failed_call` already covers the exact-repeat case this was meant to complement.
+
+  **Recommendation: flip `same_path_repeated_failure` to opt-in (off by default).** Keep the
+  code + the enable path so it stays available and re-testable. Marvin's call on whether to do
+  that vs. soften the nudge (drop the "in full" re-read instruction, the turn-costly part) and
+  re-test.
 
 ### advisory-idiom A/B (same batch, `--hybrid-verify` on)
 
@@ -127,8 +151,11 @@ or the production coding lane.
 
 ## Recommendation
 
-1. **No guard changes now.** `repeat_failed_call` and `done_without_edit` are confirmed
-   keepers; `multiple_calls_ignored` is dormant but harmless.
-2. **One repeat=4–6 ablation re-run** focused on `same_path_repeated_failure` — the only
-   actionable signal, and it contradicts prior work. $0, ~4–6h.
-3. `--advisory-idiom` stays opt-in, flagged for a future re-test.
+1. **`repeat_failed_call`, `done_without_edit` — confirmed keepers, no change.**
+2. **`multiple_calls_ignored` — dormant for this model, keep (near-zero cost), document.**
+3. **`same_path_repeated_failure` — flip to opt-in (off by default).** Two reproduced batches
+   (n=240/condition combined) show it costs ~0.6 turns/run and ~7 points of `max_turns_reached`
+   with no pass-rate benefit; the 2026-08-17 "it helped" result was probably crediting the wrong
+   same-day change (empty-result search feedback). Awaiting Marvin's call: flip off vs. soften
+   the nudge and re-test.
+4. `--advisory-idiom` — stays opt-in, flagged for a future re-test (0 IDIOM verdicts in 120 runs).
