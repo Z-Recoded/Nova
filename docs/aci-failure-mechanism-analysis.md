@@ -211,3 +211,16 @@ capability hasn't moved. What moved is process efficiency: fewer runs get stuck 
 the full 15-turn budget, and runs resolve (whether pass or fail) faster on average. That's a real
 result, distinct from the flat null result the first two guards produced alone, and it's exactly
 the kind of signal Eval Harness Initiative 7/8 are built to consume at scale.
+
+> **⚠️ Correction (2026-08-31, Eval Harness Initiative 2 — `docs/aci-guard-cluster-ablation.md`):**
+> The "efficiency improved" claim in this section does **not** survive individual ablation. The
+> 2026-08-17 "3rd guard" batch shipped *two* changes at once — `same_path_repeated_failure` and
+> the `_format_list_result()` empty-result search feedback — and its `max_turns 38.3 → 25.8`
+> figure was a comparison between *separate batches*. Ablating each change on its own at
+> repeat=6 (n=180/condition) now shows **removing either one *improves* efficiency** by
+> ~0.6 turns / ~7 pts `max_turns` — the opposite direction. `max_turns_reached %` measured
+> 30.6 / 36.7 / 37.8 across three clean baseline batches this session, so the original 38 → 26
+> move is within noise. The likely truth: this was batch-to-batch variance read as signal.
+> `same_path_repeated_failure` has since been demoted to opt-in (`--same-path-guard`);
+> `_format_list_result()` is under review. `repeat_failed_call` / `done_without_edit` are
+> confirmed keepers by that same ablation.

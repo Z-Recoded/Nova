@@ -135,6 +135,40 @@ batch, so removing it changed nothing causally.
   (fake Ollama client): default → `same_path_guard_enabled=False`, 0 fires on 5 different
   broken edits to one path; `--same-path-guard` → fires 3×.
 
+### Follow-up: `_format_list_result()` empty-result feedback — also net-negative
+
+`same_path`'s reversal pointed the finger at the *other* change that shipped in the same
+2026-08-17 batch: `_format_list_result()`, which replaces a bare `[]` from
+`find_file`/`search_file`/`search_dir` with a 4-sentence "an empty result is not an error,
+check the file list you were given" message (SWE-agent's pattern, built for the
+`affine-cipher`/`zebra-puzzle` "quit after a bad search" failures). Ablated it via a throwaway
+monkeypatch (bare `json.dumps(items)`, the pre-2026-08-17 behaviour), repeat=6, 360 runs, $0:
+
+| Condition | Pass | Avg turns | `max_turns` % | quick give-ups (≤4t, completed, failed) |
+|---|---|---|---|---|
+| baseline (feedback on) | 8/180 | 8.55 | 30.6 | 50 |
+| ablated (bare `[]`) | 11/180 | **7.88** | **22.8** | **49** |
+
+Removing it *also* improved efficiency (−0.67 turns, −7.8 pts `max_turns`) — the same
+direction and magnitude as removing `same_path` (−0.56, −6.1 at repeat=6). And the number it
+was built to protect — **quick give-ups after an empty search stayed flat (50 → 49)**. The 14
+runs that stopped burning the full budget became normal completions, not early quits. No
+protective benefit visible in this corpus.
+
+**Reinterpretation of the 2026-08-17 result:** the doc's "2-guard 38.3% → 3-guard 25.8%
+`max_turns`" was **two separate batches**, and `max_turns_reached %` is a high-variance metric
+— clean baseline runs this session measured it at 30.6, 36.7, and 37.8. A 38 → 26 cross-batch
+move sits inside that envelope. Individual ablation of *both* same-day changes now points the
+other way. The most likely truth: the 2026-08-17 "guards helped efficiency" conclusion was
+batch-to-batch noise read as signal — exactly the failure mode Initiative 2 exists to catch,
+and the same lesson `project_aci_task_familiarity_finding` taught (r=0.469 at n=32 collapsing
+to r=0.126 at n=122).
+
+`_format_list_result()` is **not yet changed** — it's a smaller, more targeted correction than
+`same_path`'s "go re-read everything" nudge, and there's a principled case for a shortened
+version. Options for Marvin: demote it to opt-in like `same_path`; keep it but cut the message
+to one line and re-test; or leave it and just correct the 2026-08-17 record.
+
 ### advisory-idiom A/B (same batch, `--hybrid-verify` on)
 
 | Condition | Pass | Avg turns | Style calls | IDIOM verdicts | GAMED rejections |
@@ -161,4 +195,9 @@ or the production coding lane.
    of `max_turns_reached` with no pass-rate benefit; the 2026-08-17 "it helped" result was
    probably crediting the wrong same-day change (empty-result search feedback). Now behind
    `--same-path-guard`, code otherwise untouched.
-4. `--advisory-idiom` — stays opt-in, flagged for a future re-test (0 IDIOM verdicts in 120 runs).
+4. **`_format_list_result()` empty-result feedback — also net-negative (−0.67 turns, −7.8 pts
+   `max_turns`), with no protective benefit visible (quick give-ups flat).** Not yet changed —
+   Marvin's call: demote to opt-in / shorten + re-test / leave and correct the record. Either
+   way, `docs/aci-failure-mechanism-analysis.md`'s 2026-08-17 "guarded re-run" efficiency
+   claims should be flagged as likely batch-to-batch noise.
+5. `--advisory-idiom` — stays opt-in, flagged for a future re-test (0 IDIOM verdicts in 120 runs).
