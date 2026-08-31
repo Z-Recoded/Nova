@@ -265,8 +265,8 @@
     "semantic_hash": "969b2a89980f6f877f6316ca7c89f51e"
   },
   "CLAUDE.md": {
-    "mtime": 1788148876.9977973,
-    "ast_hash": "ef2aafec692475d4621a01f219a6f1d7",
+    "mtime": 1788046940.8200743,
+    "ast_hash": "6a2ed4e3e4d5df8effffaef610b5c626",
     "semantic_hash": ""
   },
   "NOVA_STATUS.md": {
@@ -1295,8 +1295,8 @@
     "semantic_hash": ""
   },
   "nova_aci_harness.py": {
-    "mtime": 1788148757.2907104,
-    "ast_hash": "36e2de2b3b7ca40a990bdaa7ae325d74",
+    "mtime": 1788046729.5935616,
+    "ast_hash": "87a10b555e5bf594342128427405550f",
     "semantic_hash": ""
   },
   "nova_aci_stats.py": {
@@ -1800,13 +1800,13 @@
     "semantic_hash": ""
   },
   "scripts/run_guard_ablation.py": {
-    "mtime": 1788148769.7851954,
-    "ast_hash": "518a63a0791d1b53527b3513c075af2d",
+    "mtime": 1788046842.4294631,
+    "ast_hash": "e38c0dad4acd9596f71892330b65ffe1",
     "semantic_hash": ""
   },
   "docs/aci-guard-cluster-ablation.md": {
-    "mtime": 1788148841.1806507,
-    "ast_hash": "e53b209de051c79d928bdc1f669d2be7",
+    "mtime": 1788065480.745797,
+    "ast_hash": "03f69cbfa33ca6864b96bc601f22675d",
     "semantic_hash": ""
   }
 }

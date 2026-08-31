@@ -7,18 +7,21 @@
 # guard on, then one run per ablatable guard with exactly that guard suppressed
 # (--disable-guard NAME), full corpus, repeat=N per condition for Ollama sampling noise.
 #
-# Scope: the four always-on turn-loop guards only (nova_aci_harness.ABLATABLE_GUARDS) --
-# repeat_failed_call, done_without_edit, same_path_repeated_failure, multiple_calls_ignored.
+# Scope: the always-on turn-loop guards in nova_aci_harness.ABLATABLE_GUARDS --
+# repeat_failed_call, done_without_edit, multiple_calls_ignored. (same_path_repeated_failure
+# was in this set for the original audit; the audit found it net-negative and demoted it to
+# opt-in --same-path-guard on 2026-08-30, so it's no longer an always-on guard to ablate.)
 # --hybrid-verify / --early-abandon / --regression-guard are separate axes with their own
 # flags and their own A/B scripts; this run leaves them at their defaults (hybrid-verify OFF,
 # so this batch spends $0 -- Ollama only, no Anthropic calls).
 #
-# Expected outcome (per the runbook): uneven. Some guards carry real lift on turn-efficiency
-# (same_path_repeated_failure already showed a ~12-point max_turns_reached drop cumulatively),
-# others contribute little. Pass rate is expected to stay flat -- these guards make failure
-# legible / efficient, they don't lift the capability ceiling. The `would have fired` column
-# tells you whether a flat result means "guard doesn't matter" or "guard just didn't get
-# exercised much in this corpus".
+# Original-audit outcome (2026-08-29, docs/aci-guard-cluster-ablation.md): uneven, as the
+# runbook predicted. repeat_failed_call is the workhorse; multiple_calls_ignored is dormant
+# for Qwen2.5-Coder-7B (0 fires in 300 runs); done_without_edit is a rare correctness net;
+# same_path_repeated_failure was net-negative on turn-efficiency and got demoted. Pass rate
+# stayed flat throughout -- these guards make failure legible/efficient, they don't lift the
+# capability ceiling. The `would have fired` column tells you whether a flat result means
+# "guard doesn't matter" or "guard just didn't get exercised much in this corpus".
 #
 # Runtime: (1 + N_guards) * 31 exercises * repeat. At repeat=2 that's ~310 runs, a few hours
 # on this hardware -- run it backgrounded / overnight.

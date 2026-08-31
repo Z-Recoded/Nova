@@ -111,6 +111,16 @@ MAX_DONE_WITHOUT_EDIT_NUDGES = 2
 # nova_orchestrator_runpod.py's own file_replace fallback nudge -- that backend already learned
 # (86bb728nj) that failures on the same PATH, not just identical calls, are the real recurring
 # loop shape and need their own threshold, separate from the exact-repeat guard.
+#
+# DEMOTED TO OPT-IN 2026-08-30 (86bbcfv9d Eval Harness Initiative 2). Individual ablation
+# across two batches (n=240/condition combined) showed this guard is net-NEGATIVE on
+# turn-efficiency: removing it improved avg turns ~-0.6 and max_turns_reached ~-7pts with no
+# pass-rate cost, while it fires on ~40% of runs. The 2026-08-17 "it helped" result was
+# likely a misattribution -- the empty-result search feedback (_format_list_result()) shipped
+# in the same batch and targets the same failures. Its nudge ("re-read the file in full")
+# costs an extra view turn, and GUARD_REPEAT_FAILED_CALL already covers the exact-repeat case.
+# Kept in the repo as a tested reference, off by default -- enable with --same-path-guard.
+# See docs/aci-guard-cluster-ablation.md.
 GUARD_SAME_PATH_REPEATED_FAILURE = "same_path_repeated_failure"
 SAME_PATH_FAILURE_THRESHOLD = 3
 
@@ -167,18 +177,19 @@ MULTIPLE_CALLS_NUDGE = (
     "per turn. If you meant to also do something else, make that your next call."
 )
 
-# 86bbcfv9d (Eval Harness Initiative 2, "audit existing gates individually"): the four
-# always-on turn-loop guards, each individually suppressible via run_exercise(disabled_guards=...)
+# 86bbcfv9d (Eval Harness Initiative 2, "audit existing gates individually"): the always-on
+# turn-loop guards, each individually suppressible via run_exercise(disabled_guards=...)
 # / --disable-guard NAME. When a guard is in the disabled set, its EFFECT is skipped (the loop
 # reverts to pre-guard behaviour at that point) but a would-have-fired count is still recorded
 # in the result's `guards_suppressed`, so an ablation batch sees both the pass-rate/turn delta
 # AND how often the guard actually engaged. --hybrid-verify / --early-abandon / --regression-guard
-# are separate axes with their own flags and are not part of this set.
+# are separate axes with their own flags and are not part of this set. GUARD_SAME_PATH_REPEATED_FAILURE
+# was demoted from this set to opt-in (--same-path-guard) on 2026-08-30 after its ablation came
+# back net-negative -- see its constant comment above.
 ABLATABLE_GUARDS = frozenset(
     {
         GUARD_REPEAT_FAILED_CALL,
         GUARD_DONE_WITHOUT_EDIT,
-        GUARD_SAME_PATH_REPEATED_FAILURE,
         GUARD_MULTIPLE_CALLS_IGNORED,
     }
 )
@@ -912,6 +923,7 @@ def run_exercise(
     regression_guard: bool = True,
     advisory_idiom: bool = False,
     disabled_guards: frozenset[str] = frozenset(),
+    same_path_guard: bool = False,
 ) -> dict:
     """
     Runs one real vendored exercise through the given Ollama model via the
@@ -1017,7 +1029,13 @@ def run_exercise(
     each guard's individual contribution against the real corpus, rather
     than only ever cumulatively (docs/aci-failure-mechanism-analysis.md
     measured guards 1->2->3 as a block, not one-at-a-time). Empty by
-    default -- every guard on, exactly as before.
+    default -- every ablatable guard on, exactly as before.
+
+    `same_path_guard`: 86bbcfv9d. The same-path-repeated-failure nudge, now
+    OPT-IN (default off) after its individual ablation came back net-negative
+    on turn-efficiency across two batches (n=240/condition) -- see the
+    GUARD_SAME_PATH_REPEATED_FAILURE comment and docs/aci-guard-cluster-ablation.md.
+    Kept as a tested reference; pass True / --same-path-guard to turn it back on.
     """
     unknown_guards = set(disabled_guards) - ABLATABLE_GUARDS
     if unknown_guards:
@@ -1297,19 +1315,17 @@ def run_exercise(
                 failed_calls.add(key)
                 path = call.get("arguments", {}).get("path", "")
                 path_failure_counts[path] = path_failure_counts.get(path, 0) + 1
-                if path_failure_counts[path] >= SAME_PATH_FAILURE_THRESHOLD:
-                    if GUARD_SAME_PATH_REPEATED_FAILURE in disabled_guards:
-                        # 86bbcfv9d ablation: guard suppressed -- drop the corrective note.
-                        guards_suppressed[GUARD_SAME_PATH_REPEATED_FAILURE] += 1
-                    else:
-                        guard_fires[GUARD_SAME_PATH_REPEATED_FAILURE] += 1
-                        tool_result += (
-                            f"\n\nNOTE: that's {path_failure_counts[path]} failed edits now on "
-                            f"'{path}' -- not necessarily the same call each time, but you keep "
-                            "failing in the same place. Stop guessing at small variations. Use view "
-                            "to re-read the file's real current content in full before your next "
-                            "edit, and think through the change before submitting it."
-                        )
+                # same_path_guard is opt-in (default off) since 2026-08-30 -- its ablation
+                # came back net-negative on turn-efficiency (86bbcfv9d).
+                if same_path_guard and path_failure_counts[path] >= SAME_PATH_FAILURE_THRESHOLD:
+                    guard_fires[GUARD_SAME_PATH_REPEATED_FAILURE] += 1
+                    tool_result += (
+                        f"\n\nNOTE: that's {path_failure_counts[path]} failed edits now on "
+                        f"'{path}' -- not necessarily the same call each time, but you keep "
+                        "failing in the same place. Stop guessing at small variations. Use view "
+                        "to re-read the file's real current content in full before your next "
+                        "edit, and think through the change before submitting it."
+                    )
             elif _tool_result_failed(tool, tool_result):
                 failed_calls.add(key)
             elif tool == "edit":
@@ -1366,6 +1382,7 @@ def run_exercise(
             "guard_fires": guard_fires,
             "disabled_guards": sorted(disabled_guards),
             "guards_suppressed": guards_suppressed,
+            "same_path_guard_enabled": same_path_guard,
             "hybrid_verify_enabled": hybrid_verify,
             "style_verifier_calls": style_verifier_calls,
             "test_fail_nudges": test_fail_nudges,
@@ -1407,6 +1424,7 @@ def run_all_exercises(
     regression_guard: bool = True,
     advisory_idiom: bool = False,
     disabled_guards: frozenset[str] = frozenset(),
+    same_path_guard: bool = False,
 ) -> list[dict]:
     """
     Runs every real vendored exercise under CORPUS_ROOT through
@@ -1445,6 +1463,7 @@ def run_all_exercises(
                 regression_guard=regression_guard,
                 advisory_idiom=advisory_idiom,
                 disabled_guards=disabled_guards,
+                same_path_guard=same_path_guard,
             )
             status = "PASS" if result["test_passed"] else "FAIL"
             print(f"  -> {status} ({result['final_status']}, {result['turns_used']} turn(s))")
@@ -1651,6 +1670,17 @@ if __name__ == "__main__":
             f"rather than only cumulatively. Choices: {', '.join(sorted(ABLATABLE_GUARDS))}."
         ),
     )
+    parser.add_argument(
+        "--same-path-guard",
+        action="store_true",
+        help=(
+            "86bbcfv9d: re-enable the same-path-repeated-failure nudge (fires after "
+            f"{SAME_PATH_FAILURE_THRESHOLD} failed edits on one path). Demoted from always-on to "
+            "opt-in on 2026-08-30 after its individual ablation came back net-negative on "
+            "turn-efficiency across two batches (n=240/condition). Kept as a tested reference. "
+            "See docs/aci-guard-cluster-ablation.md."
+        ),
+    )
     args = parser.parse_args()
 
     if args.all:
@@ -1666,6 +1696,7 @@ if __name__ == "__main__":
             regression_guard=args.regression_guard,
             advisory_idiom=args.advisory_idiom,
             disabled_guards=frozenset(args.disabled_guards),
+            same_path_guard=args.same_path_guard,
         )
         _print_summary(results)
     elif args.slug:
@@ -1681,6 +1712,7 @@ if __name__ == "__main__":
             regression_guard=args.regression_guard,
             advisory_idiom=args.advisory_idiom,
             disabled_guards=frozenset(args.disabled_guards),
+            same_path_guard=args.same_path_guard,
         )
         print(f"\n=== {result['slug']} ===")
         print(f"Status: {result['final_status']} ({result['turns_used']} turn(s) used)")

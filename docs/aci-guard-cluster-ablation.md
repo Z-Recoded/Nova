@@ -127,10 +127,13 @@ batch, so removing it changed nothing causally.
   file's real current content **in full**…") pushes the model into an extra `view` turn — and
   `repeat_failed_call` already covers the exact-repeat case this was meant to complement.
 
-  **Recommendation: flip `same_path_repeated_failure` to opt-in (off by default).** Keep the
-  code + the enable path so it stays available and re-testable. Marvin's call on whether to do
-  that vs. soften the nudge (drop the "in full" re-read instruction, the turn-costly part) and
-  re-test.
+  **APPLIED 2026-08-30 (Marvin's call): `same_path_repeated_failure` is now opt-in, off by
+  default.** New `run_exercise(same_path_guard=False)` param + `--same-path-guard` flag,
+  mirroring how `--diff-format` was kept as an off-by-default tested reference after its own
+  negative A/B. It was removed from `ABLATABLE_GUARDS` (now 3 always-on guards). The guard's
+  code, threshold, and nudge text are unchanged — only its default. Verified deterministically
+  (fake Ollama client): default → `same_path_guard_enabled=False`, 0 fires on 5 different
+  broken edits to one path; `--same-path-guard` → fires 3×.
 
 ### advisory-idiom A/B (same batch, `--hybrid-verify` on)
 
@@ -153,9 +156,9 @@ or the production coding lane.
 
 1. **`repeat_failed_call`, `done_without_edit` — confirmed keepers, no change.**
 2. **`multiple_calls_ignored` — dormant for this model, keep (near-zero cost), document.**
-3. **`same_path_repeated_failure` — flip to opt-in (off by default).** Two reproduced batches
-   (n=240/condition combined) show it costs ~0.6 turns/run and ~7 points of `max_turns_reached`
-   with no pass-rate benefit; the 2026-08-17 "it helped" result was probably crediting the wrong
-   same-day change (empty-result search feedback). Awaiting Marvin's call: flip off vs. soften
-   the nudge and re-test.
+3. **`same_path_repeated_failure` — flipped to opt-in (off by default), DONE 2026-08-30.** Two
+   reproduced batches (n=240/condition combined) showed it costs ~0.6 turns/run and ~7 points
+   of `max_turns_reached` with no pass-rate benefit; the 2026-08-17 "it helped" result was
+   probably crediting the wrong same-day change (empty-result search feedback). Now behind
+   `--same-path-guard`, code otherwise untouched.
 4. `--advisory-idiom` — stays opt-in, flagged for a future re-test (0 IDIOM verdicts in 120 runs).
