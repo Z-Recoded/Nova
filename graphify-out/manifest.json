@@ -265,8 +265,8 @@
     "semantic_hash": "969b2a89980f6f877f6316ca7c89f51e"
   },
   "CLAUDE.md": {
-    "mtime": 1788148876.9977973,
-    "ast_hash": "ef2aafec692475d4621a01f219a6f1d7",
+    "mtime": 1788155322.5954006,
+    "ast_hash": "c6ee641a3b494ca837a72c95b5538937",
     "semantic_hash": ""
   },
   "NOVA_STATUS.md": {
@@ -1807,6 +1807,11 @@
   "docs/aci-guard-cluster-ablation.md": {
     "mtime": 1788155210.8105445,
     "ast_hash": "bdc20c1b2294ba43e12746cb3651a1ed",
+    "semantic_hash": ""
+  },
+  "docs/aci-completion-gate-audit-scope.md": {
+    "mtime": 1788229869.8427925,
+    "ast_hash": "9bd748b370d9e26f3d21f634f4903f31",
     "semantic_hash": ""
   }
 }
