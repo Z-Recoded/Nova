@@ -269,19 +269,10 @@
   "267": "push_daily_usage_history",
   "268": "_parse_jsonl",
   "269": "nova_guard_stats.py",
-  "270": "_check_narrow_scope_not_exceeded",
   "271": "_execute_tool",
-  "272": "handle_coding_task",
   "273": "check_multi_call_baseline.sh",
   "274": "pywin32==312 (dependency, Windows-only)",
-  "275": "_check_module_level_circular_imports",
-  "276": "_resume_escalated_task",
-  "277": "_check_deliverables_present",
-  "278": "_powershell_parse_error",
   "279": "1. Project Overview",
   "280": "_repair_missing_closing_braces",
-  "281": "Test-PortListening",
-  "282": "get_dispatch_cost_summary",
-  "283": "failure_frequency_over_time",
-  "284": "3. Coding Philosophy — Legibility First"
+  "281": "Test-PortListening"
 }

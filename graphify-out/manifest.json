@@ -265,8 +265,8 @@
     "semantic_hash": "969b2a89980f6f877f6316ca7c89f51e"
   },
   "CLAUDE.md": {
-    "mtime": 1788155322.5954006,
-    "ast_hash": "c6ee641a3b494ca837a72c95b5538937",
+    "mtime": 1788231885.5449545,
+    "ast_hash": "af66d4b5a6741d50b3393c3cf5a1b43b",
     "semantic_hash": ""
   },
   "NOVA_STATUS.md": {
@@ -1814,9 +1814,9 @@
     "ast_hash": "e7b9e01425432a1c3acdddc3714c3a82",
     "semantic_hash": ""
   },
-  "scratchpad_held_out_requirements.json": {
-    "mtime": 1788231008.7814944,
-    "ast_hash": "563f230a90c6bc91b8a689a7268e5b64",
+  "docs/eval-harness-initiative-2-summary.md": {
+    "mtime": 1788232608.4943752,
+    "ast_hash": "91f26b821202a98ae5e9e42befc6993e",
     "semantic_hash": ""
   }
 }

@@ -1315,8 +1315,8 @@
     "semantic_hash": ""
   },
   "nova_eval_held_out.py": {
-    "mtime": 1786508046.7739198,
-    "ast_hash": "e1d7a2dd086a7fcfb5b3f655f03a59b1",
+    "mtime": 1788231748.7846084,
+    "ast_hash": "9678395dae5858088071ffe53631ab90",
     "semantic_hash": ""
   },
   "nova_gpu_monitor.py": {
@@ -1812,6 +1812,11 @@
   "docs/aci-completion-gate-audit-scope.md": {
     "mtime": 1788230207.680092,
     "ast_hash": "e7b9e01425432a1c3acdddc3714c3a82",
+    "semantic_hash": ""
+  },
+  "scratchpad_held_out_requirements.json": {
+    "mtime": 1788231008.7814944,
+    "ast_hash": "563f230a90c6bc91b8a689a7268e5b64",
     "semantic_hash": ""
   }
 }

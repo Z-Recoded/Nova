@@ -280,5 +280,8 @@
   "278": "_powershell_parse_error",
   "279": "1. Project Overview",
   "280": "_repair_missing_closing_braces",
-  "281": "Test-PortListening"
+  "281": "Test-PortListening",
+  "282": "get_dispatch_cost_summary",
+  "283": "failure_frequency_over_time",
+  "284": "3. Coding Philosophy — Legibility First"
 }
