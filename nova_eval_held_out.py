@@ -77,7 +77,124 @@ class HeldOutTask:
 #      to a real commit, is requirements valid).
 #   7. Get one line of human sign-off (a note here, or Marvin's own review)
 #      before the task enters this list.
-AUTHORED_HELD_OUT_TASKS: list[HeldOutTask] = []
+#
+# First authoring pass: 2026-08-31, 4 tasks, signed off by Marvin same day.
+# Targets picked from real deferred work (CLAUDE.md notes + a gap hit live
+# during the 2026-08-30 Tailscale incident). Each target verified against
+# the discipline: zero edit-targets and zero gate-fires in agent_log.jsonl
+# / coding_review_log.jsonl / ground_truth_gate_log.jsonl, and none is a
+# DEV_SET_BRANCH_COMMITS target file. requirements were extracted once via
+# extract_task_requirements() and reviewed; the tasks were never run through
+# any backend or gate while authoring.
+AUTHORED_HELD_OUT_TASKS: list[HeldOutTask] = [
+    HeldOutTask(
+        task_id="hot-001-omen-sync-lan-fallback",
+        task_description=(
+            "nova_omen_sync.py connects to the Omen at a single hardcoded Tailscale IP (the "
+            "OMEN_HOST constant). When the Aero's Tailscale link to the Omen degrades but both "
+            "machines are still on the same home LAN, every sync fails even though the Omen is "
+            "fully reachable at its LAN IP 192.168.1.250. Add a fallback: if the Tailscale host "
+            "is not reachable on the SSH port, retry the sync against the Omen's LAN IP instead, "
+            "and print which path was used. Keep the change entirely inside nova_omen_sync.py -- "
+            "do not modify nova_omen_dispatch.py or any other module that also talks to the Omen. "
+            "Do not change the default Tailscale-first behaviour; the LAN IP is only a fallback "
+            "when the Tailscale path is down."
+        ),
+        base_ref="a7decf34e306662d16adeebbf73547067af9a0e0",
+        requirements={
+            "required_files": ["nova_omen_sync.py"],
+            "forbidden_files": ["nova_omen_dispatch.py"],
+            "narrow_scope_files": ["nova_omen_sync.py"],
+            "deliverables": ["OMEN_HOST"],
+        },
+        source="authored",
+        added="2026-08-31",
+        note=(
+            "Real gap hit live during the 2026-08-30 Aero<->Omen Tailscale-over-Wi-Fi incident. "
+            "nova_omen_sync.py: 45 incidental mentions in agent_log.jsonl (reasoning context only), "
+            "0 edit-targets, 0 gate-fires. Tests forbidden_paths_untouched + narrow_scope on a fresh case."
+        ),
+    ),
+    HeldOutTask(
+        task_id="hot-002-notify-per-category-topic",
+        task_description=(
+            "nova_notify.py's send_notification() publishes every notification to one shared "
+            "ntfy.sh topic read from the NTFY_TOPIC environment variable. Add optional "
+            "per-category routing: send_notification() should take a new optional 'category' "
+            "argument, and when a category is given and an environment variable "
+            "NTFY_TOPIC_<CATEGORY> (category uppercased) is set, publish to that topic instead of "
+            "the shared one; otherwise fall back to NTFY_TOPIC exactly as today. Callers that pass "
+            "no category must keep working unchanged. Keep the change inside nova_notify.py."
+        ),
+        base_ref="a7decf34e306662d16adeebbf73547067af9a0e0",
+        requirements={
+            "required_files": ["nova_notify.py"],
+            "forbidden_files": [],
+            "narrow_scope_files": ["nova_notify.py"],
+            "deliverables": ["send_notification()"],
+        },
+        source="authored",
+        added="2026-08-31",
+        note=(
+            "CLAUDE.md Nova Controller UX section explicitly names this as an unbuilt fast-follow "
+            "('splitting into per-category topics is a plausible fast-follow, not built'). "
+            "nova_notify.py: 4 incidental mentions in agent_log.jsonl, 0 edit-targets, 0 gate-fires."
+        ),
+    ),
+    HeldOutTask(
+        task_id="hot-003-chunk-viz-json-output",
+        task_description=(
+            "nova_chunk_viz.py is a retrieval-audit CLI that prints the chunks Chroma retrieved "
+            "for a query as a colored terminal table. Add a --json flag that instead prints the "
+            "same retrieved-chunk data (source file, chunk index, distance, character tag, text "
+            "preview) as a single JSON array to stdout, with no color codes, so the output can be "
+            "piped into another tool. Reuse the existing resolve_chunks() function rather than "
+            "re-implementing retrieval. The default colored-table output must be unchanged when "
+            "--json is not passed."
+        ),
+        base_ref="a7decf34e306662d16adeebbf73547067af9a0e0",
+        requirements={
+            "required_files": ["nova_chunk_viz.py"],
+            "forbidden_files": [],
+            "narrow_scope_files": ["nova_chunk_viz.py"],
+            "deliverables": ["--json"],
+        },
+        source="authored",
+        added="2026-08-31",
+        note=(
+            "CLAUDE.md 86bara3tj: 'Stage 1 of 3 ... Only the CLI is built here; resolve_chunks() is "
+            "a clean standalone function so a future stage can reuse it.' This is a narrow slice of "
+            "Stage 2. nova_chunk_viz.py: 1 incidental mention in agent_log.jsonl, 0 edit-targets, "
+            "0 gate-fires. Imports from nova_query (a dev-set file) but must not edit it -- "
+            "narrow_scope enforces that."
+        ),
+    ),
+    HeldOutTask(
+        task_id="hot-004-log-rotation-dry-run",
+        task_description=(
+            "nova_log_rotation.py archives old Nova Log telemetry entries and rewrites the active "
+            "log files in place. Add a --dry-run flag that reports, per rotatable log file, how "
+            "many entries would be archived and how many would remain -- without writing any "
+            "archive file or modifying any active file. Normal (non-dry-run) behaviour must be "
+            "unchanged."
+        ),
+        base_ref="a7decf34e306662d16adeebbf73547067af9a0e0",
+        requirements={
+            "required_files": ["nova_log_rotation.py"],
+            "forbidden_files": [],
+            "narrow_scope_files": ["nova_log_rotation.py"],
+            "deliverables": ["--dry-run"],
+        },
+        source="authored",
+        added="2026-08-31",
+        note=(
+            "'Make a destructive-in-place operation previewable' is a real production task shape "
+            "(cf. the dev set's own start_nova.ps1 idempotency task). nova_log_rotation.py: 0 "
+            "appearances anywhere in agent_log.jsonl / coding_review_log.jsonl / "
+            "ground_truth_gate_log.jsonl -- the cleanest of the four."
+        ),
+    ),
+]
 
 # Not yet usable until real tasks exist -- 3 matches the "3-5 tasks" figure
 # already agreed as the target for the first authoring pass. This is a

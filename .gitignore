@@ -60,3 +60,4 @@ finetune_output/
 
 # Unsloth's runtime kernel-compilation cache (regenerated on first import, not project source)
 unsloth_compiled_cache/
+scratchpad_held_out_requirements.json
