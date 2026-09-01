@@ -56,11 +56,78 @@ already on disk:
 Optional permanent infra (only if step 1–4 justify a change): a `disabled_checks: frozenset`
 param on `check_ground_truth_completion()`, mirroring `run_exercise(disabled_guards=...)`.
 
+## Results — dev-set / historical-corpus pass, 2026-08-31 ($0, data-only)
+
+`scratchpad/gate_audit.py` over `ground_truth_gate_log.jsonl` (96 rows) + `coding_review_log.jsonl`
+(109 rows).
+
+**Hard limitation up front:** the 96 gate rows are only **10 distinct tasks**; the 109 review
+rows are **6 distinct tasks**. Same low-diversity problem the 2026-08-06 `nova_coding_corrector`
+run hit. Every number below is *directional* — "how did this check behave across ~10 tasks run
+many times", not a population estimate.
+
+### Hard-fail checks — fired / was-the-sole-reason
+
+| check | fired | sole (removing it flips a real F→T) | note |
+|---|---|---|---|
+| `lint_clean` | 26 | 18 | dominant — carries most of the gate's "not done" verdicts |
+| `nonzero_diff` | 15 | **15** | perfectly decisive — an empty diff is unambiguously not-done |
+| `module_level_name_order` | 12 | 10 | mostly on genuinely-bad attempts (8/12 on all-rejected tasks) |
+| `required_files_touched` | 8 | 5 | catches incomplete attempts |
+| `narrow_scope_not_exceeded` | 3 | 3 | small n, directionally fine |
+| `cross_module_missing_export` | 2 | **2** | small n, perfectly decisive — imports a non-existent name → real ImportError |
+| `cross_module_circular_import` | 3 | **0** | `86bb77vk6`'s check — never *independently* decisive here (always co-fired) |
+| `syntax_valid` | **0** | — | never fired in 96 rows |
+| `powershell_syntax_valid` | **0** | — | never fired (only 1–2 tasks had .ps1) |
+| `forbidden_paths_untouched` | **0** | — | never fired (model never tried a forbidden path) |
+
+### Warnings
+
+| check | fired |
+|---|---|
+| `deliverables_present` | 40 |
+| `unused_new_import` | 20 |
+| `unexpected_deletion` | **0** |
+
+### Read
+
+- **Keepers, clearly earning their place:** `nonzero_diff` and `cross_module_missing_export`
+  are 100% decisive whenever they fire (empty diff / broken import — both unambiguous).
+  `module_level_name_order` and `required_files_touched` fire mostly on genuine incompleteness.
+- **Never-fired checks stay** — `syntax_valid`, `powershell_syntax_valid`,
+  `forbidden_paths_untouched`, `unexpected_deletion` are the cheapest possible checks and each
+  catches a catastrophic/safety case. A low fire rate is the healthy state (same logic as the
+  guard cluster's `done_without_edit` / `forbidden_paths`), *not* evidence they're useless.
+- **`cross_module_circular_import` added no independent decisiveness** on this corpus (0 sole).
+  n=3 — keep it (circular imports are a real bug class, and `86bb77vk6` filed it from a live
+  miss), but note it's unproven.
+- **`lint_clean` is the dominant check and carries a plausible precision risk.** Its own
+  docstring assumes `C:/Nova` is always ruff-clean, so any violation on a touched file =
+  diff-caused. But it lints the *whole current file* (not just added lines) in a worktree
+  branched from master — if master had transient lint drift at gate time (`nova_api.py`, the
+  most-churned file, accounts for 15 of the 26 fires), it would flag pre-existing debt. The
+  task-text join is too coarse to confirm or deny this from the existing logs. **Targeted
+  follow-up:** either test it against fresh tasks on current master (needs the held-out set),
+  or instrument `_check_lint_clean` to lint the base commit too and diff the violation sets.
+
+### Recommendation
+
+**No completion-gate changes.** The gate is broadly doing real work; the decisive checks are
+decisive on genuine problems; the quiet checks are cheap safety nets. The one open question
+(`lint_clean` pre-existing-debt) needs the held-out set or a small instrumentation change,
+neither urgent.
+
 ## What still needs the held-out set (Initiative 1 follow-up)
 
 Whether a check *generalizes* — i.e. does it keep its precision on tasks it wasn't built
 from. That needs `logs/held_out_pool.jsonl` populated with hand-authored tasks (currently
 empty). The dev-set / historical-corpus analysis above stands on its own as the first pass.
+
+**This is now the critical path for the rest of Initiative 2.** Both gate groups audited so
+far (ACI turn-loop guards, production completion gate) hit the same wall: the eval corpus is
+6–10 distinct tasks. Directional conclusions are all this data supports. A real per-gate
+verdict — especially "does check X hold its precision on tasks it wasn't tuned against" —
+requires Initiative 1's held-out pool to actually exist.
 
 ## The A1-G2 turn-loop guards (separate, deferred)
 
