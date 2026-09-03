@@ -11253,8 +11253,8 @@
       "source_location": "L272",
       "_origin": "ast",
       "id": "graph_builder_get_context_budget",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 2,
+      "community_name": "Wikilink Graph Builder",
       "norm_label": "get_context_budget()"
     },
     {
@@ -11352,8 +11352,8 @@
       "source_location": "L278",
       "_origin": "ast",
       "id": "graph_builder_rationale_278",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 2,
+      "community_name": "Wikilink Graph Builder",
       "norm_label": "return a ranked list of filenames relevant to `query`.      strategy:       1"
     },
     {
@@ -11693,8 +11693,8 @@
       "source_location": "L298",
       "_origin": "ast",
       "id": "nova_aci_harness_repair_unterminated_string",
-      "community": 263,
-      "community_name": "nova_agent_log_status.py",
+      "community": 32,
+      "community_name": "Empty Adapters Package",
       "norm_label": "_repair_unterminated_string()"
     },
     {
@@ -11968,8 +11968,8 @@
       "source_location": "L299",
       "_origin": "ast",
       "id": "nova_aci_harness_rationale_299",
-      "community": 263,
-      "community_name": "nova_agent_log_status.py",
+      "community": 32,
+      "community_name": "Empty Adapters Package",
       "norm_label": "real repair heuristic, added 2026-08-15 after direct evidence: across a     ful"
     },
     {
@@ -12859,8 +12859,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "nova_api_py_basemodel",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 254,
+      "community_name": "decide_label_queue_entry",
       "norm_label": "basemodel"
     },
     {
@@ -12892,8 +12892,8 @@
       "source_location": "L150",
       "_origin": "ast",
       "id": "nova_api_agenttaskrequest",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 254,
+      "community_name": "decide_label_queue_entry",
       "norm_label": "agenttaskrequest"
     },
     {
@@ -12903,8 +12903,8 @@
       "source_location": "L155",
       "_origin": "ast",
       "id": "nova_api_usagehistorypushrequest",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 254,
+      "community_name": "decide_label_queue_entry",
       "norm_label": "usagehistorypushrequest"
     },
     {
@@ -12914,8 +12914,8 @@
       "source_location": "L160",
       "_origin": "ast",
       "id": "nova_api_activityprofilepushrequest",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "activityprofilepushrequest"
     },
     {
@@ -12925,8 +12925,8 @@
       "source_location": "L165",
       "_origin": "ast",
       "id": "nova_api_dispatchpauserequest",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 254,
+      "community_name": "decide_label_queue_entry",
       "norm_label": "dispatchpauserequest"
     },
     {
@@ -12947,8 +12947,8 @@
       "source_location": "L174",
       "_origin": "ast",
       "id": "nova_api_dispatchabortrequest",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 99,
+      "community_name": "Community 99",
       "norm_label": "dispatchabortrequest"
     },
     {
@@ -12958,8 +12958,8 @@
       "source_location": "L178",
       "_origin": "ast",
       "id": "nova_api_escalationcreaterequest",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "escalationcreaterequest"
     },
     {
@@ -12969,8 +12969,8 @@
       "source_location": "L192",
       "_origin": "ast",
       "id": "nova_api_escalationanswerrequest",
-      "community": 25,
-      "community_name": "Coding Task Router Integration",
+      "community": 54,
+      "community_name": "Community 54",
       "norm_label": "escalationanswerrequest"
     },
     {
@@ -12980,8 +12980,8 @@
       "source_location": "L196",
       "_origin": "ast",
       "id": "nova_api_tierproposalcreaterequest",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "tierproposalcreaterequest"
     },
     {
@@ -13013,8 +13013,8 @@
       "source_location": "L218",
       "_origin": "ast",
       "id": "nova_api_toolapprovalcreaterequest",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 254,
+      "community_name": "decide_label_queue_entry",
       "norm_label": "toolapprovalcreaterequest"
     },
     {
@@ -13068,8 +13068,8 @@
       "source_location": "L292",
       "_origin": "ast",
       "id": "nova_api_context_budget",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 2,
+      "community_name": "Wikilink Graph Builder",
       "norm_label": "context_budget()"
     },
     {
@@ -13167,8 +13167,8 @@
       "source_location": "L445",
       "_origin": "ast",
       "id": "nova_api_agent_task",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 254,
+      "community_name": "decide_label_queue_entry",
       "norm_label": "agent_task()"
     },
     {
@@ -13200,8 +13200,8 @@
       "source_location": "L503",
       "_origin": "ast",
       "id": "nova_api_push_usage_history",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 254,
+      "community_name": "decide_label_queue_entry",
       "norm_label": "push_usage_history()"
     },
     {
@@ -13222,8 +13222,8 @@
       "source_location": "L529",
       "_origin": "ast",
       "id": "nova_api_push_activity_profile",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "push_activity_profile()"
     },
     {
@@ -13244,8 +13244,8 @@
       "source_location": "L565",
       "_origin": "ast",
       "id": "nova_api_set_dispatch_pause_route",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 254,
+      "community_name": "decide_label_queue_entry",
       "norm_label": "set_dispatch_pause_route()"
     },
     {
@@ -13310,8 +13310,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backgroundtasks",
-      "community": 25,
-      "community_name": "Coding Task Router Integration",
+      "community": 54,
+      "community_name": "Community 54",
       "norm_label": "backgroundtasks"
     },
     {
@@ -13332,8 +13332,8 @@
       "source_location": "L777",
       "_origin": "ast",
       "id": "nova_api_create_escalation",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "create_escalation()"
     },
     {
@@ -13354,8 +13354,8 @@
       "source_location": "L811",
       "_origin": "ast",
       "id": "nova_api_resume_escalated_task",
-      "community": 25,
-      "community_name": "Coding Task Router Integration",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "_resume_escalated_task()"
     },
     {
@@ -13365,8 +13365,8 @@
       "source_location": "L853",
       "_origin": "ast",
       "id": "nova_api_answer_escalation",
-      "community": 25,
-      "community_name": "Coding Task Router Integration",
+      "community": 54,
+      "community_name": "Community 54",
       "norm_label": "answer_escalation()"
     },
     {
@@ -13376,8 +13376,8 @@
       "source_location": "L886",
       "_origin": "ast",
       "id": "nova_api_cancel_escalation",
-      "community": 99,
-      "community_name": "Community 99",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "cancel_escalation()"
     },
     {
@@ -13398,8 +13398,8 @@
       "source_location": "L945",
       "_origin": "ast",
       "id": "nova_api_set_tier_watermarks",
-      "community": 99,
-      "community_name": "Community 99",
+      "community": 25,
+      "community_name": "Coding Task Router Integration",
       "norm_label": "set_tier_watermarks()"
     },
     {
@@ -13409,8 +13409,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "any",
-      "community": 99,
-      "community_name": "Community 99",
+      "community": 25,
+      "community_name": "Coding Task Router Integration",
       "norm_label": "any"
     },
     {
@@ -13420,8 +13420,8 @@
       "source_location": "L960",
       "_origin": "ast",
       "id": "nova_api_create_tier_proposal",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "create_tier_proposal()"
     },
     {
@@ -13453,8 +13453,8 @@
       "source_location": "L1078",
       "_origin": "ast",
       "id": "nova_api_create_tool_approval",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 254,
+      "community_name": "decide_label_queue_entry",
       "norm_label": "create_tool_approval()"
     },
     {
@@ -13486,8 +13486,8 @@
       "source_location": "L1165",
       "_origin": "ast",
       "id": "nova_api_timeout_tool_approval",
-      "community": 99,
-      "community_name": "Community 99",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "timeout_tool_approval()"
     },
     {
@@ -13497,8 +13497,8 @@
       "source_location": "L1235",
       "_origin": "ast",
       "id": "nova_api_is_golden_duplicate",
-      "community": 78,
-      "community_name": "Community 78",
+      "community": 67,
+      "community_name": "Community 67",
       "norm_label": "_is_golden_duplicate()"
     },
     {
@@ -13508,8 +13508,8 @@
       "source_location": "L1242",
       "_origin": "ast",
       "id": "nova_api_read_jsonl_file",
-      "community": 78,
-      "community_name": "Community 78",
+      "community": 25,
+      "community_name": "Coding Task Router Integration",
       "norm_label": "_read_jsonl_file()"
     },
     {
@@ -13585,8 +13585,8 @@
       "source_location": "L1296",
       "_origin": "ast",
       "id": "nova_api_get_dispatch_log",
-      "community": 78,
-      "community_name": "Community 78",
+      "community": 25,
+      "community_name": "Coding Task Router Integration",
       "norm_label": "get_dispatch_log()"
     },
     {
@@ -13596,8 +13596,8 @@
       "source_location": "L1314",
       "_origin": "ast",
       "id": "nova_api_get_in_flight_status",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "get_in_flight_status()"
     },
     {
@@ -13607,8 +13607,8 @@
       "source_location": "L1329",
       "_origin": "ast",
       "id": "nova_api_abort_dispatch_route",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 99,
+      "community_name": "Community 99",
       "norm_label": "abort_dispatch_route()"
     },
     {
@@ -13618,8 +13618,8 @@
       "source_location": "L1352",
       "_origin": "ast",
       "id": "nova_api_get_dispatch_cost_summary_route",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "get_dispatch_cost_summary_route()"
     },
     {
@@ -13662,8 +13662,8 @@
       "source_location": "L1398",
       "_origin": "ast",
       "id": "nova_api_worktreediscardrequest",
-      "community": 157,
-      "community_name": "write_digest",
+      "community": 99,
+      "community_name": "Community 99",
       "norm_label": "worktreediscardrequest"
     },
     {
@@ -13684,8 +13684,8 @@
       "source_location": "L1427",
       "_origin": "ast",
       "id": "nova_api_discard_worktree_route",
-      "community": 157,
-      "community_name": "write_digest",
+      "community": 99,
+      "community_name": "Community 99",
       "norm_label": "discard_worktree_route()"
     },
     {
@@ -13695,8 +13695,8 @@
       "source_location": "L1448",
       "_origin": "ast",
       "id": "nova_api_get_label_queue",
-      "community": 78,
-      "community_name": "Community 78",
+      "community": 67,
+      "community_name": "Community 67",
       "norm_label": "get_label_queue()"
     },
     {
@@ -13706,8 +13706,8 @@
       "source_location": "L1518",
       "_origin": "ast",
       "id": "nova_api_labeldecisionrequest",
-      "community": 78,
-      "community_name": "Community 78",
+      "community": 25,
+      "community_name": "Coding Task Router Integration",
       "norm_label": "labeldecisionrequest"
     },
     {
@@ -13717,8 +13717,8 @@
       "source_location": "L1526",
       "_origin": "ast",
       "id": "nova_api_decide_label_queue_entry",
-      "community": 78,
-      "community_name": "Community 78",
+      "community": 25,
+      "community_name": "Coding Task Router Integration",
       "norm_label": "decide_label_queue_entry()"
     },
     {
@@ -13772,8 +13772,8 @@
       "source_location": "L1737",
       "_origin": "ast",
       "id": "nova_api_nova_log_page",
-      "community": 254,
-      "community_name": "decide_label_queue_entry",
+      "community": 15,
+      "community_name": "Nova API Core Routes",
       "norm_label": "nova_log_page()"
     },
     {
@@ -13794,8 +13794,8 @@
       "source_location": "L1762",
       "_origin": "ast",
       "id": "nova_api_embedding_viz_page",
-      "community": 254,
-      "community_name": "decide_label_queue_entry",
+      "community": 15,
+      "community_name": "Nova API Core Routes",
       "norm_label": "embedding_viz_page()"
     },
     {
@@ -13904,8 +13904,8 @@
       "source_location": "L298",
       "_origin": "ast",
       "id": "nova_api_rationale_298",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 2,
+      "community_name": "Wikilink Graph Builder",
       "norm_label": "return a ranked list of filenames most relevant to `query`,     combining seman"
     },
     {
@@ -13992,8 +13992,8 @@
       "source_location": "L446",
       "_origin": "ast",
       "id": "nova_api_rationale_446",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 254,
+      "community_name": "decide_label_queue_entry",
       "norm_label": "run a coding task through nova's coding sub-agent (nova_orchestrator.py)."
     },
     {
@@ -14025,8 +14025,8 @@
       "source_location": "L504",
       "_origin": "ast",
       "id": "nova_api_rationale_504",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 254,
+      "community_name": "decide_label_queue_entry",
       "norm_label": "merge one machine's locally-computed daily claude code usage history into     n"
     },
     {
@@ -14047,8 +14047,8 @@
       "source_location": "L530",
       "_origin": "ast",
       "id": "nova_api_rationale_530",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "merge one machine's locally-computed claude code activity profile (an     hour-"
     },
     {
@@ -14069,8 +14069,8 @@
       "source_location": "L566",
       "_origin": "ast",
       "id": "nova_api_rationale_566",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 254,
+      "community_name": "decide_label_queue_entry",
       "norm_label": "set the headless-dispatch pause switch in nova_state.db     (system/dispatch_pa"
     },
     {
@@ -14146,8 +14146,8 @@
       "source_location": "L778",
       "_origin": "ast",
       "id": "nova_api_rationale_778",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "register a new pending escalation \u2014 called by     nova_scheduled_dispatch.py's"
     },
     {
@@ -14168,8 +14168,8 @@
       "source_location": "L812",
       "_origin": "ast",
       "id": "nova_api_rationale_812",
-      "community": 25,
-      "community_name": "Coding Task Router Integration",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "runs in the background after post /escalations/{id}/answer returns.     resumes"
     },
     {
@@ -14179,8 +14179,8 @@
       "source_location": "L859",
       "_origin": "ast",
       "id": "nova_api_rationale_859",
-      "community": 25,
-      "community_name": "Coding Task Router Integration",
+      "community": 54,
+      "community_name": "Community 54",
       "norm_label": "accept marvin's answer immediately (fire-and-forget) and resume the     exact s"
     },
     {
@@ -14190,8 +14190,8 @@
       "source_location": "L887",
       "_origin": "ast",
       "id": "nova_api_rationale_887",
-      "community": 99,
-      "community_name": "Community 99",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "withdraw a pending escalation without answering it (86bb3ceyj's     abort-switc"
     },
     {
@@ -14212,8 +14212,8 @@
       "source_location": "L946",
       "_origin": "ast",
       "id": "nova_api_rationale_946",
-      "community": 99,
-      "community_name": "Community 99",
+      "community": 25,
+      "community_name": "Coding Task Router Integration",
       "norm_label": "full overwrite, not merge-by-key -- the caller (detect_tier_candidates())     a"
     },
     {
@@ -14223,8 +14223,8 @@
       "source_location": "L961",
       "_origin": "ast",
       "id": "nova_api_rationale_961",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "register a new pending tier proposal -- called by     nova_scheduled_dispatch.p"
     },
     {
@@ -14256,8 +14256,8 @@
       "source_location": "L1079",
       "_origin": "ast",
       "id": "nova_api_rationale_1079",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 254,
+      "community_name": "decide_label_queue_entry",
       "norm_label": "register a new pending tool-call approval \u2014 called by     nova_headless_approva"
     },
     {
@@ -14289,8 +14289,8 @@
       "source_location": "L1166",
       "_origin": "ast",
       "id": "nova_api_rationale_1166",
-      "community": 99,
-      "community_name": "Community 99",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "self-reported timeout from nova_headless_approval_hook.py (86bb3r0h4)     when"
     },
     {
@@ -14300,8 +14300,8 @@
       "source_location": "L1236",
       "_origin": "ast",
       "id": "nova_api_rationale_1236",
-      "community": 78,
-      "community_name": "Community 78",
+      "community": 67,
+      "community_name": "Community 67",
       "norm_label": "true if a training_flags.jsonl entry's query exactly matches one of nova_benchma"
     },
     {
@@ -14311,8 +14311,8 @@
       "source_location": "L1243",
       "_origin": "ast",
       "id": "nova_api_rationale_1243",
-      "community": 78,
-      "community_name": "Community 78",
+      "community": 25,
+      "community_name": "Coding Task Router Integration",
       "norm_label": "shared jsonl reader \u2014 same silently-skip-malformed-lines convention as nova_sche"
     },
     {
@@ -14333,8 +14333,8 @@
       "source_location": "L1297",
       "_origin": "ast",
       "id": "nova_api_rationale_1297",
-      "community": 78,
-      "community_name": "Community 78",
+      "community": 25,
+      "community_name": "Coding Task Router Integration",
       "norm_label": "merged, sorted view of every real headless-dispatch outcome \u2014 backs     the fee"
     },
     {
@@ -14344,8 +14344,8 @@
       "source_location": "L1315",
       "_origin": "ast",
       "id": "nova_api_rationale_1315",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "is a headless dispatch running right now, and if so which task \u2014     backs the"
     },
     {
@@ -14355,8 +14355,8 @@
       "source_location": "L1330",
       "_origin": "ast",
       "id": "nova_api_rationale_1330",
-      "community": 15,
-      "community_name": "Nova API Core Routes",
+      "community": 99,
+      "community_name": "Community 99",
       "norm_label": "kill the currently-running cron-fired dispatch (86bb3ceyj) \u2014 backs the     nova"
     },
     {
@@ -14366,8 +14366,8 @@
       "source_location": "L1353",
       "_origin": "ast",
       "id": "nova_api_rationale_1353",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "real headless-dispatch spend readout (86bb3ceya) \u2014 backs the nova     controlle"
     },
     {
@@ -14410,8 +14410,8 @@
       "source_location": "L1428",
       "_origin": "ast",
       "id": "nova_api_rationale_1428",
-      "community": 157,
-      "community_name": "write_digest",
+      "community": 99,
+      "community_name": "Community 99",
       "norm_label": "delete a dispatch worktree and its branch outright \u2014 backs the     controller's"
     },
     {
@@ -14421,8 +14421,8 @@
       "source_location": "L1449",
       "_origin": "ast",
       "id": "nova_api_rationale_1449",
-      "community": 78,
-      "community_name": "Community 78",
+      "community": 67,
+      "community_name": "Community 67",
       "norm_label": "unlabeled tool-call and blend-flag entries awaiting a human judge-pass     \u2014 ba"
     },
     {
@@ -14432,8 +14432,8 @@
       "source_location": "L1532",
       "_origin": "ast",
       "id": "nova_api_rationale_1532",
-      "community": 78,
-      "community_name": "Community 78",
+      "community": 25,
+      "community_name": "Coding Task Router Integration",
       "norm_label": "patch one tool_call_log.jsonl or training_flags.jsonl entry in place \u2014     a re"
     },
     {
@@ -14487,8 +14487,8 @@
       "source_location": "L1738",
       "_origin": "ast",
       "id": "nova_api_rationale_1738",
-      "community": 254,
-      "community_name": "decide_label_queue_entry",
+      "community": 15,
+      "community_name": "Nova API Core Routes",
       "norm_label": "serve the nova log health dashboard \u2014 static html/js, fetches /nova-log/data."
     },
     {
@@ -14509,8 +14509,8 @@
       "source_location": "L1763",
       "_origin": "ast",
       "id": "nova_api_rationale_1763",
-      "community": 254,
-      "community_name": "decide_label_queue_entry",
+      "community": 15,
+      "community_name": "Nova API Core Routes",
       "norm_label": "serve the embedding-space visualization page \u2014 static html/js, fetches /embeddin"
     },
     {
@@ -14575,8 +14575,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_backend_profiles",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "nova_backend_profiles.py"
     },
     {
@@ -14586,8 +14586,8 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "nova_backend_profiles_backendprofile",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "backendprofile"
     },
     {
@@ -14597,8 +14597,8 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "nova_backend_profiles_rationale_27",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "one backend's real conventions: how it's asked to call tools, how a     finishe"
     },
     {
@@ -15026,8 +15026,8 @@
       "source_location": "L253",
       "_origin": "ast",
       "id": "nova_board_cmd_unlink",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 1,
+      "community_name": "ClickUp Board CLI",
       "norm_label": "cmd_unlink()"
     },
     {
@@ -15301,8 +15301,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_chat",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 60,
+      "community_name": "Community 60",
       "norm_label": "nova_chat.py"
     },
     {
@@ -15312,8 +15312,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "nova_chat_main",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 60,
+      "community_name": "Community 60",
       "norm_label": "main()"
     },
     {
@@ -15532,8 +15532,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_clickup_client",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 1,
+      "community_name": "ClickUp Board CLI",
       "norm_label": "nova_clickup_client.py"
     },
     {
@@ -15543,8 +15543,8 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "nova_clickup_client_api_key",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 7,
+      "community_name": "Board Status Digest & Token Budget",
       "norm_label": "_api_key()"
     },
     {
@@ -15554,8 +15554,8 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "nova_clickup_client_headers",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 7,
+      "community_name": "Board Status Digest & Token Budget",
       "norm_label": "_headers()"
     },
     {
@@ -15565,8 +15565,8 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "nova_clickup_client_request",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 7,
+      "community_name": "Board Status Digest & Token Budget",
       "norm_label": "_request()"
     },
     {
@@ -15576,8 +15576,8 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "nova_clickup_client_get_task",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 1,
+      "community_name": "ClickUp Board CLI",
       "norm_label": "get_task()"
     },
     {
@@ -15631,8 +15631,8 @@
       "source_location": "L128",
       "_origin": "ast",
       "id": "nova_clickup_client_remove_dependency",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 1,
+      "community_name": "ClickUp Board CLI",
       "norm_label": "remove_dependency()"
     },
     {
@@ -15653,8 +15653,8 @@
       "source_location": "L142",
       "_origin": "ast",
       "id": "nova_clickup_client_add_comment",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 7,
+      "community_name": "Board Status Digest & Token Budget",
       "norm_label": "add_comment()"
     },
     {
@@ -15664,8 +15664,8 @@
       "source_location": "L147",
       "_origin": "ast",
       "id": "nova_clickup_client_add_tag",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 7,
+      "community_name": "Board Status Digest & Token Budget",
       "norm_label": "add_tag()"
     },
     {
@@ -15675,8 +15675,8 @@
       "source_location": "L152",
       "_origin": "ast",
       "id": "nova_clickup_client_remove_tag",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 99,
+      "community_name": "Community 99",
       "norm_label": "remove_tag()"
     },
     {
@@ -15686,8 +15686,8 @@
       "source_location": "L160",
       "_origin": "ast",
       "id": "nova_clickup_client_cached_get_task",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 1,
+      "community_name": "ClickUp Board CLI",
       "norm_label": "_cached_get_task()"
     },
     {
@@ -15697,8 +15697,8 @@
       "source_location": "L177",
       "_origin": "ast",
       "id": "nova_clickup_client_own_blockers",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 1,
+      "community_name": "ClickUp Board CLI",
       "norm_label": "_own_blockers()"
     },
     {
@@ -15719,8 +15719,8 @@
       "source_location": "L209",
       "_origin": "ast",
       "id": "nova_clickup_client_get_dependency_chain",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 1,
+      "community_name": "ClickUp Board CLI",
       "norm_label": "get_dependency_chain()"
     },
     {
@@ -15752,8 +15752,8 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_48",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 7,
+      "community_name": "Board Status Digest & Token Budget",
       "norm_label": "reads clickup_api_key from the environment, same pattern as     anthropic_api_k"
     },
     {
@@ -15763,8 +15763,8 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_64",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 7,
+      "community_name": "Board Status Digest & Token Budget",
       "norm_label": "clickup personal api tokens go in the authorization header raw, no 'bearer' pref"
     },
     {
@@ -15774,8 +15774,8 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_69",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 7,
+      "community_name": "Board Status Digest & Token Budget",
       "norm_label": "thin wrapper around httpx for every clickup api call. turns a failed     reques"
     },
     {
@@ -15785,8 +15785,8 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_91",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 1,
+      "community_name": "ClickUp Board CLI",
       "norm_label": "fetch a single task, including its status, dependencies, and last-updated timest"
     },
     {
@@ -15840,8 +15840,8 @@
       "source_location": "L129",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_129",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 1,
+      "community_name": "ClickUp Board CLI",
       "norm_label": "remove a previously-recorded depends_on link between two tasks."
     },
     {
@@ -15862,8 +15862,8 @@
       "source_location": "L143",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_143",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 7,
+      "community_name": "Board Status Digest & Token Budget",
       "norm_label": "post a comment on a task \u2014 used for automated status/outcome notifications (e.g."
     },
     {
@@ -15873,8 +15873,8 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_148",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 7,
+      "community_name": "Board Status Digest & Token Budget",
       "norm_label": "attach a tag to a task \u2014 used to mark a headless dispatch paused awaiting marvin"
     },
     {
@@ -15884,8 +15884,8 @@
       "source_location": "L153",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_153",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 99,
+      "community_name": "Community 99",
       "norm_label": "remove a previously-attached tag \u2014 used once an escalation is answered and the s"
     },
     {
@@ -15895,8 +15895,8 @@
       "source_location": "L161",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_161",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 1,
+      "community_name": "ClickUp Board CLI",
       "norm_label": "fetches a task, reusing `cache` (an id -> task dict the caller owns)     instea"
     },
     {
@@ -15906,8 +15906,8 @@
       "source_location": "L178",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_178",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 1,
+      "community_name": "ClickUp Board CLI",
       "norm_label": "filters a task's raw `dependencies` field down to entries where this     task i"
     },
     {
@@ -15928,8 +15928,8 @@
       "source_location": "L210",
       "_origin": "ast",
       "id": "nova_clickup_client_rationale_210",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 1,
+      "community_name": "ClickUp Board CLI",
       "norm_label": "walks this task's own blockers recursively, stopping at a blocker that's     co"
     },
     {
@@ -16016,8 +16016,8 @@
       "source_location": "L112",
       "_origin": "ast",
       "id": "nova_coding_aci_view",
-      "community": 132,
-      "community_name": "_parse_jsonl",
+      "community": 255,
+      "community_name": "check_ground_truth_completion",
       "norm_label": "view()"
     },
     {
@@ -16115,8 +16115,8 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "nova_coding_aci_rationale_113",
-      "community": 132,
-      "community_name": "_parse_jsonl",
+      "community": 255,
+      "community_name": "check_ground_truth_completion",
       "norm_label": "windowed view of a file, with explicit line numbers -- the aci's     replacement"
     },
     {
@@ -16720,8 +16720,8 @@
       "source_location": "L173",
       "_origin": "ast",
       "id": "nova_coding_eval_create_worktree_at",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 259,
+      "community_name": "nova_coding_eval.py",
       "norm_label": "_create_worktree_at()"
     },
     {
@@ -16731,8 +16731,8 @@
       "source_location": "L199",
       "_origin": "ast",
       "id": "nova_coding_eval_git_diff_against_ref",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 259,
+      "community_name": "nova_coding_eval.py",
       "norm_label": "_git_diff_against_ref()"
     },
     {
@@ -16742,8 +16742,8 @@
       "source_location": "L218",
       "_origin": "ast",
       "id": "nova_coding_eval_run_runpod_backend",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 259,
+      "community_name": "nova_coding_eval.py",
       "norm_label": "run_runpod_backend()"
     },
     {
@@ -16753,8 +16753,8 @@
       "source_location": "L288",
       "_origin": "ast",
       "id": "nova_coding_eval_run_devstral_backend",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 259,
+      "community_name": "nova_coding_eval.py",
       "norm_label": "run_devstral_backend()"
     },
     {
@@ -16764,8 +16764,8 @@
       "source_location": "L339",
       "_origin": "ast",
       "id": "nova_coding_eval_run_qwen3_backend",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "run_qwen3_backend()"
     },
     {
@@ -16863,8 +16863,8 @@
       "source_location": "L174",
       "_origin": "ast",
       "id": "nova_coding_eval_rationale_174",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 259,
+      "community_name": "nova_coding_eval.py",
       "norm_label": "like nova_orchestrator._create_worktree(), but branches from an     arbitrary b"
     },
     {
@@ -16874,8 +16874,8 @@
       "source_location": "L200",
       "_origin": "ast",
       "id": "nova_coding_eval_rationale_200",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 259,
+      "community_name": "nova_coding_eval.py",
       "norm_label": "like nova_orchestrator._git_diff_against_master(), but against an     arbitrary"
     },
     {
@@ -16885,8 +16885,8 @@
       "source_location": "L219",
       "_origin": "ast",
       "id": "nova_coding_eval_rationale_219",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 259,
+      "community_name": "nova_coding_eval.py",
       "norm_label": "runs one task through the runpod backend directly (bypassing     run_coding_tas"
     },
     {
@@ -16896,8 +16896,8 @@
       "source_location": "L289",
       "_origin": "ast",
       "id": "nova_coding_eval_rationale_289",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 259,
+      "community_name": "nova_coding_eval.py",
       "norm_label": "runs one task through the devstral backend (nova_orchestrator_devstral,     rea"
     },
     {
@@ -16907,8 +16907,8 @@
       "source_location": "L340",
       "_origin": "ast",
       "id": "nova_coding_eval_rationale_340",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "runs one task through the qwen3-coder-next backend     (nova_orchestrator_qwen3"
     },
     {
@@ -17116,8 +17116,8 @@
       "source_location": "L137",
       "_origin": "ast",
       "id": "nova_completion_gate_task_requirements_cache_key",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 93,
+      "community_name": "Community 93",
       "norm_label": "_task_requirements_cache_key()"
     },
     {
@@ -17127,8 +17127,8 @@
       "source_location": "L142",
       "_origin": "ast",
       "id": "nova_completion_gate_load_task_requirements_cache",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 93,
+      "community_name": "Community 93",
       "norm_label": "_load_task_requirements_cache()"
     },
     {
@@ -17138,8 +17138,8 @@
       "source_location": "L153",
       "_origin": "ast",
       "id": "nova_completion_gate_save_task_requirements_cache",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 93,
+      "community_name": "Community 93",
       "norm_label": "_save_task_requirements_cache()"
     },
     {
@@ -17149,8 +17149,8 @@
       "source_location": "L159",
       "_origin": "ast",
       "id": "nova_completion_gate_extract_task_requirements",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 93,
+      "community_name": "Community 93",
       "norm_label": "extract_task_requirements()"
     },
     {
@@ -17762,7 +17762,7 @@
       "label": "_tag()",
       "file_type": "code",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1457",
+      "source_location": "L1449",
       "_origin": "ast",
       "id": "nova_completion_gate_tag",
       "community": 93,
@@ -17773,7 +17773,7 @@
       "label": "check_ground_truth_completion()",
       "file_type": "code",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1473",
+      "source_location": "L1465",
       "_origin": "ast",
       "id": "nova_completion_gate_check_ground_truth_completion",
       "community": 93,
@@ -17787,8 +17787,8 @@
       "source_location": "L138",
       "_origin": "ast",
       "id": "nova_completion_gate_rationale_138",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 93,
+      "community_name": "Community 93",
       "norm_label": "sha-256 of the exact task text -- same hashing discipline as nova_task_queue._de"
     },
     {
@@ -17798,8 +17798,8 @@
       "source_location": "L143",
       "_origin": "ast",
       "id": "nova_completion_gate_rationale_143",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 93,
+      "community_name": "Community 93",
       "norm_label": "{cache_key: requirements_dict}. empty dict if the cache file doesn't exist yet o"
     },
     {
@@ -17809,8 +17809,8 @@
       "source_location": "L160",
       "_origin": "ast",
       "id": "nova_completion_gate_rationale_160",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 93,
+      "community_name": "Community 93",
       "norm_label": "one-time, non-agentic claude call that parses a task's own spec text     into s"
     },
     {
@@ -18191,9 +18191,9 @@
       "label": "Prefixes each message with which check produced it, e.g.     \"[syntax_valid] ..",
       "file_type": "rationale",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1458",
+      "source_location": "L1450",
       "_origin": "ast",
-      "id": "nova_completion_gate_rationale_1458",
+      "id": "nova_completion_gate_rationale_1450",
       "community": 93,
       "community_name": "Community 93",
       "norm_label": "prefixes each message with which check produced it, e.g.     \"[syntax_valid] .."
@@ -18202,9 +18202,9 @@
       "label": "Runs every ground-truth check and returns {\"passed\": bool, \"hard_fails\":     [.",
       "file_type": "rationale",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1476",
+      "source_location": "L1468",
       "_origin": "ast",
-      "id": "nova_completion_gate_rationale_1476",
+      "id": "nova_completion_gate_rationale_1468",
       "community": 93,
       "community_name": "Community 93",
       "norm_label": "runs every ground-truth check and returns {\"passed\": bool, \"hard_fails\":     [."
@@ -18282,8 +18282,8 @@
       "source_location": "L146",
       "_origin": "ast",
       "id": "nova_config_is_framework_integration_enabled",
-      "community": 80,
-      "community_name": "Community 80",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "is_framework_integration_enabled()"
     },
     {
@@ -18458,8 +18458,8 @@
       "source_location": "L482",
       "_origin": "ast",
       "id": "nova_config_config_snapshot",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 66,
+      "community_name": "Community 66",
       "norm_label": "config_snapshot()"
     },
     {
@@ -18502,8 +18502,8 @@
       "source_location": "L147",
       "_origin": "ast",
       "id": "nova_config_rationale_147",
-      "community": 80,
-      "community_name": "Community 80",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "true if the named framework integration flag is on. these are     independent f"
     },
     {
@@ -18678,8 +18678,8 @@
       "source_location": "L483",
       "_origin": "ast",
       "id": "nova_config_rationale_483",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 66,
+      "community_name": "Community 66",
       "norm_label": "flat snapshot of every flag's current value, for attaching to per-query     tel"
     },
     {
@@ -19305,8 +19305,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_escalation",
-      "community": 22,
-      "community_name": "Nova Log Benchmark View",
+      "community": 10,
+      "community_name": "RAG Retrieval & Blend Logging",
       "norm_label": "nova_escalation.py"
     },
     {
@@ -19316,8 +19316,8 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "nova_escalation_is_dispatch_paused",
-      "community": 22,
-      "community_name": "Nova Log Benchmark View",
+      "community": 10,
+      "community_name": "RAG Retrieval & Blend Logging",
       "norm_label": "is_dispatch_paused()"
     },
     {
@@ -19327,8 +19327,8 @@
       "source_location": "L85",
       "_origin": "ast",
       "id": "nova_escalation_set_dispatch_pause",
-      "community": 99,
-      "community_name": "Community 99",
+      "community": 10,
+      "community_name": "RAG Retrieval & Blend Logging",
       "norm_label": "set_dispatch_pause()"
     },
     {
@@ -19349,8 +19349,8 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "nova_escalation_rationale_60",
-      "community": 22,
-      "community_name": "Nova Log Benchmark View",
+      "community": 10,
+      "community_name": "RAG Retrieval & Blend Logging",
       "norm_label": "current pause state for headless dispatch, read from the omen's own     nova-ap"
     },
     {
@@ -19360,8 +19360,8 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "nova_escalation_rationale_86",
-      "community": 99,
-      "community_name": "Community 99",
+      "community": 10,
+      "community_name": "RAG Retrieval & Blend Logging",
       "norm_label": "flip the pause switch via the omen's nova-api. unlike the read path,     this d"
     },
     {
@@ -19473,116 +19473,6 @@
       "community": 151,
       "community_name": "nova_eval_held_out.py",
       "norm_label": "combines hand-authored tasks (authored_held_out_tasks above) with real     organ"
-    },
-    {
-      "label": "nova_eval_held_out_report.py",
-      "file_type": "code",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "nova_eval_held_out_report",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
-      "norm_label": "nova_eval_held_out_report.py"
-    },
-    {
-      "label": "_resolve_ref()",
-      "file_type": "code",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L53",
-      "_origin": "ast",
-      "id": "nova_eval_held_out_report_resolve_ref",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
-      "norm_label": "_resolve_ref()"
-    },
-    {
-      "label": "run_claude_held_out()",
-      "file_type": "code",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L66",
-      "_origin": "ast",
-      "id": "nova_eval_held_out_report_run_claude_held_out",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
-      "norm_label": "run_claude_held_out()"
-    },
-    {
-      "label": "_checks_that_fired()",
-      "file_type": "code",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L151",
-      "_origin": "ast",
-      "id": "nova_eval_held_out_report_checks_that_fired",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
-      "norm_label": "_checks_that_fired()"
-    },
-    {
-      "label": "_format_task_section()",
-      "file_type": "code",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L161",
-      "_origin": "ast",
-      "id": "nova_eval_held_out_report_format_task_section",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
-      "norm_label": "_format_task_section()"
-    },
-    {
-      "label": "generate_report()",
-      "file_type": "code",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L191",
-      "_origin": "ast",
-      "id": "nova_eval_held_out_report_generate_report",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
-      "norm_label": "generate_report()"
-    },
-    {
-      "label": "Return the short SHA `ref` resolves to, or raise if it doesn't exist.",
-      "file_type": "rationale",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L54",
-      "_origin": "ast",
-      "id": "nova_eval_held_out_report_rationale_54",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
-      "norm_label": "return the short sha `ref` resolves to, or raise if it doesn't exist."
-    },
-    {
-      "label": "Run one held-out task through the production Claude turn loop and check     its",
-      "file_type": "rationale",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L67",
-      "_origin": "ast",
-      "id": "nova_eval_held_out_report_rationale_67",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
-      "norm_label": "run one held-out task through the production claude turn loop and check     its"
-    },
-    {
-      "label": "The set of check names that produced any hard_fail or warning this run.",
-      "file_type": "rationale",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L152",
-      "_origin": "ast",
-      "id": "nova_eval_held_out_report_rationale_152",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
-      "norm_label": "the set of check names that produced any hard_fail or warning this run."
-    },
-    {
-      "label": "Run every held-out task through run_claude_held_out() and write one     timestam",
-      "file_type": "rationale",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L192",
-      "_origin": "ast",
-      "id": "nova_eval_held_out_report_rationale_192",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
-      "norm_label": "run every held-out task through run_claude_held_out() and write one     timestam"
     },
     {
       "label": "nova_finetune_phi4.py",
@@ -21120,8 +21010,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_laminar_client",
-      "community": 80,
-      "community_name": "Community 80",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "nova_laminar_client.py"
     },
     {
@@ -21131,8 +21021,8 @@
       "source_location": "L95",
       "_origin": "ast",
       "id": "nova_laminar_client_ensure_initialized",
-      "community": 80,
-      "community_name": "Community 80",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "_ensure_initialized()"
     },
     {
@@ -21142,8 +21032,8 @@
       "source_location": "L124",
       "_origin": "ast",
       "id": "nova_laminar_client_verify_connectivity",
-      "community": 80,
-      "community_name": "Community 80",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "verify_connectivity()"
     },
     {
@@ -21153,8 +21043,8 @@
       "source_location": "L157",
       "_origin": "ast",
       "id": "nova_laminar_client_log_turn",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "log_turn()"
     },
     {
@@ -21164,8 +21054,8 @@
       "source_location": "L232",
       "_origin": "ast",
       "id": "nova_laminar_client_log_guard_events",
-      "community": 80,
-      "community_name": "Community 80",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "log_guard_events()"
     },
     {
@@ -21175,8 +21065,8 @@
       "source_location": "L271",
       "_origin": "ast",
       "id": "nova_laminar_client_log_gate_result",
-      "community": 80,
-      "community_name": "Community 80",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "log_gate_result()"
     },
     {
@@ -21186,8 +21076,8 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "nova_laminar_client_rationale_96",
-      "community": 80,
-      "community_name": "Community 80",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "laminar.initialize() sets up global sdk state once per process -- unlike     lan"
     },
     {
@@ -21197,8 +21087,8 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "nova_laminar_client_rationale_125",
-      "community": 80,
-      "community_name": "Community 80",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "real, live proof the configured laminar cloud project is reachable --     sends"
     },
     {
@@ -21208,8 +21098,8 @@
       "source_location": "L169",
       "_origin": "ast",
       "id": "nova_laminar_client_rationale_169",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "mirrors nova_langfuse_client.log_turn()'s exact signature and calling     conven"
     },
     {
@@ -21219,8 +21109,8 @@
       "source_location": "L233",
       "_origin": "ast",
       "id": "nova_laminar_client_rationale_233",
-      "community": 80,
-      "community_name": "Community 80",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "mirrors nova_langfuse_client.log_guard_events()'s calling convention and     reg"
     },
     {
@@ -21230,8 +21120,8 @@
       "source_location": "L272",
       "_origin": "ast",
       "id": "nova_laminar_client_rationale_272",
-      "community": 80,
-      "community_name": "Community 80",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "mirrors nova_langfuse_client.log_gate_result()'s calling convention and     regi"
     },
     {
@@ -21285,8 +21175,8 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "nova_langfuse_client_log_turn",
-      "community": 80,
-      "community_name": "Community 80",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "log_turn()"
     },
     {
@@ -21340,8 +21230,8 @@
       "source_location": "L103",
       "_origin": "ast",
       "id": "nova_langfuse_client_rationale_103",
-      "community": 80,
-      "community_name": "Community 80",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "one shared turn-logging path for observability initiative phase 1     (86bb7paw"
     },
     {
@@ -21978,8 +21868,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_memory_store",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 60,
+      "community_name": "Community 60",
       "norm_label": "nova_memory_store.py"
     },
     {
@@ -21989,8 +21879,8 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "nova_memory_store_load_history",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 60,
+      "community_name": "Community 60",
       "norm_label": "load_history()"
     },
     {
@@ -22011,8 +21901,8 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "nova_memory_store_clear_history",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 60,
+      "community_name": "Community 60",
       "norm_label": "clear_history()"
     },
     {
@@ -22022,8 +21912,8 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "nova_memory_store_rationale_16",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 60,
+      "community_name": "Community 60",
       "norm_label": "load conversation history from disk. returns empty list if none exists."
     },
     {
@@ -22044,8 +21934,8 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "nova_memory_store_rationale_37",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 60,
+      "community_name": "Community 60",
       "norm_label": "delete the history file."
     },
     {
@@ -22715,8 +22605,8 @@
       "source_location": "L605",
       "_origin": "ast",
       "id": "nova_omen_dispatch_dispatch_headless_task_sandboxed",
-      "community": 22,
-      "community_name": "Nova Log Benchmark View",
+      "community": 10,
+      "community_name": "RAG Retrieval & Blend Logging",
       "norm_label": "dispatch_headless_task_sandboxed()"
     },
     {
@@ -22825,8 +22715,8 @@
       "source_location": "L609",
       "_origin": "ast",
       "id": "nova_omen_dispatch_rationale_609",
-      "community": 22,
-      "community_name": "Nova Log Benchmark View",
+      "community": 10,
+      "community_name": "RAG Retrieval & Blend Logging",
       "norm_label": "real-sandboxed variant of dispatch_headless_task() -- runs `claude -p`     insi"
     },
     {
@@ -23034,8 +22924,8 @@
       "source_location": "L150",
       "_origin": "ast",
       "id": "nova_orchestrator_slugify",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 259,
+      "community_name": "nova_coding_eval.py",
       "norm_label": "_slugify()"
     },
     {
@@ -23100,8 +22990,8 @@
       "source_location": "L242",
       "_origin": "ast",
       "id": "nova_orchestrator_build_system_prompt",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 264,
+      "community_name": "_execute_tool",
       "norm_label": "_build_system_prompt()"
     },
     {
@@ -23111,8 +23001,8 @@
       "source_location": "L288",
       "_origin": "ast",
       "id": "nova_orchestrator_approval_gate_reason",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 264,
+      "community_name": "_execute_tool",
       "norm_label": "_approval_gate_reason()"
     },
     {
@@ -23122,8 +23012,8 @@
       "source_location": "L309",
       "_origin": "ast",
       "id": "nova_orchestrator_request_tool_approval",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 66,
+      "community_name": "Community 66",
       "norm_label": "_request_tool_approval()"
     },
     {
@@ -23133,8 +23023,8 @@
       "source_location": "L370",
       "_origin": "ast",
       "id": "nova_orchestrator_execute_tool",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 264,
+      "community_name": "_execute_tool",
       "norm_label": "_execute_tool()"
     },
     {
@@ -23149,21 +23039,10 @@
       "norm_label": "_log_agent_turn()"
     },
     {
-      "label": "run_via_claude()",
-      "file_type": "code",
-      "source_file": "nova_orchestrator.py",
-      "source_location": "L466",
-      "_origin": "ast",
-      "id": "nova_orchestrator_run_via_claude",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
-      "norm_label": "run_via_claude()"
-    },
-    {
       "label": "run_coding_task()",
       "file_type": "code",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L591",
+      "source_location": "L466",
       "_origin": "ast",
       "id": "nova_orchestrator_run_coding_task",
       "community": 9,
@@ -23174,7 +23053,7 @@
       "label": "_review_coding_diff()",
       "file_type": "code",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L834",
+      "source_location": "L788",
       "_origin": "ast",
       "id": "nova_orchestrator_review_coding_diff",
       "community": 9,
@@ -23185,7 +23064,7 @@
       "label": "_log_coding_review()",
       "file_type": "code",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L919",
+      "source_location": "L873",
       "_origin": "ast",
       "id": "nova_orchestrator_log_coding_review",
       "community": 9,
@@ -23196,18 +23075,18 @@
       "label": "_log_ground_truth_gate()",
       "file_type": "code",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L942",
+      "source_location": "L896",
       "_origin": "ast",
       "id": "nova_orchestrator_log_ground_truth_gate",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "_log_ground_truth_gate()"
     },
     {
       "label": "record_task_outcome()",
       "file_type": "code",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L972",
+      "source_location": "L926",
       "_origin": "ast",
       "id": "nova_orchestrator_record_task_outcome",
       "community": 9,
@@ -23221,8 +23100,8 @@
       "source_location": "L151",
       "_origin": "ast",
       "id": "nova_orchestrator_rationale_151",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "community": 259,
+      "community_name": "nova_coding_eval.py",
       "norm_label": "turn a task description into a short, unique, filesystem-safe slug."
     },
     {
@@ -23276,8 +23155,8 @@
       "source_location": "L243",
       "_origin": "ast",
       "id": "nova_orchestrator_rationale_243",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 264,
+      "community_name": "_execute_tool",
       "norm_label": "system prompt: the project's own coding standards, plus tool-use guidance."
     },
     {
@@ -23287,8 +23166,8 @@
       "source_location": "L289",
       "_origin": "ast",
       "id": "nova_orchestrator_rationale_289",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 264,
+      "community_name": "_execute_tool",
       "norm_label": "none means silently allow. any other value is the human-readable reason     a t"
     },
     {
@@ -23298,8 +23177,8 @@
       "source_location": "L312",
       "_origin": "ast",
       "id": "nova_orchestrator_rationale_312",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 66,
+      "community_name": "Community 66",
       "norm_label": "register a pending tool-call approval directly in nova_state.db and     block ("
     },
     {
@@ -23309,8 +23188,8 @@
       "source_location": "L373",
       "_origin": "ast",
       "id": "nova_orchestrator_rationale_373",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 264,
+      "community_name": "_execute_tool",
       "norm_label": "dispatch one claude tool_use call to the matching nova_tools function.     logs"
     },
     {
@@ -23325,23 +23204,12 @@
       "norm_label": "append one turn of an agent task to agent_log.jsonl (jsonl, mirrors nova_log.py)"
     },
     {
-      "label": "The Claude-backed coding turn loop: drive an Anthropic tool-use loop     agains",
-      "file_type": "rationale",
-      "source_file": "nova_orchestrator.py",
-      "source_location": "L479",
-      "_origin": "ast",
-      "id": "nova_orchestrator_rationale_479",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
-      "norm_label": "the claude-backed coding turn loop: drive an anthropic tool-use loop     agains"
-    },
-    {
       "label": "Run one coding task end-to-end: spin up a disposable worktree, drive a     Clau",
       "file_type": "rationale",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L592",
+      "source_location": "L467",
       "_origin": "ast",
-      "id": "nova_orchestrator_rationale_592",
+      "id": "nova_orchestrator_rationale_467",
       "community": 9,
       "community_name": "Resource Headroom Calculator",
       "norm_label": "run one coding task end-to-end: spin up a disposable worktree, drive a     clau"
@@ -23350,9 +23218,9 @@
       "label": "Single non-agentic Claude call reviewing a RunPod-backed coding task's     fina",
       "file_type": "rationale",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L835",
+      "source_location": "L789",
       "_origin": "ast",
-      "id": "nova_orchestrator_rationale_835",
+      "id": "nova_orchestrator_rationale_789",
       "community": 9,
       "community_name": "Resource Headroom Calculator",
       "norm_label": "single non-agentic claude call reviewing a runpod-backed coding task's     fina"
@@ -23361,9 +23229,9 @@
       "label": "Append one review verdict to coding_review_log.jsonl -- the natural     side-ef",
       "file_type": "rationale",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L920",
+      "source_location": "L874",
       "_origin": "ast",
-      "id": "nova_orchestrator_rationale_920",
+      "id": "nova_orchestrator_rationale_874",
       "community": 9,
       "community_name": "Resource Headroom Calculator",
       "norm_label": "append one review verdict to coding_review_log.jsonl -- the natural     side-ef"
@@ -23372,20 +23240,20 @@
       "label": "Append one gate result to ground_truth_gate_log.jsonl -- kept separate     from",
       "file_type": "rationale",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L943",
+      "source_location": "L897",
       "_origin": "ast",
-      "id": "nova_orchestrator_rationale_943",
-      "community": 151,
-      "community_name": "nova_eval_held_out.py",
+      "id": "nova_orchestrator_rationale_897",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "append one gate result to ground_truth_gate_log.jsonl -- kept separate     from"
     },
     {
       "label": "Record whether a coding-agent branch was merged, discarded, or stopped     itse",
       "file_type": "rationale",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L973",
+      "source_location": "L927",
       "_origin": "ast",
-      "id": "nova_orchestrator_rationale_973",
+      "id": "nova_orchestrator_rationale_927",
       "community": 9,
       "community_name": "Resource Headroom Calculator",
       "norm_label": "record whether a coding-agent branch was merged, discarded, or stopped     itse"
@@ -23397,8 +23265,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_orchestrator_devstral",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "nova_orchestrator_devstral.py"
     },
     {
@@ -23408,8 +23276,8 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "nova_orchestrator_devstral_build_devstral_system_prompt",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "build_devstral_system_prompt()"
     },
     {
@@ -23419,8 +23287,8 @@
       "source_location": "L83",
       "_origin": "ast",
       "id": "nova_orchestrator_devstral_log_agent_turn_devstral",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "_log_agent_turn_devstral()"
     },
     {
@@ -23430,8 +23298,8 @@
       "source_location": "L146",
       "_origin": "ast",
       "id": "nova_orchestrator_devstral_estimate_message_tokens",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "_estimate_message_tokens()"
     },
     {
@@ -23441,8 +23309,8 @@
       "source_location": "L154",
       "_origin": "ast",
       "id": "nova_orchestrator_devstral_estimate_message_list_tokens",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "_estimate_message_list_tokens()"
     },
     {
@@ -23452,8 +23320,8 @@
       "source_location": "L158",
       "_origin": "ast",
       "id": "nova_orchestrator_devstral_message_groups",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "_message_groups()"
     },
     {
@@ -23463,8 +23331,8 @@
       "source_location": "L178",
       "_origin": "ast",
       "id": "nova_orchestrator_devstral_prune_history_if_needed",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "_prune_history_if_needed()"
     },
     {
@@ -23474,8 +23342,8 @@
       "source_location": "L218",
       "_origin": "ast",
       "id": "nova_orchestrator_devstral_run_via_devstral",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "run_via_devstral()"
     },
     {
@@ -23485,8 +23353,8 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "nova_orchestrator_devstral_rationale_68",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "same worktree-scoped preamble and condensed coding standards as     nova_orches"
     },
     {
@@ -23496,8 +23364,8 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "nova_orchestrator_devstral_rationale_96",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "sibling to nova_orchestrator_runpod._log_agent_turn_runpod(), writing     the i"
     },
     {
@@ -23507,8 +23375,8 @@
       "source_location": "L147",
       "_origin": "ast",
       "id": "nova_orchestrator_devstral_rationale_147",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "rough token estimate for one message, covering both a plain content string and a"
     },
     {
@@ -23518,8 +23386,8 @@
       "source_location": "L159",
       "_origin": "ast",
       "id": "nova_orchestrator_devstral_rationale_159",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "[(start, end), ...] for each turn group from index 2 onward: one     assistant"
     },
     {
@@ -23529,8 +23397,8 @@
       "source_location": "L179",
       "_origin": "ast",
       "id": "nova_orchestrator_devstral_rationale_179",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "drops the oldest complete turn group(s) from `messages` in place until     the"
     },
     {
@@ -23540,8 +23408,8 @@
       "source_location": "L232",
       "_origin": "ast",
       "id": "nova_orchestrator_devstral_rationale_232",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "runs the turn loop via nova's runpod-hosted devstral-small-2507 endpoint,     u"
     },
     {
@@ -23639,8 +23507,8 @@
       "source_location": "L189",
       "_origin": "ast",
       "id": "nova_orchestrator_graph_run_via_langgraph",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 71,
+      "community_name": "Community 71",
       "norm_label": "run_via_langgraph()"
     },
     {
@@ -23716,8 +23584,8 @@
       "source_location": "L206",
       "_origin": "ast",
       "id": "nova_orchestrator_graph_rationale_206",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 71,
+      "community_name": "Community 71",
       "norm_label": "runs the turn loop via the langgraph graph instead of the inline loop,     with"
     },
     {
@@ -23727,8 +23595,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_orchestrator_qwen3",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "nova_orchestrator_qwen3.py"
     },
     {
@@ -23738,8 +23606,8 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "nova_orchestrator_qwen3_build_qwen3_system_prompt",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "build_qwen3_system_prompt()"
     },
     {
@@ -23749,8 +23617,8 @@
       "source_location": "L103",
       "_origin": "ast",
       "id": "nova_orchestrator_qwen3_log_agent_turn_qwen3",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "_log_agent_turn_qwen3()"
     },
     {
@@ -23760,8 +23628,8 @@
       "source_location": "L166",
       "_origin": "ast",
       "id": "nova_orchestrator_qwen3_estimate_message_tokens",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "_estimate_message_tokens()"
     },
     {
@@ -23771,8 +23639,8 @@
       "source_location": "L174",
       "_origin": "ast",
       "id": "nova_orchestrator_qwen3_estimate_message_list_tokens",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "_estimate_message_list_tokens()"
     },
     {
@@ -23782,8 +23650,8 @@
       "source_location": "L178",
       "_origin": "ast",
       "id": "nova_orchestrator_qwen3_message_groups",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "_message_groups()"
     },
     {
@@ -23793,8 +23661,8 @@
       "source_location": "L198",
       "_origin": "ast",
       "id": "nova_orchestrator_qwen3_prune_history_if_needed",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "_prune_history_if_needed()"
     },
     {
@@ -23804,8 +23672,8 @@
       "source_location": "L238",
       "_origin": "ast",
       "id": "nova_orchestrator_qwen3_run_via_qwen3",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "run_via_qwen3()"
     },
     {
@@ -23815,8 +23683,8 @@
       "source_location": "L88",
       "_origin": "ast",
       "id": "nova_orchestrator_qwen3_rationale_88",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "same worktree-scoped preamble and condensed coding standards as     nova_orchest"
     },
     {
@@ -23826,8 +23694,8 @@
       "source_location": "L116",
       "_origin": "ast",
       "id": "nova_orchestrator_qwen3_rationale_116",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "sibling to nova_orchestrator_devstral._log_agent_turn_devstral(),     writing th"
     },
     {
@@ -23837,8 +23705,8 @@
       "source_location": "L167",
       "_origin": "ast",
       "id": "nova_orchestrator_qwen3_rationale_167",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "rough token estimate for one message, covering both a plain content string and a"
     },
     {
@@ -23848,8 +23716,8 @@
       "source_location": "L179",
       "_origin": "ast",
       "id": "nova_orchestrator_qwen3_rationale_179",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "[(start, end), ...] for each turn group from index 2 onward: one     assistant m"
     },
     {
@@ -23859,8 +23727,8 @@
       "source_location": "L199",
       "_origin": "ast",
       "id": "nova_orchestrator_qwen3_rationale_199",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "drops the oldest complete turn group(s) from `messages` in place until     the e"
     },
     {
@@ -23870,8 +23738,8 @@
       "source_location": "L252",
       "_origin": "ast",
       "id": "nova_orchestrator_qwen3_rationale_252",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "runs the turn loop via nova's runpod-hosted qwen3-coder-next-80b-a3b     endpoin"
     },
     {
@@ -24057,8 +23925,8 @@
       "source_location": "L841",
       "_origin": "ast",
       "id": "nova_orchestrator_runpod_log_runpod_cost_summary",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "_log_runpod_cost_summary()"
     },
     {
@@ -24068,8 +23936,8 @@
       "source_location": "L875",
       "_origin": "ast",
       "id": "nova_orchestrator_runpod_log_guard_events",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "_log_guard_events()"
     },
     {
@@ -24079,8 +23947,8 @@
       "source_location": "L952",
       "_origin": "ast",
       "id": "nova_orchestrator_runpod_get_tokenizer",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "_get_tokenizer()"
     },
     {
@@ -24090,8 +23958,8 @@
       "source_location": "L964",
       "_origin": "ast",
       "id": "nova_orchestrator_runpod_estimate_tokens",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "_estimate_tokens()"
     },
     {
@@ -24299,8 +24167,8 @@
       "source_location": "L850",
       "_origin": "ast",
       "id": "nova_orchestrator_runpod_rationale_850",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 9,
+      "community_name": "Resource Headroom Calculator",
       "norm_label": "append one real-cost summary for the whole task run to     logs/runpod_cost_log"
     },
     {
@@ -24310,8 +24178,8 @@
       "source_location": "L876",
       "_origin": "ast",
       "id": "nova_orchestrator_runpod_rationale_876",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "append one entry per task run to logs/guard_events_log.jsonl -- every     guard"
     },
     {
@@ -24321,8 +24189,8 @@
       "source_location": "L953",
       "_origin": "ast",
       "id": "nova_orchestrator_runpod_rationale_953",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "lazily load and cache the real tokenizer (see tokenizer_model_name's own     co"
     },
     {
@@ -24332,8 +24200,8 @@
       "source_location": "L965",
       "_origin": "ast",
       "id": "nova_orchestrator_runpod_rationale_965",
-      "community": 73,
-      "community_name": "Community 73",
+      "community": 59,
+      "community_name": "Community 59",
       "norm_label": "real token count via the deployed model's own tokenizer -- see tokenizer_model_n"
     },
     {
@@ -24673,8 +24541,8 @@
       "source_location": "L118",
       "_origin": "ast",
       "id": "nova_query_retrieve",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 52,
+      "community_name": "Community 52",
       "norm_label": "retrieve()"
     },
     {
@@ -24684,8 +24552,8 @@
       "source_location": "L136",
       "_origin": "ast",
       "id": "nova_query_retrieve_with_graph",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 52,
+      "community_name": "Community 52",
       "norm_label": "retrieve_with_graph()"
     },
     {
@@ -24772,8 +24640,8 @@
       "source_location": "L119",
       "_origin": "ast",
       "id": "nova_query_rationale_119",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 52,
+      "community_name": "Community 52",
       "norm_label": "query chroma and return top matching chunks with metadata."
     },
     {
@@ -24783,8 +24651,8 @@
       "source_location": "L137",
       "_origin": "ast",
       "id": "nova_query_rationale_137",
-      "community": 13,
-      "community_name": "Golden Benchmark Suite",
+      "community": 52,
+      "community_name": "Community 52",
       "norm_label": "graph-scoped retrieval.      1. call get_context_budget() to get a ranked list"
     },
     {
@@ -25256,8 +25124,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_router",
-      "community": 255,
-      "community_name": "check_ground_truth_completion",
+      "community": 13,
+      "community_name": "Golden Benchmark Suite",
       "norm_label": "nova_router.py"
     },
     {
@@ -25267,8 +25135,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "nova_router_routeresult",
-      "community": 255,
-      "community_name": "check_ground_truth_completion",
+      "community": 13,
+      "community_name": "Golden Benchmark Suite",
       "norm_label": "routeresult"
     },
     {
@@ -25278,8 +25146,8 @@
       "source_location": "L159",
       "_origin": "ast",
       "id": "nova_router_route",
-      "community": 255,
-      "community_name": "check_ground_truth_completion",
+      "community": 13,
+      "community_name": "Golden Benchmark Suite",
       "norm_label": "route()"
     },
     {
@@ -25289,8 +25157,8 @@
       "source_location": "L160",
       "_origin": "ast",
       "id": "nova_router_rationale_160",
-      "community": 255,
-      "community_name": "check_ground_truth_completion",
+      "community": 13,
+      "community_name": "Golden Benchmark Suite",
       "norm_label": "classify a query and return a routeresult with retrieval hints.     fast keywor"
     },
     {
@@ -25740,8 +25608,8 @@
       "source_location": "L93",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_pid_is_alive",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "_pid_is_alive()"
     },
     {
@@ -25773,8 +25641,8 @@
       "source_location": "L146",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_is_dispatch_currently_running",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "is_dispatch_currently_running()"
     },
     {
@@ -25784,8 +25652,8 @@
       "source_location": "L196",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_abort_current_dispatch",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "abort_current_dispatch()"
     },
     {
@@ -25817,8 +25685,8 @@
       "source_location": "L307",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_read_jsonl",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "_read_jsonl()"
     },
     {
@@ -25828,8 +25696,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_py_path",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "path"
     },
     {
@@ -25839,8 +25707,8 @@
       "source_location": "L324",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_record_dispatch_review",
-      "community": 157,
-      "community_name": "write_digest",
+      "community": 99,
+      "community_name": "Community 99",
       "norm_label": "record_dispatch_review()"
     },
     {
@@ -25894,8 +25762,8 @@
       "source_location": "L450",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_sum_dispatch_cost",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "_sum_dispatch_cost()"
     },
     {
@@ -25905,8 +25773,8 @@
       "source_location": "L467",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_get_dispatch_cost_summary",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "get_dispatch_cost_summary()"
     },
     {
@@ -25916,8 +25784,8 @@
       "source_location": "L505",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_handle_escalation",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 7,
+      "community_name": "Board Status Digest & Token Budget",
       "norm_label": "_handle_escalation()"
     },
     {
@@ -25960,8 +25828,8 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_rationale_94",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "true if a process with this pid exists. shared between _acquire_lock()'s     st"
     },
     {
@@ -25982,8 +25850,8 @@
       "source_location": "L147",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_rationale_147",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "read-only check for a live dispatch, backing get /in-flight-status     (86bb3ce"
     },
     {
@@ -25993,8 +25861,8 @@
       "source_location": "L197",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_rationale_197",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "kill the actual work behind the currently-running cron-fired dispatch     (86bb"
     },
     {
@@ -26026,8 +25894,8 @@
       "source_location": "L308",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_rationale_308",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "read a jsonl file into a list of dicts, silently skipping blank/malformed lines."
     },
     {
@@ -26037,8 +25905,8 @@
       "source_location": "L325",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_rationale_325",
-      "community": 157,
-      "community_name": "write_digest",
+      "community": 99,
+      "community_name": "Community 99",
       "norm_label": "record a human review decision for one headless-dispatched clickup     task (86"
     },
     {
@@ -26092,8 +25960,8 @@
       "source_location": "L451",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_rationale_451",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "shared summing logic for one bucket of scheduled_dispatch_log.jsonl     entries"
     },
     {
@@ -26103,8 +25971,8 @@
       "source_location": "L468",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_rationale_468",
-      "community": 59,
-      "community_name": "Community 59",
+      "community": 22,
+      "community_name": "Nova Log Benchmark View",
       "norm_label": "real spend readout for headless dispatch (86bb3ceya) -- backs the     controlle"
     },
     {
@@ -26114,8 +25982,8 @@
       "source_location": "L506",
       "_origin": "ast",
       "id": "nova_scheduled_dispatch_rationale_506",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 7,
+      "community_name": "Board Status Digest & Token Budget",
       "norm_label": "register a paused-for-escalation dispatch outcome (86bax0wkj) \u2014     registers i"
     },
     {
@@ -26499,8 +26367,8 @@
       "source_location": "L100",
       "_origin": "ast",
       "id": "nova_state_write_state",
-      "community": 99,
-      "community_name": "Community 99",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "write_state()"
     },
     {
@@ -26554,8 +26422,8 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "nova_state_rationale_101",
-      "community": 99,
-      "community_name": "Community 99",
+      "community": 5,
+      "community_name": "Headless Dispatch & Escalation",
       "norm_label": "write one domain/entity's current state, overwriting whatever was     there bef"
     },
     {
@@ -26620,8 +26488,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "nova_status_digest",
-      "community": 70,
-      "community_name": "Community 70",
+      "community": 157,
+      "community_name": "write_digest",
       "norm_label": "nova_status_digest.py"
     },
     {
@@ -26631,8 +26499,8 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "nova_status_digest_categorize_board",
-      "community": 70,
-      "community_name": "Community 70",
+      "community": 157,
+      "community_name": "write_digest",
       "norm_label": "_categorize_board()"
     },
     {
@@ -26642,8 +26510,8 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "nova_status_digest_load_previous_snapshot",
-      "community": 70,
-      "community_name": "Community 70",
+      "community": 157,
+      "community_name": "write_digest",
       "norm_label": "_load_previous_snapshot()"
     },
     {
@@ -26653,8 +26521,8 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "nova_status_digest_diff_snapshots",
-      "community": 70,
-      "community_name": "Community 70",
+      "community": 157,
+      "community_name": "write_digest",
       "norm_label": "_diff_snapshots()"
     },
     {
@@ -26664,8 +26532,8 @@
       "source_location": "L85",
       "_origin": "ast",
       "id": "nova_status_digest_write_digest",
-      "community": 70,
-      "community_name": "Community 70",
+      "community": 157,
+      "community_name": "write_digest",
       "norm_label": "write_digest()"
     },
     {
@@ -26675,8 +26543,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "nova_status_digest_rationale_28",
-      "community": 70,
-      "community_name": "Community 70",
+      "community": 157,
+      "community_name": "write_digest",
       "norm_label": "buckets every non-complete nova board task by {id, name}: in_progress and     b"
     },
     {
@@ -26686,8 +26554,8 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "nova_status_digest_rationale_65",
-      "community": 70,
-      "community_name": "Community 70",
+      "community": 157,
+      "community_name": "write_digest",
       "norm_label": "plain-english list of which tasks moved category since the last digest."
     },
     {
@@ -26697,8 +26565,8 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "nova_status_digest_rationale_86",
-      "community": 70,
-      "community_name": "Community 70",
+      "community": 157,
+      "community_name": "write_digest",
       "norm_label": "regenerates nova_status.md from the board's current state. session_notes     is"
     },
     {
@@ -26994,8 +26862,8 @@
       "source_location": "L70",
       "_origin": "ast",
       "id": "nova_task_queue_get_ready_tasks",
-      "community": 70,
-      "community_name": "Community 70",
+      "community": 263,
+      "community_name": "nova_agent_log_status.py",
       "norm_label": "get_ready_tasks()"
     },
     {
@@ -27093,8 +26961,8 @@
       "source_location": "L324",
       "_origin": "ast",
       "id": "nova_task_queue_register_tier_proposal",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 7,
+      "community_name": "Board Status Digest & Token Budget",
       "norm_label": "register_tier_proposal()"
     },
     {
@@ -27115,8 +26983,8 @@
       "source_location": "L393",
       "_origin": "ast",
       "id": "nova_task_queue_resolve_task_description",
-      "community": 70,
-      "community_name": "Community 70",
+      "community": 263,
+      "community_name": "nova_agent_log_status.py",
       "norm_label": "resolve_task_description()"
     },
     {
@@ -27126,8 +26994,8 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "nova_task_queue_rationale_71",
-      "community": 70,
-      "community_name": "Community 70",
+      "community": 263,
+      "community_name": "nova_agent_log_status.py",
       "norm_label": "readiness detection (86bax0exx step 1). a task is ready when its     status is"
     },
     {
@@ -27225,8 +27093,8 @@
       "source_location": "L325",
       "_origin": "ast",
       "id": "nova_task_queue_rationale_325",
-      "community": 17,
-      "community_name": "Nova API Request Models",
+      "community": 7,
+      "community_name": "Board Status Digest & Token Budget",
       "norm_label": "full propose->register->tag->comment pipeline for one candidate task --     sha"
     },
     {
@@ -27247,8 +27115,8 @@
       "source_location": "L394",
       "_origin": "ast",
       "id": "nova_task_queue_rationale_394",
-      "community": 70,
-      "community_name": "Community 70",
+      "community": 263,
+      "community_name": "nova_agent_log_status.py",
       "norm_label": "task resolution (86bax0exx step 2). pulls the task's own clickup     descriptio"
     },
     {
@@ -27335,8 +27203,8 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "nova_token_budget_get_budget_status",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 71,
+      "community_name": "Community 71",
       "norm_label": "get_budget_status()"
     },
     {
@@ -27401,8 +27269,8 @@
       "source_location": "L149",
       "_origin": "ast",
       "id": "nova_token_budget_rationale_149",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 71,
+      "community_name": "Community 71",
       "norm_label": "full current token-budget status: consumption, ceilings, mode, and     which pa"
     },
     {
@@ -27665,8 +27533,8 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "nova_tools_find_second_brain_path",
-      "community": 48,
-      "community_name": "Community 48",
+      "community": 255,
+      "community_name": "check_ground_truth_completion",
       "norm_label": "_find_second_brain_path()"
     },
     {
@@ -27687,8 +27555,8 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "nova_tools_resolve_within_root",
-      "community": 48,
-      "community_name": "Community 48",
+      "community": 255,
+      "community_name": "check_ground_truth_completion",
       "norm_label": "_resolve_within_root()"
     },
     {
@@ -27698,8 +27566,8 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "nova_tools_read_file",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 264,
+      "community_name": "_execute_tool",
       "norm_label": "read_file()"
     },
     {
@@ -27709,8 +27577,8 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "nova_tools_write_file",
-      "community": 48,
-      "community_name": "Community 48",
+      "community": 255,
+      "community_name": "check_ground_truth_completion",
       "norm_label": "write_file()"
     },
     {
@@ -27731,8 +27599,8 @@
       "source_location": "L80",
       "_origin": "ast",
       "id": "nova_tools_list_files",
-      "community": 48,
-      "community_name": "Community 48",
+      "community": 255,
+      "community_name": "check_ground_truth_completion",
       "norm_label": "list_files()"
     },
     {
@@ -27819,8 +27687,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "nova_tools_rationale_23",
-      "community": 48,
-      "community_name": "Community 48",
+      "community": 255,
+      "community_name": "check_ground_truth_completion",
       "norm_label": "look up the second brain vault path from nova_sources.sources."
     },
     {
@@ -27830,8 +27698,8 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "nova_tools_rationale_34",
-      "community": 48,
-      "community_name": "Community 48",
+      "community": 255,
+      "community_name": "check_ground_truth_completion",
       "norm_label": "resolve `path` (relative or absolute) against `root` and verify the     result"
     },
     {
@@ -27841,8 +27709,8 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "nova_tools_rationale_52",
-      "community": 9,
-      "community_name": "Resource Headroom Calculator",
+      "community": 264,
+      "community_name": "_execute_tool",
       "norm_label": "read a text file's contents, scoped to `root`."
     },
     {
@@ -27852,8 +27720,8 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "nova_tools_rationale_58",
-      "community": 48,
-      "community_name": "Community 48",
+      "community": 255,
+      "community_name": "check_ground_truth_completion",
       "norm_label": "write (create or overwrite) a text file, scoped to `root`."
     },
     {
@@ -27874,8 +27742,8 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "nova_tools_rationale_81",
-      "community": 48,
-      "community_name": "Community 48",
+      "community": 255,
+      "community_name": "check_ground_truth_completion",
       "norm_label": "list file paths (relative to `root`) under `path`, scoped to `root`."
     },
     {
@@ -28160,8 +28028,8 @@
       "source_location": "L171",
       "_origin": "ast",
       "id": "nova_training_data_status_dispatch_remote_patch",
-      "community": 78,
-      "community_name": "Community 78",
+      "community": 67,
+      "community_name": "Community 67",
       "norm_label": "dispatch_remote_patch()"
     },
     {
@@ -28248,8 +28116,8 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "nova_training_data_status_rationale_172",
-      "community": 78,
-      "community_name": "Community 78",
+      "community": 67,
+      "community_name": "Community 67",
       "norm_label": "send a training_flags.jsonl patch request to the machine named by     `target`"
     },
     {
@@ -30093,8 +29961,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "start_nova",
-      "community": 4,
-      "community_name": "CLAUDE.md Architecture Doc",
+      "community": 281,
+      "community_name": "Test-PortListening",
       "norm_label": "start_nova.ps1"
     },
     {
@@ -30104,8 +29972,8 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "start_nova_test_portlistening",
-      "community": 4,
-      "community_name": "CLAUDE.md Architecture Doc",
+      "community": 281,
+      "community_name": "Test-PortListening",
       "norm_label": "test-portlistening()"
     },
     {
@@ -31204,8 +31072,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "claude_1_project_overview",
-      "community": 4,
-      "community_name": "CLAUDE.md Architecture Doc",
+      "community": 279,
+      "community_name": "1. Project Overview",
       "norm_label": "1. project overview"
     },
     {
@@ -31215,8 +31083,8 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "claude_current_phase_phase_1_memory_core_active",
-      "community": 4,
-      "community_name": "CLAUDE.md Architecture Doc",
+      "community": 279,
+      "community_name": "1. Project Overview",
       "norm_label": "current phase: phase 1 \u2014 memory core (active)"
     },
     {
@@ -31226,8 +31094,8 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "claude_phase_roadmap",
-      "community": 4,
-      "community_name": "CLAUDE.md Architecture Doc",
+      "community": 279,
+      "community_name": "1. Project Overview",
       "norm_label": "phase roadmap"
     },
     {
@@ -31586,7 +31454,7 @@
       "label": "11. Session Startup Checklist",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L990",
+      "source_location": "L989",
       "_origin": "ast",
       "id": "claude_11_session_startup_checklist",
       "community": 4,
@@ -31597,7 +31465,7 @@
       "label": "graphify",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L1006",
+      "source_location": "L1005",
       "_origin": "ast",
       "id": "claude_graphify",
       "community": 4,
@@ -34930,7 +34798,7 @@
       "label": "Group 1 \u2014 ACI turn-loop guards (`nova_aci_harness.py`)",
       "file_type": "document",
       "source_file": "docs/eval-harness-initiative-2-summary.md",
-      "source_location": "L13",
+      "source_location": "L12",
       "_origin": "ast",
       "id": "docs_eval_harness_initiative_2_summary_group_1_aci_turn_loop_guards_nova_aci_harness_py",
       "community": 268,
@@ -34941,7 +34809,7 @@
       "label": "Group 2 \u2014 production completion gate (`check_ground_truth_completion()`, `nova_completion_gate.py`)",
       "file_type": "document",
       "source_file": "docs/eval-harness-initiative-2-summary.md",
-      "source_location": "L27",
+      "source_location": "L26",
       "_origin": "ast",
       "id": "docs_eval_harness_initiative_2_summary_group_2_production_completion_gate_check_ground_truth_completion_nova_completion_gate_py",
       "community": 268,
@@ -34952,7 +34820,7 @@
       "label": "Group 3 \u2014 A1-G2 turn-loop guards (RunPod / Devstral orchestrator lanes)",
       "file_type": "document",
       "source_file": "docs/eval-harness-initiative-2-summary.md",
-      "source_location": "L58",
+      "source_location": "L47",
       "_origin": "ast",
       "id": "docs_eval_harness_initiative_2_summary_group_3_a1_g2_turn_loop_guards_runpod_devstral_orchestrator_lanes",
       "community": 268,
@@ -34963,7 +34831,7 @@
       "label": "What's left before `86bbcfv9d` closes",
       "file_type": "document",
       "source_file": "docs/eval-harness-initiative-2-summary.md",
-      "source_location": "L69",
+      "source_location": "L58",
       "_origin": "ast",
       "id": "docs_eval_harness_initiative_2_summary_what_s_left_before_86bbcfv9d_closes",
       "community": 268,
@@ -35791,8 +35659,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "skills_lore",
-      "community": 50,
-      "community_name": "Community 50",
+      "community": 78,
+      "community_name": "Community 78",
       "norm_label": "lore.md"
     },
     {
@@ -35802,8 +35670,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "skills_lore_nova_skill_lore",
-      "community": 50,
-      "community_name": "Community 50",
+      "community": 78,
+      "community_name": "Community 78",
       "norm_label": "nova skill: lore"
     },
     {
@@ -35813,8 +35681,8 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "skills_lore_purpose",
-      "community": 50,
-      "community_name": "Community 50",
+      "community": 78,
+      "community_name": "Community 78",
       "norm_label": "purpose"
     },
     {
@@ -35824,8 +35692,8 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "skills_lore_conventions",
-      "community": 50,
-      "community_name": "Community 50",
+      "community": 78,
+      "community_name": "Community 78",
       "norm_label": "conventions"
     },
     {
@@ -35835,8 +35703,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "skills_lore_constraints",
-      "community": 50,
-      "community_name": "Community 50",
+      "community": 78,
+      "community_name": "Community 78",
       "norm_label": "constraints"
     },
     {
@@ -35846,8 +35714,8 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "skills_lore_output_format",
-      "community": 50,
-      "community_name": "Community 50",
+      "community": 78,
+      "community_name": "Community 78",
       "norm_label": "output format"
     },
     {
@@ -35857,8 +35725,8 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "skills_lore_examples",
-      "community": 50,
-      "community_name": "Community 50",
+      "community": 78,
+      "community_name": "Community 78",
       "norm_label": "examples"
     },
     {
@@ -36535,9 +36403,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 22,
+      "community": 10,
       "norm_label": "known_entities constant (domain/entity schema)",
-      "community_name": "Nova Log Benchmark View",
+      "community_name": "RAG Retrieval & Blend Logging",
       "id": "nova_state_known_entities"
     },
     {
@@ -36661,9 +36529,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 4,
+      "community": 281,
       "norm_label": "launch_openwebui.ps1 (script)",
-      "community_name": "CLAUDE.md Architecture Doc",
+      "community_name": "Test-PortListening",
       "id": "launch_openwebui_main"
     },
     {
@@ -36703,9 +36571,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 50,
+      "community": 49,
       "norm_label": "nova skills library",
-      "community_name": "Community 50",
+      "community_name": "Community 49",
       "id": "claude_nova_skills_library"
     },
     {
@@ -36717,9 +36585,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 6,
+      "community": 4,
       "norm_label": "domain state layer \u2014 scoped v1",
-      "community_name": "LangGraph Orchestration Port",
+      "community_name": "CLAUDE.md Architecture Doc",
       "id": "claude_domain_state_layer"
     },
     {
@@ -36773,9 +36641,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 50,
+      "community": 78,
       "norm_label": "character blending fixes",
-      "community_name": "Community 50",
+      "community_name": "Community 78",
       "id": "claude_character_blending_fixes"
     },
     {
@@ -36787,9 +36655,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 50,
+      "community": 78,
       "norm_label": "known at-risk character pairs (86bawnqdp)",
-      "community_name": "Community 50",
+      "community_name": "Community 78",
       "id": "claude_at_risk_character_pairs"
     },
     {
@@ -36815,9 +36683,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 70,
+      "community": 263,
       "norm_label": "nova_task_queue.py scope decisions (drive doc vs. description; manual-trigger only)",
-      "community_name": "Community 70",
+      "community_name": "nova_agent_log_status.py",
       "id": "claude_task_queue_scope_decisions"
     },
     {
@@ -37179,9 +37047,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 70,
+      "community": 263,
       "norm_label": "clickup 86bax0exx \u2014 nova orchestration layer: task-queue -> headless run -> review loop",
-      "community_name": "Community 70",
+      "community_name": "nova_agent_log_status.py",
       "id": "clickup_86bax0exx"
     },
     {
@@ -37277,9 +37145,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 70,
+      "community": 263,
       "norm_label": "clickup 86bawpvzz \u2014 autonomous coding sessions initiative (not scoped)",
-      "community_name": "Community 70",
+      "community_name": "nova_agent_log_status.py",
       "id": "clickup_86bawpvzz"
     }
   ],
@@ -69193,18 +69061,6 @@
       "confidence_score": 1.0
     },
     {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L45",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report",
-      "target": "nova_coding_eval",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_coding_eval.py",
@@ -69389,30 +69245,6 @@
       "confidence_score": 1.0
     },
     {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L45",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report",
-      "target": "nova_coding_eval_create_worktree_at",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L79",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_run_claude_held_out",
-      "target": "nova_coding_eval_create_worktree_at",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_coding_eval.py",
@@ -69456,30 +69288,6 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_coding_eval_run_runpod_backend",
-      "target": "nova_coding_eval_git_diff_against_ref",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L45",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report",
-      "target": "nova_coding_eval_git_diff_against_ref",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L102",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_run_claude_held_out",
       "target": "nova_coding_eval_git_diff_against_ref",
       "confidence_score": 1.0
     },
@@ -70184,7 +69992,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1473",
+      "source_location": "L1465",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate",
@@ -70514,7 +70322,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1457",
+      "source_location": "L1449",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate",
@@ -70552,18 +70360,6 @@
       "_origin": "ast",
       "source": "nova_completion_gate",
       "target": "nova_completion_gate_touched_files",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L46",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report",
-      "target": "nova_completion_gate",
       "confidence_score": 1.0
     },
     {
@@ -70677,7 +70473,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1508",
+      "source_location": "L1500",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate_check_ground_truth_completion",
@@ -70712,7 +70508,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L631",
+      "source_location": "L506",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -70866,7 +70662,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1503",
+      "source_location": "L1495",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate_check_ground_truth_completion",
@@ -70912,7 +70708,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1518",
+      "source_location": "L1510",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate_check_ground_truth_completion",
@@ -70935,7 +70731,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1511",
+      "source_location": "L1503",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate_check_ground_truth_completion",
@@ -71004,7 +70800,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1512",
+      "source_location": "L1504",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate_check_ground_truth_completion",
@@ -71050,7 +70846,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1513",
+      "source_location": "L1505",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate_check_ground_truth_completion",
@@ -71505,7 +71301,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1514",
+      "source_location": "L1506",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate_check_ground_truth_completion",
@@ -71699,7 +71495,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1515",
+      "source_location": "L1507",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate_check_ground_truth_completion",
@@ -71768,7 +71564,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1516",
+      "source_location": "L1508",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate_check_ground_truth_completion",
@@ -71838,7 +71634,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1530",
+      "source_location": "L1522",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate_check_ground_truth_completion",
@@ -71861,7 +71657,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1521",
+      "source_location": "L1513",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate_check_ground_truth_completion",
@@ -71942,7 +71738,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1526",
+      "source_location": "L1518",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate_check_ground_truth_completion",
@@ -71965,7 +71761,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1531",
+      "source_location": "L1523",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate_check_ground_truth_completion",
@@ -71988,7 +71784,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1529",
+      "source_location": "L1521",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate_check_ground_truth_completion",
@@ -72011,7 +71807,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1505",
+      "source_location": "L1497",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_completion_gate_check_ground_truth_completion",
@@ -72022,10 +71818,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1458",
+      "source_location": "L1450",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "nova_completion_gate_rationale_1458",
+      "source": "nova_completion_gate_rationale_1450",
       "target": "nova_completion_gate_tag",
       "confidence_score": 1.0
     },
@@ -72033,34 +71829,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_completion_gate.py",
-      "source_location": "L1476",
+      "source_location": "L1468",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "nova_completion_gate_rationale_1476",
-      "target": "nova_completion_gate_check_ground_truth_completion",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L46",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report",
-      "target": "nova_completion_gate_check_ground_truth_completion",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L107",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_run_claude_held_out",
+      "source": "nova_completion_gate_rationale_1468",
       "target": "nova_completion_gate_check_ground_truth_completion",
       "confidence_score": 1.0
     },
@@ -72129,7 +71901,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L782",
+      "source_location": "L736",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -72977,7 +72749,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L603",
+      "source_location": "L478",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -74961,18 +74733,6 @@
       "confidence_score": 1.0
     },
     {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L47",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report",
-      "target": "nova_eval_held_out",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
@@ -75004,42 +74764,6 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_eval_held_out_rationale_33",
-      "target": "nova_eval_held_out_heldouttask",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L47",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report",
-      "target": "nova_eval_held_out_heldouttask",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L161",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_format_task_section",
-      "target": "nova_eval_held_out_heldouttask",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L66",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_run_claude_held_out",
       "target": "nova_eval_held_out_heldouttask",
       "confidence_score": 1.0
     },
@@ -75098,225 +74822,6 @@
       "_origin": "ast",
       "source": "nova_eval_held_out_rationale_248",
       "target": "nova_eval_held_out_select_held_out_tasks",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L198",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_generate_report",
-      "target": "nova_eval_held_out_select_held_out_tasks"
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L151",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report",
-      "target": "nova_eval_held_out_report_checks_that_fired",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L161",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report",
-      "target": "nova_eval_held_out_report_format_task_section",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L191",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report",
-      "target": "nova_eval_held_out_report_generate_report",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L53",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report",
-      "target": "nova_eval_held_out_report_resolve_ref",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L66",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report",
-      "target": "nova_eval_held_out_report_run_claude_held_out",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L44",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report",
-      "target": "nova_orchestrator",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L175",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_format_task_section",
-      "target": "nova_eval_held_out_report_resolve_ref",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L204",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_generate_report",
-      "target": "nova_eval_held_out_report_resolve_ref",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L54",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_rationale_54",
-      "target": "nova_eval_held_out_report_resolve_ref",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L212",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_generate_report",
-      "target": "nova_eval_held_out_report_run_claude_held_out",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L67",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_rationale_67",
-      "target": "nova_eval_held_out_report_run_claude_held_out",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L82",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_run_claude_held_out",
-      "target": "nova_orchestrator_build_system_prompt"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L87",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_run_claude_held_out",
-      "target": "nova_orchestrator_run_via_claude"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L78",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_run_claude_held_out",
-      "target": "nova_orchestrator_slugify"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L163",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_format_task_section",
-      "target": "nova_eval_held_out_report_checks_that_fired",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L152",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_rationale_152",
-      "target": "nova_eval_held_out_report_checks_that_fired",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L217",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_generate_report",
-      "target": "nova_eval_held_out_report_format_task_section",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_eval_held_out_report.py",
-      "source_location": "L192",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_eval_held_out_report_rationale_192",
-      "target": "nova_eval_held_out_report_generate_report",
       "confidence_score": 1.0
     },
     {
@@ -78197,10 +77702,10 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L545",
+      "source_location": "L681",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "nova_orchestrator_run_via_claude",
+      "source": "nova_orchestrator_run_coding_task",
       "target": "nova_laminar_client_log_turn",
       "confidence_score": 1.0
     },
@@ -78291,7 +77796,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L969",
+      "source_location": "L923",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_log_ground_truth_gate",
@@ -78607,10 +78112,10 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L532",
+      "source_location": "L668",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "nova_orchestrator_run_via_claude",
+      "source": "nova_orchestrator_run_coding_task",
       "target": "nova_langfuse_client_log_turn",
       "confidence_score": 1.0
     },
@@ -78701,7 +78206,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L966",
+      "source_location": "L920",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_log_ground_truth_gate",
@@ -81656,7 +81161,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L696",
+      "source_location": "L571",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator",
@@ -81690,7 +81195,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L738",
+      "source_location": "L613",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator",
@@ -81712,7 +81217,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L919",
+      "source_location": "L873",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator",
@@ -81723,7 +81228,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L942",
+      "source_location": "L896",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator",
@@ -81735,7 +81240,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L716",
+      "source_location": "L591",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator",
@@ -81746,7 +81251,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L972",
+      "source_location": "L926",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator",
@@ -81768,7 +81273,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L834",
+      "source_location": "L788",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator",
@@ -81779,7 +81284,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L591",
+      "source_location": "L466",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator",
@@ -81787,22 +81292,11 @@
       "confidence_score": 1.0
     },
     {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_orchestrator.py",
-      "source_location": "L466",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_orchestrator",
-      "target": "nova_orchestrator_run_via_claude",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L647",
+      "source_location": "L522",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator",
@@ -81814,7 +81308,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L676",
+      "source_location": "L551",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator",
@@ -82135,7 +81629,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L620",
+      "source_location": "L495",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82170,7 +81664,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L621",
+      "source_location": "L496",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82216,7 +81710,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L804",
+      "source_location": "L758",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82287,7 +81781,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L773",
+      "source_location": "L727",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82346,7 +81840,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L651",
+      "source_location": "L526",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82521,24 +82015,12 @@
       "context": "argument",
       "confidence": "INFERRED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L755",
+      "source_location": "L630",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
       "target": "nova_orchestrator_execute_tool",
       "confidence_score": 0.5
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_orchestrator.py",
-      "source_location": "L575",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_orchestrator_run_via_claude",
-      "target": "nova_orchestrator_execute_tool",
-      "confidence_score": 1.0
     },
     {
       "relation": "imports",
@@ -82590,7 +82072,7 @@
       "context": "argument",
       "confidence": "INFERRED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L754",
+      "source_location": "L629",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82598,72 +82080,13 @@
       "confidence_score": 0.5
     },
     {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_orchestrator.py",
-      "source_location": "L522",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_orchestrator_run_via_claude",
-      "target": "nova_orchestrator_log_agent_turn",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L479",
+      "source_location": "L467",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "nova_orchestrator_rationale_479",
-      "target": "nova_orchestrator_run_via_claude",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_orchestrator.py",
-      "source_location": "L758",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_orchestrator_run_coding_task",
-      "target": "nova_orchestrator_run_via_claude",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_orchestrator.py",
-      "source_location": "L498",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_orchestrator_run_via_claude",
-      "target": "nova_token_budget_get_budget_status",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_orchestrator.py",
-      "source_location": "L556",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_orchestrator_run_via_claude",
-      "target": "nova_token_budget_record_usage",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "nova_orchestrator.py",
-      "source_location": "L592",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "nova_orchestrator_rationale_592",
+      "source": "nova_orchestrator_rationale_467",
       "target": "nova_orchestrator_run_coding_task",
       "confidence_score": 1.0
     },
@@ -82672,7 +82095,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L698",
+      "source_location": "L573",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82684,7 +82107,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L740",
+      "source_location": "L615",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82696,7 +82119,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L792",
+      "source_location": "L746",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82708,7 +82131,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L783",
+      "source_location": "L737",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82720,7 +82143,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L718",
+      "source_location": "L593",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82732,7 +82155,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L807",
+      "source_location": "L761",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82744,7 +82167,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L791",
+      "source_location": "L745",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82756,7 +82179,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L649",
+      "source_location": "L524",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82768,7 +82191,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L678",
+      "source_location": "L553",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82780,7 +82203,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L660",
+      "source_location": "L535",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82792,7 +82215,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L657",
+      "source_location": "L532",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
@@ -82804,11 +82227,23 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L774",
+      "source_location": "L634",
       "weight": 1.0,
       "_origin": "ast",
       "source": "nova_orchestrator_run_coding_task",
       "target": "nova_token_budget_get_budget_status",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "nova_orchestrator.py",
+      "source_location": "L692",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "nova_orchestrator_run_coding_task",
+      "target": "nova_token_budget_record_usage",
       "confidence_score": 1.0
     },
     {
@@ -82839,10 +82274,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L835",
+      "source_location": "L789",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "nova_orchestrator_rationale_835",
+      "source": "nova_orchestrator_rationale_789",
       "target": "nova_orchestrator_review_coding_diff",
       "confidence_score": 1.0
     },
@@ -82850,10 +82285,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L920",
+      "source_location": "L874",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "nova_orchestrator_rationale_920",
+      "source": "nova_orchestrator_rationale_874",
       "target": "nova_orchestrator_log_coding_review",
       "confidence_score": 1.0
     },
@@ -82861,10 +82296,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L943",
+      "source_location": "L897",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "nova_orchestrator_rationale_943",
+      "source": "nova_orchestrator_rationale_897",
       "target": "nova_orchestrator_log_ground_truth_gate",
       "confidence_score": 1.0
     },
@@ -82872,10 +82307,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "nova_orchestrator.py",
-      "source_location": "L973",
+      "source_location": "L927",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "nova_orchestrator_rationale_973",
+      "source": "nova_orchestrator_rationale_927",
       "target": "nova_orchestrator_record_task_outcome",
       "confidence_score": 1.0
     },
@@ -95072,7 +94507,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L990",
+      "source_location": "L989",
       "weight": 1.0,
       "_origin": "ast",
       "source": "claude_claude_md_nova_project_context_coding_standards",
@@ -95232,7 +94667,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L1006",
+      "source_location": "L1005",
       "weight": 1.0,
       "_origin": "ast",
       "source": "claude_claude_md_nova_project_context_coding_standards",
@@ -98188,7 +97623,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/eval-harness-initiative-2-summary.md",
-      "source_location": "L13",
+      "source_location": "L12",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_eval_harness_initiative_2_summary_eval_harness_initiative_2_per_gate_verdicts",
@@ -98199,7 +97634,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/eval-harness-initiative-2-summary.md",
-      "source_location": "L27",
+      "source_location": "L26",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_eval_harness_initiative_2_summary_eval_harness_initiative_2_per_gate_verdicts",
@@ -98210,7 +97645,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/eval-harness-initiative-2-summary.md",
-      "source_location": "L58",
+      "source_location": "L47",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_eval_harness_initiative_2_summary_eval_harness_initiative_2_per_gate_verdicts",
@@ -98221,7 +97656,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/eval-harness-initiative-2-summary.md",
-      "source_location": "L69",
+      "source_location": "L58",
       "weight": 1.0,
       "_origin": "ast",
       "source": "docs_eval_harness_initiative_2_summary_eval_harness_initiative_2_per_gate_verdicts",
@@ -99728,5 +99163,5 @@
       "source_file": "nova_task_queue.py"
     }
   ],
-  "built_at_commit": "c59e990f9029499a79e7e39169aa4b7fbbe39944"
+  "built_at_commit": "74642e6ee1b93bbffeef906b6dc5f71d0ffa9194"
 }

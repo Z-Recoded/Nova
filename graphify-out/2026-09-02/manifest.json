@@ -185,8 +185,8 @@
     "semantic_hash": ""
   },
   "nova_orchestrator.py": {
-    "mtime": 1788406774.2414415,
-    "ast_hash": "2c237e539b3bf60e21a14cbafeee70ea",
+    "mtime": 1786508031.0434885,
+    "ast_hash": "55d56ae6286ba4b27864c48c28b7441d",
     "semantic_hash": ""
   },
   "nova_orchestrator_graph.py": {
@@ -265,8 +265,8 @@
     "semantic_hash": "969b2a89980f6f877f6316ca7c89f51e"
   },
   "CLAUDE.md": {
-    "mtime": 1788407824.7742014,
-    "ast_hash": "7bf9c2abf4cd586ecfbdfe8ee83d67e1",
+    "mtime": 1788231885.5449545,
+    "ast_hash": "af66d4b5a6741d50b3393c3cf5a1b43b",
     "semantic_hash": ""
   },
   "NOVA_STATUS.md": {
@@ -495,8 +495,8 @@
     "semantic_hash": ""
   },
   "nova_completion_gate.py": {
-    "mtime": 1788407607.1954565,
-    "ast_hash": "39069e6ea85cd17d15e63b8c7cd094cb",
+    "mtime": 1786753863.659204,
+    "ast_hash": "0361538ed180214aac15361dbd422177",
     "semantic_hash": ""
   },
   "nova_finetune_qwen_coder.py": {
@@ -1815,13 +1815,8 @@
     "semantic_hash": ""
   },
   "docs/eval-harness-initiative-2-summary.md": {
-    "mtime": 1788407794.9184124,
-    "ast_hash": "a7059c585aac79c945332c53ab888333",
-    "semantic_hash": ""
-  },
-  "nova_eval_held_out_report.py": {
-    "mtime": 1788406886.9770918,
-    "ast_hash": "165467a7b6b8abc6beda872adc751817",
+    "mtime": 1788232608.4943752,
+    "ast_hash": "91f26b821202a98ae5e9e42befc6993e",
     "semantic_hash": ""
   }
 }
