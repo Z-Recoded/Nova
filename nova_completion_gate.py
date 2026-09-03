@@ -1438,7 +1438,15 @@ def _check_deliverables_present(diff: str, deliverables: list[str]) -> list[str]
     warnings = []
     for deliverable in deliverables:
         name = deliverable.strip()
-        if name and name not in added_text:
+        if not name:
+            continue
+        # A deliverable named like "send_notification()" is delivered as long
+        # as the identifier itself shows up -- match the bare name so a
+        # reflowed multi-line signature ("def send_notification(\n    title,
+        # ...") still counts. Held-out eval 2026-09-02 caught this exact
+        # false positive (86bbcfv9d).
+        search_term = name[:-2] if name.endswith("()") else name
+        if search_term not in added_text:
             warnings.append(f"'{name}' was named as a deliverable but never appears in the diff's added lines.")
     return warnings
 

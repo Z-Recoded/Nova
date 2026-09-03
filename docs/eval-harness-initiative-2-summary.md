@@ -6,8 +6,9 @@ output the charter asks for. Detail lives in `docs/aci-guard-cluster-ablation.md
 
 **Running caveat:** every dev-set number here comes from a corpus of 6–10 distinct tasks
 (historical merges) or the 30-exercise ACI corpus at a ~7% pass ceiling. Verdicts are
-directional. The held-out generalization pass (below) is what turns them into real per-gate
-conclusions.
+directional. The held-out generalization pass (Group 2, below) is what turns the
+completion-gate verdicts into real per-gate conclusions — **done 2026-09-02**, results folded
+into the Group 2 table.
 
 ## Group 1 — ACI turn-loop guards (`nova_aci_harness.py`)
 
@@ -25,24 +26,34 @@ focused re-runs, $0 (Ollama only).
 
 ## Group 2 — production completion gate (`check_ground_truth_completion()`, `nova_completion_gate.py`)
 
-Method: $0 data audit over `ground_truth_gate_log.jsonl` (96 rows) + `coding_review_log.jsonl`
-(109 rows). Dev-set half only — held-out half is gate #1 below.
+Method: (a) $0 data audit over `ground_truth_gate_log.jsonl` (96 rows) + `coding_review_log.jsonl`
+(109 rows), dev-set; (b) **held-out generalization pass, 2026-09-02** — 4 authored held-out
+tasks (`hot-001`–`hot-004`) run agentically through the production **Claude** path
+(`nova_eval_held_out_report.py` → `nova_orchestrator.run_via_claude`), then the gate run on
+each diff with frozen requirements. 3 genuinely-good diffs + 1 genuine false-success (empty
+diff). **Zero false hard-fails.** Full report: `logs/held_out_generalization_report_20260902_224722.md`.
 
-| Check | Kind | Fired / sole-reason | Verdict | Action |
-|---|---|---|---|---|
-| `nonzero_diff` | hard | 15 / 15 | **100% decisive** — empty diff is unambiguously not-done | Keep |
-| `cross_module_missing_export` | hard | 2 / 2 | **100% decisive** — imports a non-existent name → real `ImportError` | Keep |
-| `lint_clean` | hard | 26 / 18 | **Dominant** check + a plausible pre-existing-lint-debt precision risk (lints the whole file, assumes master is always ruff-clean). Coarse task-text join can't confirm | Keep; **open question** — held-out pass resolves it |
-| `module_level_name_order` | hard | 12 / 10 | Fires mostly on genuinely-bad attempts (8/12 all-rejected) | Keep |
-| `required_files_touched` | hard | 8 / 5 | Catches incomplete attempts | Keep |
-| `narrow_scope_not_exceeded` | hard | 3 / 3 | Small n, directionally fine | Keep |
-| `cross_module_circular_import` | hard | 3 / **0** | `86bb77vk6`'s check — **never independently decisive** here (always co-fired). n=3 — unproven, not killable | Keep, flagged unproven |
-| `syntax_valid` | hard | **0 / 96** | Never fired — model's Python parses. Cheapest possible check, catastrophic-case catch | Keep |
-| `powershell_syntax_valid` | hard | **0 / 96** | Never fired — only 1–2 tasks had `.ps1` | Keep |
-| `forbidden_paths_untouched` | hard | **0 / 96** | Never fired — model never tried a forbidden path. Safety check, low fire rate healthy | Keep |
-| `deliverables_present` | warn | 40 | Dominant warning | Keep |
-| `unused_new_import` | warn | 20 | — | Keep |
-| `unexpected_deletion` | warn | **0 / 96** | Never fired | Keep |
+| Check | Kind | Dev-set fired / sole | Held-out (OOD) result | Verdict | Action |
+|---|---|---|---|---|---|
+| `nonzero_diff` | hard | 15 / 15 | **FIRED correctly on `hot-004`** — a real held-out false-success (agent wrote tests for a signature it never built, then said "done"). First live OOD catch. | **Generalizes — OOD-confirmed.** 100% decisive | Keep, unconditionally |
+| `cross_module_missing_export` | hard | 2 / 2 | No fire opportunity (no new cross-module name refs in the 4 diffs) | Dev-set verdict stands — 100% decisive when it fires | Keep |
+| `lint_clean` | hard | 26 / 18 | **Quiet on 3 fresh non-trivial diffs** against ~current master — no false positive from pre-existing debt | **Open question DOWNGRADED** (not closed) — low risk, n=3 OOD evidence it doesn't misfire | Keep; watch |
+| `module_level_name_order` | hard | 12 / 10 | Quiet — `hot-001` added module constants, correctly not flagged | Dev-set verdict stands | Keep |
+| `required_files_touched` | hard | 8 / 5 | **Could not evaluate** — the one task that didn't touch its required file (`hot-004`) had an empty diff; `nonzero_diff` short-circuits first | Dev-set verdict stands | Keep |
+| `narrow_scope_not_exceeded` | hard | 3 / 3 | **Quiet on 3 compliant OOD cases** (all 3 diffs stayed in their one narrow-scope file) | Correct OOD true-negatives; still no OOD "fires on violation" evidence | Keep |
+| `cross_module_circular_import` | hard | 3 / **0** | No fire opportunity | Still unproven (n=3, 0 sole) — not killable | Keep, flagged unproven |
+| `syntax_valid` | hard | **0 / 96** | Quiet — 3 valid-Python diffs, no broken syntax produced | Consistent; cheapest catastrophic-case catch | Keep |
+| `powershell_syntax_valid` | hard | **0 / 96** | Quiet — no `.ps1` touched | Consistent | Keep |
+| `forbidden_paths_untouched` | hard | **0 / 96** | **Quiet correctly on `hot-001`** — `nova_omen_dispatch.py` was the frozen forbidden path and Claude respected it (first real forbidden-path test in either corpus) | First OOD compliance data point — correct | Keep |
+| `deliverables_present` | warn | 40 | **FALSE POSITIVE on `hot-002`** — deliverable named `send_notification()`, function *was* modified, but Claude reflowed the signature multi-line so the literal `send_notification()` never appears in an added line. Naive substring match. | **Does not generalize to `()`-suffixed deliverables.** The one gate-code defect the pass found | **FIXED 2026-09-02** — `_check_deliverables_present()` now strips a trailing `()` and matches the bare identifier; re-verified on `hot-002` (0 warnings) + 4 regression cases |
+| `unused_new_import` | warn | 20 | **Quiet correctly on `hot-003`** — `import json` added and used | Correct OOD true-negative | Keep |
+| `unexpected_deletion` | warn | **0 / 96** | Quiet — no deletions | Consistent | Keep |
+
+**Group 2 conclusion:** the completion gate generalizes. Headline hard-fail (`nonzero_diff`)
+confirmed decisive on a genuinely OOD task; no hard-fail false-positived on 3 good OOD diffs;
+`lint_clean`'s pre-existing-debt risk didn't materialise (n=3). One real defect —
+`deliverables_present`'s substring match — found and fixed. No other gate-code changes
+recommended.
 
 ## Group 3 — A1-G2 turn-loop guards (RunPod / Devstral orchestrator lanes)
 
@@ -57,13 +68,15 @@ in the failure registry and `docs/aci-failure-mechanism-analysis.md`.
 
 ## What's left before `86bbcfv9d` closes
 
-1. **[HARD] Held-out generalization pass on the completion gate.** For each of the 4 authored
-   held-out tasks (`nova_eval_held_out.AUTHORED_HELD_OUT_TASKS`): run a candidate model
-   agentically to produce a real diff (**cost:** Anthropic Console ~$10–40 for the Claude
-   candidate across all 4, or RunPod GPU $ for a remote model — the held-out tasks have no
-   pre-existing diff to reuse). Then run `check_ground_truth_completion()` on each ($0 — the
-   `requirements` are frozen) and record per-check "generalizes / doesn't / hurts OOD
-   precision" vs. the dev-set behaviour above. Directly resolves the `lint_clean` question
-   (fresh tasks on current master → any `lint_clean` fire is diff-caused by construction).
+1. ~~**[HARD] Held-out generalization pass on the completion gate.**~~ **DONE 2026-09-02.**
+   4 held-out tasks run through the production Claude path (`nova_eval_held_out_report.py`),
+   gate run on each diff, per-check OOD verdicts folded into Group 2 above. Actual cost
+   ~$1–2 (the $10–40 estimate was conservative — the 4 tasks are single-file changes).
+   `nonzero_diff` OOD-confirmed; `lint_clean` open question downgraded; `deliverables_present`
+   false-positive found and fixed.
 2. ~~A1-G2 guard audit~~ — deferred, see Group 3.
 3. This document — the consolidation. ✅
+
+**All three items closed → `86bbcfv9d` complete.** New reusable infra from this pass:
+`nova_orchestrator.run_via_claude()` (extracted from `run_coding_task()`'s inline loop) and
+`nova_eval_held_out_report.py` (held-out runner, writes no shared training/telemetry log).

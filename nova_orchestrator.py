@@ -463,6 +463,131 @@ def _log_agent_turn(
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
+def run_via_claude(
+    client,
+    system_prompt: str,
+    messages: list,
+    root: str,
+    slug: str,
+    branch_name: str,
+    task_description: str,
+    skill_category: str | None,
+    skill_version: str | None,
+    budget_gate_enabled: bool,
+    max_turns: int,
+) -> tuple[str, int]:
+    """
+    The Claude-backed coding turn loop: drive an Anthropic tool-use loop
+    against the task's worktree, logging every turn, until the model stops,
+    the turn cap is hit, or the token budget halts. Returns
+    (final_status, turns_used) — same shape as run_via_runpod() /
+    run_via_devstral() / run_via_qwen3() so run_coding_task() dispatches to
+    any backend identically.
+
+    `messages` is mutated in place (assistant + tool_result turns appended),
+    matching the other backends' convention. This function only runs the
+    loop — the diff, the ground-truth gate, and the commit all happen back
+    in run_coding_task() regardless of which backend produced the turns.
+    Extracted verbatim from run_coding_task()'s former inline loop so a
+    held-out eval harness (nova_eval_held_out_report.py) can reuse the exact
+    production Claude path instead of duplicating it.
+    """
+    final_status = "incomplete"
+    turns_used = 0
+    for turn in range(1, max_turns + 1):
+        if budget_gate_enabled and get_budget_status().get("mode") == "halt":
+            # Checked at the top of the loop, before any further API call —
+            # this means no new tool_use can be proposed at all once halted,
+            # satisfying "don't start a new file edit once halted" without
+            # needing to interrupt a turn already in flight (turns are
+            # atomic: we only ever see a turn after the full response
+            # arrives, never mid-generation).
+            final_status = "stopped_budget_halt"
+            break
+
+        turns_used = turn
+        response = client.messages.create(
+            model=NOVA_AGENT_MODEL,
+            max_tokens=NOVA_AGENT_MAX_TOKENS,
+            # cache_control: system_prompt (the full CLAUDE.md contents) is
+            # identical every turn of this loop — caching it turns turns 2+
+            # into cheap cache reads instead of full-price resends.
+            system=[
+                {"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}},
+            ],
+            tools=TOOL_DEFINITIONS,
+            messages=messages,
+        )
+
+        _log_agent_turn(slug, branch_name, turn, task_description, response, skill_category, skill_version)
+        text_content = "".join(block.text for block in response.content if block.type == "text")
+        tool_calls_for_trace = [
+            {"name": block.name, "input": block.input} for block in response.content if block.type == "tool_use"
+        ]
+        # logprobs always None here -- Claude's API exposes no
+        # token-level logprobs, unlike the self-hosted vLLM backends
+        # (see log_turn()'s own docstring). cost_usd also None -- this
+        # lane tracks spend via nova_token_budget's token-based budget
+        # model (record_usage() below), not a per-call dollar figure.
+        log_turn(
+            branch_name,
+            turn,
+            CLAUDE_PROFILE.name,
+            response.model,
+            text_content,
+            tool_calls_for_trace,
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+        )
+        # 86bb7qudh: additive alongside the Langfuse call above, same
+        # normalized data, same fail-open discipline -- see
+        # nova_laminar_client.log_turn()'s own docstring.
+        laminar_log_turn(
+            branch_name,
+            turn,
+            CLAUDE_PROFILE.name,
+            response.model,
+            text_content,
+            tool_calls_for_trace,
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+        )
+        if budget_gate_enabled:
+            record_usage(response.usage)
+
+        messages.append({"role": "assistant", "content": response.content})
+
+        if response.stop_reason == "end_turn":
+            final_status = "completed"
+            break
+
+        if response.stop_reason != "tool_use":
+            # e.g. "max_tokens" — the response (possibly mid tool-call) got cut
+            # off. Executing a truncated tool call could apply garbage, so stop
+            # and surface it honestly rather than silently treating it as done.
+            final_status = f"stopped_{response.stop_reason}"
+            break
+
+        tool_results = []
+        for block in response.content:
+            if block.type != "tool_use":
+                continue
+            result = _execute_tool(block.name, block.input, root, session_id=slug, task_description=task_description)
+            tool_results.append(
+                {
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": result["content"],
+                    "is_error": result.get("is_error", False),
+                }
+            )
+        messages.append({"role": "user", "content": tool_results})
+    else:
+        final_status = "max_turns_reached"
+
+    return final_status, turns_used
+
+
 def run_coding_task(task_description: str, category: str | None = None) -> dict:
     """
     Run one coding task end-to-end: spin up a disposable worktree, drive a
@@ -630,98 +755,19 @@ def run_coding_task(task_description: str, category: str | None = None) -> dict:
             _execute_tool,
         )
     else:
-        for turn in range(1, NOVA_AGENT_MAX_TURNS + 1):
-            if budget_gate_enabled and get_budget_status().get("mode") == "halt":
-                # Checked at the top of the loop, before any further API call —
-                # this means no new tool_use can be proposed at all once halted,
-                # satisfying "don't start a new file edit once halted" without
-                # needing to interrupt a turn already in flight (turns are
-                # atomic: we only ever see a turn after the full response
-                # arrives, never mid-generation).
-                final_status = "stopped_budget_halt"
-                break
-
-            turns_used = turn
-            response = client.messages.create(
-                model=NOVA_AGENT_MODEL,
-                max_tokens=NOVA_AGENT_MAX_TOKENS,
-                # cache_control: system_prompt (the full CLAUDE.md contents) is
-                # identical every turn of this loop — caching it turns turns 2+
-                # into cheap cache reads instead of full-price resends.
-                system=[
-                    {"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}},
-                ],
-                tools=TOOL_DEFINITIONS,
-                messages=messages,
-            )
-
-            _log_agent_turn(slug, branch_name, turn, task_description, response, skill_category, skill_version)
-            text_content = "".join(block.text for block in response.content if block.type == "text")
-            tool_calls_for_trace = [
-                {"name": block.name, "input": block.input} for block in response.content if block.type == "tool_use"
-            ]
-            # logprobs always None here -- Claude's API exposes no
-            # token-level logprobs, unlike the self-hosted vLLM backends
-            # (see log_turn()'s own docstring). cost_usd also None -- this
-            # lane tracks spend via nova_token_budget's token-based budget
-            # model (record_usage() below), not a per-call dollar figure.
-            log_turn(
-                branch_name,
-                turn,
-                CLAUDE_PROFILE.name,
-                response.model,
-                text_content,
-                tool_calls_for_trace,
-                response.usage.input_tokens,
-                response.usage.output_tokens,
-            )
-            # 86bb7qudh: additive alongside the Langfuse call above, same
-            # normalized data, same fail-open discipline -- see
-            # nova_laminar_client.log_turn()'s own docstring.
-            laminar_log_turn(
-                branch_name,
-                turn,
-                CLAUDE_PROFILE.name,
-                response.model,
-                text_content,
-                tool_calls_for_trace,
-                response.usage.input_tokens,
-                response.usage.output_tokens,
-            )
-            if budget_gate_enabled:
-                record_usage(response.usage)
-
-            messages.append({"role": "assistant", "content": response.content})
-
-            if response.stop_reason == "end_turn":
-                final_status = "completed"
-                break
-
-            if response.stop_reason != "tool_use":
-                # e.g. "max_tokens" — the response (possibly mid tool-call) got cut
-                # off. Executing a truncated tool call could apply garbage, so stop
-                # and surface it honestly rather than silently treating it as done.
-                final_status = f"stopped_{response.stop_reason}"
-                break
-
-            tool_results = []
-            for block in response.content:
-                if block.type != "tool_use":
-                    continue
-                result = _execute_tool(
-                    block.name, block.input, root, session_id=slug, task_description=task_description
-                )
-                tool_results.append(
-                    {
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": result["content"],
-                        "is_error": result.get("is_error", False),
-                    }
-                )
-            messages.append({"role": "user", "content": tool_results})
-        else:
-            final_status = "max_turns_reached"
+        final_status, turns_used = run_via_claude(
+            client,
+            system_prompt,
+            messages,
+            root,
+            slug,
+            branch_name,
+            task_description,
+            skill_category,
+            skill_version,
+            budget_gate_enabled,
+            NOVA_AGENT_MAX_TURNS,
+        )
 
     elapsed_s = round(time.time() - started_at, 1)
     diff = _git_diff_against_master(root)
