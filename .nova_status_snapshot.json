@@ -519,10 +519,6 @@
       "name": "Explore: small proxy-model validation gate for training recipe changes"
     },
     {
-      "id": "86bbcfv9d",
-      "name": "Eval Harness \u2014 Initiative 2: audit existing gates individually"
-    },
-    {
       "id": "86bbcfpap",
       "name": "Nova Training Pipeline \u2014 Phase 1: bulk execution-free distillation from Claude"
     },

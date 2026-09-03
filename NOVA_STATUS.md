@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-08-30 00:08 UTC
+Last updated: 2026-09-03 04:05 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,13 +8,11 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- ready -> complete/removed: 86bbch988 (Coding specialist: edit-format test plan (whole-file vs. search/replace vs. unified diff))
-- blocked -> complete/removed: 86bb4gy0y (Build Qwen-writes / Claude-reviews coding pipeline (Phase 3.5 refinement))
+- in_progress -> complete/removed: 86bbcfv9d (Eval Harness — Initiative 2: audit existing gates individually)
 
-## In progress (4)
+## In progress (3)
 
 - 86bbh41rk  Explore: small proxy-model validation gate for training recipe changes
-- 86bbcfv9d  Eval Harness — Initiative 2: audit existing gates individually
 - 86bbcfpap  Nova Training Pipeline — Phase 1: bulk execution-free distillation from Claude
 - 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
 
