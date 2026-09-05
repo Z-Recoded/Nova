@@ -28,6 +28,7 @@ import os
 import re
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 import anthropic
@@ -447,48 +448,139 @@ def _check_powershell_syntax_valid(diff: str, root: str) -> list[str]:
     return reasons
 
 
-def _ruff_violations(full_path: str) -> list[str] | None:
+def _ruff_check_raw(args: list[str], input_bytes: bytes | None = None) -> list[dict] | None:
     """
-    Runs `ruff check` against `full_path` and returns one formatted string
-    per violation ("CODE: message (line N)"), or None if ruff couldn't be
-    run at all (not installed, timeout, any subprocess error) -- fails open,
-    same accepted-gap philosophy as _powershell_parse_error() above. An
-    empty list (as opposed to None) means ruff ran successfully and found
-    nothing.
+    Shared `ruff check --output-format=json` runner -- returns the raw
+    parsed violation dicts, or None if ruff couldn't be run at all (not
+    installed, timeout, any subprocess error) -- fails open, same
+    accepted-gap philosophy as _powershell_parse_error() above. An empty
+    list (as opposed to None) means ruff ran successfully and found
+    nothing. Takes raw `args` (a real file path, or `--stdin-filename=...`
+    plus `-` to lint content read from `input_bytes`) so both
+    _ruff_violations() (on-disk file) and _base_commit_ruff_violations()
+    (a git-history blob, no worktree file to point at) share one
+    subprocess/JSON-parsing path.
     """
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "ruff", "check", "--output-format=json", full_path],
+            [sys.executable, "-m", "ruff", "check", "--output-format=json", *args],
+            input=input_bytes,
             capture_output=True,
-            text=True,
             timeout=RUFF_CHECK_TIMEOUT_SECONDS,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
         return None
     try:
-        violations = json.loads(result.stdout or "[]")
+        return json.loads(result.stdout or b"[]")
     except json.JSONDecodeError:
         return None
+
+
+def _format_ruff_violations(violations: list[dict]) -> list[str]:
+    """One formatted string per violation: 'CODE: message (line N)'."""
     return [f"{v.get('code')}: {v.get('message')} (line {v.get('location', {}).get('row')})" for v in violations]
 
 
-def _check_lint_clean(diff: str, root: str) -> list[str]:
+def _ruff_violations(full_path: str) -> list[str] | None:
+    """
+    Runs `ruff check` against `full_path` (the current, post-edit worktree
+    file) and returns one formatted string per violation, or None if ruff
+    couldn't be run at all.
+    """
+    violations = _ruff_check_raw([full_path])
+    if violations is None:
+        return None
+    return _format_ruff_violations(violations)
+
+
+def _ruff_violation_signature_counts(violations: list[dict]) -> Counter:
+    """
+    Multiset of (code, message) pairs, deliberately dropping line number --
+    a diff shifts every line below an edit, so two violations at different
+    line numbers but the same code+message are the same real issue, not two.
+    Used only to tell "already present at base_ref" apart from "new in this
+    diff"; _format_ruff_violations() (which does keep line numbers) is what
+    actually gets shown to a human.
+    """
+    return Counter((v.get("code"), v.get("message")) for v in violations)
+
+
+def _base_commit_ruff_violations(root: str, base_ref: str, rel_path: str) -> list[dict] | None:
+    """
+    Ruff violations for rel_path as it existed at base_ref -- lints the
+    git-history blob via stdin (`--stdin-filename` gives ruff the real
+    filename for its per-path config resolution, e.g. per-file-ignores in
+    pyproject.toml) rather than needing a second real checkout. Returns None
+    if the file didn't exist at base_ref (a brand-new file this diff added --
+    nothing to subtract, every violation in it is this diff's) or if git/ruff
+    couldn't be run. Deliberately captures git's output as raw bytes, no
+    `text=True` decode -- avoids the exact cp1252-on-Windows corruption
+    nova_synthetic_task_gen.py hit on a real em-dash diff (2026-08-12
+    changelog); ruff reads bytes from stdin just as happily as text.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "show", f"{base_ref}:{rel_path}"],
+            cwd=root,
+            capture_output=True,
+            timeout=RUFF_CHECK_TIMEOUT_SECONDS,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return None
+    if result.returncode != 0:
+        return None
+    return _ruff_check_raw([f"--stdin-filename={rel_path}", "-"], input_bytes=result.stdout)
+
+
+def _new_ruff_violations(current: list[dict], base: list[dict] | None) -> list[dict]:
+    """
+    current violations minus whatever (code, message) signatures were
+    already present at base_ref, as a multiset difference -- 3 duplicate
+    pre-existing E501s in current only cancel out 3 matching E501s in base,
+    not all of them. base=None (couldn't determine the base-ref state) means
+    every current violation counts as new, preserving the gate's original
+    fail-open-toward-flagging behavior for that case.
+    """
+    if base is None:
+        return current
+    remaining = _ruff_violation_signature_counts(current) - _ruff_violation_signature_counts(base)
+    new_violations = []
+    for v in current:
+        sig = (v.get("code"), v.get("message"))
+        if remaining.get(sig, 0) > 0:
+            new_violations.append(v)
+            remaining[sig] -= 1
+    return new_violations
+
+
+def _check_lint_clean(diff: str, root: str, base_ref: str = "master") -> list[str]:
     """
     Hard-fail reasons, one per touched .py file that ruff flags real lint
-    issues on in its current (post-edit) worktree state -- the "test/lint
-    pass, where a suite exists for the repo" check from 86bb71x39's original
-    list. This repo has no pytest suite, but it does have a real, already-
-    wired lint tool (ruff, pyproject.toml's [tool.ruff], enforced by the
-    pre-commit hook in .pre-commit-config.yaml) -- this check runs that same
-    tool earlier, at gate time.
+    issues on in its current (post-edit) worktree state, AFTER subtracting
+    whatever ruff already flagged in that same file at base_ref -- the
+    "test/lint pass, where a suite exists for the repo" check from
+    86bb71x39's original list. This repo has no pytest suite, but it does
+    have a real, already-wired lint tool (ruff, pyproject.toml's
+    [tool.ruff], enforced by the pre-commit hook in .pre-commit-config.yaml)
+    -- this check runs that same tool earlier, at gate time.
 
-    Deliberately checks the whole current file, not just diff-added lines
-    (same approach as _check_syntax_valid()/_check_powershell_syntax_valid()
-    above, no new diff-to-line-number mapping machinery): this repo is
-    already ruff-clean by its own stated discipline (every accepted
-    exception gets an individual `# noqa`, per pyproject.toml's own
-    comment), so a real violation on a touched file today is attributable to
-    this diff, not preexisting drift.
+    Base-commit diffing added 2026-09-04 (Eval Harness Initiative 2's
+    lint_clean follow-up, docs/aci-completion-gate-audit-scope.md): the
+    original version assumed the whole repo is always ruff-clean, so any
+    violation on a touched file must be diff-caused. That assumption held
+    up on 3 real held-out diffs (2026-09-02), but was never structurally
+    guaranteed -- a worktree branched from a `master` with transient lint
+    drift (nova_api.py, the most-churned file, accounted for 15/26 of the
+    dev-set's fires) could misattribute pre-existing debt to the task.
+    Diffing against base_ref's own ruff output for the same file closes
+    that gap outright rather than just accumulating more anecdotal
+    held-out evidence that it hasn't happened yet.
+
+    Deliberately still checks the whole current file, not just diff-added
+    lines (same approach as _check_syntax_valid()/
+    _check_powershell_syntax_valid() above, no new diff-to-line-number
+    mapping machinery) -- the base-ref subtraction is what makes "whole
+    file" safe now, instead of relying on repo-wide cleanliness discipline.
 
     Also closes a real ordering gap: check_ground_truth_completion() runs
     *before* nova_orchestrator._commit_worktree_changes()'s `git commit`,
@@ -505,12 +597,18 @@ def _check_lint_clean(diff: str, root: str) -> list[str]:
         full_path = os.path.join(root, path)
         if not os.path.isfile(full_path):
             continue
-        violations = _ruff_violations(full_path)
-        if violations:
-            summary = "; ".join(violations[:5])
-            if len(violations) > 5:
-                summary += f"; and {len(violations) - 5} more"
-            reasons.append(f"'{path}' has unresolved ruff lint issues: {summary}")
+        current_violations = _ruff_check_raw([full_path])
+        if not current_violations:
+            continue
+        base_violations = _base_commit_ruff_violations(root, base_ref, path)
+        new_violations = _new_ruff_violations(current_violations, base_violations)
+        if not new_violations:
+            continue
+        formatted = _format_ruff_violations(new_violations)
+        summary = "; ".join(formatted[:5])
+        if len(formatted) > 5:
+            summary += f"; and {len(formatted) - 5} more"
+        reasons.append(f"'{path}' has unresolved ruff lint issues: {summary}")
     return reasons
 
 
@@ -1510,7 +1608,7 @@ def check_ground_truth_completion(
     hard_fails = []
     hard_fails.extend(_tag("syntax_valid", _check_syntax_valid(diff, root)))
     hard_fails.extend(_tag("powershell_syntax_valid", _check_powershell_syntax_valid(diff, root)))
-    hard_fails.extend(_tag("lint_clean", _check_lint_clean(diff, root)))
+    hard_fails.extend(_tag("lint_clean", _check_lint_clean(diff, root, base_ref)))
     hard_fails.extend(_tag("module_level_name_order", _check_module_level_name_order(diff, root)))
     hard_fails.extend(_tag("cross_module_circular_import", _check_module_level_circular_imports(diff, root)))
     hard_fails.extend(_tag("cross_module_missing_export", _check_cross_module_missing_exports(diff, root)))

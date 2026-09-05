@@ -37,7 +37,7 @@ diff). **Zero false hard-fails.** Full report: `logs/held_out_generalization_rep
 |---|---|---|---|---|---|
 | `nonzero_diff` | hard | 15 / 15 | **FIRED correctly on `hot-004`** — a real held-out false-success (agent wrote tests for a signature it never built, then said "done"). First live OOD catch. | **Generalizes — OOD-confirmed.** 100% decisive | Keep, unconditionally |
 | `cross_module_missing_export` | hard | 2 / 2 | No fire opportunity (no new cross-module name refs in the 4 diffs) | Dev-set verdict stands — 100% decisive when it fires | Keep |
-| `lint_clean` | hard | 26 / 18 | **Quiet on 3 fresh non-trivial diffs** against ~current master — no false positive from pre-existing debt | **Open question DOWNGRADED** (not closed) — low risk, n=3 OOD evidence it doesn't misfire | Keep; watch |
+| `lint_clean` | hard | 26 / 18 | **Quiet on 3 fresh non-trivial diffs** against ~current master — no false positive from pre-existing debt | **Open question CLOSED, 2026-09-04** — `_check_lint_clean` now diffs against `base_ref`'s own ruff output per touched file (multiset-subtracted by `(code, message)`) instead of assuming the whole repo is clean; verified live on 3 real throwaway repos (new violation on a file with pre-existing debt → only the new one flagged; edit that leaves pre-existing debt untouched → zero false reasons; brand-new file → still fully flagged) | Fixed |
 | `module_level_name_order` | hard | 12 / 10 | Quiet — `hot-001` added module constants, correctly not flagged | Dev-set verdict stands | Keep |
 | `required_files_touched` | hard | 8 / 5 | **Could not evaluate** — the one task that didn't touch its required file (`hot-004`) had an empty diff; `nonzero_diff` short-circuits first | Dev-set verdict stands | Keep |
 | `narrow_scope_not_exceeded` | hard | 3 / 3 | **Quiet on 3 compliant OOD cases** (all 3 diffs stayed in their one narrow-scope file) | Correct OOD true-negatives; still no OOD "fires on violation" evidence | Keep |
@@ -51,9 +51,10 @@ diff). **Zero false hard-fails.** Full report: `logs/held_out_generalization_rep
 
 **Group 2 conclusion:** the completion gate generalizes. Headline hard-fail (`nonzero_diff`)
 confirmed decisive on a genuinely OOD task; no hard-fail false-positived on 3 good OOD diffs;
-`lint_clean`'s pre-existing-debt risk didn't materialise (n=3). One real defect —
-`deliverables_present`'s substring match — found and fixed. No other gate-code changes
-recommended.
+`lint_clean`'s pre-existing-debt risk didn't materialise on those 3 diffs (n=3), and was then
+closed structurally on 2026-09-04 (base-ref violation diffing) rather than left as an
+accumulate-more-evidence open question. Two real defects found and fixed:
+`deliverables_present`'s substring match, and `lint_clean`'s lack of a base-ref comparison.
 
 ## Group 3 — A1-G2 turn-loop guards (RunPod / Devstral orchestrator lanes)
 

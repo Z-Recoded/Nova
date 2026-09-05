@@ -101,21 +101,33 @@ many times", not a population estimate.
 - **`cross_module_circular_import` added no independent decisiveness** on this corpus (0 sole).
   n=3 — keep it (circular imports are a real bug class, and `86bb77vk6` filed it from a live
   miss), but note it's unproven.
-- **`lint_clean` is the dominant check and carries a plausible precision risk.** Its own
-  docstring assumes `C:/Nova` is always ruff-clean, so any violation on a touched file =
-  diff-caused. But it lints the *whole current file* (not just added lines) in a worktree
-  branched from master — if master had transient lint drift at gate time (`nova_api.py`, the
-  most-churned file, accounts for 15 of the 26 fires), it would flag pre-existing debt. The
-  task-text join is too coarse to confirm or deny this from the existing logs. **Targeted
-  follow-up:** either test it against fresh tasks on current master (needs the held-out set),
-  or instrument `_check_lint_clean` to lint the base commit too and diff the violation sets.
+- **`lint_clean` is the dominant check and carried a plausible precision risk, now closed
+  structurally (2026-09-04).** It used to assume `C:/Nova` is always ruff-clean, so any
+  violation on a touched file = diff-caused — but it lints the *whole current file* (not
+  just added lines) in a worktree branched from master, so transient lint drift on master at
+  gate time (`nova_api.py`, the most-churned file, accounted for 15 of the 26 dev-set fires)
+  could in principle get misattributed. The 2026-09-02 held-out pass gave 3 clean OOD data
+  points but couldn't *prove* the gap was closed, just that it hadn't fired yet. Fixed by
+  instrumenting `_check_lint_clean(diff, root, base_ref)` to also lint each touched file's
+  `base_ref` version (via `git show base_ref:path` piped to `ruff check
+  --stdin-filename=... -`, no second worktree needed) and subtract the base version's
+  violation multiset — matched by `(code, message)`, deliberately ignoring line number since
+  a diff shifts everything below an edit — from the current version's. Only violations that
+  survive that subtraction (i.e. genuinely new) get reported; a brand-new file (no base_ref
+  version to subtract) still reports everything, preserving the original fail-safe behavior
+  for that case. Verified live against 3 real throwaway git repos: a file with pre-existing
+  `F401`s that gets a new `import json` correctly flags only the new `F401`/`I001` pair; a
+  file whose only violation is pre-existing (edit touches an unrelated line) now correctly
+  returns *no* reasons — the exact false-positive shape this check used to be structurally
+  capable of; and a brand-new file's violations are still fully flagged. Re-run against the
+  real repo's own last 3 commits: clean, as expected.
 
 ### Recommendation
 
-**No completion-gate changes.** The gate is broadly doing real work; the decisive checks are
-decisive on genuine problems; the quiet checks are cheap safety nets. The one open question
-(`lint_clean` pre-existing-debt) needs the held-out set or a small instrumentation change,
-neither urgent.
+**One completion-gate change, shipped 2026-09-04.** The gate is broadly doing real work; the
+decisive checks are decisive on genuine problems; the quiet checks are cheap safety nets. The
+one open question (`lint_clean` pre-existing-debt) is now closed via the base-ref diffing
+above, rather than left open pending more held-out evidence.
 
 ## What still needs the held-out set (Initiative 1 follow-up)
 
