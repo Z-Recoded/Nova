@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-09-03 04:05 UTC
+Last updated: 2026-09-05 04:24 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,13 +8,18 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- in_progress -> complete/removed: 86bbcfv9d (Eval Harness — Initiative 2: audit existing gates individually)
+- in_progress -> ready: 86bbh41rk (Explore: small proxy-model validation gate for training recipe changes)
+- in_progress -> ready: 86baf4e70 (RunPod/Vast.ai — cloud GPU for fine-tune runs)
+- ready -> complete/removed: 86bawnkfy (Nova Tutor — Phase 7: DPO pairs + fine-tune (3 categories))
+- ready -> complete/removed: 86bawnkf1 (Nova Tutor — Phase 6: Blend-quality flagging log)
+- ready -> complete/removed: 86bawnke6 (Nova Tutor — Phase 5: Cross-domain secondary retrieval)
+- ready -> complete/removed: 86bawnkd9 (Nova Tutor — Phase 4: Synthesis links (Claude-assisted proposal + approval))
+- ready -> complete/removed: 86bawnkcg (Nova Tutor — Phase 3: Domain-aware routing (primary only))
+- in_progress -> complete/removed: 86bbcfpap (Nova Training Pipeline — Phase 1: bulk execution-free distillation from Claude)
 
-## In progress (3)
+## In progress (0)
 
-- 86bbh41rk  Explore: small proxy-model validation gate for training recipe changes
-- 86bbcfpap  Nova Training Pipeline — Phase 1: bulk execution-free distillation from Claude
-- 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
+- none
 
 ## Blocked (10)
 
@@ -29,7 +34,7 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 
-## Ready (128)
+## Ready (125)
 
 - 86bbnbq0q  Scope Qwen3.6/3.8-27B dense as a coder-specialist candidate for the local 3090 rig
 - 86bbn80qp  Model capability complexity rubric + boundary visualization
@@ -42,6 +47,7 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bbjrt4d  Nova internal shape visualizer: UMAP on Chroma chunks + cross-specialist RSA
 - 86bbjrjtc  Code World Model: Generate/Improve/Fix search loop for coder specialist
 - 86bbjr89r  Squad-host KV cache persistence: llama-server slot save/restore + reverse proxy
+- 86bbh41rk  Explore: small proxy-model validation gate for training recipe changes
 - 86bbh0ad9  Explore: oracle-based supplemental signal for nova_corrector.py
 - 86bbfwm3y  Explore task-familiarity as a routing signal for nova_task_queue.propose_tier()
 - 86bbfw011  Eval Harness — Initiative 9: human verification UX (routed attention, not full review)
@@ -104,11 +110,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bawntpm  Draft Nova audit process (tool-call log review)
 - 86bawnqqv  Research: benchmark suites for Nova's agentic/tool-use eval
 - 86bawnqdp  Monitor at-risk character pairs for blending (embedding-distance analysis)
-- 86bawnkfy  Nova Tutor — Phase 7: DPO pairs + fine-tune (3 categories)
-- 86bawnkf1  Nova Tutor — Phase 6: Blend-quality flagging log
-- 86bawnke6  Nova Tutor — Phase 5: Cross-domain secondary retrieval
-- 86bawnkd9  Nova Tutor — Phase 4: Synthesis links (Claude-assisted proposal + approval)
-- 86bawnkcg  Nova Tutor — Phase 3: Domain-aware routing (primary only)
 - 86bawnkc6  Nova Tutor — Phase 2: Spaced repetition + quiz engine
 - 86bawna2g  Ingestion Principles addendum — chunking discipline, Tika/Docling rejection, injection-surface note
 - 86bawna1k  Router/Governor spec — conditional router as front door to Token Budget Governor
@@ -155,6 +156,7 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bafunj2  Research & Plan: Classical Algorithm Integration into Nova's Decision Layer
 - 86baf72n5  MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)
 - 86baf4eah  Hosted inference fallback (Groq / Together.ai / Fireworks)
+- 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
 - 86baf4e29  Dockerize Nova services
 - 86baeyg3q  Voice interface (Whisper + Piper)
 - 86baeyg1h  First fine-tune pass (Unsloth + DPO → GGUF → Ollama)

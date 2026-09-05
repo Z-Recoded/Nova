@@ -45,6 +45,10 @@
       "name": "Squad-host KV cache persistence: llama-server slot save/restore + reverse proxy"
     },
     {
+      "id": "86bbh41rk",
+      "name": "Explore: small proxy-model validation gate for training recipe changes"
+    },
+    {
       "id": "86bbh0ad9",
       "name": "Explore: oracle-based supplemental signal for nova_corrector.py"
     },
@@ -293,26 +297,6 @@
       "name": "Monitor at-risk character pairs for blending (embedding-distance analysis)"
     },
     {
-      "id": "86bawnkfy",
-      "name": "Nova Tutor \u2014 Phase 7: DPO pairs + fine-tune (3 categories)"
-    },
-    {
-      "id": "86bawnkf1",
-      "name": "Nova Tutor \u2014 Phase 6: Blend-quality flagging log"
-    },
-    {
-      "id": "86bawnke6",
-      "name": "Nova Tutor \u2014 Phase 5: Cross-domain secondary retrieval"
-    },
-    {
-      "id": "86bawnkd9",
-      "name": "Nova Tutor \u2014 Phase 4: Synthesis links (Claude-assisted proposal + approval)"
-    },
-    {
-      "id": "86bawnkcg",
-      "name": "Nova Tutor \u2014 Phase 3: Domain-aware routing (primary only)"
-    },
-    {
       "id": "86bawnkc6",
       "name": "Nova Tutor \u2014 Phase 2: Spaced repetition + quiz engine"
     },
@@ -497,6 +481,10 @@
       "name": "Hosted inference fallback (Groq / Together.ai / Fireworks)"
     },
     {
+      "id": "86baf4e70",
+      "name": "RunPod/Vast.ai \u2014 cloud GPU for fine-tune runs"
+    },
+    {
       "id": "86baf4e29",
       "name": "Dockerize Nova services"
     },
@@ -513,20 +501,7 @@
       "name": "Link-aware ingestion upgrade (Option B)"
     }
   ],
-  "in_progress": [
-    {
-      "id": "86bbh41rk",
-      "name": "Explore: small proxy-model validation gate for training recipe changes"
-    },
-    {
-      "id": "86bbcfpap",
-      "name": "Nova Training Pipeline \u2014 Phase 1: bulk execution-free distillation from Claude"
-    },
-    {
-      "id": "86baf4e70",
-      "name": "RunPod/Vast.ai \u2014 cloud GPU for fine-tune runs"
-    }
-  ],
+  "in_progress": [],
   "blocked": [
     {
       "id": "86bawjyj8",
