@@ -1,6 +1,18 @@
 {
   "ready": [
     {
+      "id": "86bbvcbcv",
+      "name": "Nova Tutor \u2014 Overworld Phase 6: Interaction logging (multimodal training-signal capture)"
+    },
+    {
+      "id": "86bbvcbcp",
+      "name": "Nova Tutor \u2014 Overworld Phase 5: Procedural trial rooms (coding + hand-derivation)"
+    },
+    {
+      "id": "86bbvcbby",
+      "name": "Nova Tutor \u2014 Overworld Phase 0: Schema extension (modality + visual_refs fields)"
+    },
+    {
       "id": "86bbvc3wr",
       "name": "Budget available for coding-specialist model testing/rented compute"
     },
@@ -139,10 +151,6 @@
     {
       "id": "86bb639k9",
       "name": "\ud83d\udccc Reference: Task Planning Standard v1.0"
-    },
-    {
-      "id": "86bb53hmk",
-      "name": "Fix latent ThinkingBlock bug in nova_task_queue.propose_tier()"
     },
     {
       "id": "86bb52gc5",

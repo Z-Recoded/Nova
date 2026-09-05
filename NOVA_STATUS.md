@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-09-05 04:43 UTC
+Last updated: 2026-09-05 05:14 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,10 +8,10 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- NEW -> ready: 86bbvc3wr (Budget available for coding-specialist model testing/rented compute)
-- ready -> blocked: 86bbnbq0q (Scope Qwen3.6/3.8-27B dense as a coder-specialist candidate for the local 3090 rig)
-- ready -> blocked: 86bbaph6w (Spec: Local compute sizing & multi-GPU build plan (Nova central node))
-- ready -> blocked: 86baf4e70 (RunPod/Vast.ai — cloud GPU for fine-tune runs)
+- NEW -> ready: 86bbvcbcv (Nova Tutor — Overworld Phase 6: Interaction logging (multimodal training-signal capture))
+- NEW -> ready: 86bbvcbcp (Nova Tutor — Overworld Phase 5: Procedural trial rooms (coding + hand-derivation))
+- NEW -> ready: 86bbvcbby (Nova Tutor — Overworld Phase 0: Schema extension (modality + visual_refs fields))
+- ready -> complete/removed: 86bb53hmk (Fix latent ThinkingBlock bug in nova_task_queue.propose_tier())
 
 ## In progress (0)
 
@@ -33,8 +33,11 @@ falls back to querying ClickUp directly if it looks stale.
 - 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 - 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
 
-## Ready (123)
+## Ready (125)
 
+- 86bbvcbcv  Nova Tutor — Overworld Phase 6: Interaction logging (multimodal training-signal capture)
+- 86bbvcbcp  Nova Tutor — Overworld Phase 5: Procedural trial rooms (coding + hand-derivation)
+- 86bbvcbby  Nova Tutor — Overworld Phase 0: Schema extension (modality + visual_refs fields)
 - 86bbvc3wr  Budget available for coding-specialist model testing/rented compute
 - 86bbn80qp  Model capability complexity rubric + boundary visualization
 - 86bbkru66  Multi-agent scaling limits: where does specialist-squad coordination hit diminishing returns?
@@ -70,7 +73,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bb71a15  Verify aero_only scoping on framework_integrations.runpod_coding_agent is policy, not a hard dependency
 - 86bb6ruqb  Research: Directed/targeted audio output channel (parametric & beamforming speakers)
 - 86bb639k9  📌 Reference: Task Planning Standard v1.0
-- 86bb53hmk  Fix latent ThinkingBlock bug in nova_task_queue.propose_tier()
 - 86bb52gc5  Explore: Unified failure-state dashboard (Vivarium + chunk-viz + agent-run pane)
 - 86bb4e29m  Evaluate Pushover as ntfy replacement for push notifications
 - 86bb3r0z4  Evaluate Pocket (heypocket) MCP server as a Nova / life-autosave ingestion source
