@@ -5,8 +5,8 @@
     "semantic_hash": ""
   },
   ".nova_status_snapshot.json": {
-    "mtime": 1788048522.406691,
-    "ast_hash": "8dabbcad083b3d90ff35211fb5ec576e",
+    "mtime": 1788408333.0259366,
+    "ast_hash": "ba8482fc54a02d20a17f914bc8e1568c",
     "semantic_hash": ""
   },
   "archive/test_nova.py": {
@@ -265,13 +265,13 @@
     "semantic_hash": "969b2a89980f6f877f6316ca7c89f51e"
   },
   "CLAUDE.md": {
-    "mtime": 1788407824.7742014,
-    "ast_hash": "7bf9c2abf4cd586ecfbdfe8ee83d67e1",
+    "mtime": 1788580595.830451,
+    "ast_hash": "7da354b3f6ed83253bd11af490e7dd8e",
     "semantic_hash": ""
   },
   "NOVA_STATUS.md": {
-    "mtime": 1788048522.4056911,
-    "ast_hash": "6f2c6660bab1e0435f87cb8dbdada383",
+    "mtime": 1788408333.0247219,
+    "ast_hash": "ec3434afef394272e3f7fe5608c89c64",
     "semantic_hash": ""
   },
   "browser_hands/config/sites.yaml": {
@@ -495,8 +495,8 @@
     "semantic_hash": ""
   },
   "nova_completion_gate.py": {
-    "mtime": 1788407607.1954565,
-    "ast_hash": "39069e6ea85cd17d15e63b8c7cd094cb",
+    "mtime": 1788580264.875404,
+    "ast_hash": "71bbd49cc9195b1eeda2ab9ae8470ed4",
     "semantic_hash": ""
   },
   "nova_finetune_qwen_coder.py": {
@@ -1810,13 +1810,13 @@
     "semantic_hash": ""
   },
   "docs/aci-completion-gate-audit-scope.md": {
-    "mtime": 1788230207.680092,
-    "ast_hash": "e7b9e01425432a1c3acdddc3714c3a82",
+    "mtime": 1788580558.166224,
+    "ast_hash": "5ebfee5bf2e35e4187c47bc033dd3d36",
     "semantic_hash": ""
   },
   "docs/eval-harness-initiative-2-summary.md": {
-    "mtime": 1788407794.9184124,
-    "ast_hash": "a7059c585aac79c945332c53ab888333",
+    "mtime": 1788580571.156655,
+    "ast_hash": "3a60b281ddfa3448b08272b4f7ba98b5",
     "semantic_hash": ""
   },
   "nova_eval_held_out_report.py": {

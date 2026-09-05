@@ -5,8 +5,8 @@
     "semantic_hash": ""
   },
   ".nova_status_snapshot.json": {
-    "mtime": 1788408333.0259366,
-    "ast_hash": "ba8482fc54a02d20a17f914bc8e1568c",
+    "mtime": 1788582268.0606935,
+    "ast_hash": "4a18a9da246f7e04edc4c3d0d03e4e3a",
     "semantic_hash": ""
   },
   "archive/test_nova.py": {
@@ -265,13 +265,13 @@
     "semantic_hash": "969b2a89980f6f877f6316ca7c89f51e"
   },
   "CLAUDE.md": {
-    "mtime": 1788580595.830451,
-    "ast_hash": "7da354b3f6ed83253bd11af490e7dd8e",
+    "mtime": 1788583295.9700365,
+    "ast_hash": "2cf4d3d06c8df0ffeaf8d358498a734f",
     "semantic_hash": ""
   },
   "NOVA_STATUS.md": {
-    "mtime": 1788408333.0247219,
-    "ast_hash": "ec3434afef394272e3f7fe5608c89c64",
+    "mtime": 1788582268.0596912,
+    "ast_hash": "a7373a3e40ef14bac68d85718956f491",
     "semantic_hash": ""
   },
   "browser_hands/config/sites.yaml": {
@@ -430,8 +430,8 @@
     "semantic_hash": ""
   },
   "run_corrector_scheduled.ps1": {
-    "mtime": 1784781115.8928733,
-    "ast_hash": "1955ceb79820754b88d4ae0683ab8849",
+    "mtime": 1788583119.471335,
+    "ast_hash": "fc17ff5ddcc188a589c02c0b9a2cfad0",
     "semantic_hash": ""
   },
   "scripts/fix_sshd_listenaddress.ps1": {
@@ -1822,6 +1822,11 @@
   "nova_eval_held_out_report.py": {
     "mtime": 1788406886.9770918,
     "ast_hash": "165467a7b6b8abc6beda872adc751817",
+    "semantic_hash": ""
+  },
+  "run_synthetic_task_gen_scheduled.ps1": {
+    "mtime": 1788583109.390132,
+    "ast_hash": "f5561110f141b30fed3deb9784a69c2b",
     "semantic_hash": ""
   }
 }

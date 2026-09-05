@@ -1,16 +1,16 @@
 # Graph Report - Nova  (2026-09-04)
 
 ## Corpus Check
-- 354 files · ~289,152 words
+- 355 files · ~291,692 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3367 nodes · 5488 edges · 273 communities (173 shown, 100 thin omitted)
+- 3368 nodes · 5488 edges · 275 communities (175 shown, 100 thin omitted)
 - Extraction: 87% EXTRACTED · 13% INFERRED · 0% AMBIGUOUS · INFERRED: 734 edges (avg confidence: 0.77)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `555b93a8`
+- Built from commit: `15385b8c`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -259,6 +259,7 @@
 - _execute_tool
 - create_research_note
 - nova_toy_z3_cegis.py
+- route
 - _parse_jsonl
 - nova_guard_stats.py
 - _execute_tool
@@ -302,7 +303,7 @@
 - **Token Budget Governor v1 — tracking, gating, and documentation** — nova_token_budget_get_budget_status, nova_state_system_refresh_system_state, skills_orchestration_token_budget_gate, clickup_86barhqt9 [INFERRED 0.85]
 - **86bax0exx headless dispatch pipeline — readiness, resolution, and tool-call visibility** — nova_task_queue_get_ready_tasks, nova_task_queue_resolve_task_description, nova_tool_call_log_log_tool_call, clickup_86bax0exx [EXTRACTED 1.00]
 
-## Communities (273 total, 100 thin omitted)
+## Communities (275 total, 100 thin omitted)
 
 ### Community 0 - "Coding Sub-Agent Orchestrator"
 Cohesion: 0.05
@@ -357,8 +358,8 @@ Cohesion: 0.14
 Nodes (19): archive/test_nova.py — legacy Chroma/Ollama smoke test, main(), Raw socket check -- distinguishes 'nothing listening at all' from a Chroma-level, _tcp_reachable(), pull_latest(), CompletedProcess, Restart nova-api and nova-chroma via `sudo -n systemctl restart`, one     unit, Poll a port until it accepts a connection or the timeout elapses. Returns True a (+11 more)
 
 ### Community 13 - "Golden Benchmark Suite"
-Cohesion: 0.12
-Nodes (26): main(), config_snapshot(), get_routed_model(), Look up which Ollama model to use for a given nova_router.py category.     Retu, Flat snapshot of every flag's current value, for attaching to per-query     tel, log_query(), Append one real query's telemetry to query_log.jsonl.     Mirrors nova_logger.l, log_blend() (+18 more)
+Cohesion: 0.14
+Nodes (23): main(), config_snapshot(), get_routed_model(), Look up which Ollama model to use for a given nova_router.py category.     Retu, Flat snapshot of every flag's current value, for attaching to per-query     tel, log_query(), Append one real query's telemetry to query_log.jsonl.     Mirrors nova_logger.l, log_blend() (+15 more)
 
 ### Community 14 - "Nova MCP Server"
 Cohesion: 0.11
@@ -437,12 +438,12 @@ Cohesion: 0.05
 Nodes (55): ClickUp 86barhqt9 — Token Budget Governor v1, _check_lint(), _check_syntax(), collapse_history(), edit(), find_file(), _is_excluded(), Windowed view of a file, with explicit line numbers -- the ACI's     replacement (+47 more)
 
 ### Community 49 - "Community 49"
-Cohesion: 0.11
-Nodes (17): Nova Skills Library, Constraints, Conventions, Examples, Money as INTEGER cents convention, Financial data never enters Chroma (hard boundary), Nova Skill: Financial, Output format (+9 more)
+Cohesion: 0.20
+Nodes (9): Constraints, Conventions, Examples, Money as INTEGER cents convention, Financial data never enters Chroma (hard boundary), Nova Skill: Financial, Output format, Purpose (+1 more)
 
 ### Community 50 - "Community 50"
-Cohesion: 0.20
-Nodes (9): Fiction/lore retrieval capped at 3 chunks, Chunk limits — general 6, fiction/lore 3, Constraints, Conventions, Examples, Flat vector search default; A* graph traversal only for multi-hop queries, Nova Skill: Retrieval, Output format (+1 more)
+Cohesion: 0.11
+Nodes (18): Known At-Risk Character Pairs (86bawnqdp), Character Blending Fixes, Nova Skills Library, Constraints, Conventions, Examples, Fiction/lore retrieval capped at 3 chunks, Nova Skill: Lore (+10 more)
 
 ### Community 51 - "Community 51"
 Cohesion: 0.06
@@ -462,7 +463,7 @@ Nodes (15): BackgroundTasks, answer_escalation(), _commit_config_change(), _disp
 
 ### Community 55 - "Community 55"
 Cohesion: 0.33
-Nodes (5): Blocked (10), Changed since last digest, In progress (3), Nova Board Status Digest, Ready (128)
+Nodes (5): Blocked (10), Changed since last digest, In progress (0), Nova Board Status Digest, Ready (125)
 
 ### Community 56 - "Community 56"
 Cohesion: 0.40
@@ -665,8 +666,8 @@ Cohesion: 0.15
 Nodes (13): Auto-instrumentation control, Contents, Cross-service / async context propagation, Custom LLM spans and cost tracking, Flushing and shutdown, Initialize once, Install, Manual span context (+5 more)
 
 ### Community 132 - "_parse_jsonl"
-Cohesion: 0.22
-Nodes (8): Known At-Risk Character Pairs (86bawnqdp), Character Blending Fixes, Constraints, Conventions, Examples, Nova Skill: Lore, Output format, Purpose
+Cohesion: 0.25
+Nodes (7): Constraints, Conventions, Examples, Nova Skill: Memory, Output format, Purpose, Two-tier memory decay (raw vs. consolidated crystal)
 
 ### Community 133 - "Operations on Complex Numbers"
 Cohesion: 0.17
@@ -896,6 +897,10 @@ Nodes (3): 3. Coding Philosophy — Legibility First, Comment Style, Core Rules
 Cohesion: 0.40
 Nodes (4): First pass: search a deliberately too-narrow candidate space (pick a     constan, Second pass: widen the candidate space to include a comparison-gated     branch, synthesize_conditional_choice(), synthesize_constant_choice()
 
+### Community 267 - "route"
+Cohesion: 0.67
+Nodes (3): Classify a query and return a RouteResult with retrieval hints.     Fast keywor, route(), RouteResult
+
 ### Community 268 - "_parse_jsonl"
 Cohesion: 0.33
 Nodes (5): Eval Harness Initiative 2 — Per-Gate Verdicts, Group 1 — ACI turn-loop guards (`nova_aci_harness.py`), Group 2 — production completion gate (`check_ground_truth_completion()`, `nova_completion_gate.py`), Group 3 — A1-G2 turn-loop guards (RunPod / Devstral orchestrator lanes), What's left before `86bbcfv9d` closes
@@ -918,12 +923,12 @@ _Questions this graph is uniquely positioned to answer:_
 
 - **What is the exact relationship between `nova_graph()` and `nova_graph.json (wikilink graph nodes+edges)`?**
   _Edge tagged AMBIGUOUS (relation: references) - confidence is low._
-- **Why does `CLAUDE.md — Nova Project Context & Coding Standards` connect `CLAUDE.md Architecture Doc` to `_parse_jsonl`, `Community 68`, `LangGraph Orchestration Port`, `Community 70`, `_execute_tool`, `create_research_note`, `Claude Usage History Logger`, `Community 48`, `Community 49`, `Community 56`, `Query Category Router`, `Community 94`?**
-  _High betweenness centrality (0.030) - this node is a cross-community bridge._
+- **Why does `CLAUDE.md — Nova Project Context & Coding Standards` connect `CLAUDE.md Architecture Doc` to `Community 68`, `LangGraph Orchestration Port`, `Community 70`, `_execute_tool`, `create_research_note`, `Claude Usage History Logger`, `Community 48`, `Community 50`, `Community 56`, `Query Category Router`, `Community 94`?**
+  _High betweenness centrality (0.036) - this node is a cross-community bridge._
 - **Why does `_prune_struggle_history()` connect `Community 46` to `Coding Sub-Agent Orchestrator`?**
-  _High betweenness centrality (0.025) - this node is a cross-community bridge._
+  _High betweenness centrality (0.026) - this node is a cross-community bridge._
 - **Why does `run_command()` connect `Community 48` to `Resource Headroom Calculator`, `CLAUDE.md Architecture Doc`, `Community 68`?**
-  _High betweenness centrality (0.015) - this node is a cross-community bridge._
+  _High betweenness centrality (0.017) - this node is a cross-community bridge._
 - **Are the 103 inferred relationships involving `meetup()` (e.g. with `.test_fifth_monday_of_march_2015()` and `.test_fifth_saturday_of_february_2020()`) actually correct?**
   _`meetup()` has 103 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 100 inferred relationships involving `date` (e.g. with `.test_fifth_monday_of_march_2015()` and `.test_fifth_saturday_of_february_2020()`) actually correct?**

@@ -266,7 +266,6 @@
   "264": "_execute_tool",
   "265": "create_research_note",
   "266": "nova_toy_z3_cegis.py",
-  "267": "push_daily_usage_history",
   "268": "_parse_jsonl",
   "269": "nova_guard_stats.py",
   "271": "_execute_tool",
