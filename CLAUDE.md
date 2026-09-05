@@ -28,9 +28,9 @@ validated. See Section 2's file tree for the full current inventory.
 - Phase 1.75 | Retrieval Intelligence | Backlog, foundation laid — feature-flag system ✓ v1 live (`nova_config.py`/`.json`, all off). Remaining: A* graph traversal, DP context-window packing, priority-queue routing, two-tier memory decay, weighted wikilinks — each gates on a flag already defined
 - Phase 2    | Voice & Capture        | **Explicitly greenlit early, in progress** (`86baeyg3q`, confirmed with Marvin 2026-07-12) — Minimal tier (wake word + local STT/TTS) live-verified 2026-07-19. Deliberate exception to "don't build Phase 2+ without explicit instruction" below — confirm with Marvin before resuming after a gap
 - Phase 2.5  | Agent Layer            | Backlog — file CRUD ✓ v1 live (`nova_tools.py`); Nova MCP Server ✓ v1 live, unwired (port 8100); Browser Hands harness M1 ✓ v1 live (`browser_hands/`, CDP-attach only, no login — hard rule); Docker sub-agent orchestration deferred, see Phase 3.5
-- Phase 3    | First Fine-Tune        | Backlog — Unsloth + DPO → GGUF → Ollama. **Base-model re-eval DONE 2026-07-21 — verdict: stay on Llama 3.2 3B**, no candidate (llama3.1:8b, phi4-mini, qwen3:8b, gemma3:4b) beat the logged baseline on Nova's own golden-query suite. Swap trigger: a candidate must clearly beat the baseline, re-running `nova_benchmark.py --golden`, not a fixed timeline. Fine-tune pipeline built for Phi-4 Mini (`nova_finetune_phi4.py`, Unsloth QLoRA DPO, trains on the Aero's RTX 5070) — verified live with 3 real DPO steps, but `run()` hard-refuses below `MIN_REAL_PAIRS = 100` (currently ~33 real pairs, still accumulating). This phase's RAG-model scope is unaffected by the 2026-08-12 pivot below (that pivot is coding-lane-specific so far). Full backstory in NOVA_BUILD_LOG.md
-- Phase 3.5  | Coding Agent Lane      | ✓ v1 live (2026-07-05) — Claude API-backed coding sub-agent (`nova_orchestrator.py`), git-worktree isolated, no Docker/OpenHands yet. LangGraph orchestration v1 live, gated off (`nova_orchestrator_graph.py`). **Direction pivot, 2026-08-12 — superseded the old "Qwen3 8B swap trigger" framing.** Real trigger: a RunPod eval of Qwen3-Coder-Next (80B total params, ~3B active via MoE sparse activation) scored ~80% pass rate at low rental cost, while dense 8B/32B candidates (the old RunPod-Qwen AWQ backend, Devstral) scored 1/6-2/6 repeatedly across every held-out round this phase ran — real evidence the capability floor for a usable coding model is the 80B-A3B MoE tier, not something reachable by post-training a dense model harder. New direction, confirmed with Marvin: stop patching the dense-model backend debugging loop and instead push infrastructure + training as far as they'll go to make smaller (MoE-sparse, not necessarily small-parameter) models genuinely competitive. Concrete plan now on the board as 16 new tasks (filed 2026-08-12, ClickUp folder `🤖 Nova`): **Nova Training Pipeline** (Phase 0 base-model architecture audit → Phase 1 bulk execution-free distillation from Claude → Phase 2 grounded execution-based refinement per module → Phase 3 synthetic data generation from usage logs → Phase 4 DPO difficulty filtering → Phase 5 hybrid inference-time verification), **Eval Harness** (Initiative 1 split dev/held-out task pool, urgent, hard-blocks Phase 1 per module → Initiative 2 audit existing gates individually → Initiative 3 add inference-time verifier → Initiative 4 guardrail keeping the verifier inference-time-only → Initiative 5 per-specialist vetting harness), 4 **coding-specialist design tasks** (constrained action-space interface, edit-format test plan, verifiable task template, AST-level action primitives), and `86bbaph6w` — a real, already-detailed local multi-GPU compute spec (3 Drive doc revisions, v1.0-v1.2: 2-3x used RTX 3090 24GB, ~90-120GB combined VRAM target, Tier 1 coding + Tier 2 finance/memory/voice/research, real parts/budget/financing plan) as the long-term answer to running this tier locally instead of only on rented RunPod hardware. The old RunPod-Qwen/Devstral debugging tasks (`86bb72gpa`, `86bb728nj`, `86bb71x1j`, `86bb4gy0y`) were dropped to `low` priority the same day, not closed — they may still matter later, just not the active lane. `86baf4e70` (RunPod/Vast.ai cloud GPU access) stays active — it's the near-term compute path for the new pipeline while the local rig is still just a spec. **Direction pivot #2, 2026-09-05 — budget hold, not a strategy change.** Marvin: funds aren't currently available to test or support a coding-specialist model at all, dense or MoE. `86bbnbq0q` (scope Qwen3.6/3.8-27B dense — a strong newer-generation candidate found 2026-08-25, beats a 397B MoE on coding and fits a single RTX 3090), `86bbaph6w` (local rig spec), and `86baf4e70` itself are now blocked on a new placeholder, `86bbvc3wr` ("Budget available for coding-specialist model testing/rented compute") — nothing here changed which model direction looks best, just that none of it gets tested or bought right now. **What keeps running regardless:** passive, GPU-free training-data collection — `nova_synthetic_task_gen.py` (Phase 3, commit back-translation) is now on the same kind of Task Scheduler cron the conversation track's Lore Pairs pipeline already has, so coding-track SFT data keeps accumulating from Nova's own real development for whichever model eventually gets picked.
-- Phase 4    | Roaming Layer          | ✓ Lightweight v1 shipped — Tailscale. **HP Omen headless Ubuntu server (`86baeyfm1`) — ✓ COMPLETE** (full story in NOVA_BUILD_LOG.md). **`nova_api.py` deployed to the Omen (`86bawfn19`) — ✓ COMPLETE** — reachable over Tailscale independent of the Aero being on. Task Scheduler auto-start (the "Nova Auto-Start" task running `start_nova.ps1` on Aero login) removed 2026-07-29 — Marvin no longer wants the Aero auto-starting nova_api.py/Open WebUI on login; `start_nova.ps1` itself is untouched on disk for manual use
+- Phase 3    | First Fine-Tune        | Backlog — Unsloth + DPO → GGUF → Ollama. **Base-model re-eval DONE 2026-07-21 — verdict: stay on Llama 3.2 3B** (no candidate beat the golden-suite baseline). Swap trigger: a candidate must clearly beat the baseline on `nova_benchmark.py --golden`. Phi-4 Mini pipeline built (`nova_finetune_phi4.py`, verified with 3 real DPO steps), `run()` hard-refuses below `MIN_REAL_PAIRS = 100` (~33 now). RAG-model scope is unaffected by the 2026-08-12 coding-lane pivot. Backstory in NOVA_BUILD_LOG.md
+- Phase 3.5  | Coding Agent Lane      | ✓ v1 live (2026-07-05) — Claude-API coding sub-agent (`nova_orchestrator.py`), git-worktree isolated. LangGraph orchestration v1 gated off. **Direction pivot 2026-08-12:** a RunPod eval put Qwen3-Coder-Next (80B-A3B MoE) at ~80% pass vs. 1/6-2/6 for dense 8B/32B candidates — evidence the capability floor for a usable coding model is the 80B-A3B MoE tier. New direction (with Marvin): stop patching the dense-model debug loop, push infrastructure + training instead. On the board as 16 tasks (ClickUp `🤖 Nova`): **Nova Training Pipeline** Phase 0-5, **Eval Harness** Initiative 1-5, 4 coding-specialist design tasks, and `86bbaph6w` (local multi-GPU rig spec — 2-3x RTX 3090). Old dense-model debug tasks (`86bb72gpa`/`86bb728nj`/`86bb71x1j`/`86bb4gy0y`) dropped to `low`, not closed. **Pivot #2, 2026-09-05 — budget hold:** funds don't currently support testing a coding-specialist model. `86bbnbq0q` (scope Qwen3.6/3.8-27B dense), `86bbaph6w`, and `86baf4e70` are blocked on placeholder `86bbvc3wr` ("Budget available for coding-specialist model testing/rented compute"). **Keeps running regardless:** passive GPU-free training-data collection (`nova_synthetic_task_gen.py` on a Task Scheduler cron).
+- Phase 4    | Roaming Layer          | ✓ Lightweight v1 — Tailscale. **HP Omen headless server (`86baeyfm1`) — ✓ COMPLETE**; **`nova_api.py` on the Omen (`86bawfn19`) — ✓ COMPLETE**, reachable over Tailscale independent of the Aero. "Nova Auto-Start" Task Scheduler task removed 2026-07-29 (Marvin no longer wants the Aero auto-starting on login; `start_nova.ps1` untouched for manual use)
 - Phase 5    | Continuous Learning    | Backlog — quarterly fine-tune cycles
 - Phase 6    | Domain Expansion       | Backlog, foundation laid — `nova_state.db` schema + system adapter ✓ v1 live; financial/work/creative/games adapters blocked on real open questions. Chunk viz (`nova_chunk_viz.py`) + embedding-space viz (`nova_embedding_viz.py`/`.html`, `GET /embedding-viz`) ✓ v1 live. Also backlog: pixel RAG, temporal awareness, proactive memory, content transformation pipeline
 
@@ -55,8 +55,8 @@ C:/Nova/
 ├── graph_builder.py        # Builds nova_graph.json from Chroma wikilink metadata
 ├── nova_watcher.py         # Watchdog file monitor (deferred)
 ├── nova_logger.py          # Training data logger — detects character blending
-├── nova_corrector.py       # DPO pair generator via Claude API — the "Lore Pairs" pipeline, run_corrector_scheduled.ps1 wrapper on a 2hr Task Scheduler cron ("Nova DPO Corrector"), idempotent (no-ops when nothing's flagged)
-├── run_corrector_scheduled.ps1 # Wrapper for the above — logs/corrector_scheduled_run.log. [Console]::OutputEncoding + PYTHONIOENCODING both set (2026-09-05 fix) so real em-dashes/curly-quotes in lore text don't get double-mojibake'd through the OEM codepage a fresh non-interactive powershell.exe defaults to
+├── nova_corrector.py       # DPO pair generator via Claude API — the "Lore Pairs" pipeline (run_corrector_scheduled.ps1, 2hr Task Scheduler cron, idempotent)
+├── run_corrector_scheduled.ps1 # Wrapper for the above — logs/corrector_scheduled_run.log; sets Console/PYTHONIOENCODING UTF-8 (2026-09-05 fix)
 ├── nova_chat.py            # CLI chat interface
 ├── nova_memory_store.py    # Conversation history persistence
 ├── nova_benchmark.py       # Performance benchmarking (--golden, --evaluate <model> for one-command model-swap checks)
@@ -72,11 +72,11 @@ C:/Nova/
 ├── nova_coding_eval.py     # Human-graded DEV-SET comparison harness (gate-tuning-safe tasks) — reruns historical merged tasks against a backend under test — see nova_eval_held_out.py for the genuinely held-out pool
 ├── nova_eval_held_out.py   # Genuinely held-out task pool (86bbcfv8d) — never used to tune a gate, only to test whether one generalizes; hand-authored tasks + real organic merges via add_organic_merge_task()
 ├── nova_coding_corrector.py # Claude-written chosen_diff corrections for coding_review_log.jsonl (mirrors nova_corrector.py) — DPO pair source for the Qwen coding fine-tune
-├── nova_synthetic_task_gen.py # Nova Training Pipeline Phase 3 (86bbcfpc9) — back-translates Nova's own real git commit history into synthetic (task, diff) SFT pairs via Claude, one call per qualifying commit. Output schema matches nova_finetune_qwen_coder_sft.py's load_nova_review_examples() field names (task/diff/approved) but writes to data/coding_training/synthetic/, never logs/coding_review_log.jsonl, so synthetic examples never blend with real production review data. run_synthetic_task_gen_scheduled.ps1 wrapper on a daily Task Scheduler cron ("Nova Synthetic Task Gen", --all --limit 10/run, ~$0.50/day) added 2026-09-05 so this keeps accumulating passively while coding-specialist model testing (86bbnbq0q/86bbaph6w/86baf4e70) is on hold pending budget (86bbvc3wr) — same [Console]::OutputEncoding + PYTHONIOENCODING fix as run_corrector_scheduled.ps1
-├── nova_bulk_distillation.py # Nova Training Pipeline Phase 1 (86bbcfpap), the "ZERO" pattern — for each Phase 3 task, grounds Claude in the real pre-diff file content (git show <sha>^:path, never the real historical diff) and asks it to solve the task from scratch in one call, cheap by design (no agentic tool-use loop). Output carries verification_status="unverified", never approved=true, in its own data/coding_training/bulk_distillation/ file — Phase 2 grounds these against real test execution later. Cleared to its real ceiling, 171/201 (30 rows permanently exceed MAX_CONTEXT_TOKENS)
+├── nova_synthetic_task_gen.py # Training Pipeline Phase 3 (86bbcfpc9) — back-translates real git commits into synthetic (task, diff) SFT pairs via Claude → data/coding_training/synthetic/. Daily Task Scheduler cron (run_synthetic_task_gen_scheduled.ps1)
+├── nova_bulk_distillation.py # Training Pipeline Phase 1 (86bbcfpap), "ZERO" pattern — one Claude call per Phase 3 task grounded in real pre-diff file content (git show <sha>^:path), verification_status="unverified" → data/coding_training/bulk_distillation/. Ceiling 171/201
 ├── nova_pull_exercism_corpus.py # Vendors 30 real, difficulty-stratified Exercism Python exercises (MIT-licensed, pinned commit) into data/coding_specialist_eval/exercism_subset/ — the coding specialist's execution-groundable eval corpus (86bbch988/86bbch95y)
 ├── nova_coding_aci.py      # The coding specialist's constrained action-space interface (86bbch95y) — find_file/search_file/search_dir/view/edit/collapse_history, format-agnostic edit() taking (start_line, end_line, new_content) regardless of what text format produced them
-├── nova_aci_harness.py     # Real end-to-end turn loop driving nova_coding_aci.py against a local Ollama model (Qwen2.5-Coder-7B). Always-on guards: repeat_failed_call, done_without_edit. Opt-in: --same-path-guard (demoted from always-on 2026-08-30 after a net-negative ablation), --hybrid-verify (gates `done` on real test execution + a non-agentic Claude style check, ACCEPT/GAMED/IDIOM split), --diff-format (tested clearly negative on this model, kept only as a documented reference — never use in a real run)
+├── nova_aci_harness.py     # Turn loop driving nova_coding_aci.py against local Ollama (Qwen2.5-Coder-7B). Always-on guards: repeat_failed_call, done_without_edit. Opt-in: --same-path-guard, --hybrid-verify (ACCEPT/GAMED/IDIOM), --diff-format (negative, reference only)
 ├── nova_aci_stats.py       # Reusable pass-rate/correlation analysis across repeated nova_aci_harness.py runs — built after a single-pass result proved non-reproducible (Ollama's default sampling isn't deterministic)
 ├── nova_coding_execution_refinement.py # Nova Training Pipeline Phase 2, coding track (86bbcfpbg) — real generate-test-refine loop against the vendored Exercism corpus (Phase 1's own rows have nothing to execute against), reusing nova_aci_harness.py's _prepare_working_copy/_run_real_tests
 ├── nova_coding_dpo_filter.py # Nova Training Pipeline Phase 4, coding track (86bbcfpck) — parses real unittest output from Phase 2's trajectories, computes pass_ratio per candidate pair, filters too-hard/low-signal pairs
@@ -136,8 +136,8 @@ C:/Nova/
 └── logs/
     ├── query_log.jsonl          # Per-query telemetry (nova_log.py) — Nova Log Health data source
     ├── agent_log.jsonl          # Per-turn coding sub-agent telemetry (nova_orchestrator.py)
-    ├── agent_task_outcomes.jsonl # Merged/discarded label per branch (nova_orchestrator.record_task_outcome) — call by hand after each merge/discard decision; this is what turns agent_log.jsonl into a usable Qwen3 training set later. Carries a `pool` field (held_out/dev_set/excluded, 86bbcfv8d) — defaults to held_out, so a real merge doesn't silently become dev-set/DPO-training material
-    ├── held_out_pool.jsonl      # Real organic merges added to the genuinely held-out pool (nova_eval_held_out.add_organic_merge_task) — separate from agent_task_outcomes.jsonl's own pool field, since this carries the base_ref/requirements a held-out task actually needs to be re-tested against
+    ├── agent_task_outcomes.jsonl # Merged/discarded label per branch (record_task_outcome) — call by hand after each merge. pool field (held_out/dev_set/excluded, 86bbcfv8d), defaults held_out
+    ├── held_out_pool.jsonl      # Real organic merges for the held-out pool (nova_eval_held_out.add_organic_merge_task) — carries base_ref/requirements for re-testing
     ├── coding_review_log.jsonl # (diff, verdict) pairs from the RunPod-lane review pass (nova_orchestrator._log_coding_review) — future Qwen fine-tune training data
     ├── runpod_cost_log.jsonl   # Per-task real dollar cost for the RunPod coding lane (nova_orchestrator_runpod._log_runpod_cost_summary)
     └── watcher.log              # File watcher logs
@@ -184,154 +184,54 @@ existing unconditional Second Brain deny-check untouched. See
   `nova_orchestrator.py` as the interim coding sub-agent brain (see below)
 
 ### HP Omen Headless Server (ClickUp `86baeyfm1`) — ✓ COMPLETE (2026-07-12)
-Always-on Ubuntu service host (Chroma, `nova_state.db`, orchestration) for the Aero, which
-sleeps. Service-host-only for Chroma/orchestration — GPU compute added 2026-08-11, see below.
-Ubuntu 24.04, static IP `192.168.1.250`, Tailscale IP `100.114.197.117` (hostname `nova`). Chroma runs
-as `HttpClient` server on port 8000; `nova-api` runs on **port 8001** (not 8000 — real port
-conflict, both services defaulted there). `nova-chroma`/`nova-api` are permanent systemd units.
-Full step-by-step commands in `docs/omen_setup_runbook.md`. Full incident narrative (stale-clone
-discovery, passphrase-protected deploy key, hardcoded-path bugs) in `NOVA_BUILD_LOG.md`.
+Always-on Ubuntu 24.04 service host for the Aero (which sleeps). Static IP `192.168.1.250`,
+Tailscale IP `100.114.197.117` (hostname `nova`). Chroma runs as an `HttpClient` server on
+port 8000; `nova-api` runs on **port 8001** (8000 was taken). `nova-chroma`/`nova-api` are
+permanent hand-authored systemd units — Docker is reserved for third-party tools only (the
+separate `86baf4e29` covers Dockerizing Nova's own code). Setup commands in
+`docs/omen_setup_runbook.md`; full incident history in `NOVA_BUILD_LOG.md`. `nova_api.py` on the
+Omen is reachable over Tailscale independent of the Aero (no Open WebUI there, raw API only).
 
-**Uptime Kuma (`86bb7qua2`, 2026-08-05)** — service/infra health monitoring, reachable at
-`http://100.114.197.117:3001`. First real Docker use on the Omen (Nova's own services stay
-hand-authored systemd units per the runbook above; Docker is reserved for third-party tools like
-this one — see the still-held `86baf4e29` for the separate, unrelated question of Dockerizing
-Nova's own app code). Deployed via `docker run louislam/uptime-kuma:1`, named volume `uptime-kuma`
-for persistence, `restart=unless-stopped`, **`--network host`** (real gotcha found live: the
-default Docker bridge network couldn't reliably reach back out to the Omen's own LAN IP —
-`curl http://192.168.1.250:8001/` succeeded from the Omen's own shell but the same request from
-inside the bridged container failed; switching to host networking, which shares the host's
-network stack directly, fixed it — the container was recreated, not the `uptime-kuma` volume, so
-no config/data was lost). 7 monitors: `nova-api`/`nova-chroma` on the Omen (Chroma is a **TCP
-Port** check on 8000, not HTTP — its root path returns a real 404, confirmed live, matching why
-`nova_chroma_omen_check.py` also avoids guessing at a heartbeat HTTP path), `nova-api`/Ollama on
-the Aero (expected down whenever the Aero sleeps — not a false alarm, longer interval + retries
-set accordingly), the live RunPod Qwen endpoint (`gwhpxqmae68fgr` in `nova_remote_inference.py` —
-not the Devstral endpoint, confirmed deleted after the 2026-08-03 eval), Langfuse Cloud, and a
-placeholder Laminar Cloud check (their public site, not a real project — no account provisioned
-yet, see Part D of the infra-tickets plan). All 7 confirmed green.
+Docker-hosted third-party tools (all `restart=unless-stopped`, named volumes):
+- **Uptime Kuma** (`86bb7qua2`) — `http://100.114.197.117:3001`, `--network host`. 7 monitors, green.
+- **Forgejo** (`86bb7quk1`) — `http://100.114.197.117:3000`, git-over-SSH on port `222`. Light
+  stand-up only; the fuller-scope `86baxuq12` stays blocked on Vaultwarden.
+- **MLflow** (`86bb7quga`) — `http://100.114.197.117:5000`, SQLite backend, `--workers 1`, needs
+  both `--allowed-hosts` (exact `host:port`) and `--cors-allowed-origins` set. The two finetune
+  scripts write `mlflow_run_metadata.json` (no `mlflow` import on the pod); `nova_mlflow_ingest.py`
+  run from the Aero logs the real run.
+- **GPU driver** (2026-08-11) — `nvidia-driver-580` on the GTX 1050 Ti Mobile (4GB VRAM, CUDA
+  13.0); Secure Boot disabled to install it. First real GPU compute on the box.
 
-**Forgejo (`86bb7quk1`, 2026-08-06)** — self-hosted git hosting + diff viewing, reachable at
-`http://100.114.197.117:3000` (git-over-SSH on port `222`, not `22` — the Omen's own sshd already
-owns 22). Light stand-up only, per the scope decision in the 2026-08-05 changelog entry below —
-the older, fuller-scope ticket (`86baxuq12`, real repo migration + headless-runner retarget +
-Vaultwarden credential scoping) stays genuinely blocked on Vaultwarden, not attempted here.
-Deployed via `docker run codeberg.org/forgejo/forgejo:16`, SQLite mode (default, no Postgres
-sidecar — confirmed viable at this scale, ~108-160MB RAM), named volume for persistence. Verified
-with a real push/clone round-trip: a throwaway SSH key (generated fresh for this test, never
-touched Marvin's account otherwise) pushed a test commit, a completely separate fresh clone
-pulled it back down, and both the file content and commit hash matched exactly — not just "the
-push didn't error." Test repo and key removed afterward.
-
-**MLflow (`86bb7quga`, 2026-08-06)** — training-run/eval-score tracking, reachable at
-`http://100.114.197.117:5000`. Deployed via `docker run ghcr.io/mlflow/mlflow:latest`, SQLite
-backend store (`sqlite:////mlflow/mlflow.db`), file-based artifact root — the ticket's original
-"bare filesystem backend" assumption doesn't hold on the current MLflow major version (the pure
-filesystem tracking store is in maintenance mode and hard-refuses to start), so SQLite is the
-lightest still-supported option, not a compromise. Three real gotchas found live, all in MLflow's
-own security middleware: (1) modern MLflow's default `--workers 4` used ~2GB RAM for a single-user
-tool — cut to `--workers 1`, steady-state ~1.5GB (heavier than the ticket assumed, due to MLflow
-3.x's new built-in job schedulers, but not a capacity problem given the Omen's remaining
-headroom); (2) `--allowed-hosts` does **not** auto-strip the port from the incoming Host header —
-entries must be the exact `host:port` form (`192.168.1.250:5000`, not just `192.168.1.250`) or
-every non-`localhost` request 403s with "Invalid Host header"; (3) found 2026-08-06, a separate
-control from (2) — `--cors-allowed-origins` defaults to localhost-only too, so even with (2)
-fixed, the page itself loaded fine (`GET /` isn't cross-origin) but every real AJAX data call
-(`runs/search`, `logged-models/search`, etc.) 403'd with "Blocked cross-origin request," making
-the UI look like it had lost all its data when the SQLite DB was completely intact the whole
-time (confirmed via `MlflowClient` directly, bypassing the browser, before touching anything).
-Fixed by adding `--cors-allowed-origins` alongside `--allowed-hosts`, both listing the same real
-LAN/Tailscale origins. Backfilled the two real completed training rounds (2026-07-31 DPO
-warm-start, 2026-08-01 full SFT+DPO) as 3 runs under experiment `qwen-coder-32b-finetune`, using
-real numbers from this changelog. Both `nova_finetune_qwen_coder_sft.py`/
-`nova_finetune_qwen_coder.py` now write a local `mlflow_run_metadata.json` at the end of a real run
-(no `mlflow` import on the rented pod itself — that pod has no Tailscale access to reach this
-server, and installing mlflow's client locally on the Aero already once uninstalled
-`llmcompressor` as a side effect, a real conflict caught and reverted before it could break
-`nova_quantize_qwen_coder_awq.py`'s pod-side dependency, see Section 10). The metadata rides home
-via the same HF Hub upload `nova_hf_upload.py` already does; a new `nova_mlflow_ingest.py`, run
-from the Aero, pulls it back down and logs the real run.
-
-**NVIDIA GPU Driver (2026-08-11)** — installed `nvidia-driver-580` (Ubuntu's
-`ubuntu-drivers devices`-recommended pick for the GTX 1050 Ti Mobile), making the Omen's
-discrete GPU real usable compute for the first time — previously present but driverless (see
-Omen Capacity Audit below, now updated on this point). Required disabling Secure Boot first:
-this box boots UEFI with Secure Boot on, and installing a proprietary kernel module normally
-triggers MOK (Machine Owner Key) enrollment — a blue console screen at the *next* reboot that
-needs physical keyboard input, impossible over SSH. Disabled via BIOS instead
-(`sudo systemctl reboot --firmware-setup` jumps straight to UEFI setup — real gotcha found live:
-on this HP unit that command lands on HP's intermediate Startup Menu, not BIOS Setup directly;
-`F10` from there reaches the real Setup screen with Secure Boot Configuration). **Real incident
-along the way:** Marvin's local Ubuntu account password was forgotten mid-process, recovered via
-GRUB recovery mode — reaching the GRUB menu needed holding `Shift` immediately after POST since
-HP's own splash screen wasn't reliably appearing (fast SSD boot skips it), and the recovery-mode
-root shell itself needed `mount -o remount,rw /` before `passwd marvinroyal5` would take. Full
-incident narrative in `NOVA_BUILD_LOG.md`. Verified live end-to-end after both reboots:
-`mokutil --sb-state` confirms Secure Boot disabled, `nvidia-smi` reports the GTX 1050 Ti Mobile
-correctly (driver `580.173.02`, CUDA 13.0, 4096MiB VRAM), and `nova-api`/`nova-chroma` both came
-back `active` after each reboot with no lasting outage.
-
-**Key lesson from `86bawfn19`'s verification gap:** "reachable" (HTTP 200) and "functionally
-correct" are different claims — a route can fail open (wrong data, no error) rather than fail
-loud. Always verify the payload, not just the status code, especially after deploying to the
-Omen. `nova_api.py` on the Omen is now COMPLETE and verified — reachable over Tailscale
-independent of the Aero being powered on (no Open WebUI on the Omen, raw API only).
+**Standing rule from `86bawfn19`:** "reachable" (HTTP 200) and "functionally correct" are
+different claims — a route can fail open. Always verify the payload, not just the status code,
+especially after deploying to the Omen.
 
 ### Working Directly on the Omen via SSH (away from the Aero)
-When SSHed into the Omen to do real work away from the Aero — a real interactive/manual
-session, not the automated `nova_omen_dispatch.py` headless path — **never edit the main
-checkout (`~/nova`) directly.** That directory is a one-directional deployment target:
-`nova_omen_sync.py` pulls into it and restarts `nova-api`/`nova-chroma`. Hand-editing and
-pushing from there recreates the exact two-way drift that caused the 15-commit stale-clone
-incident (full story in `NOVA_BUILD_LOG.md`, "Important gap..." under `86bawfn19`).
+For real interactive/manual work on the Omen (not the automated `nova_omen_dispatch.py` path):
+**never edit the main checkout (`~/nova`) directly** — it's a one-directional deployment target
+(`nova_omen_sync.py` pulls into it and restarts services). Hand-editing there recreates the
+15-commit stale-clone drift (`NOVA_BUILD_LOG.md`). Use worktree discipline instead — `origin`
+is the only source of truth:
 
-Instead, use the same worktree discipline `nova_orchestrator.py` already uses for headless
-dispatch — `origin` is the only source of truth, every worktree fetches fresh from it, the
-main checkout only ever receives, never originates:
-
-1. `git worktree add ~/nova-work/<task-name> -b <branch> origin/master` — fetches fresh from
-   `origin`, ignores whatever state the main checkout happens to be in.
+1. `git worktree add ~/nova-work/<task> -b <branch> origin/master` — fetches fresh from `origin`.
 2. Do the work there.
-3. **Commit on the Omen, but push from the Aero — the Omen's GitHub deploy key is read-only
-   by design and cannot push, confirmed live 2026-07-25** (`git push` from the Omen fails
-   with "The key you are authenticating with has been marked as read only"). This is
-   deliberate, not a bug to route around by widening the key: an always-on, internet-reachable
-   headless box having direct write access to the repo is real added blast radius if it's ever
-   compromised, and nothing about the Omen's role requires it. The real flow:
-   - Commit the worktree's changes on the Omen as usual.
-   - From the Aero: `git fetch ssh://<user>@<omen-tailscale-ip>/home/<user>/nova
-     <branch>:<branch>` — pulls the commit directly out of the Omen's local object store, no
-     GitHub round-trip needed for this step.
-   - `git push origin <branch>` from the Aero, which has real write access.
-4. Merge to `master` from wherever's convenient (GitHub's web UI, or `gh pr merge` from the
-   Aero) — never directly on the Omen, for the same read-only-key reason.
-5. If the change touches what `nova-api`/`nova-chroma` actually run, trigger
-   `nova_omen_sync.py` (or `git pull` + restart directly, since you're already on the Omen)
-   so the live services pick it up.
-6. Back on the Aero next session: `git pull` before starting new work there — same discipline
-   as any second machine touching a shared repo.
+3. **Commit on the Omen, push from the Aero** — the Omen's GitHub deploy key is read-only by
+   design (confirmed live 2026-07-25). From the Aero: `git fetch
+   ssh://<user>@<omen-ts-ip>/home/<user>/nova <branch>:<branch>` then `git push origin <branch>`.
+4. Merge to `master` from GitHub's web UI or `gh pr merge` on the Aero — never on the Omen.
+5. If the change touches what `nova-api`/`nova-chroma` run, trigger `nova_omen_sync.py`.
+6. Back on the Aero next session: `git pull` before new work.
 
-**Two gotchas worth knowing before they look like a mystery failure:** no git identity is
-configured on the Omen's main repo — a commit made directly on the Omen needs `git -c
-user.name='...' -c user.email='...' commit ...`; and a plain `ssh host "command"` doesn't source
-`.bashrc`, so PATH is missing `~/.local/bin` (breaks `gitleaks`'s pre-commit hook) — prepend
-`PATH=$HOME/.local/bin:$PATH` explicitly in the SSH command.
-
-Once the Nova Controller exists, this manual SSH workflow is expected to mostly be replaced by
-triggering `nova_omen_dispatch.py` from the Controller UI, which already self-syncs from
-`origin` and never needed the Omen to push in the first place.
+**Two gotchas:** no git identity is configured on the Omen's main repo (a direct commit needs
+`git -c user.name=... -c user.email=... commit`); a plain `ssh host "command"` doesn't source
+`.bashrc`, so prepend `PATH=$HOME/.local/bin:$PATH` (else `gitleaks`'s pre-commit hook breaks).
 
 ### Omen Capacity Audit (86baxty6d, self-hosting gate) — 2026-07-21
-Gate: no further self-hosting tasks proceed until `nova_omen_capacity.py` (SSHes from the Aero,
-real CPU/RAM/disk/GPU snapshot, logs to `logs/omen_capacity_log.jsonl`) confirms headroom —
-revisited periodically as new services get proposed, not just once. **Verdict as of 2026-07-21:
-gate open, large headroom** (8 cores near-idle, 84% RAM free, 77% disk free) — mostly because
-almost nothing is deployed yet (only `nova-api`/`nova-chroma` are persistent; Docker installed
-but empty). GPU (GTX 1050 Ti Mobile) driver installed 2026-08-11 — now real usable compute, not
-yet folded into a fresh capacity re-run.
-**Recommendation, not yet acted on:** re-run before/after each self-hosting task deploys,
-watching RAM specifically — smallest of the three pools, most likely to get pressured first by
-a multi-service stack like Langfuse's. Full findings in `NOVA_BUILD_LOG.md`.
+Gate: no further self-hosting proceeds until `nova_omen_capacity.py` (SSH from the Aero, real
+CPU/RAM/disk/GPU snapshot → `logs/omen_capacity_log.jsonl`) confirms headroom. **Verdict
+2026-07-21: gate open, large headroom.** Re-run before/after each self-hosting deploy, watching
+RAM (smallest pool). GPU driver installed 2026-08-11, not yet folded into a fresh run.
 
 ### Nova Coding Sub-Agent (nova_orchestrator.py)
 Nova can now write to its own codebase — the one sanctioned exception to a human
@@ -355,97 +255,30 @@ specific `old_str` or fall back to `write_file` for that edit. Reserve
 by `_build_system_prompt()`, which reads all of CLAUDE.md verbatim into the
 sub-agent's system prompt every run.
 
-**RunPod backend (`nova_orchestrator_runpod.py`, 2026-07-27):** an alternate turn loop using
-Nova's RunPod-hosted Qwen2.5-Coder-32B-Instruct-AWQ endpoint instead of Claude, gated behind
-`framework_integrations.runpod_coding_agent` (default off, `aero_only`). This endpoint has no
-native tool-calling API, so tool calls are requested via a prompted `<tools>{...}</tools>` text
-format and parsed out of the plain-text response. Three pre-dispatch guards prevent observed
-failure loops from the 2026-07-27 held-out eval (`project_qwen3_coding_spike_result.md`):
-refusing `write_file`/`file_replace` on an unread existing path, refusing a repeat `read_file` on
-an already-read path, and refusing an exact repeat of an already-failed call. A fourth,
-**post**-dispatch guard (`86bb4gy0y` punch-list item #3) targets the eval's other recurring
-defect — leftover duplicate code after a `file_replace`: after a successful `file_replace` on a
-`.py` path, `_find_duplicate_functions()` re-parses the file with `ast` and flags any two
-functions sharing an identical normalized body, or the same name defined twice, returning the
-same synthetic `is_error` corrective-nudge shape as the other three guards.
+**Alternate backends** (all default off, `aero_only`, mutually exclusive per `nova_orchestrator.py`'s
+`if/elif` chain):
+- `runpod_coding_agent` (`nova_orchestrator_runpod.py`) — RunPod Qwen2.5-Coder-32B-AWQ, no
+  native tool-calling so tool calls use a prompted `<tools>{...}</tools>` text format. Five
+  unconditional guards (all `86bb4gy0y`): unread-path write refusal, repeat-read refusal,
+  repeat-failed-call refusal, post-`file_replace` duplicate-function detection
+  (`_find_duplicate_functions()`, `ast`), and proactive context pruning
+  (`_prune_history_if_needed()` drops oldest turn-pairs under the 32,768-token ceiling;
+  `stopped_context_overflow` status when a single pair still overflows). Real per-GPU-second
+  cost in `logs/runpod_cost_log.jsonl` + `cost_usd` in `agent_log.jsonl`
+  (`RUNPOD_GPU_HOURLY_RATE_USD = 2.99`, H100 SXM).
+- `devstral_coding_agent` (`nova_orchestrator_devstral.py`) — Devstral, native tool-calling.
+  2nd model family for cross-checking failure-registry findings.
 
-**Context-window pruning (`86bb4gy0y` punch-list item #2, 2026-07-29):** this endpoint's real
-32,768-token context window (`CODING_AGENT_CONTEXT_WINDOW_TOKENS` — distinct from the file's
-`NUM_CTX = 8192`, which is accepted for interface parity only and never actually forwarded to the
-request) is a genuine constraint the 2026-07-27 held-out eval hit mid-task. Rather than detecting
-an overflow after a remote failure (RunPod's exact error text for this case was never captured,
-and `nova_remote_inference.chat()` — shared with the unrelated RAG path — returns bare `None` on
-every failure type today, indistinguishable from a network error), `_prune_history_if_needed()`
-proactively estimates the prompt's token size before every turn (a standard char-based
-approximation, `CHARS_PER_TOKEN_ESTIMATE`) and drops the oldest complete
-(assistant, tool-response) turn-pairs — never the system prompt or original task — until back
-under budget, leaving an honest note on the earliest remaining pair. If even the single most
-recent pair alone still overflows (one oversized tool call, unfixable by pruning), `run_via_runpod()`
-stops with a new distinct `stopped_context_overflow` status **before** spending a paid RunPod
-call on a request already known to fail — previously indistinguishable from a generic
-`stopped_runpod_call_failed`. Unconditional once `runpod_coding_agent` is on, same as the other
-four guards — no separate flag. Pruning events are visible in `agent_log.jsonl` via a new
-`pruned_pairs` field.
+**Coding review pass** (`coding_review_pass` flag, needs `runpod_coding_agent` too):
+`_review_coding_diff()` runs once after the final diff — a single non-agentic `messages.create()`
+call with no `tools` argument (structurally unable to write files); its JSON verdict only feeds
+`logs/coding_review_log.jsonl` and the commit message, never a tool call. Does not block the
+commit — v1's job is to speed Marvin's review and seed a future fine-tune dataset.
 
-**Real cost tracking (`86bb4gy0y` punch-list item #5, 2026-07-29):** RunPod bills per GPU-second
-of real execution time, not per token — a real gap confirmed live: a completed job's response
-includes top-level `executionTime`/`delayTime` fields (milliseconds) that
-`nova_remote_inference._extract_answer()` previously discarded entirely, while
-`nova_orchestrator_runpod.py`'s `_RunpodUsage` fed real RunPod token counts through
-`nova_token_budget.record_usage()` — a budget model calibrated for Anthropic's per-token pricing,
-producing a session/daily "budget %" with no relationship to real RunPod dollars spent. Fixed by
-threading `execution_time_ms`/`delay_time_ms`/`cost_usd` through `chat()`'s return dict
-(`RUNPOD_GPU_HOURLY_RATE_USD = 2.99`, this endpoint's real confirmed rate — **H100 SXM**, checked
-directly against the RunPod dashboard, not assumed from a generic pricing page) and **removing**
-`_RunpodUsage`/its `record_usage()` call entirely rather than keeping two disagreeing cost signals
-side by side. Real per-task cost now lands in a new `logs/runpod_cost_log.jsonl`
-(`_log_runpod_cost_summary()`), and per-turn cost is visible in `agent_log.jsonl` via a new
-`cost_usd` field. Verified live: a real trivial task's three-turn run cost exactly $0.003591
-total, matching the sum of its three logged per-turn costs. The separate
-`budget_gate_enabled`/`get_budget_status().get("mode") == "halt"` check in `run_via_runpod()`'s
-loop is untouched — it respects a shared, global halt state any caller (including the Claude
-lane) may have already tripped, which stays valid even though this backend no longer writes into
-that state itself.
-
-**Coding review pass (`86bb4gy0y` punch-list item #1, 2026-07-29):** the review half of Marvin's
-2026-07-27 review-split decision (RunPod/Qwen writes, Claude reviews — see
-`project_coding_agent_review_split_decision.md`). `_review_coding_diff()` in
-`nova_orchestrator.py` runs once, right after `run_coding_task()` computes the final diff and
-before `_commit_worktree_changes()` — a single non-agentic `client.messages.create()` call
-(same no-tool-use pattern as `nova_task_queue.propose_tier()`), never given a `tools` argument,
-so it is structurally unable to write files regardless of what it says; its JSON verdict
-(`approved`/`issues`/`summary`) only ever feeds a JSONL log entry and a commit-message string,
-never back into a tool call. Gated behind `framework_integrations.coding_review_pass` (default
-off, `aero_only`) **and** `runpod_coding_agent` together — meaningless without RunPod actually
-having written the diff, so it never runs for the Claude-backed lane. Deliberately does **not**
-block the commit or re-enter the turn loop on a negative verdict: a worktree commit here isn't a
-merge (Marvin already reviews every diff by hand before that), so v1's job is to make that human
-pass faster and start generating real (diff, verdict) pairs toward a future Qwen fine-tune
-dataset (`logs/coding_review_log.jsonl`, written by `_log_coding_review()`), not to gate anything
-itself yet.
-
-**Strengthened `self_verify_nudge` (2026-08-06):** real investigation into why RunPod-Qwen/
-Devstral tasks fail so often found the dominant real pattern is incompleteness
-(`deliverables_present`/`unused_new_import`/`nonzero_diff`/`required_files_touched` — real counts
-from `ground_truth_gate_log.jsonl`), not severe scope violation (`D1`, which fires **zero** times
-in the real data) — `goal_reanchor`'s high fire count, which looked like drift evidence, turned
-out to just be a proxy for run length (it fires unconditionally every
-`GOAL_REANCHOR_INTERVAL_TURNS` turns, not reactively). Cross-referencing `self_verify_nudge`
-against real outcomes: it fired on only 1 of 53 real runs, while runs where it never fired still
-failed an incompleteness check 63.5% of the time — its old trigger (`edited_paths and not
-has_verified_edits`) was satisfied the moment the model ran **any** `run_command` call after an
-edit, regardless of what it actually checked. Fixed by replacing that coarse signal with a real
-call to `check_ground_truth_completion()` (`nova_completion_gate.py`) against the real
-diff-so-far (`_git_diff_against_master()`, confirmed safe to call mid-run on the live worktree's
-uncommitted state) right when the model tries to stop — the exact same check the final gate runs,
-so whatever this catches is guaranteed to matter at the end too. Costs nothing extra:
-`requirements` is already extracted once and threaded through to this point for the file-allowlist
-guard. The nudge message now lists the specific real hard-fails/warnings found, not a generic
-"run a syntax check" — and a clean result (no real issues) now accepts the stop immediately rather
-than requiring the old coarse "ran any command" signal. Verified via direct-call tests against a
-real throwaway worktree (dirty case: real `required_files_touched` + `unused_new_import` messages
-correctly detected; clean case: `passed=True`, no nudge) — not a live paid RunPod/Devstral
-dispatch, deliberately deferred given the real RunPod budget hold in effect this session.
+**`self_verify_nudge` (2026-08-06):** when the model tries to stop, calls the real
+`check_ground_truth_completion()` (`nova_completion_gate.py`) against the diff-so-far — the same
+check the final gate runs — and lists the specific hard-fails/warnings found; a clean result
+accepts the stop immediately.
 
 ### Escalation Protocol — Headless Dispatch (86bax0wkj, 2026-07-18)
 A headless task dispatched via `nova_omen_dispatch.dispatch_headless_task()` can now
@@ -471,23 +304,13 @@ NOVA_ESCALATION_END
 `OPTIONS` and `CONTEXT` are optional; `QUESTION` is required — its absence still
 escalates (marked `malformed: true`, surfaced to Marvin rather than silently dropped).
 
-**Mechanism, end to end:** `nova_escalation.check_escalation()` parses the block out of
-the dispatch/resume result's own summary text via regex. `nova_scheduled_dispatch.py`'s
-`_handle_escalation()` registers it with `nova_api.py`'s `POST /escalations`, tags
-the ClickUp task `awaiting-answer`, and comments the question. Marvin answers via
-`GET /escalations-ui` (redirects to `/controller`); the answer is accepted immediately
-(fire-and-forget `BackgroundTasks`), and `nova_omen_dispatch.resume_headless_task()`
-runs `claude -p --resume <session_id>` in the background, `cd`'d into the exact
-original worktree. `POST /escalations/{id}/answer` requires header
-`X-Nova-Escalation-Token` matching env var `NOVA_ESCALATION_TOKEN` — the first
-cost-incurring write route on `nova_api.py`'s otherwise-unauthenticated Tailscale-only
-surface. Resuming an escalated session is **not** blocked by the global dispatch-pause
-switch (answering a direct question is a different act than starting a new autonomous
-run). Full decision narrative in `NOVA_BUILD_LOG.md`.
-
-**Manual step required:** Marvin must set `NOVA_ESCALATION_TOKEN` in the Omen's `.env`
-and restart `nova-api` (or run `nova_omen_sync.py`) before the answer route will accept
-anything — it 401s otherwise, by design (fail-closed, not a soft pass).
+**Mechanism:** `nova_escalation.check_escalation()` parses the block; `nova_scheduled_dispatch._handle_escalation()`
+registers it via `POST /escalations`, tags the ClickUp task `awaiting-answer`, comments the
+question. Marvin answers via `/controller`; `resume_headless_task()` runs `claude -p --resume
+<session_id>` in the original worktree. `POST /escalations/{id}/answer` requires header
+`X-Nova-Escalation-Token` = env `NOVA_ESCALATION_TOKEN`; resuming is not blocked by the global
+dispatch-pause switch. **Manual step:** Marvin must set `NOVA_ESCALATION_TOKEN` in the Omen's
+`.env` and restart `nova-api` or the answer route 401s (fail-closed).
 
 ### Task Tiering (86bb01wur, 2026-07-19)
 `nova_task_queue.propose_tier()` proposes an autonomy tier (`autonomous`/`needs review`/
@@ -509,153 +332,67 @@ touch gestures, no library (no bundler in this repo's frontend). PWA-installable
 write queue for swipe/tap decisions (2026-07-26) — card collapses immediately, ~4s undo
 snackbar, writes processed one at a time against the read-all/rewrite-all JSONL files.
 
-**Switches panel dependency/mutual-exclusion guards (2026-08-06):** `nova_config.FlagMeta`
-gained two optional fields, `disabled_unless`/`disabled_if_any_on`, and a new
-`is_flag_toggle_allowed()` function — real, code-confirmed relationships only, not guessed
-ones. `coding_review_pass_enabled` only ever does anything when `runpod_coding_agent` is also
-on (`nova_orchestrator.py:720`) — `disabled_unless: ["runpod_coding_agent"]`.
-`runpod_coding_agent`/`devstral_coding_agent`/`langgraph_orchestration` are three mutually
-exclusive alternate turn-loop backends per `nova_orchestrator.py`'s own real `if/elif`
-precedence chain — `devstral_coding_agent`/`langgraph_orchestration` get
-`disabled_if_any_on` naming whichever higher-precedence backend(s) would silently override
-them. Turning a flag OFF is always allowed regardless of other state — only turning ON can be
-blocked, and nothing here ever auto-flips a switch a human didn't touch (Marvin's own call).
-Enforced twice: `nova_api.py`'s `set_flag()` 400s a blocked toggle server-side (same
-"don't just trust the client" discipline as `nova_diff_link.py`'s forced scripts), and
-`nova_controller.html`'s switches panel grays out the button client-side with a caption
-explaining why, mirroring the same logic in JS. `openhands_coding_agent` is in the same
-conceptual backend family but has zero real call sites anywhere (confirmed by grep) — not
-guarded, since guarding unbuilt functionality would be speculative.
+**Switches panel guards (2026-08-06):** `nova_config.FlagMeta` `disabled_unless`/`disabled_if_any_on`
++ `is_flag_toggle_allowed()`, code-confirmed relationships only. `coding_review_pass_enabled` needs
+`runpod_coding_agent`; the three alternate backends are mutually exclusive. Turning a flag OFF is
+always allowed; only ON can be blocked. Enforced server-side (`set_flag()` 400s) and client-side
+(grayed button + reason).
 
-**Token Budget Governor (86barhqt9):** `nova_token_budget.py` tracks the coding sub-agent's
-Claude API consumption against `nova_config.json`'s `token_budget` thresholds
-(`logs/token_budget_state.json`), classifies normal/conservative/critical/halt, folds into
-`GET /headroom`. `nova_orchestrator.py` stops cleanly once halted. Gated behind
-`token_budget_governor` (default off). Interactive lane only — headless dispatch doesn't call
-`record_usage()`.
+**Token Budget Governor (86barhqt9):** `nova_token_budget.py` tracks the interactive coding
+sub-agent's Claude spend against `nova_config.json`'s `token_budget` thresholds, classifies
+normal/conservative/critical/halt, folds into `GET /headroom`; `nova_orchestrator.py` stops once
+halted. Flag `token_budget_governor` (default off). Interactive lane only.
 
-**Push Notifications — Layer 3 (86bb3ceyp, 2026-07-26):** `nova_notify.send_notification()`
-POSTs to `https://ntfy.sh/<NTFY_TOPIC>` (ntfy.sh's public relay — no TLS/VAPID setup needed on
-Nova's side, phone subscribes via the ntfy app). Wired into `nova_scheduled_dispatch.py`'s
-`_post_non_clean_comment()` and `_handle_escalation()`, right after their existing `add_comment()`
-calls — best-effort, never raises, silently no-ops if `push_notifications.enabled` is false or
-`NTFY_TOPIC` is unset. **Security note:** ntfy.sh public topics are NOT access-controlled —
-anyone who knows the topic string can publish/subscribe, and content transits ntfy's servers in
-plaintext. `NTFY_TOPIC` must be a long random string, treated exactly like a secret, stored only
-in `.env` on both machines. Generate one with:
-```
-python -c "import secrets; print('nova-' + secrets.token_urlsafe(24))"
-```
-then subscribe to the exact printed string in the ntfy phone app. One shared topic for every
-notification type today (escalation vs. non-clean outcome distinguished only by title/tags, not
-separate topics) — splitting into per-category topics is a plausible fast-follow, not built.
+**Push Notifications (86bb3ceyp):** `nova_notify.send_notification()` POSTs to
+`https://ntfy.sh/<NTFY_TOPIC>`. Wired into `nova_scheduled_dispatch._post_non_clean_comment()`
+and `_handle_escalation()`; best-effort, no-ops if `push_notifications.enabled` is false or
+`NTFY_TOPIC` unset. **`NTFY_TOPIC` is a secret** (ntfy public topics aren't access-controlled) —
+long random string, `.env` only, generate with `python -c "import secrets; print('nova-' +
+secrets.token_urlsafe(24))"`. Known gap: iOS shows these in the ntfy app history but not
+reliably as a live banner — an iOS/ntfy config question, not a Nova code gap.
 
-**Real-world gotcha found during setup, 2026-07-26:** `send_notification()` reliably reaches
-ntfy.sh (confirmed via real POSTs — server-side delivery is not in question), and messages
-correctly appear in the ntfy app's own history/Notification Center on Marvin's iPhone — but they
-weren't confirmed showing as a live banner/alert with sound, even at `priority="urgent"`, after
-walking through the most common iOS causes (Settings → Notifications → ntfy → Banners toggle,
-Focus mode, the ntfy app's own per-topic instant-delivery setting). Deliberately not chased
-further — checking the ntfy app periodically is an acceptable interim workflow, and this is an
-iOS/ntfy-app configuration question, not a Nova code gap. Revisit if it becomes annoying enough
-to be worth the troubleshooting time.
-
-**Pre-Action Approval Gate (86bb3ceym, 2026-07-26):** `nova_orchestrator.py`'s `_execute_tool()`
-can pause a `run_command` call — before it executes — when it matches a configured pattern
-(`pre_action_approval_gate.command_patterns`, e.g. `pip install`, `git rebase`, `curl `), distinct
-from `nova_tools.py`'s existing `DANGEROUS_COMMAND_PATTERNS` hard-block tier (which always
-refuses and is untouched). `_request_tool_approval()` registers a `system/pending_tool_approvals`
-record directly in `nova_state.db` (no HTTP hop — `/agent/task` already runs in-process on the
-Aero's own `nova_api.py`), fires a push notification, then sleep-polls for a decision, failing
-closed (denied) after `timeout_seconds` (default 300s). Marvin decides via a new Controller card
-(`GET /tool-approvals`, `POST /tool-approvals/{id}/decide`, token-gated). Gated behind
-`pre_action_approval_gate.enabled` (default off).
-
-Scoped originally to the **Aero interactive lane** only (`POST /agent/task` →
-`nova_orchestrator.py`) — since `/agent/task` and this gate both run on the Aero's own
-`nova_api.py`, load the Controller from the **Aero's** address while a gated interactive task is
-in flight, not the Omen's always-on `:8001` — the two processes have independent `nova_state.db`
-files. `max_files_per_turn` file-count gating is designed (config field exists) but deliberately
-not wired into `_approval_gate_reason()` yet — a fast-follow once the command-pattern trigger is
-proven live.
-
-**Headless-lane equivalent (86bb3r0h4, 2026-07-28):** the Omen headless dispatch lane
-(`nova_omen_dispatch.py`'s `dispatch_headless_task()`, `dispatch_headless_task_sandboxed()`,
-`resume_headless_task()`) runs the real `claude` CLI directly over SSH and never touches
-`nova_tools.py`/`_execute_tool()` — the Aero-lane mechanism above literally cannot reach it. The
-real fix is a genuine Claude Code `PreToolUse` hook (`nova_headless_approval_hook.py`, wired into
-`.claude/settings.json`'s `PreToolUse`/`Bash` matcher, `timeout: 330`), not the
-`NOVA_APPROVAL_START/END`-block idea originally floated on the ticket — verified live against
-Claude Code's own hooks docs that a `PreToolUse` hook can synchronously `deny` a tool call via
-stdout JSON (`{"hookSpecificOutput": {"permissionDecision": "deny", ...}}`), that this is enforced
-**independently of permission-mode** (a `deny` still blocks under both `acceptEdits` and
-`bypassPermissions`), and that headless `claude -p` honors project hooks identically to
-interactive mode. Because `.claude/settings.json` is a tracked file, it — and the hook script
-itself — ship into every dispatch worktree automatically via `git worktree add ... origin/master`,
-no extra deploy step needed.
-
-Scoped by `NOVA_HEADLESS_DISPATCH=1`, set only in `nova_omen_dispatch.py`'s three real headless
-invocation sites — the hook is a silent no-op without it, so it never gates Marvin's own
-interactive Claude Code sessions in this repo. On a match it registers via the new, unauthenticated
-`POST /tool-approvals` (create) — a separate HTTP hop from the Aero lane's in-process
-`nova_state.db` write, since the hook runs as its own subprocess — against the Omen's own
-always-on `nova-api` over its **Tailscale IP**, not `127.0.0.1` (the sandboxed Docker path has no
-`--network host`, so loopback wouldn't reach the host's nova-api there). Records are tagged
-`lane: "interactive"` or `lane: "headless"` so the Controller's tool-approval card can show which
-lane a pending approval came from; a self-reported `POST /tool-approvals/{id}/timeout` (also
-unauthenticated — it's not a human decision, just the hook's own poll loop giving up) keeps a
-timed-out headless record from showing as stuck-pending forever. Same shared
-`pre_action_approval_gate.enabled` flag now gates both lanes at once — deliberately not split into
-a second toggle for this first cut.
+**Pre-Action Approval Gate (86bb3ceym / 86bb3r0h4):** pauses a `run_command` call before it
+executes when it matches `pre_action_approval_gate.command_patterns` (e.g. `pip install`, `git
+rebase`, `curl `) — distinct from `nova_tools.py`'s `DANGEROUS_COMMAND_PATTERNS` hard-block.
+Fails closed (denied) after `timeout_seconds` (default 300). Marvin decides via a Controller card
+(`GET /tool-approvals`, `POST /tool-approvals/{id}/decide`, token-gated). Flag
+`pre_action_approval_gate.enabled` (default off) gates both lanes:
+- **Aero interactive lane** — `nova_orchestrator._execute_tool()` → `_request_tool_approval()`
+  writes `nova_state.db` directly. Load the Controller from the **Aero's** address, not the
+  Omen's `:8001` (independent `nova_state.db` files).
+- **Headless lane** — a real Claude Code `PreToolUse` hook (`nova_headless_approval_hook.py`,
+  wired in `.claude/settings.json`, scoped by `NOVA_HEADLESS_DISPATCH=1`), registers via the
+  unauthenticated `POST /tool-approvals` against the Omen's `nova-api` over Tailscale IP.
+  Records tagged `lane: "interactive"|"headless"`.
 
 ### Training-Data Accumulation Oversight (86bax4akx, 2026-07-21)
 `GET /training-data-status` — live DPO pair count/coverage from `logs/training_flags.jsonl`
-against `MIN_REAL_PAIRS_FOR_FINETUNE = 100`. New `dpo_verify` label kind on `/label-queue`
-(unverified → confirmed-good/needs-rework). `nova_controller.html` progress-bar widget.
-Cross-machine: `nova_training_data_status.py` gives `combined`/`omen_only`/`aero_only` views via
-the Omen↔Aero SSH bridge (see below) since training data mostly lives on the Aero only. Full
-incident history (a `/label-queue` truncation bug, hardcoded `C:/Nova` paths found in
-`nova_logger.py`/`nova_corrector.py`, 17 more instances filed as `86bb1pkpb`) in
-`NOVA_BUILD_LOG.md`.
+against `MIN_REAL_PAIRS_FOR_FINETUNE = 100`. `dpo_verify` label kind on `/label-queue`.
+`nova_training_data_status.py` gives `combined`/`omen_only`/`aero_only` views via the Omen↔Aero
+SSH bridge (training data mostly lives on the Aero).
 
-### Nova Skills Library (2026-07-07, ClickUp `86barguac`)
-Structured per-category instruction files (`skills/coding.md`, `retrieval.md`,
-`financial.md`, `orchestration.md`, `lore.md`, `memory.md`) that `nova_orchestrator.py`
-prepends to a coding task's context. `load_skill()`/`get_skill_version()` live in
-`nova_skills.py`; category is an explicit caller-supplied string (not a ClickUp tag —
-nothing in Nova's own runtime reads ClickUp). Gated behind `skill_injection` (default off).
+### Nova Skills Library (2026-07-07, `86barguac`)
+Per-category instruction files (`skills/coding.md`, `retrieval.md`, `financial.md`,
+`orchestration.md`, `lore.md`, `memory.md`) that `nova_orchestrator.py` prepends to a coding
+task's context. `load_skill()`/`get_skill_version()` in `nova_skills.py`; category is a
+caller-supplied string. Flag `skill_injection` (default off).
 
-### Domain State Layer (2026-07-07, ClickUp `86bara3qe`) — scoped v1
+### Domain State Layer (2026-07-07, `86bara3qe`) — scoped v1
 `nova_state.py` — one generic `domain_state` table (`domain`, `entity`, `data` JSON,
-`updated_at`) per Architecture Principles v1.1 Principle 6 (Chroma = deep knowledge,
-`nova_state.db` = current reality). `write_state`/`get_state`/`get_domain` are the only
-interface. `nova_state.db` is local-only, gitignored. Only real adapter built:
-`nova_state_system.py` (wraps `nova_headroom.get_headroom_report()` into
-`system/nova_health`/`system/pending_alerts`). Financial/work/games/creative adapters
-deferred, each blocked on a real open question (no approved data source, no ClickUp API
-access from Nova's runtime, no art-practice-log data source). No alert engine, no refresh
-scheduler yet.
+`updated_at`). `write_state`/`get_state`/`get_domain` are the only interface. `nova_state.db` is
+local-only, gitignored. Only adapter built: `nova_state_system.py` (wraps
+`nova_headroom.get_headroom_report()`). Financial/work/games/creative adapters deferred. No
+alert engine or refresh scheduler yet.
 
-**Known limitation, updated 2026-07-15 (`86baxbrmj` interim hardening):** the worktree
-boundary is fully hard-enforced for `read_file`/`write_file`/`list_files` (path-validated
-against `root` in `nova_tools.py`). `run_command` is a raw shell, so it is not equally
-hard-enforced, but as of `86baxbrmj` it is no longer unrestricted either: it refuses any
-`cd` that resolves outside the worktree root (`_cd_targets_outside_root`), and restricts
-both `PATH` (`_build_restricted_path` — the live venv's Scripts dir, Git Bash's own bin
-dirs, and the worktree root only, not the full inherited system PATH) and the subprocess
-environment (`_build_restricted_env` — an explicit non-secret Windows/process-plumbing
-allowlist, no longer a full `os.environ.copy()` carrying `.env` secrets like
-`ANTHROPIC_API_KEY`/`CLICKUP_API_KEY` into every shell command). This closes the specific
-failure previously observed here (a run cd'ing out looking for a Python interpreter and
-falling back to the shared live venv) and the credential-exposure gap `86baxbrvv`'s audit
-surfaced. **Remaining gap, deliberately accepted:** none of this stops an *allowed* binary
-from taking an absolute-path argument — `git -C /c/Nova status` or `cat /c/Nova/.env` still
-reach the live tree, since only `cd` targets are checked, not every argument to every
-command. `nova_tools.py` also still has its best-effort denylist for obviously destructive
-patterns (`rm -rf`, `git push`, `git reset --hard`, etc.) — a speed bump, not real
-sandboxing, same as before. Accepted as reasonable for v1 — Claude is driving this, not an
-adversarial actor, and every action is logged to `logs/agent_log.jsonl` — real containment
-for `run_command` specifically remains deferred to the Docker/OpenHands hardening pass.
+**`run_command` sandboxing (86baxbrmj, 2026-07-15):** the worktree boundary is hard-enforced for
+`read_file`/`write_file`/`list_files` (path-validated against `root`). `run_command` is a raw
+shell, partially restricted: refuses a `cd` resolving outside the worktree root
+(`_cd_targets_outside_root`), restricts `PATH` (`_build_restricted_path`) and env
+(`_build_restricted_env` — no `.env` secrets like `ANTHROPIC_API_KEY`). **Accepted gap:** an
+allowed binary can still take an absolute-path argument (`cat /c/Nova/.env`) — only `cd` targets
+are checked. Plus a best-effort destructive-pattern denylist (`rm -rf`, `git push`, …). Real
+containment deferred to the Docker/OpenHands pass; acceptable for v1 (Claude drives, every action
+logged to `logs/agent_log.jsonl`).
 
 ### nova_graph.json Structure
 ```json
@@ -958,50 +695,30 @@ in `NOVA_BUILD_LOG.md` — this table is a terse date-ordered index, not the sou
 | 2026-07-18 | Escalation Answer UI real (`check_escalation()` no longer a stub), `/escalations` routes |
 | 2026-07-19 | Task Tiering; Nova Controller UX v1 (Feed, swipe-labeling, PWA); RunPod adapter; voice Minimal tier live-verified |
 | 2026-07-21 | Phi-4 Mini fine-tune pipeline; base-model eval — verdict stay on Llama 3.2 3B; Omen capacity audit; training-data oversight (`/training-data-status`) |
-| 2026-07-25 | Log rotation shipped; sandboxed-dispatch permission-mode bug fixed; 10 Controller-expansion tasks filed and 4 shipped same day (in-flight status, flags panel, cost summary, Qwen widget, Feed filtering, worktree browser, optimistic UI); Omen→Aero SSH bridge (3 read-only keys) built + activated |
-| 2026-07-26 | Omen→Aero bridge extended to training-data read+write (4th key, write path built but not yet generated — stop-and-ask boundary); abort/kill switch (`86bb3ceyj`) and diff-preview-and-merge (`86bb3ceyf`) shipped, both Phase C Controller-expansion tasks |
-| 2026-07-26 | CLAUDE.md split: narrative/incident history (~136K chars) moved to `NOVA_BUILD_LOG.md`, this file trimmed to current facts + standards |
-| 2026-07-26 | Shipped the last two Controller-expansion tasks: push notifications (`86bb3ceyp`, `nova_notify.py`, ntfy.sh) and the pre-action approval gate (`86bb3ceym`, `nova_orchestrator.py`, Aero interactive lane only — headless-lane gap filed as `86bb3r0h4`). Verified live: real approve/deny/timeout poll-loop timing, full HTTP route auth/validation/state-transition behavior, and a real POST to ntfy.sh's live API. Both gated off by default; both flags toggleable from the Controller Switches panel. `NTFY_TOPIC` generated, set on both machines, `push_notifications.enabled` flipped on — messages confirmed reaching ntfy's history on Marvin's iPhone, but not yet as a live banner/alert (iOS notification settings, not a code gap — deferred, see Nova Controller UX subsection) |
-| 2026-07-28 | Closed `86bb3r0h4` — headless-lane pre-action approval gate via a real Claude Code `PreToolUse` hook (`nova_headless_approval_hook.py`), not the `NOVA_APPROVAL_START/END`-block idea the ticket floated. Verified against Claude Code's own hooks docs that `PreToolUse` denials are enforced independently of permission-mode (works under both `acceptEdits` and `bypassPermissions`) and identically under headless `-p` mode. New `POST /tool-approvals` (create) and `POST /tool-approvals/{id}/timeout` routes, `NOVA_HEADLESS_DISPATCH=1` scoping env var on all three headless invocation sites, Controller lane badge. Same shared `pre_action_approval_gate.enabled` flag now covers both lanes. |
-| 2026-07-29 | Merged the RunPod Qwen2.5-Coder-32B eval-spike branch (PR #16 — `nova_orchestrator_runpod.py`, `nova_coding_eval.py`, real 2/6-pass held-out result). Shipped `86bb4gy0y`'s punch-list items #1 and #3: a post-dispatch dead-code/leftover-duplicate guard (`_find_duplicate_functions()`, `ast`-based) closing the eval's other recurring defect, and the review-split's Claude-reviews-Qwen's-diff pass (`_review_coding_diff()`/`_log_coding_review()` in `nova_orchestrator.py`, new `coding_review_pass` flag). Review call verified structurally tool-less (no write path) per an explicit isolation guarantee confirmed with Marvin before building. Real end-to-end live test (both flags on, one trivial task) merged as `86bb4gy0y`'s first live proof, recorded via `record_task_outcome()`. |
-| 2026-07-29 | Shipped `86bb4gy0y`'s punch-list item #2: proactive context-window pruning (`_prune_history_if_needed()` in `nova_orchestrator_runpod.py`) drops the oldest turn-pairs before each request to stay under this endpoint's real 32,768-token ceiling, instead of failing after the fact. New `stopped_context_overflow` status distinguishes an unavoidable single-turn overflow from a generic RunPod call failure. Verified via synthetic unit-style cases (no live API cost) covering under-budget no-op, real multi-pair pruning, and the unavoidable-single-pair-overflow signal. `nova_remote_inference.py` deliberately untouched (shared with the unrelated RAG path). |
-| 2026-07-29 | Shipped `86bb4gy0y`'s punch-list item #5: real RunPod cost tracking. Confirmed live that a completed job's response carries `executionTime`/`delayTime` (RunPod's real GPU-second billing basis) that were previously discarded entirely, and that `_RunpodUsage` was feeding real token counts through a budget system calibrated for Anthropic pricing — removed that stand-in rather than keeping two disagreeing numbers. Real rate confirmed directly from the RunPod dashboard (H100 SXM, $2.99/hr). New `logs/runpod_cost_log.jsonl` per-task summary + `cost_usd` field in `agent_log.jsonl`. Verified live: a real 3-turn task's summary cost ($0.003591) exactly matched the sum of its per-turn logged costs. |
-| 2026-07-29 | Re-ran the 6-task held-out eval after #1/#2/#3/#5 shipped — the dead-code guard did NOT close the gap (1/6 clean pass, 5/6 fail, including a real syntax error and a severe scope-violating rewrite that deleted the live RAG pipeline). Full result in memory `project_qwen3_coding_spike_result.md`. Marvin greenlit punch-list item #4 (real fine-tuning) in response. Shipped its data + pipeline half: `nova_coding_corrector.py` (new — Claude-written `chosen_diff` corrections, mirrors `nova_corrector.py`), `nova_finetune_qwen_coder.py` (new — QLoRA DPO pipeline mirroring `nova_finetune_phi4.py`, exports merged safetensors not GGUF since this model serves from an AWQ RunPod endpoint, not Ollama), and `nova_coding_eval.py` now seeds `coding_review_log.jsonl` on every run. Found and fixed a real bug in existing `_review_coding_diff()` (`max_tokens=600` too small once extended thinking eats the budget on a real diff — 5/6 backfilled reviews failed until raised to 4096). Backfilled real data from today's eval (free, no second RunPod spend): 6 real review verdicts, 5 real DPO pairs. Fine-tune script verified correct through model loading; confirmed to hit the expected hardware wall (32B checkpoint download) on the Aero, as documented — needs the still-unbuilt rented-A100 path (`86baf4e70`). |
-| 2026-07-29 | Removed the "Nova Auto-Start" Task Scheduler task (`start_nova.ps1 -Silent` on Aero login) — Marvin no longer wants the Aero auto-starting `nova_api.py`/Open WebUI on login. `start_nova.ps1` itself untouched on disk for manual use. Also found and killed two stray `nova_api.py` dev instances (ports 8010/8011) left running since 2026-07-26, unrelated to any documented workflow. |
-| 2026-07-31 | `86baf4e70` Pattern 1 v1: `nova_runpod_pod_launch.py` (new — launch/status/stop/terminate CLI for a rented RunPod A100 via raw REST, no new dependency) + `runpod_finetune_runbook.md` (new — manual steps once a pod is up). Deliberately provisioning-only, no auto-bootstrap of training, matching the task's `tier-manual-only` tag — a rented pod bills the moment it's RUNNING, so the spend decision stays a human running the CLI by hand. Real gotcha found before writing code: the finetune scripts' `from nova_orchestrator import CODING_REVIEW_LOG_PATH` transitively pulls in `anthropic`/`nova_state`/`nova_tools`/etc., so the pod needs a real `git clone` (via the Omen's existing read-only deploy key, reused rather than minting a new one), not a file copy. Endpoint paths (base URL, POST/GET/stop/DELETE) confirmed against docs.runpod.io live, not guessed. Not yet run against the real API — next real step is a live `launch` test. |
-| 2026-08-01 | First real, non-throwaway training run on rented hardware. Verified live end to end: pod launch → SSH → deploy-key clone → real SFT checkpoint already existed on the Hub from an earlier session (confirmed with Marvin, DPO warm-started from it) → DPO dry-run passed → real DPO run (5 corrected pairs, loss 0.693→0.594, reward accuracy 0.8) → merged export → uploaded to `zrecoded/nova-qwen-coder-32b-dpo-merged` (65.5GB, verified). Found and fixed five real gotchas on the way (`requirements.txt`'s Aero-only pins don't install on Linux; HF cache defaults to the small container disk, not the volume; merging needs ~2x checkpoint size on disk at once — `DEFAULT_VOLUME_GB` bumped 100→200 in `nova_runpod_pod_launch.py`; HF private-storage plan limit hit with two ~65GB checkpoints at once, resolved by deleting the superseded SFT checkpoint; `logs/coding_review_log.jsonl` is gitignored so never reaches a fresh clone, silently zeroing out Nova's own training examples). Also confirmed downloading a checkpoint this size to the Omen/Aero over home internet is impractical (~5MB/s measured either via Aero-relay or direct Omen-pull, ~3.4hr for 64GB) versus HF's own infrastructure (~670MB/s) — fix Hub-side blockers rather than routing around them. All findings written into `runpod_finetune_runbook.md` and the launch script's own defaults so the next run doesn't repeat them. Still not built: AWQ re-quantization/redeploy onto `RUNPOD_ENDPOINT_ID`, and the SFT stage's own real (non-warm-start) run has still never been executed end-to-end by this pipeline (today's DPO warm-started from a pre-existing Hub checkpoint, not one produced live this session). |
-| 2026-08-01 | Second real training run on rented hardware — this time a genuine, non-warm-started SFT run followed by DPO on its own fresh output, both end-to-end. SFT: 1 full epoch (~5hr GPU time, ~2,500 steps), loss →~0.15-0.20, merged and uploaded to `zrecoded/nova-qwen-coder-32b-sft-merged`. DPO (5 real corrected pairs): loss 0.69→0.67, reward accuracy 0.6, merged and uploaded to `zrecoded/nova-qwen-coder-32b-dpo-merged`. Two real bugs found and fixed along the way. First: the DPO merge step silently died an hour into a prior attempt with no traceback and `cgroup oom_kill=0` — root-caused to a **disk-quota exhaustion** on the 200GB network volume (`sft-merged` 66GB + `hf_cache` 96GB + a leftover partial merge from the dead attempt + `dpo-merged`'s fresh ~65GB write all landing on the same quota simultaneously). Fixed by deleting the stale partial output and symlinking `finetune_output/qwen-coder-32b-dpo-merged` to a directory on the container disk (separate 100GB quota) before the retry — same pattern the runbook already documented for the whole-tree case, applied surgically to just the DPO output this time. Second, still only worked around, not root-caused: after that first death, `nohup`/`disown`/`setsid` all stopped reliably detaching **any** backgrounded process on the pod, including a trivial `sleep 20` — confirmed via direct process checks, not assumed. Worked around by running training in a kept-open foreground SSH session instead of trying to detach it (acceptable here since the DPO stage only takes minutes; the SFT stage's ~5hr run still needs a real detach mechanism, so this is a known gap for the next long run, not a fix). Also hit the now-familiar HF private-storage 403 twice more (a transient HF-side 500 on repo creation, then the same one-checkpoint-at-a-time storage cap) — resolved via the same delete-the-superseded-checkpoint pattern established the day before. Pod terminated after both uploads verified. Still not built: AWQ re-quantization/redeploy onto `RUNPOD_ENDPOINT_ID`, and re-running `nova_coding_eval.py`'s held-out suite against the new weights to see if the fine-tune actually closed the gap from `project_qwen3_coding_spike_result.md`. |
-| 2026-08-01 | AWQ-quantized and redeployed the fine-tune, then re-ran the held-out eval — closing out `86baf4e70` Pattern 1's last two steps. New scripts: `nova_quantize_qwen_coder_awq.py` (quantizes via `llm-compressor`, uploaded to `zrecoded/nova-qwen-coder-32b-awq`, 19.3GB) and `nova_runpod_endpoint_deploy.py` (creates a new serverless endpoint rather than mutating production, so rollback stays a two-constant edit). Three real bugs found and fixed live: (1) `autoawq` is deprecated — switched to `llm-compressor`, and the version initially assumed "latest" (0.6.0.1) was six minors behind and hit a real tokenizer `AttributeError`; 0.12.0.1 fixed it. (2) The documented 512-sample/2048-token calibration defaults OOM'd a fresh 80GB A100 outright — `llm-compressor`'s AWQ grid-search caches per-layer activations for the whole calibration batch at once, not streamed; dropped to 128/1024 and it completed cleanly. (3) The new endpoint 403'd on every invoke call despite correct config and a valid key — root cause was RunPod's **checkpoint-format mismatch**, not permissions: `llm-compressor` saves models in vLLM's native `compressed-tensors` format, not the older `awq` checkpoint format the stock production model (quantized by a different, deprecated tool) uses; the template's `QUANTIZATION=awq` env var was copied from the production endpoint without checking it matched this checkpoint's real format. (Also hit and resolved a real, separate RunPod restricted-API-key per-endpoint permission gap along the way — a genuine issue, just not the one causing the 403s once fixed.) Held-out eval (`nova_coding_eval.py`, 6 real tasks) came back **~2/6 by Claude's own informal read** (verdicts filled into the report, clearly marked as Claude's assessment, not human-graded) — same ballpark as the original 2026-07-27 result, not a clear improvement over Claude's baseline. Found one Task 3 that reported `status: completed` after 2 turns while making zero real changes (verified against the worktree directly) — a false-success report, not just a wrong diff. Also found a real gap in `nova_coding_eval.py` itself: its diff generation misses newly-created (untracked) files, which initially made Task 1's real (if incomplete) `nova_headroom.py` look like a broken import — not yet fixed, flagged for a follow-up. Marvin's call: keep `nova_remote_inference.py` pointed at the new endpoint (ready for future re-testing) but leave `runpod_coding_agent` off — no real production traffic routes to the fine-tune yet, matching Phase 3.5's "swap only once it clearly beats the baseline" framing, which this run didn't clear. |
-| 2026-08-03 | Pivoted from continued Qwen/Devstral training-eval rounds to building real observability (Nova Observability Initiative, `86bb7pamh`) — the coding sub-agent's 19-entry A1-G2 failure registry had been compiled entirely by hand-reading transcripts. Added a real second coding-agent backend, `nova_orchestrator_devstral.py` (native tool-calling, not the prompted `<tools>` format), so failure-registry findings could be checked against a second model family. Shipped Phase 0 (`86bb7par3`): `nova_langfuse_client.py`, real-time-verified connectivity to Langfuse Cloud (self-hosted ruled out — the Omen's 7.64GB RAM is under half Langfuse v3's own 16GB recommendation) and Phase 1 (`86bb7pawp`): `log_turn()` wired into all three turn loops (Claude/RunPod-Qwen/Devstral) plus `nova_coding_eval.py`'s eval path, gated behind `langfuse_tracing` (default off). Real per-token logprob capture required a new `nova_remote_inference.chat_with_logprobs()` — RunPod's raw `/runsync` schema silently ignores `sampling_params.logprobs`; the OpenAI-style passthrough route is what actually returns it. |
-| 2026-08-04 | Observability Phase 2 (`86bb7pazm`): tagged existing guard/gate signal into Langfuse as scores keyed to the real A1-G2 registry codes (`log_guard_events()`/`log_gate_result()`, three mapping tables in `nova_langfuse_client.py`) — not new detection logic, just making already-logged signal queryable. Verified live with real guard fires from a deliberately-engineered test task. Then Phase 3 (`86bb7pb20`): the `/observability` trend dashboard — `nova_observability_dashboard.py` (failure-type frequency over time and per-model comparison from local JSONL, which has far more real history than Langfuse's own trace store since `langfuse_tracing` defaults off; uncertainty-vs-outcome from Langfuse Cloud specifically, since per-token logprobs are never persisted locally) + `nova_observability_dashboard.html` (hand-rolled inline SVG, no charting library, matching `nova_embedding_viz.html`'s existing pattern). Designed a new outcome-bucket classifier (`not_attempted`/`catastrophic`/`clean_completion`/`partial`/`unknown`) since the ticket's named buckets didn't exist anywhere in the codebase yet — verified against real branches in the actual logs before shipping. Found via live SDK introspection that the ticket's implied Langfuse read approach (`observations.get_many()`) returns no metadata at all; `trace.get()`/`trace.list()` are the real methods. This changelog backfills Phase 0-2's own missing entries, and the Section 2 file tree now lists `nova_langfuse_client.py`/`nova_guard_stats.py`/`nova_orchestrator_devstral.py`, all previously shipped but undocumented there. Same day: cross-linked `/observability` with the Nova Controller Feed (a "Trends" button on the Feed, a "Feed" button back on the dashboard) rather than folding trend data into the Feed's strictly-chronological card design — a live-scoped tradeoff decision, not a default. |
-| 2026-08-05 | Observability Phase 4 (`86bb7pb6t`): trace-to-diff linking, `nova_diff_link.py` + `GET /observability/diff` + a "View diff" action in the uncertainty table. Real constraint found live before designing: most historical branches no longer exist at all (`git branch --list` showed only 5 real local refs against 4765 real turns in `agent_log.jsonl` — the interactive coding-agent lane never pushes its own worktree branches, confirmed by grep), so "diff no longer available" is a first-class, expected result, not an error case. Scope decision (confirmed with Marvin): same-machine-only v1 — a GitHub compare link when the branch was pushed, a local diff when its ref exists on whichever machine `nova_api.py` happens to be running on, "unavailable" otherwise; full cross-machine coverage was deliberately deferred at ship time rather than built against an unverified assumption — a first live test of the Omen→Aero leg came back inconclusive (the Aero's own `sshd` turned out to be stopped, not a Tailscale/CreateProcess issue). **Resolved same day, retested after Marvin started `sshd` on the Aero:** the forced Omen→Aero command (`id_ed25519_aero_worktrees` key, `scripts/ssh_read_worktrees.ps1`) runs `git.exe` directly and returns real, correct output — `nova_worktree_status.py`'s docstring ("confirmed live" 2026-07-25) was right, and `nova_worktree_pr.py`'s docstring one day later, claiming that class of SSH session can't run `git.exe`/`python.exe` at all, overgeneralized from what it actually found for `python.exe`. The deferred cross-machine diff leg is cheaper than originally scoped as a result — no new relay key needed, just a sibling forced script alongside `ssh_read_worktrees.ps1` reusing the same already-provisioned key. Branch-name validation (`nova_diff_link._validate_branch()`) found and fixed a real false-positive live: the original pattern assumed every `nova-agent/*` branch carries `nova_orchestrator._slugify()`'s timestamp suffix, which wrongly rejected a genuinely real branch (`nova-agent/phase2-verify-guard-gate`, created by a direct verification call bypassing the normal entry point) — loosened to a structural check (stay in the `nova-agent/` namespace, no leading dash, no extra `/`) rather than an exact-shape match. Verified live end to end: invalid/malicious inputs rejected before any subprocess call, a real local branch's diff matched a manual `git diff` byte-for-byte, a real GitHub-pushed branch's compare URL matched `gh api`'s own authenticated result, a genuinely nonexistent branch returned a clean `unavailable` (never a 500), and the actual shipped dashboard JS (not a reimplementation) was exercised against the live server via a headless DOM stub — click-to-fetch, per-branch caching (0 refetches on a repeat click), and HTML-escaping of real diff text all confirmed working. |
-| 2026-08-05 | Observability Phase 4 cross-machine follow-up: `nova_diff_link.py` gains `_remote_diff_from_omen()`/`_remote_diff_from_aero()`, a new `remote_diff` status alongside `github`/`local_diff`/`unavailable`. Sixth key in the Omen-Aero SSH bridge (`AERO_DIFF_KEY`, `id_ed25519_aero_diff`, opt-in step 10 in `setup_omen_to_aero_ssh.ps1`) + a new forced script `scripts/ssh_read_aero_diff.ps1` — unlike `ssh_relay_worktree_pr.ps1`, this one runs `git.exe` directly rather than relaying through `nova_api.py`, per the same-day finding above, so it doesn't depend on `nova_api.py` running locally on the Aero at all. The forced script re-validates the branch name itself (matching `nova_diff_link._validate_branch()`'s structural rule) rather than trusting the caller — a real, independent trust boundary, not just a courtesy check. `nova_observability_dashboard.html`'s diff panel labels which machine a `remote_diff` result came from. |
-| 2026-08-05 | Started on the 4 sibling infra tickets filed alongside the Observability Initiative. Re-ran the Omen capacity audit first (6.24GB RAM available of 7.64GB, unchanged since Langfuse went Cloud) — the same ceiling that ruled out self-hosted Langfuse, used as the filter for all 4. Real scope findings: Laminar's own lightweight quickstart bundles Postgres+ClickHouse+Quickwit (same weight class as Langfuse's self-hosted stack) — decided to use Laminar Cloud instead, mirroring the Phase 0 decision, rather than self-host; the Gitea/Forgejo ticket (`86bb7quk1`) overlaps an older, fuller-scope ticket (`86baxuq12`, real repo migration + headless-runner retarget + Vaultwarden credential scoping) — decided to do the light stand-up only now and leave `86baxuq12`'s fuller scope genuinely blocked on Vaultwarden rather than fake it. Shipped `86bb7qua2`: Uptime Kuma, deployed via `docker run` on the Omen (first real Docker use there — deliberately scoped to third-party tools only, doesn't touch the separate held `86baf4e29` about Dockerizing Nova's own services). Gitea/Forgejo, MLflow, and Laminar Cloud wiring scoped in detail but not yet built — next session. |
-| 2026-08-06 | Shipped `86bb7quga` (MLflow) and `86bb7quk1` (Forgejo, light stand-up) — Forgejo verified with a real push/clone round-trip via a fresh throwaway SSH key (content + commit hash matched exactly on a fresh clone), key and test repo removed after. Real gotchas found and fixed live on MLflow: the ticket's "bare filesystem backend" assumption doesn't hold on the current MLflow major version (filesystem tracking store is deprecated/hard-refuses) — used SQLite backend store instead; default `--workers 4` used ~2GB RAM for a single-user tool, cut to `--workers 1`; `--allowed-hosts` doesn't auto-strip the port, needed the exact `host:port` form or every non-localhost request 403'd. Installing the `mlflow` Python client locally on the Aero triggered a real dependency-resolver conflict that silently uninstalled `llmcompressor` (used by the separate, pod-only `nova_quantize_qwen_coder_awq.py`) and, on a naive reinstall attempt, cascaded into bumping `transformers`/`datasets` past what `unsloth` requires — caught via `pip check` before trusting the install, both reverted to their exact original pins, verified against a real Chroma heartbeat+query afterward. Backfilled the 3 real historical training runs (2026-07-31 DPO warm-start, 2026-08-01 SFT, 2026-08-01 DPO) using real numbers from this changelog, via the low-level `MlflowClient` for accurate historical timestamps rather than "now." Wired future logging into `nova_finetune_qwen_coder_sft.py`/`nova_finetune_qwen_coder.py`: neither imports `mlflow` itself (the rented training pod has no Tailscale route to the Omen, and re-adding mlflow's dependency tree there would risk the same conflict just found) — each now writes a local `mlflow_run_metadata.json` that rides home via the existing HF Hub checkpoint upload, and a new `nova_mlflow_ingest.py` (run from the Aero) pulls it back down and logs the real run. Verified end-to-end with a synthetic throwaway metadata file before trusting the path, then deleted the test run. |
-| 2026-08-06 | Shipped `86bb7qudh` (Laminar Cloud), closing out the last of the 4 sibling infra tickets. Marvin ran `npx lmnr-cli setup` himself (account auth isn't something Claude does even via a CLI) — real project API key landed in `.env`, `.lmnr/project.json` linkage committed (no secrets in it), and the CLI's own installed skill (`.claude/skills/laminar/`) became the reference for the real SDK surface. New `nova_laminar_client.py` mirrors `nova_langfuse_client.py`'s `log_turn()`/`log_guard_events()`/`log_gate_result()` calling convention exactly so both fire additively from the same 3 turn-loop call sites, but uses Laminar's own idiom rather than reproducing Langfuse's shapes verbatim: `Laminar.set_trace_session_id(branch_name)` for turn-grouping (no deterministic trace-id seeding in this SDK) and guard/gate registry codes logged as span input/output/metadata rather than through `LaminarClient.tags.tag()`, whose exact parameter shape wasn't in the installed reference docs — the skill's own ground rule ("don't guess APIs") settled that call in favor of a confirmed, documented mechanism. `GUARD_TO_REGISTRY_CODE`/`GATE_CHECK_TO_REGISTRY_CODE`/etc. duplicated from `nova_langfuse_client.py` rather than imported, matching that file's own "local copy over cross-module import" precedent. Real fix mid-build: `Laminar.initialize()`'s default auto-instrumentation both risked double-instrumenting the same Anthropic/RunPod calls Nova already logs manually (the skill's own explicit warning) and hit a real `wrap_function_wrapper()` compatibility error against this project's installed `opentelemetry-instrumentation` version — disabled via `instruments=set()`, which resolved both at once. Installing the `lmnr` SDK was clean (no conflict like MLflow's) and incidentally fixed the long-standing harmless `opentelemetry-exporter-otlp-proto-grpc` version mismatch from the Langfuse install. Verified live end-to-end: `verify_connectivity()`'s span and all three of `log_turn()`/`log_guard_events()`/`log_gate_result()` confirmed landing with correct data via a direct `lmnr-cli sql query` (not just "no exception raised") — real model/token/logprob/cost data on the `turn-1` LLM span (Laminar auto-computed its own cost estimate from the model name, separate from Nova's own `cost_usd`), correct `A2`/`E1` registry-code mapping on the guard/gate spans, all three sharing one `session_id`. Flag flipped back to default-off after verification, matching every other integration's convention. Wiring itself (mechanical, symmetric additions to 3 files, all compiling clean) verified via syntax check only — not a live paid RunPod/Claude dispatch — since the underlying logging functions were already proven correct in isolation; Marvin's own call when asked. |
-| 2026-08-11 | Installed `nvidia-driver-580` on the Omen's GTX 1050 Ti Mobile — first real usable GPU compute on that box, previously present but driverless. Required disabling Secure Boot first (avoids a physical-console-only MOK enrollment prompt on proprietary kernel-module install); real incident along the way — Marvin's Ubuntu login password was forgotten mid-process, recovered via GRUB recovery-mode root shell (`mount -o remount,rw /` + `passwd`). Verified live: `nvidia-smi` confirms driver `580.173.02`/CUDA 13.0, `nova-api`/`nova-chroma` both recovered clean after both reboots. Full incident narrative in `NOVA_BUILD_LOG.md`. |
-| 2026-08-12 | Shipped Eval Harness Initiative 1 (`86bbcfv8d`) — the real dev/held-out task split, a hard prerequisite for the Nova Training Pipeline. Renamed `nova_coding_eval.py`'s misleadingly-named "held-out" set to what it actually is (`DEV_SET_BRANCH_COMMITS`/`select_dev_set_tasks()`/`EXPECTED_DEV_SET_COUNT` — these 6 tasks have already been repeatedly used to tune gates and generate DPO corrections). New `nova_eval_held_out.py` holds the genuinely held-out pool (hand-authored tasks, following a 7-step no-contamination discipline, plus real organic merges via `add_organic_merge_task()` → `logs/held_out_pool.jsonl`) — currently empty, actual task authoring is a follow-up pass. Found live during scoping: `logs/agent_task_outcomes.jsonl` has only 8 real `merged` entries ever, all already spent between the dev set and already-spike-tested exclusions — zero fresh material existed to build a held-out set from, which is why authoring (not waiting for organic merges) was the right unblock. Also found a second, more serious leakage path not named in the original ticket: `nova_coding_dataset_curator.py`'s `_merged_native_branches()` treated every `merged` outcome as fair game for DPO training data with zero pool-awareness. Fixed by adding a `pool` parameter to `nova_orchestrator.record_task_outcome()` (defaults to `"held_out"`, not `"dev_set"` — inverts the previous implicit behavior; promoting a branch to the dev set is now a deliberate, explicit call) and filtering `_merged_native_branches()` to only include branches whose latest `pool` is `"dev_set"` or legacy-missing. Verified live: the pool filter returns the same 8 branches as before the change (no regression against real legacy data, all 8 have no `pool` key and are correctly treated as legacy dev-set). |
-| 2026-08-12 | Coding-lane direction pivot: real trigger was a RunPod eval showing Qwen3-Coder-Next (80B-A3B MoE) at ~80% pass rate vs. 1/6-2/6 for dense 8B/32B candidates. Confirmed with Marvin: deprioritize the RunPod-Qwen/Devstral dense-model debugging tasks (`86bb72gpa`/`86bb728nj`/`86bb71x1j`/`86bb4gy0y`, all dropped to `low` priority) in favor of a new Nova Training Pipeline (Phase 0-5) + Eval Harness (Initiative 1-5) + coding-specialist design cluster (16 new ClickUp tasks total), plus a real local multi-GPU compute spec (`86bbaph6w`). Updated CLAUDE.md's Phase 3.5 roadmap line to match. `86baf4e70` (RunPod GPU access) stays active as the near-term compute path. |
-| 2026-08-12 | Closed out Phase 0 (base-model audit — settled on Qwen2.5-Coder-7B locally on the Aero, MoE giants parked pending the multi-GPU rig) and Eval Harness Initiative 1 (already shipped, board just hadn't caught up) — both marked `complete` on ClickUp with a comment explaining why. Shipped Phase 3 (86bbcfpc9, synthetic data generation from usage logs) — the real dependency-order note on Phase 0's own ticket puts Phase 3 before Phase 1 for the coding module, since Phase 1 needs Phase 3's task pool as its input. New `nova_synthetic_task_gen.py` back-translates Nova's own real git commit history (204 of 279 non-merge commits survive filtering — merge commits, all-non-code commits like the "Board digest" ones, and near-empty diffs excluded) into synthetic (task, diff) pairs via one Claude Sonnet 5 call per commit, reverse-engineering the forward-looking instruction that would have produced each real diff. Mirrors `nova_coding_corrector.py`'s established Claude-API pattern (client/model/ThinkingBlock-safe parsing) but writes to a new `data/coding_training/synthetic/synthetic_task_pairs.jsonl` (gitignored, schema-compatible with `load_nova_review_examples()`'s `task`/`diff`/`approved` fields) rather than `logs/coding_review_log.jsonl`, keeping synthetic examples separate from real production review data. Two real bugs found and fixed live before the pilot run: `subprocess.run(..., text=True)` defaults to cp1252 on Windows and crashed decoding a real diff containing this repo's own em-dash comments — fixed by passing `encoding="utf-8", errors="replace"` on every git subprocess call; and `count_tokens()` rejects a bare-string `content` field with a 400 (unlike `messages.create()`, which accepts one) — fixed by wrapping it in a content-block list. Verified live: a zero-cost `--dry-run` pilot against 5 real commits, then a real paid 5-commit run (~$0.24) whose back-translated tasks read as genuine forward-looking requests rather than diff captions, a re-run confirming the resume/skip-already-processed logic doesn't re-spend on the same commits, and a direct check that `load_nova_review_examples()`'s own field-reading logic loads all 10 curated rows cleanly when pointed at the new file. The remaining ~194-commit backlog is left as a deliberate follow-up run, not automated here, given the real (if modest) API cost. Ran several more real curation batches (60, then a filter bug found live — one graphify-regeneration commit was 63% of all curated diff content by size, low training value, machine-generated cache not hand-written code; fixed by excluding `graphify-out/` the same way `screenshots/` already was, removed the one bad row — then 50, then 50 more, then a second real bug: several genuinely valuable commits that ALSO bundled a graphify regeneration alongside real code changes 400'd outright (up to 2.86M tokens, past the model's 1M limit) since the all-or-nothing filter correctly let them through as candidates but `git show` still pulled in the graphify-out/ noise; fixed by excluding that path via git pathspec in every diff-fetching call, not just candidate selection, keeping the real signal and dropping the noise — then the final 6). **Phase 3's entire 201-commit backlog is now fully curated (201/201) as of session end**, marked `complete` on ClickUp. |
-| 2026-08-12 | Shipped Phase 1 (86bbcfpap, bulk execution-free distillation — the "ZERO" pattern). Real design decision, confirmed with Marvin after two rounds of Explore-agent research: does NOT reuse `nova_orchestrator.py`'s real agentic turn loop (confirmed live — up to 25 turns, ~5-15+ API calls/task, no lightweight entry point to strip the gate/review overhead, directly at odds with "cheap by design"). Instead, new `nova_bulk_distillation.py` does one Claude call per Phase 3 task, grounded in the REAL pre-diff file content pulled via `git show <sha>^:path` (reusing the checkout-at-parent-commit idea `nova_coding_eval.py`'s `_create_worktree_at()` already established, just without a worktree) — Claude never sees the real historical diff, only the task and the real code that existed before it, so its attempt is genuinely independent. Confirmed live: `nova_coding_dataset_curator.py`'s `messages`-list trajectory schema is a dead end nothing downstream reads; the only real consumer shape is the flat `task`/`diff` fields the SFT/DPO loaders use. Output deliberately does NOT write `approved: true` the way Phase 3 honestly does (Phase 1's diff is Claude's own unverified guess, not the real shipped diff) — carries `verification_status: "unverified"` instead, in a new `data/coding_training/bulk_distillation/phase1_trajectories.jsonl`, never `logs/coding_review_log.jsonl` or Phase 3's own file. Found and fixed a real zero-parent edge case live (Phase 3's own first row is the repo's actual root commit — `<sha>^` doesn't resolve, handled by treating all touched files as not-yet-existing) and a real cost-reporting bug (a call that hits `max_tokens` with no visible text — thinking exhausting the budget on a large from-scratch task — still returns billed usage, but the original code only tallied cost for successful rows; fixed to always tally real usage, confirmed live: the repo's initial-commit task alone burned ~$0.16 with zero output, previously invisible in the running total). Verified live: zero-cost `--dry-run`, a real paid 5-task pilot (4/5 succeeded at genuinely good quality, ~$0.55; the 5th hit the known thinking-exhausts-budget failure and correctly stayed unwritten for retry), a re-run confirming resume/skip logic, and `--report`. 4/109 curated as of session end — deliberately left as a small proof rather than a full run. |
-| 2026-08-06 | Added dependency/mutual-exclusion guards to the Controller switches panel — real relationships found by grepping actual call sites, not guessed from docstrings: `coding_review_pass_enabled` requires `runpod_coding_agent` (`nova_orchestrator.py:720`), and `runpod_coding_agent`/`devstral_coding_agent`/`langgraph_orchestration` are mutually exclusive alternate backends per the file's own real `if/elif` precedence chain. New `nova_config.is_flag_toggle_allowed()` enforced both server-side (`nova_api.py`'s `set_flag()`, 400s a blocked toggle) and client-side (`nova_controller.html` grays out the button + explains why). Turning a flag OFF is always allowed; only turning ON can be blocked — nothing auto-flips a switch the human didn't touch. `openhands_coding_agent` left unguarded — zero real call sites anywhere, guarding unbuilt functionality would be speculative. Verified live: direct-call tests of the Python function, real `curl` round-trips against a running `nova_api.py` (400 blocked → 200 after satisfying the dependency), and the JS logic checked against the exact same real payload shape via Node, all matching. |
-| 2026-08-06 | Gave the switches panel's disabled buttons a distinct dark-amber color instead of just fading the existing off-state — verified live on the Omen after commit/push/sync. Turned on `langfuse_tracing`/`laminar_tracing` for real traffic (interactive Claude lane only — headless dispatch runs the `claude` CLI directly over SSH, bypassing this turn loop entirely). Then found and fixed a real MLflow gotcha, distinct from the two shipped earlier: `--cors-allowed-origins` defaults to localhost-only, separate from `--allowed-hosts` — so the page loaded but every real data call 403'd, making the UI look like all 3 backfilled runs were gone when the SQLite DB was completely intact the whole time (confirmed via `MlflowClient` directly before touching the container). Fixed by adding `--cors-allowed-origins` alongside `--allowed-hosts`. Also found live, while computing a real per-model failure-pattern comparison from `guard_events_log.jsonl`/`ground_truth_gate_log.jsonl` joined to `agent_log.jsonl` by branch: `GET /observability/per-model` is currently returning an empty result — a real bug in its join logic, not yet root-caused, flagged for a follow-up rather than papered over. |
-| 2026-08-06 | Root-caused and fixed the `/observability/per-model` bug flagged above (86bb7pb20 follow-up) — not a join-logic bug after all: `guard_events_log.jsonl`/`ground_truth_gate_log.jsonl` don't exist on the Omen at all, and its `agent_log.jsonl` has only 137 lines vs. the Aero's 4,765, since almost all real coding-agent activity happens on the Aero. `failure_frequency_over_time()` had the identical bug, unreported but confirmed present. Fixed with the same cross-machine pattern `/qwen-swap-status`/`/worktree-status`/`/training-data-status` already established: new `nova_observability_status.py` (read_local/read_omen/read_aero/get_combined_observability_data, reusing `nova_agent_log_status.py`'s existing agent_log fetchers rather than re-implementing them), a 7th Omen-Aero SSH key (`observabilitylogs`, auto-installed alongside the existing three read-only keys — same risk class, no opt-in gating needed) and forced script `ssh_read_observability_logs.ps1` (bundles both files into one JSON response, one SSH round-trip, same raw-bytes UTF-8 discipline `ssh_read_agent_log.ps1` already established for encoding safety). `per_model_comparison()`/`failure_frequency_over_time()`/`classify_outcomes_for_all_branches()`/`_branch_to_model_map()` in `nova_observability_dashboard.py` all refactored to take combined cross-machine data rather than reading local JSONL directly — fetched once per request and passed down, not re-fetched per helper, to avoid redundant SSH round-trips. Also improves `uncertainty_vs_outcome()`'s outcome-bucket accuracy for free, since it shares the same underlying function. Both dashboard sections show the same `omen_only`/`aero_only` caveat text the Controller's training-data-status widget already uses. Verified live end-to-end: real SSH round-trip from the Omen using the new key (321KB of real bundled log data returned correctly), `per_model_comparison()` called directly on the Aero returning real per-model gate-pass-rates (RunPod-Qwen AWQ checkpoint 0.4, its DPO-merged predecessor 0.714, Devstral 0.8, Claude n=1) in the same ballpark as an earlier manual pooled-by-backend estimate (46.9% for all RunPod-Qwen combined) — this view is more granular (by exact model string, not backend_profile), not a like-for-like re-check, so "same ballpark" is the honest claim, not "exact match." `view: "combined"` confirmed from both machines. |
-| 2026-08-06 | Ran `nova_coding_corrector.py` for real (Anthropic API cost, separate budget line from RunPod) against the 35 real pending review entries — 31 succeeded, 4 failed transiently and stay pending for a future retry, taking real usable DPO pairs from 5 to 36. Spot-checked 2 real corrections against their original flawed diffs — both genuinely good, surgical fixes matching the flagged issues exactly. But found the 36 pairs are only 6 distinct underlying tasks repeated 4-9 times each, and root-caused why: `coding_review_log.jsonl` is populated almost entirely by `nova_coding_eval.py`'s own unconditional per-run seeding (bypassing the `runpod_coding_agent`+`coding_review_pass` flag gate entirely), and that harness has a hardcoded `EXPECTED_HELD_OUT_COUNT = 6` — so this round's "36 pairs" is really the eval's own fixed held-out suite reviewed repeatedly across eval sessions, not organic production diversity. Real implication: training DPO on these pairs then evaluating against the same 6-task suite would be train/test leakage — decided to hold the 36 pairs as reference data, not train on them yet. Separately corrected an analytical mistake: `goal_reanchor`'s guard-fire rate (cited earlier as evidence of "shared drift" between RunPod-Qwen/Devstral) is actually a fixed-cadence reminder (fires unconditionally every `GOAL_REANCHOR_INTERVAL_TURNS` turns) with no relationship to real drift — the actual severe-scope-violation check (`D1`) fires zero times in real data; the real dominant failure is incompleteness. That finding led directly to the `self_verify_nudge` fix logged above. |
-| 2026-08-14 | Confirm/Deny Gate audit (`docs/nova-tiered-triage-exploration.md` brief → `docs/nova-tiered-triage-findings.md`): 5 architecture sites checked against real call sites for avoidable expensive-model-call waste. Built a two-tier correction reuse cache in `nova_corrector.py` (exact-match + embedding-similarity, threshold 0.90 picked empirically against this file's own real data — a genuine near-duplicate query scored 0.935, a genuinely different question sharing the same characters scored 0.792, a real margin; a cheaper `difflib` approach was tried first and rejected at 0.800 vs 0.786, too thin to trust) and a SHA-256 task-text cache for `extract_task_requirements()` in `nova_completion_gate.py` (verified live with a real call then a mocked-API-forbidden second call proving a genuine cache hit). Evaluated and deliberately did NOT build two more: a `nova_task_queue.propose_tier()` pre-filter (real savings too small against an already-cheap call, plus real autonomy-misclassification risk if it ever leaned toward auto-approving "autonomous"), and skipping `_review_coding_diff()` on ground-truth gate failure (would collapse an already-deliberate independent-cross-check design between the mechanical gate and the LLM review, found in that function's own docstring after initially proposing it). Same day: stood up the dual-remote push process (Section 8) — `forgejo` (self-hosted, `marvinbell/Nova`) pushed alongside `origin` (GitHub), Marvin's stated preference for self-hosted. Found and reused an already-prepped-but-never-wired `id_ed25519_forgejo_nova` deploy key from an earlier session; wired it via a Tailscale-IP `~/.ssh/config` alias (`nova-forgejo`) rather than the LAN IP the sibling `vivarium-forgejo` entry uses, applying the same lesson Section 2's Chroma LAN-IP fix already learned. Both remotes confirmed at identical HEAD after push. |
-| 2026-08-14 | Scoped and built the coding specialist's constrained action-space interface (ACI, `86bbch95y`) end to end, same day. `86bbch988` (edit-format test plan) scoped against Aider's published benchmark methodology first. `nova_pull_exercism_corpus.py` vendors 30 real, difficulty-stratified Exercism Python exercises (MIT-licensed, pinned commit) into `data/coding_specialist_eval/exercism_subset/` — real bugs found live: a `.approaches/`/`.articles/` reference-solution leakage risk, a `.gitignore` blanket-rule fix, and a pre-commit ruff/format hook silently reformatting vendored third-party content before an exclude existed. `nova_coding_aci.py` is the real interface (`find_file`/`search_file`/`search_dir`/`view`/`edit`/`collapse_history`) — found and fixed a real `.meta/` leakage bug live during testing. `docker/nova-aci-sandbox/` built and functionally verified on the Omen (Docker isn't on the Aero). `nova_aci_harness.py` is the real end-to-end turn loop against local Ollama (Qwen2.5-Coder-7B, pulled fresh this session) — the key finding, written up as its own doc: a graduated parser (JSON → `ast.literal_eval` → targeted repair) took the vendored `bob` exercise from 0/26 tests across a fully burned 15-turn budget to 26/26 passing in 3 turns. Strict JSON-only parsing was the actual blocker, not model capability — see the liberal-parsing-of-model-output principle this produced. Same day: ran the full 30-exercise corpus, first single-pass then repeated 3-5x each (122 total real runs) once single-pass numbers proved untrustworthy (`bob` passed 26/26 once, then failed completely on identical code the next run — Ollama's default sampling isn't deterministic). Built `nova_aci_stats.py` for reusable pass-rate/correlation analysis. Overall: **9/122 passed (~7.4%)**. Real finding: task *familiarity* (how standard/textbook a task shape is) predicts success far better than task size or Exercism's own difficulty rating — `ledger` is the most complex winner yet 100% reliable, ruling out a pure-size theory; a correlation that looked real at n=32 (r=0.469) collapsed to noise (r=0.126) at n=122, concrete proof single-pass sampling isn't trustworthy. |
-| 2026-08-17 | ACI guard-tuning day. Added `repeat_failed_call`/`done_without_edit` guards, then a 3rd (`same_path_repeated_failure`) plus explicit empty-result search feedback (`_format_list_result()`) — real corpus result at the time: `max_turns_reached` 36.0%→25.8%, avg turns 8.57→7.76, pass rate flat (a genuine process-efficiency gain, capability ceiling unchanged). *(Later reframed 2026-08-30/31 via individual ablation — both `same_path_repeated_failure` and `_format_list_result()` turned out net-negative on their own; see that entry below.)* Separately: read SWE-agent's real source and scoped a mini-swe-agent head-to-head — MIT licensed, bash-only (no mandatory Docker), takes arbitrary task text (not GitHub-issue-locked); revised verdict days-scale not weeks-scale to try, filed as `86bbfwbwc`, not started yet. |
-| 2026-08-18 | Shipped `nova_gpu_monitor.py` — background GPU telemetry for the Aero's RTX 5070 (temp/power/clocks/real throttle-reason flags via `nvidia-smi` on an interval, `logs/gpu_telemetry_log.jsonl`, `--summary` mode), then added a live per-reading terminal view at Marvin's request (real `bandit` finding fixed along the way: `os.system()` is `B605` regardless of a hardcoded string — replaced with `subprocess.run()` + an explicit argument list + `shell=False`). Same day, two real A/B tests on `nova_aci_harness.py`, both closed negative: **context window** (Ollama was silently running this model's real 32,768-token context at its own 4096 default, confirmed live via `ollama ps` — same bug class `nova_orchestrator_runpod.py` hit once already; a real 120-run batch at 24576 tokens, verified 100% GPU-resident beforehand, came back with pass rate flat but every efficiency metric measurably worse — avg turns 7.76→9.51, `max_turns_reached` 25.8%→38.3%, `repeat_failed_call` 45→71 — reverted to 4096, kept explicit in code); **diff-format edits** (`86bbch988`, `--diff-format`) — built `SYSTEM_PROMPT_DIFF` + `_resolve_diff_hunk()` against the already format-agnostic `edit()`, found+fixed a real pre-existing bug in `_tool_result_failed()` (an `"ERROR: ..."` string fell through as "not a failure," so repeat-failure guards never caught a stuck model) along the way, then a real 120-run result came back a clear regression (pass rate 7.5%→4.2%, `repeat_failed_call` 45→360) — root cause is this model's real whitespace-reproduction errors in diff hunks, which the line-range format sidesteps; kept in the repo as a tested, documented, opt-in-only reference, Marvin's explicit instruction never to use it in a real run. `nova_bulk_distillation.py`'s own real cost bug fixed too: `request_bulk_solution()`'s `max_tokens=16000` wasn't enough headroom once Sonnet 5's adaptive thinking joined a from-scratch multi-file diff — 22 of 25 real rows hit `max_tokens` with zero visible output, billed anyway. Raised to 64000 + switched to `client.messages.stream()`/`get_final_message()` (required at this size to avoid the SDK's own HTTP timeout); verified live that the exact same commit that failed at 16000 succeeded at 64000 (47,869 output tokens). Cleared the remaining Phase 1 backlog to **171/201, the real ceiling** — the other 30 rows permanently exceed `MAX_CONTEXT_TOKENS`. |
-| 2026-08-19 | Archived `nova_mini_swe_agent_harness.py` (`86bbfwbwc`) after a real head-to-head: both real integration bugs got fixed (a Windows/bash shell mismatch, then a too-aggressive 120s timeout), but real per-turn timing showed mini-swe-agent running ~35-45x slower than `nova_aci_harness.py` on this hardware — not worth a multi-hour full-corpus run, so it was committed to history and removed rather than run further; ticket held at low priority. Then shipped three more Training Pipeline phases for the coding track in one session: **Phase 2** (`nova_coding_execution_refinement.py`, `86bbcfpbg`) — Phase 1's bulk-distillation rows have nothing to execute against (no test suite for Nova's own codebase), so this redirects to the vendored Exercism corpus instead, a real generate→test→refine loop reusing `nova_aci_harness.py`'s `_prepare_working_copy`/`_run_real_tests`; full run came back 27/30 `verified_pass`, fully consuming that corpus's available volume. Same day, a **tool-calling track** minimal Phase 1 also shipped (`nova_tool_calling_execution.py`) — no prior task pool existed for this module at all; 15 hand-authored tasks against 3 of `nova_mcp_server.py`'s 5 real tools (`nova_graph`/`nova_neighbors`/`nova_context_budget`, `nova_query`/`nova_ingest` excluded for real side effects), real schemas introspected live from FastMCP, graded via real execution against a running `nova_api.py` — 15/15 `verified_pass`. **Phase 4** (`nova_coding_dpo_filter.py`, `86bbcfpck`) — the ticket named `nova_corrector.py`, actually the conversation track's corrector, retargeted to Phase 2's own output; parses real `unittest -v` output for `tests_ok`/`tests_fail`, computes `pass_ratio` per candidate pair — of 8 real candidate pairs, 6 kept, 2 filtered as `too_hard_low_signal`. **Phase 5** (`nova_aci_harness.py`, `86bbcfpd1`) — new `--hybrid-verify` flag (off by default) gates a `done` on real test execution plus a non-agentic Claude judgment (no `tools`, catches gamed/hardcoded solutions); found+fixed a real bug where a shared nudge budget let test failures alone exhaust it before the style verifier got a turn, split into separate counters; per Eval Harness Initiative 4's guardrail this verdict never feeds a DPO/training signal, only this turn loop's own accept/nudge decision. Closed the session by documenting a real, sobering finding: Nova's coding-track training data (171 SFT examples, 6 DPO pairs) sits 2,000-5,000x below comparable public precedents (phi-1's 880K examples, a modest 12.9K-pair practical DPO run), and both of Nova's self-generation sources (Phase 3's 201-commit history, the 30-exercise Exercism corpus) are now structurally exhausted, not just under-run — closing this gap isn't a tuning problem. Real alternatives found but not yet evaluated: existing SWE-Gym-7B/SWE-Dev-7B fine-tunes of the same base model. Confirmed with Marvin same day: the Training Pipeline's Phase 0-5 tickets are N independent per-module tracks (coding/tool-calling/conversation/tutor) sharing one shape, not a single pipeline gated on every module advancing together — coding being most mature is a maturity signal, not a sign the others are "behind." |
-| 2026-08-29 | Eval Harness Initiative 2 (`86bbcfv9d`) applied to `nova_aci_harness.py`'s hybrid-verify gate — split the generative style verifier's one `CONCERNS` verdict into `GAMED` (output values copied from the visible test cases — a real cheating issue, blocks `done` unconditionally) vs. `IDIOM` (passes every real test, just unidiomatic). New opt-in `--advisory-idiom` flag (default off): when on, an `IDIOM` verdict is logged (`style_idiom_note`) and accepted rather than nudged. Motivation: an idiom nudge on an already-passing solution is the confirmed trigger for the `octal` loss-of-working-solution failure that `--regression-guard` only catches after the fact (~2.4% of runs, by discarding the style feedback entirely). Categorization runs on every hybrid-verify pass regardless of the flag, so every run logs which concern fired. New scripts/doc: `scripts/run_advisory_idiom_ab_test.py` (written, not yet run — ~$1–2 Console/batch), `docs/aci-hybrid-verify-gate-audit.md`. Verified via direct gate calls against a real `two-fer` working copy (idiomatic → `ACCEPT` both modes; egregiously unidiomatic → `IDIOM`, blocks with flag off / accepts with flag on; hardcoded `if name=='Alice'` ladder → `GAMED`, blocks both modes) plus a clean full harness run. Eval-harness only — no production path touched (`_hybrid_verify_gate`/`_generative_style_verifier` have no callers outside the harness). Flag stays opt-in; promote to default-on only if a real A/B batch shows a pass-rate edge without raising `GAMED` rejections. |
-| 2026-08-29 | Initiative 2 continued — individual-ablation infra for `nova_aci_harness.py`'s four always-on turn-loop guards (`repeat_failed_call`, `done_without_edit`, `same_path_repeated_failure`, `multiple_calls_ignored`). `docs/aci-failure-mechanism-analysis.md` only ever measured these cumulatively (baseline→2→3-guard as a block); Initiative 2 wants each measured on its own. New `ABLATABLE_GUARDS` frozenset + `run_exercise(disabled_guards=...)` / `--disable-guard NAME` (repeatable, choices-validated): a disabled guard's effect is skipped (loop reverts to pre-guard behaviour — re-execute the repeat, accept the no-edit `done` and stop, drop the same-path / multi-call note) while a would-have-fired count is still logged per run in `guards_suppressed`. New `scripts/run_guard_ablation.py` (baseline + one condition per guard, full corpus, `--hybrid-verify` off so it spends $0) and `docs/aci-guard-cluster-ablation.md`. Verified via a deterministic scripted test (fake Ollama client, no API): `repeat_failed_call` active → fires 2× on a repeated broken edit, never re-executes; disabled → fires 0, `guards_suppressed` 2, call re-executed. `done_without_edit` active → `abandoned_after_nudge` after 2 nudges; disabled → `completed` on turn 1, suppressed 1. The ~310-run ablation batch itself is deferred to a separate go-ahead. `86bbcfv9d` moved to `in progress`. |
-| 2026-08-30 | Initiative 2 — ran the deferred batches ($0.10 total) and acted on the result. **Guard ablation** (repeat=2, 300 runs + a focused repeat=6 re-run of one guard, 360 runs): pass rate is noise across all conditions as predicted; `repeat_failed_call` is the workhorse (76 would-fire, only ablation that worsened both efficiency metrics); `multiple_calls_ignored` fired **0 times in 300 runs** (dormant for Qwen2.5-Coder-7B — kept, near-zero cost); `done_without_edit` is a rare correctness net; **`same_path_repeated_failure` came back net-negative on turn-efficiency** (removing it: avg turns ~−0.6, `max_turns_reached` ~−7pts, no pass-rate cost; fires on ~40% of runs) — reproduced across both batches (n=240/condition). The 2026-08-17 "3rd guard helped" result was likely a misattribution to `same_path` when the empty-result search feedback (`_format_list_result()`) shipped in the same batch. **Flipped `same_path_repeated_failure` to opt-in** (`--same-path-guard` / `run_exercise(same_path_guard=False)`), removed from `ABLATABLE_GUARDS` (now 3), code/nudge otherwise unchanged — same "keep as an off-by-default tested reference after a negative A/B" pattern as `--diff-format`. Verified deterministically. **advisory-idiom A/B** (120 runs, `--hybrid-verify` on): inconclusive — the style verifier returned **zero `IDIOM` verdicts across all 120 runs**, so the `octal` scenario never occurred; `GAMED` rejections didn't rise; flag stays opt-in. Docs: `aci-guard-cluster-ablation.md` + `aci-hybrid-verify-gate-audit.md`. ACI-harness guard-cluster audit under `86bbcfv9d` now complete; production-gate ablation + held-out half still open. |
-| 2026-08-31 | Initiative 2 follow-up — ablated `_format_list_result()` (the empty-result search feedback that shipped in the same 2026-08-17 batch as `same_path_repeated_failure`), repeat=6, 360 runs, $0. Removing it *also* improves efficiency (−0.67 turns, −7.8pts `max_turns_reached`), with quick-give-ups flat (50→49, the failure it was built to prevent). Both same-day 2026-08-17 changes now point net-negative under individual ablation. `max_turns_reached %` measured 30.6/36.7/37.8 across three clean baselines this session — the original cross-batch "38.3→25.8" figure sits inside that noise. **Reframe: the 2026-08-17 "guards improved efficiency" conclusion was batch-to-batch variance read as signal** — correction note added to `docs/aci-failure-mechanism-analysis.md`. `_format_list_result()` itself not changed (Marvin's call: demote to opt-in / shorten + re-test / leave). `repeat_failed_call` + `done_without_edit` remain the only confirmed keepers. |
-| 2026-08-31 | Initiative 2 — completion-gate dev-set audit ($0, data-only, `scratchpad/gate_audit.py` over `ground_truth_gate_log.jsonl` 96 rows + `coding_review_log.jsonl` 109 rows). Same low-diversity wall as the guard cluster (96 gate rows = 10 distinct tasks; 109 review rows = 6). Findings: `nonzero_diff` (15/15 sole) and `cross_module_missing_export` (2/2 sole) are 100% decisive when they fire; `lint_clean` is dominant (26 fired / 18 sole) with a plausible pre-existing-lint-debt precision risk the coarse task-text join can't confirm; `cross_module_circular_import` (`86bb77vk6`) added no independent decisiveness (0 sole, n=3); `syntax_valid` / `powershell_syntax_valid` / `forbidden_paths_untouched` / `unexpected_deletion` never fired in 96 rows (kept — cheap safety nets, low fire rate is healthy). **No gate changes.** New: `docs/aci-completion-gate-audit-scope.md`. Both gate groups now conclude the same: a real per-gate verdict needs the held-out pool. |
-| 2026-08-31 | Eval Harness Initiative 1 follow-up — authored the first 4 held-out eval tasks into `nova_eval_held_out.AUTHORED_HELD_OUT_TASKS` (was empty; `select_held_out_tasks()` now clears the `EXPECTED_MIN_HELD_OUT_COUNT = 3` floor instead of raising). Targets: `nova_omen_sync.py` (LAN-IP fallback — a gap hit live during the 2026-08-30 Tailscale incident), `nova_notify.py` (per-category ntfy topics), `nova_chunk_viz.py` (`--json` output), `nova_log_rotation.py` (`--dry-run`). Each verified against the module's 7-step no-contamination discipline (zero edit-targets and zero gate-fires across `agent_log`/`coding_review_log`/`ground_truth_gate_log`, none a `DEV_SET_BRANCH_COMMITS` target file). `requirements` extracted once via `extract_task_requirements()` and reviewed; tasks never run through a backend or gate while authoring; `base_ref` pinned to `a7decf3`. Marvin signed off. Unblocks the generalization half of Initiative 2 (`86bbcfv9d`). |
-| 2026-09-02 | **Eval Harness Initiative 2 (`86bbcfv9d`) — COMPLETE.** Ran the held-out generalization pass on the production completion gate (`check_ground_truth_completion()`), the last open item. New reusable infra: `nova_orchestrator.run_via_claude()` — the Claude turn loop extracted verbatim from `run_coding_task()`'s former inline `else:` branch (behaviour-preserving; same `(final_status, turns_used)` shape as `run_via_runpod`/`_devstral`/`_qwen3`), so an eval harness can drive the exact production Claude path without duplicating it. New `nova_eval_held_out_report.py` — runs each of the 4 held-out tasks (`hot-001`–`hot-004`) agentically through `run_via_claude()` at its frozen `base_ref`, then the gate on each diff with **frozen** requirements; writes one timestamped report and **deliberately no shared training/telemetry log** (no `_log_ground_truth_gate` → keeps held-out results out of `ground_truth_gate_log.jsonl` that dev-set audits read; no `_review_coding_diff`/`_log_coding_review` → keeps them out of `coding_review_log.jsonl` → DPO training data — `nova_coding_eval.generate_report()` does that unconditionally, this runner must not). Result: Claude produced 3 genuinely-good complete diffs + 1 genuine false-success (`hot-004`: wrote tests for a `dry_run=True` signature it never built, cleaned up its scratch dir, said "done" — empty diff). **Gate generalized: zero false hard-fails on 4 OOD tasks.** `nonzero_diff` FIRED correctly on `hot-004` — first live catch of a false-success on a genuinely held-out task (dev set only had historical ones). `lint_clean`'s pre-existing-lint-debt precision risk (it lints whole files, assumes master ruff-clean) did **not** materialise on 3 fresh non-trivial diffs — open question downgraded to "low risk, watch" (n=3, not closed). `forbidden_paths_untouched`/`narrow_scope_not_exceeded` got their first real OOD compliance data (`hot-001` had a genuine frozen forbidden path, `nova_omen_dispatch.py`, which Claude respected). One real gate-code defect found and **fixed**: `_check_deliverables_present()` (a warning) false-positived on `hot-002` because the deliverable was named `send_notification()` and Claude reflowed the signature to multi-line, so the literal `send_notification()` never appeared in an added line — now strips a trailing `()` and matches the bare identifier; re-verified on `hot-002` (0 warnings) + 4 regression cases. Actual cost ~$1–2 (the summary doc's $10–40 estimate was conservative for 4 single-file changes). Full results: `logs/held_out_generalization_report_20260902_224722.md`, `docs/eval-harness-initiative-2-summary.md` Group 2. Same session: cleaned up 49 stale `nova-agent/` eval worktrees (all merged, 0 unique commits — dev-set re-runs from 2026-08-06/08 + this session's 4 held-out runs, all diffs captured in reports first) via `git worktree remove --force` + branch delete; `C:/nova-agent-worktrees/` is now empty. |
-| 2026-09-04 | Closed the `lint_clean` open question from Initiative 2's completion-gate audit (`docs/aci-completion-gate-audit-scope.md`) with a structural fix instead of waiting on more held-out evidence. `_check_lint_clean(diff, root, base_ref)` in `nova_completion_gate.py` now lints each touched `.py` file's `base_ref` version too (`git show base_ref:path` piped to `ruff check --stdin-filename=... -`, no second worktree needed) and subtracts that version's violation multiset — matched by `(code, message)`, ignoring line number since a diff shifts everything below an edit — from the current version's, reporting only what's genuinely new. A brand-new file (nothing to subtract) still reports everything, preserving the check's original fail-safe behavior for that case. New shared helpers: `_ruff_check_raw()` (one subprocess/JSON-parsing path for both on-disk-file and stdin-content ruff calls), `_base_commit_ruff_violations()`, `_new_ruff_violations()`. Verified live against 3 real throwaway git repos (not mocked): a file with pre-existing `F401`s that gains a new `import json` correctly flags only the new `F401`/`I001` pair; an edit that leaves pre-existing debt untouched now correctly returns zero reasons — the exact false-positive shape this check used to be structurally capable of, previously only "not yet observed" on 3 held-out diffs; a brand-new file's violations still fully flag. Re-run against the real repo's own last 3 commits: clean. Docs updated: `docs/aci-completion-gate-audit-scope.md` and `docs/eval-harness-initiative-2-summary.md` Group 2 table now say "closed" rather than "downgraded, not closed." |
-| 2026-09-05 | Board hygiene + a real direction call from Marvin: fund availability doesn't currently support testing/supporting a coding-specialist model, but passive training-data collection should keep running regardless, since it's useful to whichever model eventually gets picked. `nova_board.py audit` found all 3 real "in progress" tasks were stale (no earned activity): `86bbcfpap` (Phase 1 bulk distillation) moved to **complete** with its real 171/201-ceiling finding as a comment; `86bbh41rk` (proxy-model recipe-validation gate) and `86baf4e70` (RunPod/Vast.ai access) reset to **to do** with comments explaining why. Then filed a real budget-gate placeholder, `86bbvc3wr` ("Budget available for coding-specialist model testing/rented compute"), and blocked `86bbnbq0q` (scope Qwen3.6/3.8-27B dense), `86bbaph6w` (local multi-GPU rig spec), and `86baf4e70` on it — marking `86bbvc3wr` complete later unblocks all three at once. Separately, closed a real gap: `nova_synthetic_task_gen.py` (Phase 3) was never automated the way `nova_corrector.py`'s Lore Pairs pipeline already is (2hr Task Scheduler cron, undocumented here until this entry — `run_corrector_scheduled.ps1`) — 53 real commits had piled up unprocessed. New `run_synthetic_task_gen_scheduled.ps1`, registered as a daily Task Scheduler entry ("Nova Synthetic Task Gen", `--all --limit 10`, ~$0.50/day in Claude API cost, no GPU), so coding-track SFT data keeps accumulating on its own while the model question is parked. **Real bug found and fixed while verifying the new wrapper live** (10 real rows written, confirmed correct, but the log came out mojibake'd — "ΓÇö" for a real em-dash): a fresh non-interactive `powershell.exe` (exactly how Task Scheduler launches both wrappers) defaults `[Console]::OutputEncoding` to the OEM codepage (437, confirmed live), and `python.exe` itself falls back off UTF-8 once its stdout is a redirected pipe rather than a real console — both sides need fixing together (`$env:PYTHONIOENCODING = "utf-8"` + `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8`), confirmed via an isolated repro before touching the paid script, since neither fix alone resolved it. Applied to both wrappers — `run_corrector_scheduled.ps1` had the identical latent bug, just never surfaced since Lore Pairs' own output apparently hadn't hit it yet; re-verified that wrapper still runs clean (idempotent, $0, nothing to correct). |
+| 2026-07-25 | Log rotation shipped; sandboxed-dispatch permission-mode bug fixed; 10 Controller-expansion tasks filed, 4 shipped same day; Omen→Aero SSH bridge (3 read-only keys) built |
+| 2026-07-26 | Omen→Aero bridge extended to training-data read+write (4th key); abort/kill switch (`86bb3ceyj`); diff-preview-and-merge (`86bb3ceyf`) |
+| 2026-07-26 | CLAUDE.md split: narrative/incident history moved to `NOVA_BUILD_LOG.md` |
+| 2026-07-26 | Last two Controller-expansion tasks: push notifications (`86bb3ceyp`, ntfy.sh); pre-action approval gate (`86bb3ceym`, Aero interactive lane; headless-lane gap → `86bb3r0h4`) |
+| 2026-07-28 | Headless-lane pre-action approval gate via a real Claude Code `PreToolUse` hook (`86bb3r0h4`, `nova_headless_approval_hook.py`); `POST /tool-approvals` + `/tool-approvals/{id}/timeout` routes; `NOVA_HEADLESS_DISPATCH=1` scoping |
+| 2026-07-29 | RunPod Qwen-32B eval-spike merged (PR #16); `86bb4gy0y` punch-list #1/#3 (dead-code guard, Claude-reviews-Qwen pass), #2 (context pruning, `stopped_context_overflow`), #5 (real RunPod cost tracking); re-ran held-out eval — gap NOT closed (1/6); greenlit fine-tuning, shipped data+pipeline half (`nova_coding_corrector.py`, `nova_finetune_qwen_coder.py`); removed "Nova Auto-Start" Task Scheduler task |
+| 2026-07-31 | `86baf4e70` Pattern 1 v1: `nova_runpod_pod_launch.py` + `runpod_finetune_runbook.md` (provisioning-only, tier-manual) |
+| 2026-08-01 | Three real RunPod training runs closing `86baf4e70` Pattern 1: DPO warm-start, real SFT+DPO, AWQ quantize+redeploy+re-eval (~2/6, gap not closed); `nova_quantize_qwen_coder_awq.py`, `nova_runpod_endpoint_deploy.py`; endpoint ready, `runpod_coding_agent` stays off |
+| 2026-08-03 | Pivot to observability (`86bb7pamh`): `nova_orchestrator_devstral.py` 2nd backend; Phase 0 (`nova_langfuse_client.py`, Langfuse Cloud) + Phase 1 (`log_turn()` in all 3 loops), `langfuse_tracing` flag |
+| 2026-08-04 | Observability Phase 2 (A1-G2 registry-code scores in Langfuse) + Phase 3 (`/observability` dashboard, `nova_observability_dashboard.py`/`.html`, outcome-bucket classifier) |
+| 2026-08-05 | Observability Phase 4 (`86bb7pb6t`): trace-to-diff linking (`nova_diff_link.py`, `/observability/diff`) + cross-machine follow-up (6th SSH key `AERO_DIFF_KEY`); started 4 sibling infra tickets — Uptime Kuma (`86bb7qua2`) shipped |
+| 2026-08-06 | Shipped MLflow (`86bb7quga`), Forgejo light stand-up (`86bb7quk1`), Laminar Cloud (`86bb7qudh`, `nova_laminar_client.py`); Controller switches-panel dependency guards (`is_flag_toggle_allowed()`); `/observability/per-model` cross-machine bug fixed (7th SSH key, `nova_observability_status.py`); ran `nova_coding_corrector.py` → 36 DPO pairs (held as reference — train/test leakage risk) |
+| 2026-08-11 | `nvidia-driver-580` on the Omen's GTX 1050 Ti Mobile (Secure Boot disabled; forgotten-password GRUB recovery incident) |
+| 2026-08-12 | Eval Harness Initiative 1 (`86bbcfv8d`, dev/held-out split, `nova_eval_held_out.py`, `pool` param on `record_task_outcome()`); coding-lane direction pivot (MoE tier, 16 new tasks, `86bbaph6w`); Phase 0 + Phase 3 (`nova_synthetic_task_gen.py`, 201/201 curated) + Phase 1 (`nova_bulk_distillation.py`, "ZERO" pattern) shipped |
+| 2026-08-14 | Confirm/Deny Gate audit — correction-reuse cache in `nova_corrector.py`, task-text cache in `nova_completion_gate.py`; dual-remote push process stood up (`forgejo` + `origin`, Section 8); ACI built end to end (`nova_pull_exercism_corpus.py`, `nova_coding_aci.py`, `nova_aci_harness.py`, `nova_aci_stats.py`) — 9/122 (~7.4%), task-familiarity finding |
+| 2026-08-17 | ACI guard-tuning: `repeat_failed_call`/`done_without_edit`/`same_path_repeated_failure` guards + `_format_list_result()` (last two later reframed net-negative, see 08-30/31); mini-swe-agent head-to-head scoped (`86bbfwbwc`) |
+| 2026-08-18 | `nova_gpu_monitor.py` (Aero RTX 5070 telemetry); two ACI A/B tests both closed negative — context window (4096→24576) and diff-format edits (`86bbch988`, `--diff-format` opt-in reference only); Phase 1 cleared to 171/201 ceiling |
+| 2026-08-19 | Archived `nova_mini_swe_agent_harness.py` (~35-45x slower); Training Pipeline coding-track Phase 2 (`nova_coding_execution_refinement.py`, 27/30), tool-calling Phase 1 (`nova_tool_calling_execution.py`, 15/15), Phase 4 (`nova_coding_dpo_filter.py`), Phase 5 (`--hybrid-verify`); training-data 2,000-5,000x below public precedent, self-generation sources exhausted |
+| 2026-08-29 | Eval Harness Initiative 2 (`86bbcfv9d`): hybrid-verify style verifier split ACCEPT/GAMED/IDIOM (`--advisory-idiom` opt-in); individual-guard ablation infra (`ABLATABLE_GUARDS`, `--disable-guard`, `scripts/run_guard_ablation.py`) |
+| 2026-08-30 | Initiative 2 ran deferred batches ($0.10): `same_path_repeated_failure` net-negative → flipped to opt-in (`--same-path-guard`); `multiple_calls_ignored` dormant (0/300, kept); advisory-idiom A/B inconclusive (0 IDIOM verdicts) |
+| 2026-08-31 | Initiative 2: `_format_list_result()` also net-negative under ablation (2026-08-17 "guards helped" reframed as batch variance); completion-gate dev-set audit (no gate changes, needs held-out pool); authored first 4 held-out eval tasks (`hot-001`–`hot-004`) |
+| 2026-09-02 | Eval Harness Initiative 2 COMPLETE — held-out generalization pass on `check_ground_truth_completion()`: zero false hard-fails on 4 OOD tasks, `nonzero_diff` caught a real held-out false-success; `run_via_claude()` extracted, `nova_eval_held_out_report.py`; fixed `_check_deliverables_present()` multi-line-signature false-positive; cleaned 49 stale eval worktrees |
+| 2026-09-04 | Closed the `lint_clean` open question structurally — `_check_lint_clean()` now subtracts the `base_ref` version's pre-existing ruff violations, reports only genuinely-new ones |
+| 2026-09-05 | Board hygiene (3 stale in-progress reset); budget-gate placeholder `86bbvc3wr` blocking `86bbnbq0q`/`86bbaph6w`/`86baf4e70`; automated `nova_synthetic_task_gen.py` (daily Task Scheduler cron, `run_synthetic_task_gen_scheduled.ps1`); fixed OEM-codepage mojibake in both scheduled-wrapper scripts |
 
 ---
 
