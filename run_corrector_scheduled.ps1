@@ -25,6 +25,22 @@
 # unreadable UTF-16-as-single-byte garbled log on first live test (confirmed:
 # "N o   u n c o r r e c t e d" instead of "No uncorrected"), the same class
 # of PowerShell text-encoding gotcha already known on this machine.
+#
+# 2026-09-05: found + fixed a second, related encoding bug while building
+# run_synthetic_task_gen_scheduled.ps1's own wrapper -- a fresh non-
+# interactive powershell.exe (exactly how Task Scheduler launches this
+# script) decodes a captured native command's stdout using the OEM
+# codepage (437, confirmed live) rather than UTF-8, so any real em-dash/
+# curly-quote in flagged lore text would have come through this log as
+# mojibake even though Add-Content -Encoding utf8 was already correct on
+# the write side. Both lines below are required together: PYTHONIOENCODING
+# makes python.exe actually emit UTF-8 bytes once stdout is a redirected
+# pipe (it silently falls back to the ANSI codepage otherwise), and
+# [Console]::OutputEncoding makes this process decode that byte stream
+# correctly before Add-Content re-encodes it. Either alone is insufficient
+# -- verified both ways on the sibling wrapper before applying here.
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$env:PYTHONIOENCODING = "utf-8"
 
 $ErrorActionPreference = "Stop"
 $LogPath = Join-Path $PSScriptRoot "logs\corrector_scheduled_run.log"
