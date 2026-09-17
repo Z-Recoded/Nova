@@ -64,6 +64,8 @@ C:/Nova/
 ├── nova_log.html           # Nova Log Health dashboard — static page served at /nova-log
 ├── nova_log_rotation.py    # Weekly rotation for the Nova Log telemetry files — archive >90d + keep last 1000, non-destructive (86barby7t)
 ├── nova_sources.py         # Source paths config — Second Brain location
+├── nova_tutor.py           # Nova Tutor Phase 1 (86bawnkbv) — tutor chunk schema/writer/storage, mastery + struggle_history split into a dedicated tutor_chunk_state SQLite table (see Section 2's Nova Tutor subsection)
+├── nova_domain_backfill.py # One-off backfill of the `domain` metadata field onto chunks ingested before Tutor Phase 1 added it — not wired into any cron
 ├── nova_tools.py           # Path-scoped file/exec primitives for the coding sub-agent
 ├── nova_orchestrator.py    # Coding sub-agent loop (Claude-backed v1, git-worktree isolated)
 ├── nova_orchestrator_graph.py # LangGraph port of the turn loop (langgraph_orchestration flag, default off)
@@ -376,6 +378,25 @@ Per-category instruction files (`skills/coding.md`, `retrieval.md`, `financial.m
 `orchestration.md`, `lore.md`, `memory.md`) that `nova_orchestrator.py` prepends to a coding
 task's context. `load_skill()`/`get_skill_version()` in `nova_skills.py`; category is a
 caller-supplied string. Flag `skill_injection` (default off).
+
+### Nova Tutor — Phase 1 (2026-08-24, `86bawnkbv`) — chunk schema, live
+Part of the 7-phase Nova Learning Layer design (full spec on Drive, dated 2026-07-12; not
+mirrored in-repo). Phase 1 added a `domain` field (`lore`/`tutor`) to every ingested chunk and
+built `nova_tutor.py`'s schema/writer/storage layer. `domain`/`topic`/`subtopic`/`parent_topic`/
+`source`/`chunk_id`/`content`/`synthesis_links` live in Chroma as before; `mastery` and
+`struggle_history` deliberately do NOT — they live in a new `tutor_chunk_state` SQLite table
+(same physical file as `nova_state.db`), because Chroma here is Omen-hosted over `HttpClient`
+and `.upsert()` re-embeds the whole document, a real per-quiz-answer cost once Phase 2's
+scheduler exists. Also deliberately NOT routed through `nova_state.py`'s `write_state()` —
+that table's `_validate_entity()` hard-whitelists a finite `KNOWN_ENTITIES` set (Section 2's
+Domain State Layer, below); Tutor mastery is keyed per-chunk_id, an unbounded key space that
+breaks that contract. `nova_domain_backfill.py` is the one-off script that backfilled `domain`
+onto the pre-existing corpus (1959/1963 chunks, confirmed idempotent on a second run).
+Verified live end-to-end (real Chroma+SQLite round-trip, pruning against real date math,
+pydantic rejection of partial writes). Phase 2 (SM-2/FSRS scheduler, freeform answer eval) is
+next in ClickUp (`86bawnkc6`) and reads `get_tutor_state()`/calls `append_struggle_entry()`,
+both already built. Three newer "Overworld" tasks (`86bbvcbby`/`86bbvcbcp`/`86bbvcbcv`) sit in
+ready but aren't yet reconciled against the original 7-phase doc in writing anywhere.
 
 ### Domain State Layer (2026-07-07, `86bara3qe`) — scoped v1
 `nova_state.py` — one generic `domain_state` table (`domain`, `entity`, `data` JSON,

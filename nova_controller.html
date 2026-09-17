@@ -658,7 +658,7 @@
     <p><b>Qwen3 8B swap-trigger progress</b> — how close the accumulated coding-agent transcripts are to the ~30-50 diverse real tasks Phase 3.5 wants before evaluating a local-model swap (20% of that count held out, never trained on). Normally a real combined count across both machines, over a command-restricted SSH connection either direction. If the other machine can't be reached right now (most commonly: the Aero is asleep), it says so directly in the sub-line rather than showing a number that looks complete but isn't.</p>
     <p>Swipe right or tap the green button for the positive judgment, swipe left or tap the red button otherwise.</p>
     <p><b>Worktrees</b> — every open, disposable git worktree on both machines (not the main checkout), oldest first. <i>merged</i> (green) means that branch's work is already in <code>master</code> — likely safe to clean up. <i>prunable</i> (red) means git itself thinks the worktree's directory is gone or broken. <i>locked</i> (gray) means git won't let it be removed without unlocking first. Read-only — this page doesn't delete anything for you. Refreshes every 60 seconds (slower than other widgets since checking the other machine's worktrees costs a real SSH round-trip). Same as the Qwen widget above: if a machine can't be reached right now (most commonly: the Aero is asleep), that machine's section says so directly instead of just showing nothing.</p>
-    <p><b>Discover</b> — empty for now. Depends on Nova Tutor, which hasn't been built yet.</p>
+    <p><b>Discover</b> — empty for now. nova_tutor.py's Phase 1 (chunk schema/mastery storage) shipped 2026-08-24, but nothing surfaces it as a Feed card yet — that's still the gap here, not Tutor itself being unbuilt.</p>
     <p style="color:#888; font-size:0.8rem; margin-bottom:0">This panel lives in the same file as the UI it explains, so it can't silently go stale as the Feed changes.</p>
   </div>
 
@@ -720,7 +720,7 @@
   <div id="worktree-list"></div>
 
   <h2 class="section-heading">Discover</h2>
-  <p class="empty">No tutor domain synthesis links yet — depends on Nova Tutor, still backlog.</p>
+  <p class="empty">No tutor domain synthesis links yet — nova_tutor.py's SynthesisLink schema exists (Phase 1, 86bawnkbv) but nothing populates or surfaces it here yet; that's Phase 3+ scope, still backlog.</p>
 
   <h2 class="section-heading">Feed</h2>
   <div class="feed-filter-bar" id="feed-filter-bar">

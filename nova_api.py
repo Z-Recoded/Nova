@@ -1193,9 +1193,11 @@ def timeout_tool_approval(approval_id: str):
 # The consolidated Feed page superseding /escalations-ui — one scroll
 # merging escalations, tier proposals, dispatch outcomes, and tool-call/
 # blend-flag labeling prompts, per CLAUDE.md's Nova Controller UX
-# subsection. Tutor-prompt and differential-scorer card types are
-# deliberately not built — no nova_tutor*.py/nova_differential*.py file
-# exists anywhere in this repo (confirmed by grep before scoping this).
+# subsection. Tutor-prompt and differential-scorer card types are still not
+# built on the Controller feed itself — nova_tutor.py exists now (Phase 1,
+# 86bawnkbv, shipped 2026-08-24) but nothing surfaces its quiz/mastery data
+# as a card type here yet; no nova_differential*.py file exists anywhere in
+# this repo.
 
 CONTROLLER_HTML_PATH = os.path.join(os.path.dirname(__file__), "nova_controller.html")
 MANIFEST_PATH = os.path.join(os.path.dirname(__file__), "manifest.json")
@@ -1646,11 +1648,12 @@ def get_training_data_status():
     replaces 86baeyg1h's static "currently 11 pairs, keep accumulating"
     task-description line with a real number (86bax4akx's live-count +
     coverage + threshold-alerting scope items). Tutor-domain and
-    coding-domain coverage are deliberately not broken out -- neither has a
-    real data source yet (Nova Tutor is unbuilt, coding DPO curation is
-    blocked on 86bara7pn) -- so "by_category" reflects nova_router.py's real
-    categories (fiction, technical, etc.), not the task's aspirational
-    lore/tutor/coding split.
+    coding-domain coverage are still deliberately not broken out -- neither
+    has a real DPO-pair data source yet (nova_tutor.py's Phase 1, 86bawnkbv,
+    only built the chunk/mastery schema, no DPO pair generation off of it;
+    coding DPO curation is blocked on 86bara7pn) -- so "by_category" reflects
+    nova_router.py's real categories (fiction, technical, etc.), not the
+    task's aspirational lore/tutor/coding split.
 
     Cross-machine fix, 2026-07-26: this route used to read only its own
     machine's local training_flags.jsonl -- real on the Aero (33/100 at the
