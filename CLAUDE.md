@@ -229,11 +229,16 @@ is the only source of truth:
 `git -c user.name=... -c user.email=... commit`); a plain `ssh host "command"` doesn't source
 `.bashrc`, so prepend `PATH=$HOME/.local/bin:$PATH` (else `gitleaks`'s pre-commit hook breaks).
 
-### Omen Capacity Audit (86baxty6d, self-hosting gate) — 2026-07-21
+### Omen Capacity Audit (86baxty6d, self-hosting gate) — 2026-07-21, refreshed 2026-09-17
 Gate: no further self-hosting proceeds until `nova_omen_capacity.py` (SSH from the Aero, real
 CPU/RAM/disk/GPU snapshot → `logs/omen_capacity_log.jsonl`) confirms headroom. **Verdict
-2026-07-21: gate open, large headroom.** Re-run before/after each self-hosting deploy, watching
-RAM (smallest pool). GPU driver installed 2026-08-11, not yet folded into a fresh run.
+2026-07-21: gate open, large headroom** — since superseded. **Live re-check 2026-09-17: RAM is
+the binding constraint, not "large headroom."** Box has 7.6GB total RAM; ~3.9GB already used by
+always-on services (Chroma, nova-api, Open WebUI, Docker, MLflow, Tailscale), leaving **~3.8GB
+available**. CPU (8 cores, low load) and disk (~59GB free) both still have real headroom. Treat
+any new resource-heavy Omen service (a VM, a bigger model, a new always-on daemon) as blocked on
+RAM until this improves — re-run `nova_omen_capacity.py` rather than trusting this note's number
+as it ages further. GPU driver installed 2026-08-11, not yet folded into a fresh audit run.
 
 ### Nova Coding Sub-Agent (nova_orchestrator.py)
 Nova can now write to its own codebase — the one sanctioned exception to a human
