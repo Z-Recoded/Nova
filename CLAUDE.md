@@ -240,6 +240,14 @@ any new resource-heavy Omen service (a VM, a bigger model, a new always-on daemo
 RAM until this improves — re-run `nova_omen_capacity.py` rather than trusting this note's number
 as it ages further. GPU driver installed 2026-08-11, not yet folded into a fresh audit run.
 
+**Planned downtime window (2026-09-20, not yet live):** a separate `nova-infra` repo
+(Forgejo `marvinbell/nova-infra`, private) holds systemd timers that will stop
+`nova-chroma`/`nova-api`/`nova-openwebui` ~3AM–12PM ET daily to free RAM for a
+futures-trading VM sharing this box — the interim fix for the constraint above.
+Timers are installed but deliberately **not enabled** pending on-box verification
+(see that repo's own README/CLAUDE.md). Check `systemctl is-enabled nova-pause.timer`
+on the Omen before assuming Nova's uptime story has actually changed.
+
 ### Nova Coding Sub-Agent (nova_orchestrator.py)
 Nova can now write to its own codebase — the one sanctioned exception to a human
 surfacing every change before it's applied (Section 8). Safety comes from **git worktree
