@@ -61,3 +61,7 @@ finetune_output/
 # Unsloth's runtime kernel-compilation cache (regenerated on first import, not project source)
 unsloth_compiled_cache/
 scratchpad_held_out_requirements.json
+
+# Marvin's personal reference PDFs for Nova Tutor research (spacing/testing-effect
+# papers) -- reference material, not project source; same treatment as screenshots/
+nova-tutor-papers/
