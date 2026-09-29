@@ -65,4 +65,5 @@ IGNORE_PATTERNS = [
     ".claude",  # Claude Code config dirs (settings.json etc.) — tooling config, not knowledge
     "llm_knowledge_notes",  # AI-generated flashcard notes (86bbjtgqr) — would pollute RAG if ingested
     "Nova Research",  # nova_vault_notes.py's vault-write folder — excluded until promoted by hand
+    "CLAUDE.md",  # Claude Code instructions, not knowledge
 ]
