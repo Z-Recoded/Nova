@@ -49,7 +49,17 @@ $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 Add-Content -Path $LogPath -Value "`n=== $timestamp ===" -Encoding utf8
 
 try {
+    # A harmless stderr notice from the `anthropic` SDK (fires whenever an
+    # explicit ANTHROPIC_API_KEY is present, e.g. "...takes precedence over
+    # the SDK's profile / federation auto-discovery...") gets promoted to a
+    # terminating NativeCommandError by PowerShell 5.1 when a native
+    # command's stderr is redirected under $ErrorActionPreference = "Stop" --
+    # confirmed live: this silently killed every scheduled run since
+    # 2026-09-06 before any commits were processed. Relax EAP for just this
+    # call so a stderr line becomes a logged line, not an abort.
+    $ErrorActionPreference = "Continue"
     $output = & "$PSScriptRoot\nova-env\Scripts\python.exe" "$PSScriptRoot\nova_synthetic_task_gen.py" --all --limit 10 2>&1
+    $ErrorActionPreference = "Stop"
     Add-Content -Path $LogPath -Value ($output | Out-String) -Encoding utf8
 } catch {
     Add-Content -Path $LogPath -Value "ERROR: $_" -Encoding utf8

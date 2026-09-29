@@ -51,7 +51,17 @@ $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 Add-Content -Path $LogPath -Value "`n=== $timestamp ===" -Encoding utf8
 
 try {
+    # Same latent bug found+fixed in run_synthetic_task_gen_scheduled.ps1
+    # (2026-09-28): a harmless `anthropic` SDK stderr notice (fires whenever
+    # an explicit ANTHROPIC_API_KEY is present) gets promoted to a
+    # terminating NativeCommandError by PowerShell 5.1 when a native
+    # command's stderr is redirected under $ErrorActionPreference = "Stop".
+    # This script hadn't hit it yet only because recent runs short-circuit
+    # at "No uncorrected entries found" before constructing the Anthropic
+    # client -- it would have died the same way on the next real correction.
+    $ErrorActionPreference = "Continue"
     $output = & "$PSScriptRoot\nova-env\Scripts\python.exe" "$PSScriptRoot\nova_corrector.py" 2>&1
+    $ErrorActionPreference = "Stop"
     Add-Content -Path $LogPath -Value ($output | Out-String) -Encoding utf8
 } catch {
     Add-Content -Path $LogPath -Value "ERROR: $_" -Encoding utf8
