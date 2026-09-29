@@ -122,6 +122,9 @@ C:/Nova/
 ├── nova_status_digest.py   # Writes NOVA_STATUS.md — board state snapshot, diffed run to run
 ├── NOVA_STATUS.md          # Output of nova_status_digest.py — ready/in-progress/blocked digest
 ├── .nova_status_snapshot.json # Previous digest run, tracked in-repo (diff source for the next one)
+├── NOVA_HANDOFF.md         # Chat↔Code continuity file — rewritten-in-place Current State + capped
+│                           # Recent Log + numbered Open Questions. Read first, on either side, before
+│                           # starting work (see Section 11).
 ├── browser_hands/          # Browser automation harness (M1 only — see Phase 2.5). First nested package in the repo.
 │   ├── harness/            # cdp_connect.py, retry.py, selector_discovery.py, tree_walk.py, state_writer.py
 │   ├── adapters/           # Empty — M2-M5 (PiSignage, website audit, subscription audit, Base44) not built yet
@@ -410,6 +413,19 @@ pydantic rejection of partial writes). Phase 2 (SM-2/FSRS scheduler, freeform an
 next in ClickUp (`86bawnkc6`) and reads `get_tutor_state()`/calls `append_struggle_entry()`,
 both already built. Three newer "Overworld" tasks (`86bbvcbby`/`86bbvcbcp`/`86bbvcbcv`) sit in
 ready but aren't yet reconciled against the original 7-phase doc in writing anywhere.
+
+**Learning-science evidence for Tutor (2026-09-26):** before designing Phase 2's quiz engine,
+answer evaluation, or any attempt-first/pretest behavior, read `docs/tutor-learning-science-evidence.md`.
+It digests the papers in `C:\Nova\nova-tutor-papers\` (full text read), states what each does and
+does not show, and lists candidate implications as hypotheses, not requirements. Do not cite figures
+from these papers that are not in that doc; two of the LLM-tutoring papers have known flaws.
+
+**Marvin's personal study-session dataset (2026-09-26):** `data/tutor_sessions/events.jsonl`,
+schema in `docs/tutor-session-dataset.md`. Local-only and gitignored, and it is personal learning
+data: never commit, sync, or paste it into any cloud service. Its `question` events mirror Tutor's
+`StruggleEntry`, its `link` events mirror `SynthesisLink`, and it records hints used (0 to 3)
+per question. Intended as the real-data basis for Phase 2 and later; read it before assuming
+generic mastery or difficulty behavior.
 
 ### Domain State Layer (2026-07-07, `86bara3qe`) — scoped v1
 `nova_state.py` — one generic `domain_state` table (`domain`, `entity`, `data` JSON,
@@ -760,17 +776,24 @@ in `NOVA_BUILD_LOG.md` — this table is a terse date-ordered index, not the sou
 
 At the start of every session, confirm:
 1. You have read this file fully.
-2. nova_api.py is running (`uvicorn nova_api:app --host 0.0.0.0 --port 8000`)
-3. Run `git status` — if there are uncommitted changes from earlier work, tell Marvin what's
+2. You have read `NOVA_HANDOFF.md` (repo root) — the Chat↔Code continuity file. It carries
+   whatever the other side (Chat planning vs. Code implementation) just did or decided, plus
+   any open questions and known drift. Answer/resolve what you can before starting new work.
+3. nova_api.py is running (`uvicorn nova_api:app --host 0.0.0.0 --port 8000`)
+4. Run `git status` — if there are uncommitted changes from earlier work, tell Marvin what's
    sitting there before starting anything new (see Section 8).
-4. You know which task this session is focused on.
-5. You are in Plan Mode if the task touches more than one file.
+5. You know which task this session is focused on.
+6. You are in Plan Mode if the task touches more than one file.
 
 Then say: **"Ready. Working on [task]. Here's what I'm planning to do: [brief plan]."**
 
 Repeat the `git status` check before ending a session, for the same reason — same-session
 work is easy to remember to mention, but it's the changes from a prior session that are
 most likely to go unmentioned without a deliberate check.
+
+Before ending a session, also rewrite `NOVA_HANDOFF.md`'s Current State section in full
+(not appended) and add one line to its Recent Log — that's the file the other side reads
+first next time.
 
 ## graphify
 
