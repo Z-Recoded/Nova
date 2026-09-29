@@ -10,39 +10,34 @@ those two are generated/append-focused, this one is a small, rewritten-in-place
 sync point between a Chat planning session and a Code implementation session.
 
 ## Current State
-*(last updated: Code · 2026-09-28)*
+*(last updated: Code · 2026-09-29)*
 
 **Active thread:** Two small local-model coding-agent experiments, inspired by
 a multi-agent-orchestration video (OpenRig) but grounded against what Nova
-already has. **Experiment 1's confirmatory ablation batch is running now —
-next session should read its result and decide keep/revert before starting
-Experiment 2.**
+already has. **Experiment 1 is DECIDED — Experiment 2 is next up and can
+start whenever.**
 
-**Experiment 1 status (`nova_aci_harness.py` + `scripts/run_guard_ablation.py`)
-— COMPLETE, verdict is genuinely mixed, needs Marvin's call:**
-`GUARD_GOAL_REANCHOR` (ported from `nova_orchestrator_runpod.py`) is built,
-committed, pushed. Cumulative ablation now at the real n≈240/condition trust
-bar (batch 1 n=60 + confirmatory batch n=180, both $0):
+**Experiment 1 — DECIDED (2026-09-28, Marvin): keep `goal_reanchor`
+default-ON.** `GUARD_GOAL_REANCHOR` (ported from `nova_orchestrator_runpod.py`
+into `nova_aci_harness.py`) is built, committed, pushed. Cumulative ablation
+reached the real n≈240/condition trust bar (batch 1 n=60 + confirmatory batch
+n=180, both $0):
 
 | | Pass | Avg turns | max_turns% |
 |---|---|---|---|
 | baseline | 18/240 (7.5%) | 8.83 | 32.9% |
 | -goal_reanchor | 11/240 (4.6%) | 8.66 | 31.7% |
 
-Pass rate favors keeping the guard both times (consistent direction), but
-avg_turns/max_turns% **reversed sign** between the two batches — batch 1 alone
-said the guard helped efficiency, the larger confirmatory batch said the
-opposite, and cumulatively the guard is now flat-to-slightly-negative on the
-metric the ablation methodology says to actually trust (pass rate is expected
-to stay flat for these guards; efficiency is the real signal). This is the
-same shape of result `same_path_repeated_failure`/`_format_list_result()`
-already produced: promising on a small batch, didn't survive n≈240. Full
-numbers and reasoning in the updated `project_goal_reanchor_ablation_result_1.md`.
-**Decision needed from Marvin: keep default-ON (pass rate favors it, cheap
-intervention) or demote to opt-in (matches precedent for a reversed/
-inconclusive efficiency signal)** — this file left it as-is (default-ON,
-undecided) rather than deciding unilaterally. Once decided, Experiment 2 can
-start.
+Pass rate favored keeping the guard consistently across both batches, but
+avg_turns/max_turns% reversed sign between them (batch 1 said the guard
+helped efficiency, the confirmatory batch said the opposite) — the same shape
+of result that got `same_path_repeated_failure`/`_format_list_result()`
+demoted to opt-in previously. Marvin's call this time was different: keep it
+default-ON anyway, since pass rate favored it consistently both times and
+it's a cheap intervention (a periodic text nudge, not a real cost center) —
+the reversed efficiency signal is plausibly noise rather than a real
+negative effect. No code change needed (already registered default-ON).
+Full numbers/reasoning in `project_goal_reanchor_ablation_result_1.md`.
 
 **Real live incident during the confirmatory run, resolved:** it appeared to
 die around run 100/180 (no python process, free RAM had dropped 13.6GB→6GB) —
@@ -77,9 +72,9 @@ Next-Context Selection. Open check first: can `GUARD_GOAL_REANCHOR`'s note get
 collapsed away a few turns after injection? Detail in
 `project_aci_context_selection_experiment_3.md`.
 
-**Sequencing decision:** finish #1's ablation and decide keep/revert before
-starting #2, so #2's baseline isn't confounded by a drift gap #1 might close.
-#3 goes after both for the same reason.
+**Sequencing decision:** #1 is decided, so #2 (planner/executor split-brain)
+can start next session with no confound risk from #1 still being open. #3
+(pinned context) still goes after #2 for the same reason as before.
 
 **Unrelated but real infra fix this session (2026-09-28):** the coding-track's
 daily synthetic-data cron (`run_synthetic_task_gen_scheduled.ps1`) had been
@@ -168,12 +163,13 @@ and delete them — don't let this grow unbounded.
 - **2026-09-28/29 · Code (new session):** Committed+pushed+synced Experiment 1
   and the earlier Handoff/Tutor-docs work (both had been sitting uncommitted).
   Found+fixed a real 23-day-silent cron failure (PowerShell native-stderr-abort
-  bug, both scheduled wrappers) — see Current State above. Researched two more
-  lecture papers (Dynamic Mixed-Precision Routing, SafeDream) plus quick
-  concept questions (KL divergence, GRPO, sparse attention) — all saved/
-  answered, none actionable. Retried the n≈240 confirmatory ablation batch:
-  it stalled once from RAM pressure (Ollama stuck loaded past its keep-alive
-  countdown — `ollama stop` recovered it), a redundant duplicate chunk got
-  launched by mistake before that was noticed and Marvin killed it by hand.
-  Single batch now running clean, unconfronted, log at
-  `logs/goal_reanchor_confirmatory_batch.log`.
+  bug, both scheduled wrappers). Researched two more lecture papers (Dynamic
+  Mixed-Precision Routing, SafeDream) plus quick concept questions (KL
+  divergence, GRPO, sparse attention, ImageMagick, a dedicated test-manager
+  agent idea, multimodal training, Computer Use feasibility on Windows) — all
+  saved/answered, none actionable now. Confirmatory ablation batch survived a
+  RAM-pressure stall (Ollama stuck loaded past its keep-alive countdown,
+  `ollama stop` recovered it) and a self-inflicted redundant duplicate chunk
+  (killed by Marvin once diagnosed), then completed cleanly at n=240
+  cumulative. **Experiment 1 decided: keep `goal_reanchor` default-ON** (see
+  Current State above) — Experiment 2 is unblocked for next session.
