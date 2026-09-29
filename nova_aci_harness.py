@@ -158,6 +158,17 @@ MAX_HYBRID_VERIFY_NUDGES = 2
 # privacy guarantee needed here) -- this is SVT-inspired sparse thresholding, not literal SVT.
 EARLY_ABANDON_PATIENCE = 2
 
+# Ported from nova_orchestrator_runpod.py's proven GUARD_GOAL_REANCHOR (86bb72wfm) --
+# built there after a real live incident where the model drifted off-task after ~2 turns
+# into a fabricated request and destructively overwrote a file. This harness had no
+# equivalent: GUARD_DONE_WITHOUT_EDIT above already mirrors that backend's
+# self_verify_nudge, but nothing here re-grounds the model against the original task on
+# a fixed cadence. Interval kept at exact parity with the RunPod backend's value rather
+# than re-tuned for this harness's shorter MAX_TURNS -- a real ablation batch should
+# decide that, not a guess.
+GOAL_REANCHOR_INTERVAL_TURNS = 6
+GUARD_GOAL_REANCHOR = "goal_reanchor"
+
 # Real bug found live 2026-08-23 (86bbk09da), spot-checking 86bbjzguh's progress-framing
 # transcripts: _extract_first_json_object() only ever isolates the FIRST {...} block in a
 # turn's raw text -- a model that emits two tool calls back-to-back with no narration
@@ -185,12 +196,15 @@ MULTIPLE_CALLS_NUDGE = (
 # AND how often the guard actually engaged. --hybrid-verify / --early-abandon / --regression-guard
 # are separate axes with their own flags and are not part of this set. GUARD_SAME_PATH_REPEATED_FAILURE
 # was demoted from this set to opt-in (--same-path-guard) on 2026-08-30 after its ablation came
-# back net-negative -- see its constant comment above.
+# back net-negative -- see its constant comment above. GUARD_GOAL_REANCHOR added on-by-default,
+# same as every other guard here started -- its own individual ablation batch is what decides
+# whether it stays that way.
 ABLATABLE_GUARDS = frozenset(
     {
         GUARD_REPEAT_FAILED_CALL,
         GUARD_DONE_WITHOUT_EDIT,
         GUARD_MULTIPLE_CALLS_IGNORED,
+        GUARD_GOAL_REANCHOR,
     }
 )
 
@@ -669,6 +683,19 @@ def _build_progress_note(turn: int, successful_edit_count: int, edit_succeeded_t
     return f"\n\n[{credit} Turn {turn}/{MAX_TURNS}.]"
 
 
+def _goal_reanchor_note(task_description: str) -> str:
+    """
+    Verbatim restatement of the original task, appended periodically so it stays
+    salient once context has filled with several turns of tool output --
+    ported from nova_orchestrator_runpod.py's proven _goal_reanchor_note(), see
+    GOAL_REANCHOR_INTERVAL_TURNS above for why this exists.
+    """
+    return (
+        f"\n\n[REMINDER] Your original task, restated in full (context has filled "
+        f"with tool output since it was last shown):\n{task_description}"
+    )
+
+
 def _execute_tool(call: dict, root: str, diff_format: bool = False) -> str:
     """
     Runs one ACI command by name, returns a plain-text result string to
@@ -1116,6 +1143,7 @@ def run_exercise(
             GUARD_SAME_PATH_REPEATED_FAILURE: 0,
             GUARD_HYBRID_VERIFY_REJECTED: 0,
             GUARD_MULTIPLE_CALLS_IGNORED: 0,
+            GUARD_GOAL_REANCHOR: 0,
         }
         # 86bbcfv9d: for each ablated guard, how many times it would have fired this run
         # if it had been active. Only the keys in `disabled_guards` ever get incremented.
@@ -1339,6 +1367,13 @@ def run_exercise(
             if verbose:
                 method = call.get("_parse_method", "?")
                 print(f"--- turn {turn}: ran {tool} (parsed via {method}) -> {tool_result[:300]}")
+
+            if turn % GOAL_REANCHOR_INTERVAL_TURNS == 0:
+                if GUARD_GOAL_REANCHOR in disabled_guards:
+                    guards_suppressed[GUARD_GOAL_REANCHOR] += 1
+                else:
+                    guard_fires[GUARD_GOAL_REANCHOR] += 1
+                    messages[-1]["content"] += _goal_reanchor_note(task_description)
 
         test_passed, test_output = _run_real_tests(working_copy, slug)
 

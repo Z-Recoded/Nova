@@ -8,9 +8,12 @@
 # (--disable-guard NAME), full corpus, repeat=N per condition for Ollama sampling noise.
 #
 # Scope: the always-on turn-loop guards in nova_aci_harness.ABLATABLE_GUARDS --
-# repeat_failed_call, done_without_edit, multiple_calls_ignored. (same_path_repeated_failure
-# was in this set for the original audit; the audit found it net-negative and demoted it to
-# opt-in --same-path-guard on 2026-08-30, so it's no longer an always-on guard to ablate.)
+# repeat_failed_call, done_without_edit, multiple_calls_ignored, goal_reanchor.
+# (same_path_repeated_failure was in this set for the original audit; the audit found it
+# net-negative and demoted it to opt-in --same-path-guard on 2026-08-30, so it's no longer
+# an always-on guard to ablate. goal_reanchor was added later, ported from
+# nova_orchestrator_runpod.py's proven GUARD_GOAL_REANCHOR -- see its own constant comment
+# in nova_aci_harness.py.)
 # --hybrid-verify / --early-abandon / --regression-guard are separate axes with their own
 # flags and their own A/B scripts; this run leaves them at their defaults (hybrid-verify OFF,
 # so this batch spends $0 -- Ollama only, no Anthropic calls).
