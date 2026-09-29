@@ -14,29 +14,47 @@ sync point between a Chat planning session and a Code implementation session.
 
 **Active thread:** Two small local-model coding-agent experiments, inspired by
 a multi-agent-orchestration video (OpenRig) but grounded against what Nova
-already has. **Experiment 1 is implemented and being ablation-tested now —
-next session should read the ablation result and decide keep/revert before
-starting Experiment 2.**
+already has. **Experiment 1's confirmatory ablation batch is running now —
+next session should read its result and decide keep/revert before starting
+Experiment 2.**
 
-**Just built + first-tested (Experiment 1, `nova_aci_harness.py` +
-`scripts/run_guard_ablation.py`):** Ported `GUARD_GOAL_REANCHOR` from
-`nova_orchestrator_runpod.py` — new constants `GOAL_REANCHOR_INTERVAL_TURNS = 6`
-/ `GUARD_GOAL_REANCHOR`, helper `_goal_reanchor_note()`, registered in
-`ABLATABLE_GUARDS`, injected every 6 turns in the main tool-execution branch.
-Smoke-tested clean on `bob` in both guard states. **Real ablation batch result
-(n=60/condition, full corpus, $0):** baseline 3/60 pass / 8.47 avg turns /
-26.7% max_turns vs. -goal_reanchor 1/60 / 8.55 / 28.3% — every axis favors
-keeping the guard, and it's genuinely exercised (44/60 runs). **But n=60 is a
-quarter of this file's own n≈240 trust bar** (the same bar that confirmed
-`same_path_repeated_failure`/`_format_list_result()` net-negative) — direction
-is real signal, not yet a settled verdict. Full detail + one loose thread
-(an `abandoned_after_nudge`-while-passing `ledger` run) in
-`project_goal_reanchor_ablation_result_1.md`. Left `goal_reanchor` default-ON,
-not promoted or demoted. **Next session should decide: run a bigger
-confirmatory batch (~repeat 6 more to reach n≈240 cumulative) before treating
-this as a real win, or accept the tentative-positive signal and move to
-Experiment 2 now, revisiting later.** **Not yet committed** — see git status
-below.
+**Experiment 1 status (`nova_aci_harness.py` + `scripts/run_guard_ablation.py`)
+— COMPLETE, verdict is genuinely mixed, needs Marvin's call:**
+`GUARD_GOAL_REANCHOR` (ported from `nova_orchestrator_runpod.py`) is built,
+committed, pushed. Cumulative ablation now at the real n≈240/condition trust
+bar (batch 1 n=60 + confirmatory batch n=180, both $0):
+
+| | Pass | Avg turns | max_turns% |
+|---|---|---|---|
+| baseline | 18/240 (7.5%) | 8.83 | 32.9% |
+| -goal_reanchor | 11/240 (4.6%) | 8.66 | 31.7% |
+
+Pass rate favors keeping the guard both times (consistent direction), but
+avg_turns/max_turns% **reversed sign** between the two batches — batch 1 alone
+said the guard helped efficiency, the larger confirmatory batch said the
+opposite, and cumulatively the guard is now flat-to-slightly-negative on the
+metric the ablation methodology says to actually trust (pass rate is expected
+to stay flat for these guards; efficiency is the real signal). This is the
+same shape of result `same_path_repeated_failure`/`_format_list_result()`
+already produced: promising on a small batch, didn't survive n≈240. Full
+numbers and reasoning in the updated `project_goal_reanchor_ablation_result_1.md`.
+**Decision needed from Marvin: keep default-ON (pass rate favors it, cheap
+intervention) or demote to opt-in (matches precedent for a reversed/
+inconclusive efficiency signal)** — this file left it as-is (default-ON,
+undecided) rather than deciding unilaterally. Once decided, Experiment 2 can
+start.
+
+**Real live incident during the confirmatory run, resolved:** it appeared to
+die around run 100/180 (no python process, free RAM had dropped 13.6GB→6GB) —
+same low-RAM-during-a-long-run pattern flagged below from 2026-09-26. An
+explicit `ollama stop` (the model was stuck loaded well past its claimed
+keep-alive countdown, not actually unloading on its own) recovered ~8GB and
+the run resumed on its own. A redundant duplicate chunk was accidentally
+launched on top of it before that recovery was noticed — Marvin killed it by
+hand once diagnosed, no lasting effect on the numbers above. Real lesson:
+**`ollama ps`'s "until" countdown cannot be trusted as proof a model has
+actually unloaded — verify via free RAM or `ollama stop` + recheck, not just
+the countdown display.**
 
 **Still just scoped (not started) — Experiment 2, planner/executor split-brain:**
 Test separating "which atomic action next" from "produce this action's exact
@@ -63,22 +81,28 @@ collapsed away a few turns after injection? Detail in
 starting #2, so #2's baseline isn't confounded by a drift gap #1 might close.
 #3 goes after both for the same reason.
 
-**Paused mid-confirmation (2026-09-26):** the n=240 confirmatory batch got
-killed by Claude Code's own low-memory safeguard mid-run (harness-level
-protection, not a bug in the ablation code — see
-`project_goal_reanchor_ablation_result_1.md` for the partial-run detail).
-Investigated cause: Opera was using 4.3GB across 17 renderer + 4 utility
-processes, but that's NOT necessarily "17 tabs" (Chromium spawns extra
-renderer processes per cross-origin iframe, and Opera GX's sidebar mini-apps
-run as persistent processes) — Marvin's own count was ~7 tabs, so the
-process count didn't actually contradict that. Real diagnosis needs Opera's
-own Task Manager (Shift+Esc), not WMI process-type inspection from outside.
-**Session paused here at Marvin's request — those tabs had unfinished work
-he needs to attend to before closing/restarting the browser.** Next session:
-retry the n≈240 confirmatory batch once there's real headroom (check with
-`Get-CimInstance Win32_OperatingSystem` free-RAM before starting, don't just
-assume — this is the second time this session RAM looked fine at rest and
-wasn't once Ollama actually loaded a model).
+**Unrelated but real infra fix this session (2026-09-28):** the coding-track's
+daily synthetic-data cron (`run_synthetic_task_gen_scheduled.ps1`) had been
+silently failing for 23 days straight (every run since 2026-09-06) —
+`data/coding_training/synthetic/synthetic_task_pairs.jsonl` sat stalled at 221
+rows despite the cron firing on schedule. Root cause: the `anthropic` SDK
+(0.109.2) prints a harmless stderr notice on client construction whenever an
+explicit API key is present, and PowerShell 5.1 promotes any redirected native
+command's stderr line to a terminating error under
+`$ErrorActionPreference = "Stop"` — killing the whole wrapper before any
+commit got processed. Fixed in both `run_synthetic_task_gen_scheduled.ps1` and
+`run_corrector_scheduled.ps1` (same latent pattern, hadn't tripped yet there),
+committed, pushed, Omen synced. Verified live — a manual re-run completed
+cleanly, 231 rows now. Full detail: `feedback_powershell_native_stderr_abort.md`.
+
+**Three more watch-item memories saved this session (2026-09-28-29), all from
+Marvin's ongoing lecture-notes questions, none actionable yet:**
+Dynamic Mixed-Precision Routing (per-step precision router — no matched
+quantized/full-precision model pair exists in Nova to route between) and
+SafeDream (multi-turn jailbreak detection — no adversarial-user threat model
+in Nova, but its CUSUM cumulative-evidence idea is a plausible smarter
+successor to `GUARD_GOAL_REANCHOR`'s fixed-interval design, worth revisiting
+once Experiment 1 settles). Full list in `MEMORY.md`.
 
 **Relevant prior art surfaced this session (both already in project memory,
 just newly connected to this thread):** `nova_squad_pilot.py`
@@ -141,3 +165,15 @@ and delete them — don't let this grow unbounded.
 - **2026-09-28 · Code:** Researched a third lecture-sourced paper (LTS,
   "Learning to Share") — saved as a watch-item memory, not actionable (needs
   parallel agent teams Nova lacks). Session closed; still no code changes.
+- **2026-09-28/29 · Code (new session):** Committed+pushed+synced Experiment 1
+  and the earlier Handoff/Tutor-docs work (both had been sitting uncommitted).
+  Found+fixed a real 23-day-silent cron failure (PowerShell native-stderr-abort
+  bug, both scheduled wrappers) — see Current State above. Researched two more
+  lecture papers (Dynamic Mixed-Precision Routing, SafeDream) plus quick
+  concept questions (KL divergence, GRPO, sparse attention) — all saved/
+  answered, none actionable. Retried the n≈240 confirmatory ablation batch:
+  it stalled once from RAM pressure (Ollama stuck loaded past its keep-alive
+  countdown — `ollama stop` recovered it), a redundant duplicate chunk got
+  launched by mistake before that was noticed and Marvin killed it by hand.
+  Single batch now running clean, unconfronted, log at
+  `logs/goal_reanchor_confirmatory_batch.log`.
