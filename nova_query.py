@@ -85,6 +85,27 @@ CHARACTER_FILES = {
 }
 
 
+# ── Character matching ─────────────────────────────────────────
+def _find_named_character_file(query: str) -> str | None:
+    """
+    Return the file for the character named earliest in the query, so the
+    question's subject picks the filter ("Aseir's relationship with Luci" ->
+    Aseir.md) instead of whichever name happens to come first in
+    CHARACTER_FILES. Ties go to the longer name. Returns None if no character
+    is named. Word-boundary matching is unchanged.
+    """
+    q_lower = query.lower()
+    best = None  # (position in query, -name length, filename)
+    for name, filename in CHARACTER_FILES.items():
+        match = re.search(rf"\b{re.escape(name)}\b", q_lower)
+        if not match:
+            continue
+        candidate = (match.start(), -len(name), filename)
+        if best is None or candidate < best:
+            best = candidate
+    return None if best is None else best[2]
+
+
 # ── Profile ────────────────────────────────────────────────────
 def load_profile() -> str:
     """Always load marvin_profile.md as pinned context."""
@@ -301,12 +322,8 @@ def ask(
         retrieval_query = query
         # Filter to the named character's file if one is detected.
         # Word-boundary match avoids "null" incorrectly matching inside "nullius".
-        q_lower = query.lower()
-        char_filter = None
-        for name, filename in CHARACTER_FILES.items():
-            if re.search(rf"\b{re.escape(name)}\b", q_lower):
-                char_filter = {"filename": {"$eq": filename}}
-                break
+        named_file = _find_named_character_file(query)
+        char_filter = {"filename": {"$eq": named_file}} if named_file else None
         character_filtered = char_filter is not None
         # Use graph-scoped retrieval; char_filter is merged inside retrieve_with_graph.
         # A hard character filter ($eq) overrides budget scoping for precision.

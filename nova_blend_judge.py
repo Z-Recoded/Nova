@@ -230,10 +230,13 @@ def log_cross_character_flag(query: str, answer: str, chunks: list[dict], verdic
 
 
 # ── Running ────────────────────────────────────────────────────
-def run_judge(max_queries: int, offset: int, seed: int, label: str) -> None:
+def run_judge(max_queries: int, offset: int, seed: int, label: str, measure_only: bool = False) -> None:
     """
     Run a slice of the relationship queries through ask(), judge each answer,
     and log verdicts (every one) plus flagged entries (cross-character only).
+    With measure_only, flagged entries are NOT written to training_flags.jsonl,
+    so re-running the same queries after a retrieval change (to compare error
+    rates) doesn't add near-duplicate pairs to the training set.
     nova_query's log_query is silenced for this run so synthetic queries don't
     skew the Nova Log health dashboard's real-usage stats.
     """
@@ -258,7 +261,7 @@ def run_judge(max_queries: int, offset: int, seed: int, label: str) -> None:
 
         counts[verdict["verdict"]] = counts.get(verdict["verdict"], 0) + 1
         log_verdict(label, query, result["sources"], verdict)
-        if verdict["verdict"] == VERDICT_CROSS_CHARACTER:
+        if verdict["verdict"] == VERDICT_CROSS_CHARACTER and not measure_only:
             log_cross_character_flag(query, result["answer"], chunks, verdict)
         print(f"[{number}/{len(queries)}] {verdict['verdict']} | {query}", flush=True)
 
@@ -278,6 +281,11 @@ def main() -> None:
     parser.add_argument("--offset", type=int, default=0, help="Skip this many queries (continue a prior run).")
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--label", default=DEFAULT_LABEL, help="Tag for the judge log, e.g. baseline_pre_fix.")
+    parser.add_argument(
+        "--measure-only",
+        action="store_true",
+        help="Log verdicts but write no training_flags.jsonl entries (for before/after comparison runs).",
+    )
     args = parser.parse_args()
 
     if args.list:
@@ -285,7 +293,7 @@ def main() -> None:
             print(query)
         return
 
-    run_judge(args.max_queries, args.offset, args.seed, args.label)
+    run_judge(args.max_queries, args.offset, args.seed, args.label, args.measure_only)
 
 
 if __name__ == "__main__":
