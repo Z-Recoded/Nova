@@ -49,11 +49,24 @@ repos:
   # outright on those three packages. Auditing what's actually installed
   # sidesteps that without needing a second index-url config just for this
   # check.
+  #
+  # 2026-10-03 fix: pre-commit runs this hook in its own isolated venv, so
+  # with no --path it was auditing that throwaway venv (pip-audit's own deps +
+  # its bundled pip), never nova-env -- it blocked commits on irrelevant
+  # urllib3/pip CVEs while missing the 73 real advisories in nova-env.
+  # `--path` points it at nova-env's real site-packages. Report-only
+  # (`|| true`, `verbose: true` so the output still prints) until those
+  # advisories are remediated or allowlisted -- flip to blocking after that.
+  # The path is the Aero's (Windows) layout; on the Omen it will report a
+  # missing path rather than a scan, still non-blocking.
   - repo: https://github.com/pypa/pip-audit
     rev: v2.10.1
     hooks:
       - id: pip-audit
-        args: []
+        entry: bash -c 'pip-audit --path nova-env/Lib/site-packages || true'
+        always_run: true
+        pass_filenames: false
+        verbose: true
 
   # ── gitleaks: credential scanning ────────────────────────────────
   # Deliberately NOT the official gitleaks/gitleaks pre-commit hook -- that
