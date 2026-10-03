@@ -75,6 +75,7 @@ C:/Nova/
 ├── nova_eval_held_out.py   # Genuinely held-out task pool (86bbcfv8d) — never used to tune a gate, only to test whether one generalizes; hand-authored tasks + real organic merges via add_organic_merge_task()
 ├── nova_coding_corrector.py # Claude-written chosen_diff corrections for coding_review_log.jsonl (mirrors nova_corrector.py) — DPO pair source for the Qwen coding fine-tune
 ├── nova_synthetic_task_gen.py # Training Pipeline Phase 3 (86bbcfpc9) — back-translates real git commits into synthetic (task, diff) SFT pairs via Claude → data/coding_training/synthetic/. Daily Task Scheduler cron (run_synthetic_task_gen_scheduled.ps1)
+├── nova_blend_probe.py     # Replays character-named queries for the at-risk pairs (Section 6) through ask() to generate Lore blend candidates; entries tagged "origin": "synthetic_probe" in training_flags.jsonl so they can coexist with organic ones and be filtered later. --list / --run
 ├── nova_bulk_distillation.py # Training Pipeline Phase 1 (86bbcfpap), "ZERO" pattern — one Claude call per Phase 3 task grounded in real pre-diff file content (git show <sha>^:path), verification_status="unverified" → data/coding_training/bulk_distillation/. Ceiling 171/201
 ├── nova_pull_exercism_corpus.py # Vendors 30 real, difficulty-stratified Exercism Python exercises (MIT-licensed, pinned commit) into data/coding_specialist_eval/exercism_subset/ — the coding specialist's execution-groundable eval corpus (86bbch988/86bbch95y)
 ├── nova_coding_aci.py      # The coding specialist's constrained action-space interface (86bbch95y) — find_file/search_file/search_dir/view/edit/collapse_history, format-agnostic edit() taking (start_line, end_line, new_content) regardless of what text format produced them
@@ -243,13 +244,15 @@ any new resource-heavy Omen service (a VM, a bigger model, a new always-on daemo
 RAM until this improves — re-run `nova_omen_capacity.py` rather than trusting this note's number
 as it ages further. GPU driver installed 2026-08-11, not yet folded into a fresh audit run.
 
-**Planned downtime window (2026-09-20, not yet live):** a separate `nova-infra` repo
-(Forgejo `marvinbell/nova-infra`, private) holds systemd timers that will stop
-`nova-chroma`/`nova-api`/`nova-openwebui` ~3AM–12PM ET daily to free RAM for a
+**Downtime window — LIVE as of 2026-10-03 (verified):** a separate `nova-infra` repo
+(Forgejo `marvinbell/nova-infra`, private) holds systemd timers that stop
+`nova-chroma`/`nova-api`/`nova-openwebui` ~2:45AM–12:05PM ET daily to free RAM for a
 futures-trading VM sharing this box — the interim fix for the constraint above.
-Timers are installed but deliberately **not enabled** pending on-box verification
-(see that repo's own README/CLAUDE.md). Check `systemctl is-enabled nova-pause.timer`
-on the Omen before assuming Nova's uptime story has actually changed.
+`nova-pause.timer`, `nova-resume.timer` and `nova-preflight.timer` are all enabled and
+have fired (pause 06:45 UTC, resume 16:05 UTC, preflight 06:58 UTC). Anything that needs
+Chroma or the Omen's `nova-api` (including any script importing `nova_query`) will fail
+inside that window — schedule around it. Re-check `systemctl list-timers | grep nova` on
+the Omen if the window may have changed.
 
 ### Nova Coding Sub-Agent (nova_orchestrator.py)
 Nova can now write to its own codebase — the one sanctioned exception to a human
