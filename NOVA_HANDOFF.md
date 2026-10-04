@@ -26,14 +26,24 @@ most likely cause of the fix is `928e4d9` (`detect_blending()` false-positive fi
 hours *after* that commit, unexplained, and no runs exist between 08-08 and 10-03.
 4 clean runs today make a nondeterministic return unlikely but not impossible.
 
-**Uncommitted, still sitting (not mine to commit unprompted):** `nova_config.json`,
-`nova_config.py`, `nova_query.py` — the experimental `multi_character_retrieval`
-flag (default off): `_find_all_named_character_files()`,
-`_retrieve_per_named_character()`, `MULTI_CHARACTER_CHUNKS_PER_FILE = 2`, gated in
-`ask()`. Not yet reviewed with Marvin; no tests run against it with the flag on.
+**Committed + pushed + Omen-synced at Marvin's go-ahead (2026-10-04, `e418ca6`):**
+the experimental `multi_character_retrieval` flag (default off) in
+`nova_config.json`, `nova_config.py`, `nova_query.py` —
+`_find_all_named_character_files()`, `_retrieve_per_named_character()`,
+`MULTI_CHARACTER_CHUNKS_PER_FILE = 2`, gated in `ask()`. Pushed to `forgejo` then
+`origin`. **Never reviewed with Marvin and never tested with the flag on** — it was
+committed because he said to push, not because it was validated.
 
-**Next pick-up (Marvin's call):** (a) review + decide on committing the
-`multi_character_retrieval` changes, or (b) start Experiment 2 below.
+**Omen sync race (not fixed):** `nova_omen_sync.py` reported "FAILED at verify" after
+this push — `nova-api` started while `nova-chroma` was still restarting, crashed at
+import (`graph_builder.py` can't reach Chroma), and systemd auto-restarted it. It
+was listening on :8001 within ~2 minutes and `/headroom` returned a real payload.
+The sync script treats this recoverable race as a failure; consider a retry/wait in
+its verify step.
+
+**Next pick-up (Marvin's call):** (a) review/test the `multi_character_retrieval`
+path with the flag on, (b) make `nova_omen_sync.py`'s verify tolerate the restart
+race, or (c) start Experiment 2 below.
 
 **Experiment 1 — DECIDED (2026-09-28, Marvin): keep `goal_reanchor` default-ON.**
 Cumulative ablation n=240/condition: baseline 18/240 (7.5%) vs -goal_reanchor
@@ -125,4 +135,6 @@ and delete them — don't let this grow unbounded.
   Anthropic calls (local Ollama only); ran it 4x, all clean, blend rate 0.0%
   each time. Traced old 0.333 blend rate to the generic "tell me a story" query
   (likely fixed by `928e4d9`; one post-fix 08-08 run unexplained). Uncommitted
-  `multi_character_retrieval` work still pending review. Paused for the day.
+  `multi_character_retrieval` work committed+pushed (`e418ca6`) on Marvin's
+  go-ahead, untested with the flag on; Omen synced (verify falsely failed on a
+  nova-api/Chroma restart race, recovered on its own). Paused for the day.
