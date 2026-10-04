@@ -23,6 +23,7 @@ from nova_router import CODING_AGENT_PREFIX, route
 # ── Config ─────────────────────────────────────────────────────
 OLLAMA_MODEL = "llama3.2"
 NUM_CTX = 8192  # set based on nova_benchmark.py results
+MULTI_CHARACTER_CHUNKS_PER_FILE = 2  # chunks per named character when multi_character_retrieval is on
 PROFILE_PATH = "C:/Users/marvi/OneDrive/Documents/Second Brain/marvin_profile.md"
 CHROMA_HOST = "100.114.197.117"  # Chroma's Tailscale IP -- reachable regardless of which
 # network the calling machine is actually on (unlike the Omen's LAN IP, 192.168.1.250,
@@ -106,6 +107,24 @@ def _find_named_character_file(query: str) -> str | None:
     return None if best is None else best[2]
 
 
+def _find_all_named_character_files(query: str) -> list[str]:
+    """
+    Every character file the query names, ordered by where each name first
+    appears and de-duplicated (two names can share a file). Same word-boundary
+    matching as _find_named_character_file(). Used only by the experimental
+    multi_character_retrieval path.
+    """
+    q_lower = query.lower()
+    positions = {}  # filename -> earliest position in the query
+    for name, filename in CHARACTER_FILES.items():
+        match = re.search(rf"\b{re.escape(name)}\b", q_lower)
+        if not match:
+            continue
+        if filename not in positions or match.start() < positions[filename]:
+            positions[filename] = match.start()
+    return sorted(positions, key=positions.get)
+
+
 # ── Profile ────────────────────────────────────────────────────
 def load_profile() -> str:
     """Always load marvin_profile.md as pinned context."""
@@ -151,6 +170,21 @@ def retrieve(query: str, n_results: int = 5, where: dict = None) -> list[dict]:
                 "distance": results["distances"][0][i],
             }
         )
+    return chunks
+
+
+def _retrieve_per_named_character(query: str, filenames: list[str]) -> list[dict]:
+    """
+    Retrieve a few chunks from each named character's file under its own hard
+    $eq filter and concatenate them, in the order the characters appear in the
+    query. Gives a two-character question (e.g. "Aseir's relationship with
+    Luci") context about both characters rather than only one. A file that
+    returns nothing is skipped. Used only by the experimental
+    multi_character_retrieval path.
+    """
+    chunks = []
+    for filename in filenames:
+        chunks += retrieve(query, n_results=MULTI_CHARACTER_CHUNKS_PER_FILE, where={"filename": {"$eq": filename}})
     return chunks
 
 
@@ -324,10 +358,20 @@ def ask(
         # Word-boundary match avoids "null" incorrectly matching inside "nullius".
         named_file = _find_named_character_file(query)
         char_filter = {"filename": {"$eq": named_file}} if named_file else None
-        character_filtered = char_filter is not None
+        # Experimental (multi_character_retrieval, default off): a query naming 2+
+        # characters retrieves each one's file separately instead of only the
+        # first-named one's. That multi-file result is deliberate, so it is not
+        # passed to detect_blending() as a contamination signal.
+        named_files = _find_all_named_character_files(query)
+        multi_character = is_framework_integration_enabled("multi_character_retrieval") and len(named_files) >= 2
+        character_filtered = char_filter is not None and not multi_character
         # Use graph-scoped retrieval; char_filter is merged inside retrieve_with_graph.
         # A hard character filter ($eq) overrides budget scoping for precision.
-        if char_filter:
+        if multi_character:
+            chunks = _retrieve_per_named_character(retrieval_query, named_files)
+            if not chunks:
+                chunks = retrieve(retrieval_query, n_results=n_results)
+        elif char_filter:
             chunks = retrieve(retrieval_query, n_results=n_results, where=char_filter)
             if not chunks:
                 chunks = retrieve(retrieval_query, n_results=n_results)

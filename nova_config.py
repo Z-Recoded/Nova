@@ -63,6 +63,7 @@ DEFAULT_CONFIG = {
         "coding_review_pass": False,
         "langfuse_tracing": False,
         "laminar_tracing": False,
+        "multi_character_retrieval": False,
     },
     "model_routing": {
         "enabled": False,
