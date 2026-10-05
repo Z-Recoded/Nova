@@ -41,6 +41,20 @@ was listening on :8001 within ~2 minutes and `/headroom` returned a real payload
 The sync script treats this recoverable race as a failure; consider a retry/wait in
 its verify step.
 
+**Decision-model (Jev-style) evaluation, 2026-10-04 — closed as negative/inconclusive,
+no active work.** Marvin pasted two videos about TypeSafe's Jev (single-pass
+Boolean/Choice/Score model with confidence). Found it is REAL (Vercel changelog
+2026-09-16, `typesafe-ai/jev`; a stale memory had called it satire — corrected in
+`project_logprob_classifier_system1_watch.md`). Hosted price ~$0.042/M input tokens
+(secondary sources, unverified); not a cost problem, a privacy/dependency one. Ran a
+free local test: Fastino's open GLiNER2.5-Decide vs. the Claude blend judge on the 54
+`training_flags.jsonl` rows + 54 easy controls. Best variant (yes/no with label
+descriptions) flagged 76% of blends but also 26% of controls; confidence did not
+separate hits from misses; a confident "no" can't safely skip the Claude judge. Fails
+the 90% recall bar — NOT a replacement. Scratch venv/weights deleted, nothing added to
+the repo, no Anthropic spend. A fairer test would need fine-tuning on the 1,500 judge
+verdicts + regenerated answers + hard negatives — not started, no clear payoff.
+
 **Next pick-up (Marvin's call):** (a) review/test the `multi_character_retrieval`
 path with the flag on, (b) make `nova_omen_sync.py`'s verify tolerate the restart
 race, or (c) start Experiment 2 below.
@@ -137,4 +151,7 @@ and delete them — don't let this grow unbounded.
   (likely fixed by `928e4d9`; one post-fix 08-08 run unexplained). Uncommitted
   `multi_character_retrieval` work committed+pushed (`e418ca6`) on Marvin's
   go-ahead, untested with the flag on; Omen synced (verify falsely failed on a
-  nova-api/Chroma restart race, recovered on its own). Paused for the day.
+  nova-api/Chroma restart race, recovered on its own). Then evaluated Jev-style
+  decision models: confirmed Jev is real (corrected a stale "satire" memory), ran a
+  free local GLiNER2.5-Decide test vs. the Claude blend judge — negative/inconclusive,
+  scratch files deleted, memory updated. Paused for the day.
