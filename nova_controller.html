@@ -731,6 +731,7 @@
 
   <h2 class="section-heading">Feed</h2>
   <p class="empty" id="trade-notice" style="display:none"></p>
+  <p class="empty" id="feed-diag" style="font-size:0.75rem"></p>
   <div class="feed-filter-bar" id="feed-filter-bar">
     <div class="filter-chips" id="filter-chips">
       <button class="filter-chip" data-kind="all">All</button>
@@ -761,6 +762,31 @@
 
   <script>
     const TOKEN_KEY = 'nova_escalation_token';
+
+    // One-line Feed status, so "I see no cards" can be diagnosed from a phone
+    // without DevTools: what the page loaded, how many cards it drew, how
+    // many trade proposals reached it, and the last JavaScript error if any.
+    const feedDiag = { loaded: null, shown: null, trades: null, error: '' };
+
+    function updateFeedDiag() {
+      const el = document.getElementById('feed-diag');
+      if (!el) return;
+      const parts = [];
+      if (feedDiag.loaded !== null) parts.push(`feed: ${feedDiag.loaded} loaded`);
+      if (feedDiag.shown !== null) parts.push(`${feedDiag.shown} drawn`);
+      if (feedDiag.trades !== null) parts.push(`${feedDiag.trades} trade proposals`);
+      if (feedDiag.error) parts.push(`last error: ${feedDiag.error}`);
+      el.textContent = parts.join(' · ');
+    }
+
+    window.addEventListener('error', ev => {
+      feedDiag.error = `${ev.message} (line ${ev.lineno})`;
+      updateFeedDiag();
+    });
+    window.addEventListener('unhandledrejection', ev => {
+      feedDiag.error = `${(ev.reason && ev.reason.message) || ev.reason}`;
+      updateFeedDiag();
+    });
 
     function getToken() {
       return localStorage.getItem(TOKEN_KEY) || '';
@@ -2188,6 +2214,9 @@
 
     function renderFeedEntries() {
       const container = document.getElementById('feed');
+      feedDiag.loaded = lastAllEntries.length;
+      feedDiag.shown = 0;
+      updateFeedDiag();
       if (!lastAllEntries.length) {
         container.innerHTML = '<p class="empty">Nothing in the feed yet.</p>';
         return;
@@ -2216,6 +2245,8 @@
         else el = renderLabelCard(entry);
         container.appendChild(el);
       });
+      feedDiag.shown = container.children.length;
+      updateFeedDiag();
     }
 
     document.querySelectorAll('.filter-chip[data-kind]').forEach(btn => {
@@ -2295,6 +2326,7 @@
       });
 
       lastAllEntries = all;
+      feedDiag.trades = tradeProposals.length;
       renderFeedEntries();
     }
 
