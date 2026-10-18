@@ -145,6 +145,90 @@ position. A theoretical and literature-review argument, not an experiment.
   unassisted struggle for the pretest group), so the failed attempt itself is not isolated. One
   course, one topic. 12 of 73 recruits excluded, split by group not reported.
 
+## Repetition, rereading and testing (added 2026-10-13)
+
+Added in a later pass than the sections above. Same rule: numbers below were read from the full text
+of the three papers named, on 2026-10-13. Anything second-hand is labeled. Full PDFs were downloaded
+to a session scratch folder, not to `nova-tutor-papers\`.
+
+Question that prompted it: what does research say about repeated reading or writing as a controlled
+supplement to retrieval practice, and does everyday repeated exposure (radio, social topics) contradict
+"rereading is weak"? Short answer from these papers: repetition helps, but the *kind* matters, and
+testing beats restudy at delay. Everyday exposure is a different outcome (familiarity), not a counterexample.
+
+### Roediger & Karpicke (2006), file not in `nova-tutor-papers\` (read from a copy)
+*Test-enhanced learning.* Psychological Science 17(3). Two experiments, Washington University
+undergraduates (n = 120 and 180), short prose passages (256 and 275 words, scored in 30 idea units),
+free recall **without feedback**.
+
+- Exp 1: restudy beat testing at 5 min (81% vs 75%, d = 0.52). The pattern reversed at delay:
+  2 days 68% tested vs 54% restudied (d = 0.95); 1 week 56% vs 42% (d = 0.83).
+- Exp 2 (1 week): repeated testing 61%, one test after three study periods 56%, repeated study 40%.
+  At 5 min the order was reversed (83%, 78%, 71% for SSSS, SSST, STTT).
+- Repeated-study participants read the passage about 14.2 times vs 3.4 for the repeated-test group,
+  yet recalled less after a week. Forgetting over one week: 52% (SSSS), 28% (SSST), 14% (STTT).
+- Confidence was inverted: the repeated-study group predicted they would remember best (4.8 vs 4.2 and
+  4.0 on a 7-point scale; the paper tests only some of these pairs).
+- Limits: prose passages and free recall only, one retention test per participant, undergraduates, no
+  feedback condition (the authors say feedback may add more). The authors also say boundary conditions
+  are unknown and suspect testing works best when it occurs soon after learning at fairly high accuracy.
+- The mechanism is the authors' interpretation (transfer-appropriate processing, elaboration, retrieval
+  routes), not tested here.
+
+### Greving & Richter (2019), file `fpsyg-09-02517.pdf` (Frontiers in Psychology 9:2517, preregistered)
+*Distributed rereading in the classroom.* 191 seventh-graders, one 977-word biology text, a re-read
+either immediately (massed) or after 1 week (distributed), tested at 5 min or 1 week after rereading.
+
+- Short interval: massed rereading beat distributed (recall 3.86 vs 2.56 ideas, p = .004;
+  comprehension probability .47 vs .35, p = .031).
+- Long interval: no reliable difference (recall 1.79 massed vs 2.34 distributed, p = .297;
+  comprehension .26 vs .30). **The expected delayed benefit of distributed rereading did not appear.**
+- What differed was forgetting: massed fell from 3.86 to 1.79 ideas; distributed showed no significant
+  drop (2.56 to 2.34).
+- Distributed readers spent longer on the second reading (about 59 vs 21 ms per letter), judged their
+  learning as likely lower (2.71 vs 3.04 of 5), and low-prior-knowledge students did worse on short-answer
+  questions in the distributed condition (probabilities .10 vs .18). A prior-knowledge interaction found
+  in one item type only.
+- Limits: one text, two intervals, directed hypotheses tested one-tailed, lag was as long as the test
+  interval (the authors say a shorter lag relative to the test delay might fit better), school students in
+  Germany, no retrieval condition.
+- Citing earlier work, the paper states (second-hand, not checked) that immediate rereading usually
+  gives at best marginal gain over one reading (Callender & McDaniel 2009), and that in Rawson & Kintsch
+  (2005) the distributed advantage appeared only at a delayed test with undergraduates.
+
+### Henderson, Westwood & Simons (2021), PMC9166874 (Psychon Bull Rev 29:1065)
+*A reproducible systematic map of the illusory truth effect.* A map of the literature, not a meta-analysis.
+
+- 93 reports, 181 studies. Most used trivia statements (75%), verbatim repetition (82%), a single exposure
+  (85% of studies presented stimuli once), and a test in the same session as exposure. Almost no studies
+  with long delays or many repetitions; all but 12 test stages were within a month of exposure.
+- 96% of the 129 studies reporting an overall test found a significant effect. The authors read this as a
+  likely sign of publication bias. 77% gave no sample-size justification. They concluded a valid
+  meta-analysis of the full literature was not possible from the reported statistics.
+- Second-hand figure quoted there: Dechêne et al. (2010) found d = .39 (within-items) and .50
+  (between-items) across 51 studies, but about 45% of those studies had imputed standard deviations, so
+  treat as rough.
+- The effect measures **judged truth**, not memory accuracy or recall.
+
+### What this supports (tentatively)
+
+- Restudy and reading look better than testing right away and worse later (Roediger & Karpicke). This
+  matches students' tendency to prefer rereading because it feels more effective.
+- Spaced rereading is not a guaranteed win for school-age learners with a single text (Greving & Richter).
+- Repeated exposure raising familiarity or belief is well documented for judged truth, but the evidence
+  base is thin on long delays and many repetitions (Henderson et al.). It is not evidence that exposure
+  alone builds accurate recall.
+
+### Hypotheses for Marvin (not decisions)
+
+1. Treat reread/rewrite as a post-attempt feedback step on missed items, not a standalone study block
+   (consistent with the feedback-follows-attempt pattern above; none of these three papers tests that
+   directly).
+2. Rereading that is spaced is plausible as a supplement but this evidence is mixed. A within-person
+   check on retests (reread vs no-reread items, delayed unassisted test) would be better than assuming.
+3. Because repetition can raise familiarity and belief, a repeated *wrong* answer or claim may feel more
+   correct. Another reason feedback has to follow attempts.
+
 ## Candidate implications (hypotheses only)
 
 Mapped to the phases in the 7-phase Learning Layer design. Phase 2 (SM-2/FSRS scheduler, freeform
@@ -177,6 +261,13 @@ answer eval, ClickUp `86bawnkc6`) is the nearest.
 - Ashman, Kalyuga & Sweller (2020), problem-solving vs explicit instruction under high element
   interactivity. Known only through Sinha & Kapur's citation.
 - Hmelo-Silver et al. (2007), response to Kirschner et al. Abstract only.
+- Searched 2026-10-13 but full text not obtained (paywalled). Only abstracts or secondary summaries seen,
+  so **no figures from these are included above**: Callender & McDaniel (2009) on rereading; Rawson &
+  Kintsch (2005) on rereading timing; Karpicke & Blunt (2011, Science) retrieval vs concept mapping;
+  Graham, Kiuhara & MacKay (2020, Rev Educ Res) writing-to-learn meta-analysis (a search summary gave an
+  overall effect of 0.30 across 56 experiments, Grades 1-12, unverified); Dechêne et al. (2010) and
+  Bornstein (1989) on repetition and truth or liking; Hasher & Zacks (1984) on frequency tracking.
+  Dunlosky et al. (2013) and Mueller & Oppenheimer (2014) were cited from memory in conversation only.
 
 ## Open questions for Marvin (from the 2026-09-27 discussion prep)
 

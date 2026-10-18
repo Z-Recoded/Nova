@@ -107,6 +107,7 @@ C:/Nova/
 ├── nova_controller.html    # Nova Controller Feed — served at /controller, PWA-installable (86baxahn7, supersedes nova_escalations.html)
 ├── manifest.json, sw.js, icon-192.png, icon-512.png  # PWA manifest/service worker/icons for nova_controller.html
 ├── nova_notify.py          # Thin ntfy.sh push-notification wrapper — Layer 3 of 86baykvb7's deferred real-push design (86bb3ceyp)
+├── nova_trade_proposals.py # Kalshi agent's trade-approval channel (86bcm93r8) — APIRouter included by nova_api.py; own state key system/pending_trade_proposals, two-token auth split, server-side expiry, trade_proposals.enabled flag. Verified by scripts/verify_trade_proposals.py (temp DB, pinned clock)
 ├── nova_headless_approval_hook.py # Claude Code PreToolUse hook — headless-lane pre-action approval gate, wired via .claude/settings.json (86bb3r0h4)
 ├── nova_omen_sync.py       # One-command sync for the Omen's main checkout — git pull, restart nova-api/nova-chroma, verify listening
 ├── nova_task_queue.py      # Readiness detection + task resolution for headless dispatch (86bax0exx steps 1-2)
@@ -386,6 +387,30 @@ Fails closed (denied) after `timeout_seconds` (default 300). Marvin decides via 
   unauthenticated `POST /tool-approvals` against the Omen's `nova-api` over Tailscale IP.
   Records tagged `lane: "interactive"|"headless"`.
 
+### Trade Proposals — Kalshi Approval Channel (86bcm93r8, 2026-10-18) — live, flag on
+The separate Kalshi trading agent (`kta`, repo `C:\kalshi`, `kalshi-agent` account on the Omen) registers a
+proposed trade over HTTP, Marvin approves/denies on the Controller, kta polls and orders ONLY on
+`approved`. Only HTTP crosses the repo boundary. Logic is in `nova_trade_proposals.py` (an `APIRouter`,
+so it is testable without `nova_api.py`'s import-time Chroma connection). Records live in their own key
+`system/pending_trade_proposals`, never mixed with `pending_tool_approvals`. **Two tokens, deliberately
+different:** `X-Nova-Trade-Token` / `NOVA_TRADE_TOKEN` (kta: register, read its own proposal by id, report
+timeout; cannot decide or list) and the existing `X-Nova-Escalation-Token` (Marvin's devices only: decide,
+list). Both fail closed. kta picks its own `proposal_id` (idempotent register; same id + different body =
+409). Expiry is server-side on the read path and again inside decide, on the server's clock only (late tap
+→ 409, reads `timed_out`); the list view adds `expires_in_seconds` because stored timestamps are naive
+server time. Writes serialized by a lock (assumes one nova-api worker). Pushes carry ticker/side/price/size
+only (ntfy.sh is a public relay). Controller card: explicit two-step Approve (confirm shows dollar amount),
+one-tap Deny, no swipe/undo. Flag `trade_proposals.enabled` in `nova_config.json`; while off every route
+503s. Run `scripts/verify_trade_proposals.py` after any change. Live end-to-end test with kta's no-order
+mode passed (Marvin, 2026-10-18); see `NOVA_HANDOFF.md`.
+
+**Controller Feed loading (2026-10-18):** the Feed no longer `Promise.all`s six routes. Each source loads
+and draws independently, applying a response unless a NEWER one already landed. The old all-or-nothing
+load plus a discard-if-superseded guard never drew a card for a client whose slowest route exceeded the 8s
+poll. Pending cards draw first; resolved ones sit behind "Show resolved", and the 139KB tier history loads
+only then (`GET /tier-proposals?pending_only=true` serves the live view). A grey diagnostic line under
+"Feed" shows loaded/drawn/trade counts and the last JS error — leave it, it is how a phone is debugged.
+
 ### Training-Data Accumulation Oversight (86bax4akx, 2026-07-21)
 `GET /training-data-status` — live DPO pair count/coverage from `logs/training_flags.jsonl`
 against `MIN_REAL_PAIRS_FOR_FINETUNE = 100`. `dpo_verify` label kind on `/label-queue`.
@@ -635,7 +660,7 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | /label-queue | GET | ✓ Working | Unlabeled tool-call/blend-flag/dpo-verify entries awaiting a judge-pass — each kind capped at `limit` independently before merging (86bax4akx fix) |
 | /label-queue/{kind}/{id}/decide | POST | ✓ Working | Patch a label decision — token-gated (X-Nova-Escalation-Token) |
 | /training-data-status | GET | ✓ Working | Live DPO pair count, category coverage, verification status vs. the fine-tune floor (86bax4akx) |
-| /tier-proposals | POST/GET | ✓ Working | Register/list pending autonomy-tier proposals (86bb01wur) |
+| /tier-proposals | POST/GET | ✓ Working | Register/list pending autonomy-tier proposals (86bb01wur). GET takes `?pending_only=true` (2026-10-18) — the full history is ~139KB |
 | /tier-proposals/{id}/decide | POST | ✓ Working | Accept/override a tier proposal — token-gated |
 | /tier-watermarks | GET/POST | ✓ Working | {task_id: last_seen date_updated} for tier-proposal creation/rescope detection |
 | /dispatch-abort | POST | ✓ Working | Kill the currently-running cron-fired dispatch — token-gated. docker kill for sandboxed, direct SIGTERM/SIGKILL against the real captured PID for bare-SSH; worktree left in place for review (86bb3ceyj) |
@@ -645,6 +670,11 @@ Chroma's server took 8000 first on that box (see "HP Omen Headless Server" in Se
 | /tool-approvals | GET | ✓ Working | Pending/decided tool-call approvals from the pre-action approval gate, both lanes (lane: "interactive"/"headless") — not token-gated (read-only) (86bb3ceym / 86bb3r0h4) |
 | /tool-approvals/{id}/decide | POST | ✓ Working | Approve or deny a pending tool-call approval — token-gated. No background task; the originating lane's own poll loop picks up the decision |
 | /tool-approvals/{id}/timeout | POST | ✓ Working | Self-reported timeout from nova_headless_approval_hook.py's poll loop — not token-gated (not a human decision); no-ops if already decided (86bb3r0h4) |
+| /trade-proposals | POST | ✓ Working | Register a Kalshi trade proposal — `X-Nova-Trade-Token`; idempotent on kta-chosen `proposal_id`; 503 while `trade_proposals.enabled` is off (86bcm93r8) |
+| /trade-proposals | GET | ✓ Working | All proposals, expiry applied, plus `expires_in_seconds` on pending — Controller token (`X-Nova-Escalation-Token`) only |
+| /trade-proposals/{id} | GET | ✓ Working | One proposal, expiry applied — trade token OR Controller token; what kta polls |
+| /trade-proposals/{id}/decide | POST | ✓ Working | Approve/deny — Controller token only; 409 if already decided or expired |
+| /trade-proposals/{id}/timeout | POST | ✓ Working | kta-reported timeout — trade token; no-ops if already decided |
 | /observability | GET | ✓ Working | Observability trend dashboard page (HTML) — failure frequency over time, per-model comparison, uncertainty vs. outcome (86bb7pb20) |
 | /observability/failure-frequency | GET | ✓ Working | Real A1-G2 registry-code fires by date, from local JSONL (guard_events_log.jsonl + ground_truth_gate_log.jsonl) |
 | /observability/per-model | GET | ✓ Working | Per-model run count, gate pass rate, registry-code fires, outcome-bucket counts — local JSONL joined to agent_log.jsonl's model field via branch |
@@ -772,6 +802,7 @@ in `NOVA_BUILD_LOG.md` — this table is a terse date-ordered index, not the sou
 | 2026-09-02 | Eval Harness Initiative 2 COMPLETE — held-out generalization pass on `check_ground_truth_completion()`: zero false hard-fails on 4 OOD tasks, `nonzero_diff` caught a real held-out false-success; `run_via_claude()` extracted, `nova_eval_held_out_report.py`; fixed `_check_deliverables_present()` multi-line-signature false-positive; cleaned 49 stale eval worktrees |
 | 2026-09-04 | Closed the `lint_clean` open question structurally — `_check_lint_clean()` now subtracts the `base_ref` version's pre-existing ruff violations, reports only genuinely-new ones |
 | 2026-09-05 | Board hygiene (3 stale in-progress reset); budget-gate placeholder `86bbvc3wr` blocking `86bbnbq0q`/`86bbaph6w`/`86baf4e70`; automated `nova_synthetic_task_gen.py` (daily Task Scheduler cron, `run_synthetic_task_gen_scheduled.ps1`); fixed OEM-codepage mojibake in both scheduled-wrapper scripts |
+| 2026-10-18 | Trade-proposal approval channel for the Kalshi agent (`86bcm93r8`, `nova_trade_proposals.py`, flag on) + Controller trade card; Controller Feed rebuilt for progressive loading (fixed a phone that never drew a card), resolved cards collapsed, `/tier-proposals?pending_only=true` |
 
 ---
 

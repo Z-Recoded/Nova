@@ -10,80 +10,60 @@ those two are generated/append-focused, this one is a small, rewritten-in-place
 sync point between a Chat planning session and a Code implementation session.
 
 ## Current State
-*(last updated: Code · 2026-10-04)*
+*(last updated: Code · 2026-10-18)*
 
-**Paused here (2026-10-04) — golden-benchmark blend-rate check, essentially closed.**
-Marvin asked whether `nova_benchmark.py --golden` costs Anthropic spend (funds are
-low). Answer from the code: no — it only uses local Ollama (`llama3.2`) + Chroma, no
-Claude calls; the one unchecked edge is whether any golden query carries
-`CODING_AGENT_PREFIX` (none of the 8 query texts look like one). Ran it 4 times
-today: all passed, 0 routing mismatches, **fiction blend rate 0.0% every time**,
-avg latency 1781-3198ms (history median 3198ms, so normal). The earlier 0.333 blend
-rate (07-27 to 08-08 runs) was always the single query "tell me a story" (no named
-character). Neither `6b732d2` nor the uncommitted changes can affect that query;
-most likely cause of the fix is `928e4d9` (`detect_blending()` false-positive fix,
-2026-08-08). **One loose end:** a run at 2026-08-08 20:20 still showed 0.333 eight
-hours *after* that commit, unexplained, and no runs exist between 08-08 and 10-03.
-4 clean runs today make a nondeterministic return unlikely but not impossible.
+**Trade-proposal approval channel for the Kalshi agent — LIVE (2026-10-18, `86bcm93r8`).**
+`nova_trade_proposals.py` (an `APIRouter` included by `nova_api.py`), flag
+`trade_proposals.enabled` is ON on the Omen. Commits `0dd358d`, `5b228ae`, `092464f`,
+`9c44e10`, `33b5085`, all pushed to `forgejo` + `origin` and synced to the Omen. Two tokens on
+purpose: `NOVA_TRADE_TOKEN` (kta's; register / read own / timeout) vs. the Controller's
+`NOVA_ESCALATION_TOKEN` (decide / list). Marvin generated the trade token himself and copied it
+into the Omen's Nova `.env` and the `kalshi-agent` `.env` (`/home/kalshi-agent/kalshi/.env`,
+`TRADE_PROPOSAL_TOKEN`); it never appeared in a transcript. Contract, shapes, and statuses
+(`pending`/`approved`/`denied`/`timed_out`) are in CLAUDE.md "Trade Proposals" and were sent to
+kalshi-agent by message. `scripts/verify_trade_proposals.py` is the regression check — run it after
+any change to that module.
 
-**Committed + pushed + Omen-synced at Marvin's go-ahead (2026-10-04, `e418ca6`):**
-the experimental `multi_character_retrieval` flag (default off) in
-`nova_config.json`, `nova_config.py`, `nova_query.py` —
-`_find_all_named_character_files()`, `_retrieve_per_named_character()`,
-`MULTI_CHARACTER_CHUNKS_PER_FILE = 2`, gated in `ask()`. Pushed to `forgejo` then
-`origin`. **Never reviewed with Marvin and never tested with the flag on** — it was
-committed because he said to push, not because it was validated.
+**Live test status: PASSED (Marvin, 2026-10-18).** kta built a separate no-order test mode (`python -m kta.propose_test_trade
+--no-order --ttl-seconds 300`, never reaches an order call). Two earlier runs registered fine but
+Marvin saw no card; cause was the Controller Feed (below), not the data. After the fix Marvin
+confirmed the cards show on both devices, and **reported the live test succeeded** (Approve path
+end to end with kta). Which extra variants (Deny, no-tap timeout) were also run was not specified.
+The channel is done; remaining work is on the kta side (real orders stay gated by its own flow).
 
-**Omen sync race (not fixed):** `nova_omen_sync.py` reported "FAILED at verify" after
-this push — `nova-api` started while `nova-chroma` was still restarting, crashed at
-import (`graph_builder.py` can't reach Chroma), and systemd auto-restarted it. It
-was listening on :8001 within ~2 minutes and `/headroom` returned a real payload.
-The sync script treats this recoverable race as a failure; consider a retry/wait in
-its verify step.
+**Controller Feed rebuilt (same day).** Root cause of "no cards on the phone": a six-route
+`Promise.all` plus a discard-if-superseded guard starved any client whose slowest route exceeded the
+8s poll. Now each source loads/draws independently, pending cards first, resolved ones behind "Show
+resolved", the 139KB tier history only on demand (`GET /tier-proposals?pending_only=true`). Also fixed:
+trade-card countdown was off by hours (naive server timestamps vs. browser timezone) — the list view now
+sends `expires_in_seconds`. A grey diagnostic line under "Feed" (loaded/drawn/trade count/last JS
+error) was added and should stay.
 
-**Decision-model (Jev-style) evaluation, 2026-10-04 — closed as negative/inconclusive,
-no active work.** Marvin pasted two videos about TypeSafe's Jev (single-pass
-Boolean/Choice/Score model with confidence). Found it is REAL (Vercel changelog
-2026-09-16, `typesafe-ai/jev`; a stale memory had called it satire — corrected in
-`project_logprob_classifier_system1_watch.md`). Hosted price ~$0.042/M input tokens
-(secondary sources, unverified); not a cost problem, a privacy/dependency one. Ran a
-free local test: Fastino's open GLiNER2.5-Decide vs. the Claude blend judge on the 54
-`training_flags.jsonl` rows + 54 easy controls. Best variant (yes/no with label
-descriptions) flagged 76% of blends but also 26% of controls; confidence did not
-separate hits from misses; a confident "no" can't safely skip the Claude judge. Fails
-the 90% recall bar — NOT a replacement. Scratch venv/weights deleted, nothing added to
-the repo, no Anthropic spend. A fairer test would need fine-tuning on the 1,500 judge
-verdicts + regenerated answers + hard negatives — not started, no clear payoff.
+**Open items from this work (none blocking):**
+- `nova_omen_sync.py` crashed once with `TimeoutExpired` (30s limit; `nova-chroma` took ~37s to stop).
+  Services recovered by themselves; later syncs were clean. Still wants a longer timeout + retry in its
+  verify/restart step (same family as the 2026-10-04 startup race).
+- Unauthenticated callers can learn the trade route's field names (FastAPI validates the body before the
+  token check). Minor; fix only if Marvin wants it.
+- Omen downtime window (~2:45AM-12:05PM ET) means no approvals then; kta's Stage-1 weather class will
+  trade overnight. Needs a plan before that class ships (kta side knows).
+- On the Omen the state DB is at `~/nova/C:/Nova/nova_state.db` (hardcoded Windows `DB_PATH`) —
+  pre-existing, works.
+- The classifier (auto mode) blocked some edits/commits mid-session; Marvin added a permission rule for
+  git add/commit/push and `Edit(nova_config.json)`. Don't assume it is global.
 
-**Next pick-up (Marvin's call):** (a) review/test the `multi_character_retrieval`
-path with the flag on, (b) make `nova_omen_sync.py`'s verify tolerate the restart
-race, or (c) start Experiment 2 below.
+**Uncommitted at wrap-up:** none of this session's docs (committed + pushed at Marvin's go-ahead,
+along with `docs/tutor-learning-science-evidence.md`, 91 lines added before this session and never
+reviewed here). Marvin's `screenshots/` changes were left alone.
+`graphify-out/` also churned from `graphify update` — leave it out of commits unless Marvin wants it.
 
-**Experiment 1 — DECIDED (2026-09-28, Marvin): keep `goal_reanchor` default-ON.**
-Cumulative ablation n=240/condition: baseline 18/240 (7.5%) vs -goal_reanchor
-11/240 (4.6%); efficiency signal reversed between batches, Marvin kept it ON anyway
-since pass rate favored it both times. Detail: `project_goal_reanchor_ablation_result_1.md`.
-Lesson kept: `ollama ps`'s "until" countdown can't be trusted — verify unload via free
-RAM or `ollama stop`.
+**Earlier state, still true (unchanged by this session):** the 2026-10-04 `multi_character_retrieval`
+flag (default off) was never reviewed or tested with the flag on; Experiments 2 (planner/executor split)
+and 3 (pinned `collapse_history()`) are scoped, not started; the Omen's nova-infra downtime window is live.
 
-**Still just scoped (not started) — Experiment 2, planner/executor split-brain:**
-Separate "which atomic action next" from "produce this action's exact params" into
-two role-scoped Ollama calls inside `nova_aci_harness.py`'s turn loop (~1140-1260),
-same model both roles first (`qwen2.5-coder:7b` x2). Add a `handoff_mismatch` counter
-beside `guard_fires`. Eval on slugs with a real nonzero baseline (`raindrops`,
-`scrabble-score`, `two-fer`, `binary`, `ledger`). Warning from
-`project_squad_pilot_result_1.md`: injecting a second model's output into a small
-model's context can act as noise.
-
-**Also scoped, not started — Experiment 3, pinned context in `collapse_history()`:**
-`nova_coding_aci.collapse_history()` is recency-only (`HISTORY_KEEP_RECENT = 8`).
-Test last 8 plus pinned items (latest successful `view` per edited file, last
-rejected edit + error). Open check first: can `GUARD_GOAL_REANCHOR`'s note get
-collapsed away? Detail: `project_aci_context_selection_experiment_3.md`. Goes after #2.
-
-**Reminder, 2026-10-03:** the Omen's nova-infra downtime window (~2:45AM-12:05PM ET)
-is live; anything needing Chroma/`nova_query` fails inside it. Today's runs were
-after 12:05PM ET.
+**Next pick-up (Marvin's call):** (a) harden `nova_omen_sync.py`, (b) review/test
+`multi_character_retrieval`, (c) Experiment 2, (d) a plan for the overnight Omen downtime window
+before kta's weather class ships.
 
 ## Open questions for the other side
 Numbered so they can be answered and removed, not left to linger in prose.
@@ -155,3 +135,11 @@ and delete them — don't let this grow unbounded.
   decision models: confirmed Jev is real (corrected a stale "satire" memory), ran a
   free local GLiNER2.5-Decide test vs. the Claude blend judge — negative/inconclusive,
   scratch files deleted, memory updated. Paused for the day.
+- **2026-10-07 · Code:** Brainstorm only. Researched byte-level LLMs and LLM
+  decompilation; counted ACI parse failures from logs; parked a constrained-output
+  idea. Two memories added, no repo code touched.
+- **2026-10-18 · Code:** Built, deployed, and live-verified the Kalshi trade-proposal approval channel
+  (`nova_trade_proposals.py`, flag on) via a cross-session scoping exchange with `kalshi-agent`; fixed a
+  timezone countdown bug and rebuilt the Controller Feed's loading after a phone showed no cards (starved
+  by an all-or-nothing load). Docs (CLAUDE.md, build log) updated; Marvin reported the live no-order test
+  with kta succeeded.
