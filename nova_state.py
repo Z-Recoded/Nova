@@ -52,6 +52,11 @@ DB_PATH = "C:/Nova/nova_state.db"
 # approve/deny via the Controller. Written and polled directly by
 # nova_orchestrator.py itself (same machine, same process, correct
 # DB_PATH), unlike pending_escalations' cross-machine HTTP round-trip.
+# pending_trade_proposals is the same merge-by-key shape, keyed by
+# proposal_id — a trade the Kalshi agent proposes and Marvin approves or
+# denies via the Controller (nova_trade_proposals.py). Kept apart from
+# pending_tool_approvals on purpose so a money-moving approval can never be
+# confused with a coding tool-call approval.
 # None of these fit financial/work/creative/games, but all belong in
 # system alongside nova_health.
 KNOWN_ENTITIES = {
@@ -69,6 +74,7 @@ KNOWN_ENTITIES = {
         "pending_tier_proposals",
         "task_tier_watermarks",
         "pending_tool_approvals",
+        "pending_trade_proposals",
     ],
 }
 

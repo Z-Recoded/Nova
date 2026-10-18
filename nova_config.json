@@ -68,5 +68,12 @@
     "max_files_per_turn": null,
     "timeout_seconds": 300,
     "poll_interval_seconds": 3
+  },
+  "trade_proposals": {
+    "enabled": false,
+    "default_ttl_seconds": 300,
+    "min_ttl_seconds": 30,
+    "max_ttl_seconds": 900,
+    "retention_days": 7
   }
 }

@@ -95,12 +95,17 @@ from nova_scheduled_dispatch import (
 from nova_sources import SOURCES
 from nova_state import get_state, write_state
 from nova_task_queue import TIER_PENDING_TAG, TIER_TAGS, TIERS
+from nova_trade_proposals import router as trade_proposals_router
 from nova_training_data_status import dispatch_remote_patch, get_combined_training_status, get_training_flags_by_origin
 from nova_training_flags_patch import TrainingFlagsPatchError, patch_training_flags_entry
 from nova_worktree_pr import create_worktree_pr, discard_worktree
 from nova_worktree_status import get_worktree_status
 
 app = FastAPI(title="Nova API", version="0.3")
+
+# Kalshi trade-approval routes live in nova_trade_proposals.py (testable without
+# this module's import-time Chroma connection); every route is flag-gated there.
+app.include_router(trade_proposals_router)
 
 GRAPH_PATH = os.path.join(os.path.dirname(__file__), "nova_graph.json")
 

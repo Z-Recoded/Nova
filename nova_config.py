@@ -94,6 +94,13 @@ DEFAULT_CONFIG = {
         "timeout_seconds": 300,
         "poll_interval_seconds": 3,
     },
+    "trade_proposals": {
+        "enabled": False,
+        "default_ttl_seconds": 300,
+        "min_ttl_seconds": 30,
+        "max_ttl_seconds": 900,
+        "retention_days": 7,
+    },
 }
 
 
@@ -226,6 +233,37 @@ def get_approval_gate_timeout_seconds(fallback: int = 300) -> int:
 def get_approval_gate_poll_interval_seconds(fallback: int = 3) -> int:
     """How often _request_tool_approval() re-checks nova_state.db for a decision."""
     return load_config().get("pre_action_approval_gate", {}).get("poll_interval_seconds", fallback)
+
+
+def is_trade_proposals_enabled() -> bool:
+    """
+    True if nova_trade_proposals.py's routes should serve requests (the
+    Kalshi agent's trade-approval channel) — independent flag, no shared
+    master switch. Default off: while off, every /trade-proposals route
+    returns 503, so a disabled money-moving feature can't be mistaken for a
+    working one.
+    """
+    return bool(load_config().get("trade_proposals", {}).get("enabled"))
+
+
+def get_trade_proposal_default_ttl_seconds(fallback: int = 300) -> int:
+    """How long a proposal stays approvable when the caller doesn't ask for a TTL."""
+    return load_config().get("trade_proposals", {}).get("default_ttl_seconds", fallback)
+
+
+def get_trade_proposal_min_ttl_seconds(fallback: int = 30) -> int:
+    """Shortest TTL a caller may request — below this a human can't realistically act."""
+    return load_config().get("trade_proposals", {}).get("min_ttl_seconds", fallback)
+
+
+def get_trade_proposal_max_ttl_seconds(fallback: int = 900) -> int:
+    """Longest TTL a caller may request — caps how stale an approved quote can be."""
+    return load_config().get("trade_proposals", {}).get("max_ttl_seconds", fallback)
+
+
+def get_trade_proposal_retention_days(fallback: int = 7) -> int:
+    """How long decided/expired proposals are kept before being pruned."""
+    return load_config().get("trade_proposals", {}).get("retention_days", fallback)
 
 
 def get_max_unreviewed_dispatches(fallback: int = 3) -> int:

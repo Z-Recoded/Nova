@@ -371,6 +371,13 @@
   .badge.dispatch { background: #2a2e38; color: #999; }
   .badge.label { background: #3a2e1a; color: #d0a060; }
   .badge.tool-approval { background: #3a1a2a; color: #e07090; }
+  .badge.trade { background: #3a2f10; color: #e0b840; }
+  .trade-facts { display: grid; grid-template-columns: max-content 1fr; gap: 0.15rem 0.75rem; margin: 0.5rem 0; font-size: 0.9rem; }
+  .trade-facts dt { color: #8a8a8a; }
+  .trade-facts dd { margin: 0; }
+  .trade-evidence { margin: 0.25rem 0 0.5rem 1.1rem; padding: 0; font-size: 0.85rem; }
+  .trade-countdown { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .trade-countdown.urgent { color: #e07070; }
   .badge.lane-headless { background: #1a2e3a; color: #60a0d0; }
   .badge.lane-interactive { background: #2a2a2a; color: #999; }
 
@@ -731,6 +738,7 @@
       <button class="filter-chip active" data-kind="dispatch">Dispatch</button>
       <button class="filter-chip active" data-kind="label">Label</button>
       <button class="filter-chip active" data-kind="tool_approval">Tool Approval</button>
+      <button class="filter-chip active" data-kind="trade_proposal">Trade</button>
     </div>
     <div class="filter-row2">
       <input type="text" id="filter-task-input" placeholder="Search task…">
@@ -1486,6 +1494,168 @@
       return div;
     }
 
+    // ── Trade proposal cards (Kalshi agent approval channel) ────
+    // Money-moving, so deliberately stricter than the tool-approval card:
+    // no swipe, no optimistic collapse, no undo window. Approve takes two
+    // taps (Approve, then Confirm with the dollar amount spelled out). Deny
+    // is one tap, since denying can never place an order. The feed re-renders
+    // wholesale every poll, so a half-finished Approve confirmation is kept
+    // in tradeConfirming and restored by the next render. Expiry is judged by
+    // the server; the countdown here is only a visual hint and also disables
+    // the buttons locally once it reaches zero.
+
+    const TRADE_COUNTDOWN_URGENT_SECONDS = 60;
+    let tradeConfirming = new Set();
+
+    // The list route is Controller-token gated and 503s while the feature
+    // flag is off, so this uses its own quiet fetch instead of fetchJson
+    // (which would put a banner error on screen every poll while disabled).
+    async function fetchTradeProposals() {
+      try {
+        const res = await fetch('/trade-proposals', { headers: { 'X-Nova-Escalation-Token': getToken() } });
+        if (!res.ok) return {};
+        return await res.json();
+      } catch (err) {
+        return {};
+      }
+    }
+
+    function formatCountdown(totalSeconds) {
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return `${minutes}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function tickTradeCountdowns() {
+      document.querySelectorAll('.trade-card[data-expires]').forEach(card => {
+        const remaining = Math.floor((Date.parse(card.dataset.expires) - Date.now()) / 1000);
+        const label = card.querySelector('.trade-countdown');
+        if (remaining <= 0) {
+          label.textContent = 'expired';
+          label.classList.add('urgent');
+          card.querySelectorAll('.decision-row button').forEach(b => b.disabled = true);
+          return;
+        }
+        label.textContent = formatCountdown(remaining);
+        label.classList.toggle('urgent', remaining <= TRADE_COUNTDOWN_URGENT_SECONDS);
+      });
+    }
+    setInterval(tickTradeCountdowns, 1000);
+
+    function addTradeFact(list, term, value) {
+      const dt = document.createElement('dt');
+      dt.textContent = term;
+      const dd = document.createElement('dd');
+      dd.textContent = value;
+      list.appendChild(dt);
+      list.appendChild(dd);
+    }
+
+    function renderTradeProposalCard(entry) {
+      const status = entry.status || 'pending';
+      const div = document.createElement('div');
+      div.className = 'card trade-card ' + status;
+
+      const header = document.createElement('div');
+      header.className = 'card-header';
+      header.innerHTML =
+        `<span class="badge trade">trade</span>` +
+        `<span class="task-name" style="flex:1">${escapeHtml(entry.ticker)}</span>` +
+        `<span class="badge ${badgeClass(status)}">${escapeHtml(status)}</span>`;
+      div.appendChild(header);
+
+      const title = document.createElement('div');
+      title.className = 'question';
+      title.textContent = entry.title;
+      div.appendChild(title);
+
+      const facts = document.createElement('dl');
+      facts.className = 'trade-facts';
+      addTradeFact(facts, 'Side', `${String(entry.side).toUpperCase()} @ ${entry.price_cents}¢`);
+      addTradeFact(facts, 'Size', `${entry.size_contracts} contracts ($${Number(entry.notional_usd).toFixed(2)} at risk)`);
+      addTradeFact(facts, 'Probability', `${(entry.probability_estimate * 100).toFixed(1)}%`);
+      addTradeFact(facts, 'EV after fees', `$${Number(entry.ev_after_fees_usd).toFixed(2)}`);
+      addTradeFact(facts, 'Confidence', `${(entry.confidence_score * 100).toFixed(0)}%`);
+      div.appendChild(facts);
+
+      if (entry.evidence && entry.evidence.length) {
+        const list = document.createElement('ul');
+        list.className = 'trade-evidence';
+        entry.evidence.forEach(line => {
+          const li = document.createElement('li');
+          li.textContent = line;
+          list.appendChild(li);
+        });
+        div.appendChild(list);
+      }
+
+      if (status !== 'pending') {
+        if (entry.comment) {
+          const summary = document.createElement('div');
+          summary.className = 'result-summary';
+          summary.textContent = entry.comment;
+          div.appendChild(summary);
+        }
+        return div;
+      }
+
+      div.dataset.expires = entry.expires_at;
+      const countdownLine = document.createElement('div');
+      countdownLine.innerHTML = 'Expires in <span class="trade-countdown"></span>';
+      div.appendChild(countdownLine);
+
+      const statusEl = document.createElement('div');
+      statusEl.className = 'submit-status';
+      const row = document.createElement('div');
+      row.className = 'decision-row';
+      const decideUrl = `/trade-proposals/${encodeURIComponent(entry.proposal_id)}/decide`;
+      const lockButtons = () => row.querySelectorAll('button').forEach(b => b.disabled = true);
+
+      if (tradeConfirming.has(entry.proposal_id)) {
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = 'accept-btn';
+        confirmBtn.textContent = `Confirm: buy ${entry.size_contracts} ${String(entry.side).toUpperCase()} @ ${entry.price_cents}¢ ($${Number(entry.notional_usd).toFixed(2)})`;
+        confirmBtn.addEventListener('click', () => {
+          lockButtons();
+          tradeConfirming.delete(entry.proposal_id);
+          tokenPost(decideUrl, { decision: 'approve' }, statusEl, loadFeed);
+        });
+        row.appendChild(confirmBtn);
+
+        const backBtn = document.createElement('button');
+        backBtn.className = 'option-btn cancel-escalation-btn';
+        backBtn.textContent = 'Back';
+        backBtn.addEventListener('click', () => {
+          tradeConfirming.delete(entry.proposal_id);
+          renderFeedEntries();
+        });
+        row.appendChild(backBtn);
+      } else {
+        const approveBtn = document.createElement('button');
+        approveBtn.className = 'accept-btn';
+        approveBtn.textContent = 'Approve…';
+        approveBtn.addEventListener('click', () => {
+          tradeConfirming.add(entry.proposal_id);
+          renderFeedEntries();
+        });
+        row.appendChild(approveBtn);
+
+        const denyBtn = document.createElement('button');
+        denyBtn.className = 'option-btn cancel-escalation-btn';
+        denyBtn.textContent = 'Deny';
+        denyBtn.addEventListener('click', () => {
+          lockButtons();
+          tokenPost(decideUrl, { decision: 'deny' }, statusEl, loadFeed);
+        });
+        row.appendChild(denyBtn);
+      }
+
+      div.appendChild(row);
+      div.appendChild(statusEl);
+      queueMicrotask(tickTradeCountdowns);
+      return div;
+    }
+
     // ── Tier proposal cards (86bb01wur, ported as-is) ───────────
 
     function tierBadgeClass(tier) {
@@ -1964,7 +2134,7 @@
     // hide/show. lastAllEntries caches the last fetch so a filter change
     // re-renders instantly without waiting for the next poll.
 
-    let feedFilters = { kinds: new Set(['escalation', 'tier', 'dispatch', 'label', 'tool_approval']), taskQuery: '', dateRange: 'all' };
+    let feedFilters = { kinds: new Set(['escalation', 'tier', 'dispatch', 'label', 'tool_approval', 'trade_proposal']), taskQuery: '', dateRange: 'all' };
     let lastAllEntries = [];
 
     // Cards optimistically committed (86bb3cgna, generalized beyond
@@ -1978,6 +2148,7 @@
       if (entry._kind === 'label') return `label:${entry.kind}:${entry.id}`;
       if (entry._kind === 'tier') return `tier:${entry.proposal_id}`;
       if (entry._kind === 'tool_approval') return `tool_approval:${entry.approval_id}`;
+      if (entry._kind === 'trade_proposal') return `trade_proposal:${entry.proposal_id}`;
       return `${entry._kind}:${entry.id || entry.proposal_id || ''}`;
     }
 
@@ -2022,6 +2193,7 @@
         else if (entry._kind === 'tier') el = renderTierCard(entry);
         else if (entry._kind === 'dispatch') el = renderDispatchCard(entry);
         else if (entry._kind === 'tool_approval') el = renderToolApprovalCard(entry);
+        else if (entry._kind === 'trade_proposal') el = renderTradeProposalCard(entry);
         else el = renderLabelCard(entry);
         container.appendChild(el);
       });
@@ -2030,7 +2202,7 @@
     document.querySelectorAll('.filter-chip[data-kind]').forEach(btn => {
       if (btn.dataset.kind === 'all') {
         btn.addEventListener('click', () => {
-          feedFilters.kinds = new Set(['escalation', 'tier', 'dispatch', 'label', 'tool_approval']);
+          feedFilters.kinds = new Set(['escalation', 'tier', 'dispatch', 'label', 'tool_approval', 'trade_proposal']);
           document.querySelectorAll('.filter-chip[data-kind]').forEach(b => {
             if (b.dataset.kind !== 'all') b.classList.add('active');
           });
@@ -2072,12 +2244,13 @@
 
     async function loadFeed() {
       const requestToken = ++feedRequestToken;
-      const [escalationsData, tierData, dispatchData, labelData, toolApprovalData] = await Promise.all([
+      const [escalationsData, tierData, dispatchData, labelData, toolApprovalData, tradeProposalData] = await Promise.all([
         fetchJson('/escalations', {}),
         fetchJson('/tier-proposals', {}),
         fetchJson('/dispatch-log', { entries: [] }),
         fetchJson('/label-queue', { entries: [] }),
         fetchJson('/tool-approvals', {}),
+        fetchTradeProposals(),
       ]);
       if (requestToken !== feedRequestToken) return; // a newer call has since been issued -- discard this one
 
@@ -2089,10 +2262,12 @@
       const labels = (labelData.entries || []).map(e => ({ ...e, _kind: 'label', _pending: true }));
       const toolApprovals = Object.values(toolApprovalData).filter(v => v && typeof v === 'object' && v.approval_id)
         .map(e => ({ ...e, _kind: 'tool_approval', _pending: e.status === 'pending' }));
+      const tradeProposals = Object.values(tradeProposalData).filter(v => v && typeof v === 'object' && v.proposal_id)
+        .map(e => ({ ...e, _kind: 'trade_proposal', _pending: e.status === 'pending' }));
 
       renderStories(dispatches);
 
-      const all = [...escalations, ...tiers, ...dispatches, ...labels, ...toolApprovals];
+      const all = [...escalations, ...tiers, ...dispatches, ...labels, ...toolApprovals, ...tradeProposals];
       all.sort((a, b) => {
         if (a._pending !== b._pending) return a._pending ? -1 : 1;
         const ta = a.created_at || a.timestamp || '';
