@@ -1555,10 +1555,11 @@
           return {};
         }
         setTradeNotice('');
-        if (!res.ok) return {};
+        if (res.status === 503) return {}; // feature switched off: genuinely nothing to show
+        if (!res.ok) return null; // transient failure: keep whatever is on screen
         return await res.json();
       } catch (err) {
-        return {};
+        return null;
       }
     }
 
@@ -2212,15 +2213,39 @@
       return haystack.includes(query.toLowerCase());
     }
 
+    // Resolved cards (decided approvals, finished dispatches, old tier
+    // proposals) are history, not something waiting on a human, so they stay
+    // collapsed behind one toggle until asked for. Everything still waiting on
+    // a decision is drawn first and always.
+    let showResolved = false;
+
+    function renderFeedEntry(entry) {
+      if (entry._kind === 'escalation') return renderEscalationCard(entry);
+      if (entry._kind === 'tier') return renderTierCard(entry);
+      if (entry._kind === 'dispatch') return renderDispatchCard(entry);
+      if (entry._kind === 'tool_approval') return renderToolApprovalCard(entry);
+      if (entry._kind === 'trade_proposal') return renderTradeProposalCard(entry);
+      return renderLabelCard(entry);
+    }
+
+    function makeResolvedToggle(resolvedCount) {
+      const button = document.createElement('button');
+      button.className = 'filter-chip resolved-toggle';
+      const verb = showResolved ? 'Hide' : 'Show';
+      button.textContent = resolvedHistoryLoaded || resolvedCount ? `${verb} resolved (${resolvedCount})` : `${verb} resolved`;
+      button.addEventListener('click', () => {
+        showResolved = !showResolved;
+        if (showResolved) loadResolvedHistory();
+        renderFeedEntries();
+      });
+      return button;
+    }
+
     function renderFeedEntries() {
       const container = document.getElementById('feed');
       feedDiag.loaded = lastAllEntries.length;
       feedDiag.shown = 0;
       updateFeedDiag();
-      if (!lastAllEntries.length) {
-        container.innerHTML = '<p class="empty">Nothing in the feed yet.</p>';
-        return;
-      }
 
       const filtered = lastAllEntries.filter(e =>
         feedFilters.kinds.has(e._kind) &&
@@ -2228,24 +2253,34 @@
         passesDateFilter(e, feedFilters.dateRange) &&
         !suppressedCardIds.has(cardKey(e))
       );
-
-      if (!filtered.length) {
-        container.innerHTML = '<p class="empty">No cards match the current filter.</p>';
-        return;
-      }
+      const pendingEntries = filtered.filter(e => e._pending);
+      const resolvedEntries = filtered.filter(e => !e._pending);
 
       container.innerHTML = '';
-      filtered.forEach(entry => {
-        let el;
-        if (entry._kind === 'escalation') el = renderEscalationCard(entry);
-        else if (entry._kind === 'tier') el = renderTierCard(entry);
-        else if (entry._kind === 'dispatch') el = renderDispatchCard(entry);
-        else if (entry._kind === 'tool_approval') el = renderToolApprovalCard(entry);
-        else if (entry._kind === 'trade_proposal') el = renderTradeProposalCard(entry);
-        else el = renderLabelCard(entry);
-        container.appendChild(el);
+      if (!pendingEntries.length) {
+        const empty = document.createElement('p');
+        empty.className = 'empty';
+        empty.textContent = lastAllEntries.length && !filtered.length
+          ? 'No cards match the current filter.'
+          : 'Nothing is waiting on you right now.';
+        container.appendChild(empty);
+      }
+
+      let drawn = 0;
+      pendingEntries.forEach(entry => {
+        container.appendChild(renderFeedEntry(entry));
+        drawn += 1;
       });
-      feedDiag.shown = container.children.length;
+
+      container.appendChild(makeResolvedToggle(resolvedEntries.length));
+      if (showResolved) {
+        resolvedEntries.forEach(entry => {
+          container.appendChild(renderFeedEntry(entry));
+          drawn += 1;
+        });
+      }
+
+      feedDiag.shown = drawn;
       updateFeedDiag();
     }
 
@@ -2290,43 +2325,106 @@
     // resolve LATER than the newer one, its stale render overwrites the
     // current, correct one a moment after it appeared. Only the most
     // recently-ISSUED call is ever allowed to touch the DOM.
-    let feedRequestToken = 0;
+    //
+    // Progressive loading (2026-10-18): each data source is fetched and drawn
+    // on its own as soon as it arrives, instead of Promise.all-ing six routes
+    // and drawing nothing until the slowest finished. The old all-or-nothing
+    // load, combined with the discard-if-superseded guard above, never drew a
+    // single card on a phone whose slowest route took longer than the 8s poll,
+    // because every load was superseded before it finished. Now a response is
+    // applied unless a NEWER response for the same source already landed, so a
+    // slow route still lands, and a small fast route (a pending trade
+    // proposal) is on screen within about a second regardless of the rest.
 
-    async function loadFeed() {
-      const requestToken = ++feedRequestToken;
-      const [escalationsData, tierData, dispatchData, labelData, toolApprovalData, tradeProposalData] = await Promise.all([
-        fetchJson('/escalations', {}),
-        fetchJson('/tier-proposals', {}),
-        fetchJson('/dispatch-log', { entries: [] }),
-        fetchJson('/label-queue', { entries: [] }),
-        fetchJson('/tool-approvals', {}),
-        fetchTradeProposals(),
-      ]);
-      if (requestToken !== feedRequestToken) return; // a newer call has since been issued -- discard this one
+    const HISTORY_REFRESH_MS = 30000;
+    const DISPATCH_REFRESH_MS = 30000;
 
-      const escalations = Object.values(escalationsData).filter(v => v && typeof v === 'object' && v.escalation_id)
-        .map(e => ({ ...e, _kind: 'escalation', _pending: e.status === 'pending' || e.status === 'resuming' }));
-      const tiers = Object.values(tierData).filter(v => v && typeof v === 'object' && v.proposal_id)
-        .map(e => ({ ...e, _kind: 'tier', _pending: e.status === 'pending' }));
-      const dispatches = (dispatchData.entries || []).map(e => ({ ...e, _kind: 'dispatch', _pending: false }));
-      const labels = (labelData.entries || []).map(e => ({ ...e, _kind: 'label', _pending: true }));
-      const toolApprovals = Object.values(toolApprovalData).filter(v => v && typeof v === 'object' && v.approval_id)
-        .map(e => ({ ...e, _kind: 'tool_approval', _pending: e.status === 'pending' }));
-      const tradeProposals = Object.values(tradeProposalData).filter(v => v && typeof v === 'object' && v.proposal_id)
-        .map(e => ({ ...e, _kind: 'trade_proposal', _pending: e.status === 'pending' }));
+    const feedSources = {
+      escalation: [], tier: [], tierHistory: [], dispatch: [], label: [], tool_approval: [], trade_proposal: [],
+    };
+    const feedSourceSignatures = {};
+    const feedSourceIssued = {};
+    const feedSourceApplied = {};
+    let resolvedHistoryLoaded = false;
+    let lastHistoryLoadMs = 0;
 
-      renderStories(dispatches);
+    function dictToEntries(data, idField, kind, isPending) {
+      return Object.values(data)
+        .filter(v => v && typeof v === 'object' && v[idField])
+        .map(e => ({ ...e, _kind: kind, _pending: isPending(e) }));
+    }
 
-      const all = [...escalations, ...tiers, ...dispatches, ...labels, ...toolApprovals, ...tradeProposals];
+    function rebuildFeedEntries() {
+      const pendingTierIds = new Set(feedSources.tier.map(e => e.proposal_id));
+      const decidedTiers = feedSources.tierHistory.filter(e => !pendingTierIds.has(e.proposal_id));
+      const all = [
+        ...feedSources.escalation, ...feedSources.tier, ...decidedTiers, ...feedSources.dispatch,
+        ...feedSources.label, ...feedSources.tool_approval, ...feedSources.trade_proposal,
+      ];
       all.sort((a, b) => {
         if (a._pending !== b._pending) return a._pending ? -1 : 1;
         const ta = a.created_at || a.timestamp || '';
         const tb = b.created_at || b.timestamp || '';
         return tb.localeCompare(ta);
       });
-
       lastAllEntries = all;
-      feedDiag.trades = tradeProposals.length;
+      feedDiag.trades = feedSources.trade_proposal.length;
+      renderFeedEntries();
+    }
+
+    // Fetch one source, apply it if it is not older than what is already
+    // shown, and redraw only if its content actually changed (expires_in_seconds
+    // ticks every poll by design, so it is left out of the comparison).
+    // fetchData returns null on a failed fetch, which keeps the last good data
+    // on screen instead of blanking the cards.
+    async function refreshFeedSource(kind, fetchData, toEntries, onChange) {
+      const issued = (feedSourceIssued[kind] || 0) + 1;
+      feedSourceIssued[kind] = issued;
+      const data = await fetchData();
+      if (data === null || issued < (feedSourceApplied[kind] || 0)) return;
+      feedSourceApplied[kind] = issued;
+
+      const entries = toEntries(data);
+      const signature = JSON.stringify(entries, (key, value) => (key === 'expires_in_seconds' ? undefined : value));
+      if (signature === feedSourceSignatures[kind]) return;
+      feedSourceSignatures[kind] = signature;
+      feedSources[kind] = entries;
+      if (onChange) onChange(entries);
+      rebuildFeedEntries();
+    }
+
+    // Everything that can be waiting on a human, fetched in parallel but drawn
+    // independently. Tier proposals ask for pending only: the full history is
+    // ~140KB and mostly decided.
+    function loadFeed() {
+      refreshFeedSource('trade_proposal', fetchTradeProposals,
+        d => dictToEntries(d, 'proposal_id', 'trade_proposal', e => e.status === 'pending'));
+      refreshFeedSource('tool_approval', () => fetchJson('/tool-approvals', null),
+        d => dictToEntries(d, 'approval_id', 'tool_approval', e => e.status === 'pending'));
+      refreshFeedSource('escalation', () => fetchJson('/escalations', null),
+        d => dictToEntries(d, 'escalation_id', 'escalation', e => e.status === 'pending' || e.status === 'resuming'));
+      refreshFeedSource('label', () => fetchJson('/label-queue', null),
+        d => (d.entries || []).map(e => ({ ...e, _kind: 'label', _pending: true })));
+      refreshFeedSource('tier', () => fetchJson('/tier-proposals?pending_only=true', null),
+        d => dictToEntries(d, 'proposal_id', 'tier', () => true));
+      if (showResolved && Date.now() - lastHistoryLoadMs > HISTORY_REFRESH_MS) loadResolvedHistory();
+    }
+
+    // Dispatch outcomes feed the Stories rail and the resolved history, and
+    // are never waiting on a human, so they refresh on a slower, separate poll.
+    function loadDispatches() {
+      refreshFeedSource('dispatch', () => fetchJson('/dispatch-log', null),
+        d => (d.entries || []).map(e => ({ ...e, _kind: 'dispatch', _pending: false })),
+        entries => renderStories(entries));
+    }
+
+    // Decided tier proposals: the big payload, fetched only once "Show
+    // resolved" is opened (and refreshed at most every HISTORY_REFRESH_MS).
+    async function loadResolvedHistory() {
+      lastHistoryLoadMs = Date.now();
+      await refreshFeedSource('tierHistory', () => fetchJson('/tier-proposals', null),
+        d => dictToEntries(d, 'proposal_id', 'tier', e => e.status === 'pending').filter(e => !e._pending));
+      resolvedHistoryLoaded = true;
       renderFeedEntries();
     }
 
@@ -2352,6 +2450,9 @@
 
     loadFeed();
     setInterval(loadFeed, 8000);
+
+    loadDispatches();
+    setInterval(loadDispatches, DISPATCH_REFRESH_MS);
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW registration failed:', err));

@@ -991,9 +991,21 @@ def create_tier_proposal(req: TierProposalCreateRequest):
 
 
 @app.get("/tier-proposals")
-def get_tier_proposals():
-    """All tier proposals, pending and decided -- not token-gated (read-only)."""
-    return get_state("system", "pending_tier_proposals") or {}
+def get_tier_proposals(pending_only: bool = False):
+    """
+    All tier proposals, pending and decided -- not token-gated (read-only).
+    pending_only=true returns just the ones still awaiting a decision: the
+    full history is large and mostly decided, and the Controller's Feed only
+    needs it when "Show resolved" is opened.
+    """
+    proposals = get_state("system", "pending_tier_proposals") or {}
+    if not pending_only:
+        return proposals
+    return {
+        proposal_id: record
+        for proposal_id, record in proposals.items()
+        if isinstance(record, dict) and record.get("status") == "pending"
+    }
 
 
 @app.post("/tier-proposals/{proposal_id}/decide")
