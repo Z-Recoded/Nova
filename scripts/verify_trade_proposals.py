@@ -179,6 +179,13 @@ def main() -> None:
     listing = client.get("/trade-proposals", headers=CONTROLLER_HEADERS).json()
     check("controller list contains the proposal", "auth-check-0001" in listing)
 
+    pending_in_list = listing["auth-check-0001"]
+    check(
+        "list adds expires_in_seconds to pending (60s ttl)",
+        pending_in_list.get("expires_in_seconds") == SHORT_TTL_SECONDS,
+    )
+    check("by-id record does not carry the list-only field", "expires_in_seconds" not in by_id.json())
+
     # ── Decide auth ──
     decide_url = "/trade-proposals/auth-check-0001/decide"
     check(

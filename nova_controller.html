@@ -730,6 +730,7 @@
   <p class="empty">No tutor domain synthesis links yet — nova_tutor.py's SynthesisLink schema exists (Phase 1, 86bawnkbv) but nothing populates or surfaces it here yet; that's Phase 3+ scope, still backlog.</p>
 
   <h2 class="section-heading">Feed</h2>
+  <p class="empty" id="trade-notice" style="display:none"></p>
   <div class="feed-filter-bar" id="feed-filter-bar">
     <div class="filter-chips" id="filter-chips">
       <button class="filter-chip" data-kind="all">All</button>
@@ -1510,9 +1511,24 @@
     // The list route is Controller-token gated and 503s while the feature
     // flag is off, so this uses its own quiet fetch instead of fetchJson
     // (which would put a banner error on screen every poll while disabled).
+    // A 401 is the one failure worth saying out loud: it means this browser's
+    // Controller token is missing or wrong, which would otherwise look exactly
+    // like "no proposals". A 503 just means the feature is switched off.
+    function setTradeNotice(message) {
+      const notice = document.getElementById('trade-notice');
+      notice.textContent = message;
+      notice.style.display = message ? 'block' : 'none';
+    }
+
     async function fetchTradeProposals() {
       try {
         const res = await fetch('/trade-proposals', { headers: { 'X-Nova-Escalation-Token': getToken() } });
+        if (res.status === 401) {
+          setTradeNotice('Trade proposals are hidden: this browser’s Controller token was rejected. Re-enter it above.');
+          showTokenPrompt();
+          return {};
+        }
+        setTradeNotice('');
         if (!res.ok) return {};
         return await res.json();
       } catch (err) {
@@ -1528,7 +1544,7 @@
 
     function tickTradeCountdowns() {
       document.querySelectorAll('.trade-card[data-expires]').forEach(card => {
-        const remaining = Math.floor((Date.parse(card.dataset.expires) - Date.now()) / 1000);
+        const remaining = Math.floor((Number(card.dataset.expires) - Date.now()) / 1000);
         const label = card.querySelector('.trade-countdown');
         if (remaining <= 0) {
           label.textContent = 'expired';
@@ -1599,7 +1615,10 @@
         return div;
       }
 
-      div.dataset.expires = entry.expires_at;
+      // Countdown target as a browser-clock timestamp built from the server's
+      // "seconds left" -- expires_at itself is naive server time and would be
+      // misread by hours in any other timezone.
+      div.dataset.expires = Date.now() + entry.expires_in_seconds * 1000;
       const countdownLine = document.createElement('div');
       countdownLine.innerHTML = 'Expires in <span class="trade-countdown"></span>';
       div.appendChild(countdownLine);

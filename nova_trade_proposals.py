@@ -220,6 +220,20 @@ def _expire_all_stale(proposals: dict, now: datetime) -> bool:
     return changed
 
 
+def _with_seconds_left(record: dict, now: datetime) -> dict:
+    """
+    A copy of the record for the Controller list view, with expires_in_seconds
+    added while it is still pending. Stored timestamps are naive server-local
+    time, so a browser in another timezone would misread expires_at by hours;
+    a plain "seconds left" has no timezone to get wrong. Never stored.
+    """
+    shown = dict(record)
+    if record["status"] == STATUS_PENDING:
+        seconds_left = (datetime.fromisoformat(record["expires_at"]) - now).total_seconds()
+        shown["expires_in_seconds"] = max(0, int(seconds_left))
+    return shown
+
+
 def _prune_old_decided(proposals: dict, now: datetime) -> None:
     """
     Drop non-pending records older than the retention window so the single
@@ -347,10 +361,11 @@ def list_trade_proposals(x_nova_escalation_token: str | None = Header(None)):
     _require_controller_token(x_nova_escalation_token)
     _require_feature_enabled()
     with _state_lock:
+        now = _now()
         proposals = _load_proposals()
-        if _expire_all_stale(proposals, _now()):
+        if _expire_all_stale(proposals, now):
             _save_proposals(proposals)
-    return proposals
+    return {proposal_id: _with_seconds_left(record, now) for proposal_id, record in proposals.items()}
 
 
 @router.get("/trade-proposals/{proposal_id}")
