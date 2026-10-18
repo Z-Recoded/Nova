@@ -70,7 +70,7 @@
     "poll_interval_seconds": 3
   },
   "trade_proposals": {
-    "enabled": false,
+    "enabled": true,
     "default_ttl_seconds": 300,
     "min_ttl_seconds": 30,
     "max_ttl_seconds": 900,
