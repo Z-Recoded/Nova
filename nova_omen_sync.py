@@ -40,7 +40,9 @@ OMEN_USER = "marvinroyal5"
 OMEN_REPO_PATH = "/home/marvinroyal5/nova"
 
 SSH_TIMEOUT_SECONDS = 30
-RESTART_TIMEOUT_SECONDS = 30
+RESTART_TIMEOUT_SECONDS = 90  # nova-chroma took ~37s just to stop on 2026-10-18, which blew the old 30s limit
+RESTART_MAX_ATTEMPTS = 2  # a restart is idempotent, so one retry after a timeout is safe
+SSH_TIMEOUT_RETURN_CODE = 124  # same code GNU `timeout` uses, so "timed out" is distinguishable from a real exit
 POST_RESTART_SETTLE_SECONDS = 3  # brief pause so the probe doesn't catch the just-stopped old process's socket
 STARTUP_TIMEOUT_SECONDS = 45  # nova-api's import chain loads the embedding model (~6-17s), so poll until up rather than probing once  # noqa: E501
 TCP_PROBE_TIMEOUT_SECONDS = 5
@@ -50,13 +52,31 @@ NOVA_CHROMA_PORT = 8000
 
 
 def _run_ssh(remote_command: str, timeout: int) -> subprocess.CompletedProcess:
-    """Run one command on the Omen over SSH and return the completed process. Never raises on a non-zero exit — callers check returncode themselves."""  # noqa: E501
-    return subprocess.run(
-        ["ssh", f"{OMEN_USER}@{OMEN_HOST}", remote_command],
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-    )
+    """Run one command on the Omen over SSH and return the completed process. Never raises on a non-zero exit or a timeout — a timeout comes back as returncode SSH_TIMEOUT_RETURN_CODE, callers check returncode themselves."""  # noqa: E501
+    try:
+        return subprocess.run(
+            ["ssh", f"{OMEN_USER}@{OMEN_HOST}", remote_command],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(
+            args=remote_command,
+            returncode=SSH_TIMEOUT_RETURN_CODE,
+            stdout="",
+            stderr=f"timed out after {timeout}s",
+        )
+
+
+def _restart_one_unit(unit: str) -> subprocess.CompletedProcess:
+    """Restart one systemd unit, retrying only if the SSH call timed out. Any other failure (e.g. a missing sudoers rule) is returned immediately — retrying it can't help."""  # noqa: E501
+    result = _run_ssh(f"sudo -n /usr/bin/systemctl restart {unit}", RESTART_TIMEOUT_SECONDS)
+    attempts_made = 1
+    while result.returncode == SSH_TIMEOUT_RETURN_CODE and attempts_made < RESTART_MAX_ATTEMPTS:
+        result = _run_ssh(f"sudo -n /usr/bin/systemctl restart {unit}", RESTART_TIMEOUT_SECONDS)
+        attempts_made += 1
+    return result
 
 
 def _tcp_reachable(host: str, port: int, timeout: float = TCP_PROBE_TIMEOUT_SECONDS) -> bool:
@@ -111,7 +131,7 @@ def restart_services() -> dict:
     """
     results = {}
     for unit in ("nova-api", "nova-chroma"):
-        result = _run_ssh(f"sudo -n /usr/bin/systemctl restart {unit}", RESTART_TIMEOUT_SECONDS)
+        result = _restart_one_unit(unit)
         results[unit] = {
             "success": result.returncode == 0,
             "error": result.stderr.strip() if result.returncode != 0 else None,
