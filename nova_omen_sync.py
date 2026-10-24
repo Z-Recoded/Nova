@@ -42,9 +42,13 @@ OMEN_REPO_PATH = "/home/marvinroyal5/nova"
 SSH_TIMEOUT_SECONDS = 30
 RESTART_TIMEOUT_SECONDS = 90  # nova-chroma took ~37s just to stop on 2026-10-18, which blew the old 30s limit
 RESTART_MAX_ATTEMPTS = 2  # a restart is idempotent, so one retry after a timeout is safe
+RESTART_ORDER = (
+    "nova-chroma",
+    "nova-api",
+)  # Chroma first so nova-api never starts against a down database (it crash-looped when restarted first)
 SSH_TIMEOUT_RETURN_CODE = 124  # same code GNU `timeout` uses, so "timed out" is distinguishable from a real exit
 POST_RESTART_SETTLE_SECONDS = 3  # brief pause so the probe doesn't catch the just-stopped old process's socket
-STARTUP_TIMEOUT_SECONDS = 45  # nova-api's import chain loads the embedding model (~6-17s), so poll until up rather than probing once  # noqa: E501
+STARTUP_TIMEOUT_SECONDS = 120  # nova-api's import chain loads the embedding model (~6-17s), but a restart racing a down Chroma took ~67s on 2026-10-24, so poll until up rather than probing once  # noqa: E501
 TCP_PROBE_TIMEOUT_SECONDS = 5
 
 NOVA_API_PORT = 8001  # CLAUDE.md Section 2 — 8001 on the Omen specifically, not 8000 (port conflict with Chroma)
@@ -130,7 +134,7 @@ def restart_services() -> dict:
     session waiting for a prompt that can never arrive non-interactively.
     """
     results = {}
-    for unit in ("nova-api", "nova-chroma"):
+    for unit in RESTART_ORDER:
         result = _restart_one_unit(unit)
         results[unit] = {
             "success": result.returncode == 0,
