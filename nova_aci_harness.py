@@ -169,6 +169,33 @@ EARLY_ABANDON_PATIENCE = 2
 GOAL_REANCHOR_INTERVAL_TURNS = 6
 GUARD_GOAL_REANCHOR = "goal_reanchor"
 
+# Experiment 2 (planner/executor split): one tool-less planning call before the turn loop,
+# whose plan is appended to the SYSTEM message. It goes there and not in extra_context
+# because collapse_history() keeps messages[0] but collapses the first user message (the
+# task) after ~4 turns -- a plan in the user message would vanish mid-run.
+#   none   -- no planner (the baseline)
+#   claude -- Claude writes the plan once per slug, cached on disk so planner variance
+#             doesn't leak into the comparison (the "does a strong plan help a 7B" arm)
+#   self   -- the same Ollama model plans for itself, fresh every run (the real split-brain arm)
+PLANNER_MODE_NONE = "none"
+PLANNER_MODE_CLAUDE = "claude"
+PLANNER_MODE_SELF = "self"
+PLANNER_MODES = (PLANNER_MODE_NONE, PLANNER_MODE_CLAUDE, PLANNER_MODE_SELF)
+PLANNER_CLAUDE_MODEL = "claude-sonnet-5-5"
+PLANNER_MAX_TOKENS = 600
+PLANNER_MAX_PLAN_STEPS = 6
+PLANNER_MAX_PLAN_WORDS = 150
+PLAN_CACHE_DIR = Path(__file__).parent / "logs" / "aci_planner_plans"
+PLANNER_SYSTEM_PROMPT = f"""You are the planner for a coding agent. You will be shown a programming task and the
+stub file(s) the agent must complete. Write a short plan the agent will follow.
+
+Rules:
+- At most {PLANNER_MAX_PLAN_STEPS} numbered steps, plain prose, one or two sentences each.
+- Keep the whole plan under {PLANNER_MAX_PLAN_WORDS} words. The agent has a small context window.
+- Name the function(s) to implement and the logic each needs, including tricky edge cases.
+- Do NOT write any code, not even one line, and do not use code fences.
+"""
+
 # Real bug found live 2026-08-23 (86bbk09da), spot-checking 86bbjzguh's progress-framing
 # transcripts: _extract_first_json_object() only ever isolates the FIRST {...} block in a
 # turn's raw text -- a model that emits two tool calls back-to-back with no narration
@@ -696,6 +723,61 @@ def _goal_reanchor_note(task_description: str) -> str:
     )
 
 
+def _read_stub_files(working_copy: Path) -> str:
+    """Return the contents of the exercise's non-test .py files, labelled by filename, for the planner to read."""
+    sections = []
+    for path in sorted(working_copy.glob("*.py")):
+        if path.name.endswith("_test.py"):
+            continue
+        sections.append(f"--- {path.name} ---\n{path.read_text(encoding='utf-8')}")
+    return "\n\n".join(sections)
+
+
+def _generate_plan(
+    planner_mode: str,
+    slug: str,
+    task_description: str,
+    stub_text: str,
+    model: str,
+    ollama_client: "ollama.Client",
+) -> str:
+    """
+    Experiment 2's planning call. Claude plans are cached per slug on disk and reused, so every
+    repeat of a slug sees the identical plan; self plans are generated fresh each run. The
+    planner sees only the task text and stub files -- never the tests or .meta/example.py.
+    Returns "" for PLANNER_MODE_NONE.
+    """
+    if planner_mode == PLANNER_MODE_NONE:
+        return ""
+
+    planner_user_message = f"Task:\n\n{task_description}\n\nStub file(s):\n\n{stub_text}"
+
+    if planner_mode == PLANNER_MODE_CLAUDE:
+        cache_path = PLAN_CACHE_DIR / f"{slug}.txt"
+        if cache_path.exists():
+            return cache_path.read_text(encoding="utf-8")
+        response = anthropic.Anthropic().messages.create(
+            model=PLANNER_CLAUDE_MODEL,
+            max_tokens=PLANNER_MAX_TOKENS,
+            system=PLANNER_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": planner_user_message}],
+        )
+        plan = response.content[0].text.strip()
+        PLAN_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(plan, encoding="utf-8")
+        return plan
+
+    response = ollama_client.chat(
+        model=model,
+        messages=[
+            {"role": "system", "content": PLANNER_SYSTEM_PROMPT},
+            {"role": "user", "content": planner_user_message},
+        ],
+        options={"num_ctx": OLLAMA_NUM_CTX},
+    )
+    return response["message"]["content"].strip()
+
+
 def _execute_tool(call: dict, root: str, diff_format: bool = False) -> str:
     """
     Runs one ACI command by name, returns a plain-text result string to
@@ -951,6 +1033,7 @@ def run_exercise(
     advisory_idiom: bool = False,
     disabled_guards: frozenset[str] = frozenset(),
     same_path_guard: bool = False,
+    planner_mode: str = PLANNER_MODE_NONE,
 ) -> dict:
     """
     Runs one real vendored exercise through the given Ollama model via the
@@ -1093,8 +1176,12 @@ def run_exercise(
                 f"this is a different task):\n\n{extra_context}"
             )
         user_content += f"\n\nFiles in your working directory: {initial_files}"
+        system_content = SYSTEM_PROMPT_DIFF if diff_format else SYSTEM_PROMPT
+        plan_text = _generate_plan(planner_mode, slug, task_description, _read_stub_files(working_copy), model, client)
+        if plan_text:
+            system_content += f"\n\nPlan for this task (written by a planner; follow it):\n{plan_text}"
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT_DIFF if diff_format else SYSTEM_PROMPT},
+            {"role": "system", "content": system_content},
             {"role": "user", "content": user_content},
         ]
 
@@ -1411,6 +1498,9 @@ def run_exercise(
             "test_output": test_output,
             "solution_content": solution_content,
             "retrieval_context_used": bool(extra_context),
+            "planner_mode": planner_mode,
+            "plan_text": plan_text,
+            "plan_contains_code": "```" in plan_text,
             "progress_framing_enabled": progress_framing,
             "parse_method_counts": parse_method_counts,
             "parse_failures": parse_failures,
@@ -1460,6 +1550,7 @@ def run_all_exercises(
     advisory_idiom: bool = False,
     disabled_guards: frozenset[str] = frozenset(),
     same_path_guard: bool = False,
+    planner_mode: str = PLANNER_MODE_NONE,
 ) -> list[dict]:
     """
     Runs every real vendored exercise under CORPUS_ROOT through
@@ -1499,6 +1590,7 @@ def run_all_exercises(
                 advisory_idiom=advisory_idiom,
                 disabled_guards=disabled_guards,
                 same_path_guard=same_path_guard,
+                planner_mode=planner_mode,
             )
             status = "PASS" if result["test_passed"] else "FAIL"
             print(f"  -> {status} ({result['final_status']}, {result['turns_used']} turn(s))")
@@ -1716,6 +1808,16 @@ if __name__ == "__main__":
             "See docs/aci-guard-cluster-ablation.md."
         ),
     )
+    parser.add_argument(
+        "--planner-mode",
+        choices=PLANNER_MODES,
+        default=PLANNER_MODE_NONE,
+        help=(
+            "Experiment 2 (planner/executor split): 'claude' = a Claude-written plan, cached per slug "
+            "under logs/aci_planner_plans/; 'self' = the Ollama model plans for itself each run; "
+            "'none' (default) = no planner. The plan is appended to the system message."
+        ),
+    )
     args = parser.parse_args()
 
     if args.all:
@@ -1732,6 +1834,7 @@ if __name__ == "__main__":
             advisory_idiom=args.advisory_idiom,
             disabled_guards=frozenset(args.disabled_guards),
             same_path_guard=args.same_path_guard,
+            planner_mode=args.planner_mode,
         )
         _print_summary(results)
     elif args.slug:
@@ -1748,6 +1851,7 @@ if __name__ == "__main__":
             advisory_idiom=args.advisory_idiom,
             disabled_guards=frozenset(args.disabled_guards),
             same_path_guard=args.same_path_guard,
+            planner_mode=args.planner_mode,
         )
         print(f"\n=== {result['slug']} ===")
         print(f"Status: {result['final_status']} ({result['turns_used']} turn(s) used)")
