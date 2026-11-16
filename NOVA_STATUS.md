@@ -1,6 +1,6 @@
 # Nova Board Status Digest
 
-Last updated: 2026-09-05 05:14 UTC
+Last updated: 2026-11-16 04:11 UTC
 
 One-way snapshot written by Claude Code after sessions that change board
 state. Claude Chat reads this as a cheap starting point, not ground truth --
@@ -8,16 +8,26 @@ falls back to querying ClickUp directly if it looks stale.
 
 ## Changed since last digest
 
-- NEW -> ready: 86bbvcbcv (Nova Tutor — Overworld Phase 6: Interaction logging (multimodal training-signal capture))
-- NEW -> ready: 86bbvcbcp (Nova Tutor — Overworld Phase 5: Procedural trial rooms (coding + hand-derivation))
-- NEW -> ready: 86bbvcbby (Nova Tutor — Overworld Phase 0: Schema extension (modality + visual_refs fields))
-- ready -> complete/removed: 86bb53hmk (Fix latent ThinkingBlock bug in nova_task_queue.propose_tier())
+- NEW -> ready: 86bc24af9 (Nova Tutor: hint-ladder + mode-switching pedagogy layer (tutor/examiner/reviewer))
+- NEW -> ready: 86bc23nbe (Coding specialist: speculative pre-execution of read-only ACI actions (branch-prediction pattern))
+- NEW -> ready: 86bby2de0 (Understudy — dev-time Socratic learning toolkit)
+- ready -> left digest (completed, removed, or now waiting on a dependency): 86bbvcbcv (Nova Tutor — Overworld Phase 6: Interaction logging (multimodal training-signal capture))
+- ready -> left digest (completed, removed, or now waiting on a dependency): 86bbvcbcp (Nova Tutor — Overworld Phase 5: Procedural trial rooms (coding + hand-derivation))
+- ready -> left digest (completed, removed, or now waiting on a dependency): 86bbk2nkb (OmniRoute as squad-bootstrap infra on the Omen (non-training-critical roles, with provider provenance tracking))
+- ready -> left digest (completed, removed, or now waiting on a dependency): 86bbch95y (Coding specialist: design constrained action-space interface (ACI))
+- ready -> left digest (completed, removed, or now waiting on a dependency): 86bbcfpd1 (Nova Training Pipeline — Phase 5: hybrid verification at inference time)
+- ready -> left digest (completed, removed, or now waiting on a dependency): 86bbcfpck (Nova Training Pipeline — Phase 4: DPO difficulty filtering)
+- ready -> left digest (completed, removed, or now waiting on a dependency): 86bbcfpbg (Nova Training Pipeline — Phase 2: grounded execution-based refinement (per module))
+- ready -> left digest (completed, removed, or now waiting on a dependency): 86bb3ceyp (Nova Controller: push notifications (Layer 3))
+- ready -> left digest (completed, removed, or now waiting on a dependency): 86bb3ceym (Nova Controller: pre-action approval gate (policy-based, not agent-judgment))
+- ready -> left digest (completed, removed, or now waiting on a dependency): 86bawx7vj (Headless Nova coding: usage-aware autonomous runner + branch-based diff confirmation)
+- blocked -> left digest (completed, removed, or now waiting on a dependency): 86baf72qq (Docker sub-agent orchestration — ephemeral task containers)
 
 ## In progress (0)
 
 - none
 
-## Blocked (13)
+## Blocked (12)
 
 - 86bbnbq0q  Scope Qwen3.6/3.8-27B dense as a coder-specialist candidate for the local 3090 rig
 - 86bbaph6w  Spec: Local compute sizing & multi-GPU build plan (Nova central node)
@@ -30,20 +40,19 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bara3rm  Financial domain node — nova_state_financial.py adapter
 - 86bara3qu  Alert engine — proactive state monitoring against nova_state.db
 - 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
-- 86baf72qq  Docker sub-agent orchestration — ephemeral task containers
 - 86baf4e70  RunPod/Vast.ai — cloud GPU for fine-tune runs
 
-## Ready (125)
+## Ready (119)
 
-- 86bbvcbcv  Nova Tutor — Overworld Phase 6: Interaction logging (multimodal training-signal capture)
-- 86bbvcbcp  Nova Tutor — Overworld Phase 5: Procedural trial rooms (coding + hand-derivation)
+- 86bc24af9  Nova Tutor: hint-ladder + mode-switching pedagogy layer (tutor/examiner/reviewer)
+- 86bc23nbe  Coding specialist: speculative pre-execution of read-only ACI actions (branch-prediction pattern)
+- 86bby2de0  Understudy — dev-time Socratic learning toolkit
 - 86bbvcbby  Nova Tutor — Overworld Phase 0: Schema extension (modality + visual_refs fields)
 - 86bbvc3wr  Budget available for coding-specialist model testing/rented compute
 - 86bbn80qp  Model capability complexity rubric + boundary visualization
 - 86bbkru66  Multi-agent scaling limits: where does specialist-squad coordination hit diminishing returns?
 - 86bbkr4aa  Hands-on: TransformerLens mechanistic interpretability exploration
 - 86bbkr48x  Task-complexity framework: analytical + empirical, state kept external to models
-- 86bbk2nkb  OmniRoute as squad-bootstrap infra on the Omen (non-training-critical roles, with provider provenance tracking)
 - 86bbk1kqr  Explore self-play / asymmetric self-play for generating coder specialist training problems
 - 86bbjzmhp  Claude Code session as live teacher-student loop for coder specialist (hooks-based)
 - 86bbjrt4d  Nova internal shape visualizer: UMAP on Chroma chunks + cross-specialist RSA
@@ -57,13 +66,9 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bbezc34  Eval Harness — Initiative 7: accumulated-failure tracking (integral signal)
 - 86bbch9cy  Coding specialist: explore structure-aware (AST-level) action primitives
 - 86bbch9ak  Coding specialist: define verifiable task template (narrow scope + objective check)
-- 86bbch95y  Coding specialist: design constrained action-space interface (ACI)
 - 86bbcfvay  Eval Harness — Initiative 5: per-specialist vetting harness
 - 86bbcfvak  Eval Harness — Initiative 4: guardrail — verifier stays inference-time only
 - 86bbcfva4  Eval Harness — Initiative 3: add inference-time verifier
-- 86bbcfpd1  Nova Training Pipeline — Phase 5: hybrid verification at inference time
-- 86bbcfpck  Nova Training Pipeline — Phase 4: DPO difficulty filtering
-- 86bbcfpbg  Nova Training Pipeline — Phase 2: grounded execution-based refinement (per module)
 - 86bb77vk6  Completion gate misses cross-module circular imports (found live in 86bb71a0f re-eval, task 6)
 - 86bb73bjz  Screen BF16/FP8 vs AWQ INT4 on held-out eval before committing to AWQ as production format
 - 86bb72wfy  Test tool_choice="required" to stop over-explaining (verify against known Qwen3+reasoning parser bug)
@@ -79,8 +84,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bb3qvpa  Integrate slop_linter.py into Nova pipeline (tight mode / STE-100 style check)
 - 86bb3pgnc  Marimo Adoption — Reactive Notebook Tooling
 - 86bb3p8xw  Automation Handover Package — Reusable Template
-- 86bb3ceyp  Nova Controller: push notifications (Layer 3)
-- 86bb3ceym  Nova Controller: pre-action approval gate (policy-based, not agent-judgment)
 - 86bb1nu7u  Prototype TabFM classifier for Nova blend-detection + routing gates
 - 86bb0wp16  Spec: Fine-Tune CI/CD Pipeline (data-volume-triggered retraining)
 - 86bb0we34  Evaluate Karakeep for tagged/indexed social content archive (content pipeline + Nova ingestion)
@@ -102,7 +105,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86baxbeuc  Tactical practice-mode LLM opponent (PokéChamp-style, turn-based grid tactics)
 - 86baxb10x  Visual sequence capture: lightweight frame/video recording for agent + game sessions
 - 86bax8bb5  Capability–understanding differential scorer (Nova vs. Marvin)
-- 86bawx7vj  Headless Nova coding: usage-aware autonomous runner + branch-based diff confirmation
 - 86bawpvzz  [Initiative — not scoped] Autonomous coding sessions — Nova writes its own code to build local-model training data
 - 86bawpc67  Vivarium experiment: bidirectional visual control panel for Nova
 - 86bawpc5v  Set up watchdog-based hot-restart pattern for Nova services
@@ -147,6 +149,7 @@ falls back to querying ClickUp directly if it looks stale.
 - 86bara3u1  Spec: Temporal awareness layer
 - 86bara3tj  Spec + Build: Chunk visualization tool — RAG retrieval audit
 - 86bara3pp  Pixel RAG layer — visual retrieval path (CLIP + ColPali)
+- 86bage4ff  Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)
 - 86bafvrff  Brute force trail depth test — establish λ and parallel work nominal rates
 - 86bafvrek  Implement two-tier memory decay in nova_memory_store.py
 - 86bafvrd3  Implement priority queue routing in nova_router.py
@@ -157,6 +160,6 @@ falls back to querying ClickUp directly if it looks stale.
 - 86baf72n5  MCP tool-calling integration (ClickUp, Drive, Calendar, Slack)
 - 86baf4eah  Hosted inference fallback (Groq / Together.ai / Fireworks)
 - 86baf4e29  Dockerize Nova services
-- 86baeyg3q  Voice interface (Whisper + Piper)
+- 86baeyg3q  Voice interface (Whisper + Piper) — full tier (Minimal tier shipped 2026-07-19)
 - 86baeyg1h  First fine-tune pass (Unsloth + DPO → GGUF → Ollama)
 - 86baeyfua  Link-aware ingestion upgrade (Option B)

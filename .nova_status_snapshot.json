@@ -1,12 +1,16 @@
 {
   "ready": [
     {
-      "id": "86bbvcbcv",
-      "name": "Nova Tutor \u2014 Overworld Phase 6: Interaction logging (multimodal training-signal capture)"
+      "id": "86bc24af9",
+      "name": "Nova Tutor: hint-ladder + mode-switching pedagogy layer (tutor/examiner/reviewer)"
     },
     {
-      "id": "86bbvcbcp",
-      "name": "Nova Tutor \u2014 Overworld Phase 5: Procedural trial rooms (coding + hand-derivation)"
+      "id": "86bc23nbe",
+      "name": "Coding specialist: speculative pre-execution of read-only ACI actions (branch-prediction pattern)"
+    },
+    {
+      "id": "86bby2de0",
+      "name": "Understudy \u2014 dev-time Socratic learning toolkit"
     },
     {
       "id": "86bbvcbby",
@@ -31,10 +35,6 @@
     {
       "id": "86bbkr48x",
       "name": "Task-complexity framework: analytical + empirical, state kept external to models"
-    },
-    {
-      "id": "86bbk2nkb",
-      "name": "OmniRoute as squad-bootstrap infra on the Omen (non-training-critical roles, with provider provenance tracking)"
     },
     {
       "id": "86bbk1kqr",
@@ -89,10 +89,6 @@
       "name": "Coding specialist: define verifiable task template (narrow scope + objective check)"
     },
     {
-      "id": "86bbch95y",
-      "name": "Coding specialist: design constrained action-space interface (ACI)"
-    },
-    {
       "id": "86bbcfvay",
       "name": "Eval Harness \u2014 Initiative 5: per-specialist vetting harness"
     },
@@ -103,18 +99,6 @@
     {
       "id": "86bbcfva4",
       "name": "Eval Harness \u2014 Initiative 3: add inference-time verifier"
-    },
-    {
-      "id": "86bbcfpd1",
-      "name": "Nova Training Pipeline \u2014 Phase 5: hybrid verification at inference time"
-    },
-    {
-      "id": "86bbcfpck",
-      "name": "Nova Training Pipeline \u2014 Phase 4: DPO difficulty filtering"
-    },
-    {
-      "id": "86bbcfpbg",
-      "name": "Nova Training Pipeline \u2014 Phase 2: grounded execution-based refinement (per module)"
     },
     {
       "id": "86bb77vk6",
@@ -175,14 +159,6 @@
     {
       "id": "86bb3p8xw",
       "name": "Automation Handover Package \u2014 Reusable Template"
-    },
-    {
-      "id": "86bb3ceyp",
-      "name": "Nova Controller: push notifications (Layer 3)"
-    },
-    {
-      "id": "86bb3ceym",
-      "name": "Nova Controller: pre-action approval gate (policy-based, not agent-judgment)"
     },
     {
       "id": "86bb1nu7u",
@@ -267,10 +243,6 @@
     {
       "id": "86bax8bb5",
       "name": "Capability\u2013understanding differential scorer (Nova vs. Marvin)"
-    },
-    {
-      "id": "86bawx7vj",
-      "name": "Headless Nova coding: usage-aware autonomous runner + branch-based diff confirmation"
     },
     {
       "id": "86bawpvzz",
@@ -449,6 +421,10 @@
       "name": "Pixel RAG layer \u2014 visual retrieval path (CLIP + ColPali)"
     },
     {
+      "id": "86bage4ff",
+      "name": "Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)"
+    },
+    {
       "id": "86bafvrff",
       "name": "Brute force trail depth test \u2014 establish \u03bb and parallel work nominal rates"
     },
@@ -490,7 +466,7 @@
     },
     {
       "id": "86baeyg3q",
-      "name": "Voice interface (Whisper + Piper)"
+      "name": "Voice interface (Whisper + Piper) \u2014 full tier (Minimal tier shipped 2026-07-19)"
     },
     {
       "id": "86baeyg1h",
@@ -546,10 +522,6 @@
     {
       "id": "86bage4ff",
       "name": "Design & Build: Content Transformation Pipeline (Nova-orchestrated, template-driven)"
-    },
-    {
-      "id": "86baf72qq",
-      "name": "Docker sub-agent orchestration \u2014 ephemeral task containers"
     },
     {
       "id": "86baf4e70",

@@ -77,7 +77,11 @@ def _diff_snapshots(previous: dict | None, current: dict) -> list[str]:
             changes.append(f"{prev_by_id[task_id][0]} -> {category}: {task_id} ({name})")
     for task_id, (category, name) in prev_by_id.items():
         if task_id not in curr_by_id:
-            changes.append(f"{category} -> complete/removed: {task_id} ({name})")
+            # The snapshot only holds ready/blocked/in-progress, so it cannot tell a
+            # closed task from one that merely gained an unresolved dependency.
+            changes.append(
+                f"{category} -> left digest (completed, removed, or now waiting on a dependency): {task_id} ({name})"
+            )
 
     return changes or ["No category changes since last digest."]
 
